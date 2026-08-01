@@ -111,18 +111,24 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
     setTimeout(() => setNotice(null), 5000)
   }
 
+  const [docToDelete, setDocToDelete] = React.useState<{ id: string; name: string } | null>(null)
+
   // Action 3: Supprimer définitivement un document
-  const handleDeleteDocument = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteDocument = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     const target = documents.find(d => d.id === id)
     if (!target) return
+    setDocToDelete({ id: target.id, name: target.name })
+  }
 
-    if (confirm(`Voulez-vous vraiment supprimer définitivement le document "${target.name}" ?Cette action est consignée dans le journal d'audit.`)) {
-      setDocuments(prev => prev.filter(d => d.id !== id))
-      await deleteDocumentRecord(id)
-      setNotice(`🗑️ Document "${target.name}" supprimé définitivement du coffre-fort client.`)
-      setTimeout(() => setNotice(null), 5000)
-    }
+  const confirmDeleteDocument = async () => {
+    if (!docToDelete) return
+    const { id, name } = docToDelete
+    setDocuments(prev => prev.filter(d => d.id !== id))
+    await deleteDocumentRecord(id)
+    setNotice(`🗑️ Document "${name}" supprimé définitivement du coffre-fort client.`)
+    setDocToDelete(null)
+    setTimeout(() => setNotice(null), 5000)
   }
 
   // Action 4: Réintégrer un document archivé dans le dossier actif
@@ -674,6 +680,45 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
                 <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-900 text-white font-bold hover:bg-indigo-950 shadow-md">Téléverser dans le Coffre-Fort</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SUR-MESURE DE CONFIRMATION DE SUPPRESSION DOCUMENT */}
+      {docToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setDocToDelete(null)}>
+          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 flex flex-col items-center text-center gap-5" onClick={(e) => e.stopPropagation()}>
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center font-bold shadow-xs shrink-0">
+              <Trash2 className="w-7 h-7" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-black text-slate-900">Supprimer Définitivement</h3>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                Voulez-vous vraiment supprimer définitivement le document <strong className="text-slate-900 font-mono">&quot;{docToDelete.name}&quot;</strong> ?
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Cette action est irréversible et sera inscrite dans le journal d&apos;audit du cabinet.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 w-full pt-2">
+              <button
+                type="button"
+                onClick={() => setDocToDelete(null)}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmDeleteDocument}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+              >
+                Supprimer
+              </button>
+            </div>
           </div>
         </div>
       )}

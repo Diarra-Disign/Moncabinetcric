@@ -73,13 +73,20 @@ export function ConnectorClient({
     setTimeout(() => setNotice(null), 6000)
   }
 
-  const handleRevokeKey = async (id: string, name: string) => {
-    if (confirm(`Voulez-vous vraiment révoquer la clé API "${name}" ?`)) {
-      setApiKeys(prev => prev.map(k => k.id === id ? { ...k, isActive: false } : k))
-      await revokeAiApiKey(id)
-      setNotice(`🚫 Clé API "${name}" révoquée.`)
-      setTimeout(() => setNotice(null), 5000)
-    }
+  const [keyToRevoke, setKeyToRevoke] = React.useState<{ id: string; name: string } | null>(null)
+
+  const handleRevokeKey = (id: string, name: string) => {
+    setKeyToRevoke({ id, name })
+  }
+
+  const confirmRevokeKey = async () => {
+    if (!keyToRevoke) return
+    const { id, name } = keyToRevoke
+    setApiKeys(prev => prev.map(k => k.id === id ? { ...k, isActive: false } : k))
+    await revokeAiApiKey(id)
+    setNotice(`🚫 Clé API "${name}" révoquée.`)
+    setKeyToRevoke(null)
+    setTimeout(() => setNotice(null), 5000)
   }
 
   const copyToClipboard = (text: string, label: string) => {
@@ -463,6 +470,45 @@ export function ConnectorClient({
                 <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-900 text-white font-bold hover:bg-indigo-950 shadow-md">Générer la Clé</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL SUR-MESURE DE CONFIRMATION DE RÉVOCATION (Design MonCabinetCRIC) */}
+      {keyToRevoke && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setKeyToRevoke(null)}>
+          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 flex flex-col items-center text-center gap-5" onClick={(e) => e.stopPropagation()}>
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center font-bold shadow-xs shrink-0">
+              <Ban className="w-7 h-7" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-black text-slate-900">Confirmer la Révocation</h3>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                Voulez-vous vraiment révoquer la clé API <strong className="text-slate-900 font-mono">&quot;{keyToRevoke.name}&quot;</strong> ?
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                L&apos;assistant IA configuré avec cette clé ne pourra plus accéder à votre compte.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-center gap-3 w-full pt-2">
+              <button
+                type="button"
+                onClick={() => setKeyToRevoke(null)}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmRevokeKey}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+              >
+                Révoquer la Clé
+              </button>
+            </div>
           </div>
         </div>
       )}
