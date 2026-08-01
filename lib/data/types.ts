@@ -314,3 +314,37 @@ export interface ActionApprovalRecord {
   status: "pending" | "approved" | "rejected" | "executed"
   amountCents?: number
 }
+
+export interface AiConnectorSettings {
+  enabled: boolean
+  enabledBy: string // "Me Adama Diarra (Owner)"
+  enabledAt?: string
+  allowedMemberIds: string[]
+  allowedActions: string[]
+  reservedHumanActions: string[]
+  guideUrl: string // "rcicapp.ca/connector"
+}
+
+export interface AiApiKeyRecord {
+  id: string
+  name: string // "ChatGPT Custom GPT - Me Diarra"
+  keyPrefix: string // "cric_live_7a8b..."
+  secretHash: string
+  createdForMemberId: string
+  createdForMemberName: string
+  createdAt: string
+  lastUsedAt?: string
+  isActive: boolean
+}
+
+export interface AiConnectorLogRecord {
+  id: string
+  occurredAt: string
+  apiKeyPrefix: string
+  clientIp: string
+  action: string
+  resourceId?: string
+  status: "success" | "forbidden_reserved" | "disabled" | "error"
+  summary: string
+  rowHash: string
+}

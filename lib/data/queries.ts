@@ -162,3 +162,33 @@ export async function getApprovalQueue(): Promise<ActionApprovalRecord[]> {
   const { MOCK_APPROVAL_QUEUE } = await import("./mock/audit")
   return MOCK_APPROVAL_QUEUE
 }
+
+import { INITIAL_AI_CONNECTOR_SETTINGS, INITIAL_AI_API_KEYS, INITIAL_AI_CONNECTOR_LOGS } from "./mock/connector"
+import { AiConnectorSettings, AiApiKeyRecord, AiConnectorLogRecord } from "./types"
+
+let aiConnectorSettingsStore: AiConnectorSettings = { ...INITIAL_AI_CONNECTOR_SETTINGS }
+let aiApiKeysStore: AiApiKeyRecord[] = [...INITIAL_AI_API_KEYS]
+let aiConnectorLogsStore: AiConnectorLogRecord[] = [...INITIAL_AI_CONNECTOR_LOGS]
+
+export async function getAiConnectorSettings(): Promise<AiConnectorSettings> {
+  return aiConnectorSettingsStore
+}
+
+export async function getAiApiKeys(): Promise<AiApiKeyRecord[]> {
+  return aiApiKeysStore
+}
+
+export async function getAiConnectorLogs(): Promise<AiConnectorLogRecord[]> {
+  return aiConnectorLogsStore
+}
+
+export function _getAiStores() {
+  return {
+    aiConnectorSettingsStore,
+    aiApiKeysStore,
+    aiConnectorLogsStore,
+    setAiConnectorSettingsStore: (val: AiConnectorSettings) => { aiConnectorSettingsStore = val },
+    setAiApiKeysStore: (val: AiApiKeyRecord[]) => { aiApiKeysStore = val },
+    setAiConnectorLogsStore: (val: AiConnectorLogRecord[]) => { aiConnectorLogsStore = val }
+  }
+}

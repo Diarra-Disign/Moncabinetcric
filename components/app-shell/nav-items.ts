@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FolderOpen, Calendar, FileText, Settings, Building2, Files, FileSignature, AlertTriangle } from "lucide-react"
+import { LayoutDashboard, Users, FolderOpen, Calendar, FileText, Settings, Building2, Files, FileSignature, AlertTriangle, Bot } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 export interface NavItem {
@@ -20,5 +20,6 @@ export const MAIN_NAV: NavItem[] = [
 
 export const OTHER_NAV: NavItem[] = [
   { labelKey: "billing", href: "/billing", icon: FileText },
+  { labelKey: "connector", href: "/settings/connector", icon: Bot },
   { labelKey: "settings", href: "/settings", icon: Settings },
 ]
