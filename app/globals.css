@@ -1,0 +1,220 @@
+@import "tailwindcss";
+
+:root {
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  
+  --primary: #1D4ED8;
+  --primary-hover: #1E40AF;
+  --primary-foreground: #FFFFFF;
+
+  --gold: #D97706;
+  --gold-foreground: #FFFFFF;
+
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  
+  --border: #E2E8F0;
+  
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  
+  /* UI/UX Pro Max Extended Design Tokens */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.08);
+
+  --glass-dark-bg: rgba(15, 23, 42, 0.65);
+  --glass-dark-border: rgba(255, 255, 255, 0.12);
+}
+
+/* Dynamic Cabinet Color Themes */
+html[data-cabinet-theme="emerald"] {
+  --primary: #059669;
+  --primary-hover: #047857;
+}
+
+html[data-cabinet-theme="amber"] {
+  --primary: #D97706;
+  --primary-hover: #B45309;
+}
+
+html[data-cabinet-theme="purple"] {
+  --primary: #7C3AED;
+  --primary-hover: #6D28D9;
+}
+
+html[data-cabinet-theme="sapphire"] {
+  --primary: #1D4ED8;
+  --primary-hover: #1E40AF;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* UI/UX Pro Max Glassmorphism & Animations */
+.glass-effect {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-effect-dark {
+  background: var(--glass-dark-bg);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--glass-dark-border);
+}
+
+/* Focus Visible WCAG Accessibility */
+*:focus-visible {
+  outline: 2px solid #2563EB !important;
+  outline-offset: 2px !important;
+}
+
+/* Smooth keyframes */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 6s ease-in-out infinite;
+}
+
+/* Print Stylesheet for Official CICC Contract & Audit PDF Exports */
+@media print {
+  /* Hide all non-essential UI elements during print */
+  nav,
+  header,
+  aside,
+  .no-print,
+  #custom-download-alert,
+  button {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Reset layout for full page print */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Unwrap modal overlays so long documents flow naturally across pages */
+  .fixed.inset-0,
+  #printable-contract-modal,
+  #printable-billing-modal {
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    display: block !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Virtual printable document sheet */
+  .printable-document {
+    padding: 0.5cm !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
+    color: #000000 !important;
+  }
+
+  /* Table pagination rules: allow tables to break gracefully across pages */
+  .printable-document table {
+    width: 100% !important;
+    page-break-inside: auto !important;
+  }
+  
+  .printable-document tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  .printable-document thead {
+    display: table-header-group !important;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid !important;
+  }
+}
+
+@page audit-landscape {
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
+  .printable-landscape {
+    page: audit-landscape;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+
+

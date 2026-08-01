@@ -1,0 +1,449 @@
+"use client"
+
+import * as React from "react"
+import { 
+  Building2, 
+  User, 
+  ShieldCheck, 
+  CreditCard, 
+  Video, 
+  Calendar, 
+  Save, 
+  CheckCircle2, 
+  Sparkles, 
+  Lock, 
+  FileText, 
+  DollarSign, 
+  Globe, 
+  Key, 
+  Upload,
+  Check
+} from "lucide-react"
+import { PageHeader } from "@/components/app-shell/page-header"
+import { useRouter } from "@/i18n/routing"
+
+export function SettingsClient() {
+  const router = useRouter()
+  const [activeTab, setActiveTab] = React.useState<"cabinet" | "taxes" | "stripe" | "zoom">("cabinet")
+  const [notice, setNotice] = React.useState<string | null>(null)
+
+  // Cabinet state
+  const [companyName, setCompanyName] = React.useState("Cabinet Immigration Boréale Inc.")
+  const [rcicNumber, setRcicNumber] = React.useState("R-514982")
+  const [rcicName, setRcicName] = React.useState("M. Adama Diarra")
+  const [address, setAddress] = React.useState("1000 Rue Sherbrooke Ouest, Bureau 1400, Montréal, QC H3A 3G4")
+  const [phone, setPhone] = React.useState("+1 (514) 555-0100")
+  const [email, setEmail] = React.useState("contact@immigrations-boreale.ca")
+  const [logoUrl, setLogoUrl] = React.useState("https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?auto=format&fit=crop&w=120&q=80")
+
+  // Taxes state
+  const [tpsNumber, setTpsNumber] = React.useState("123456789 RT0001")
+  const [tvqNumber, setTvqNumber] = React.useState("1234567890 TQ0001")
+  const [autoTaxExempt, setAutoTaxExempt] = React.useState(true)
+
+  // Stripe State
+  const [stripeConnected, setStripeConnected] = React.useState(true)
+  const [stripeAccountId, setStripeAccountId] = React.useState("acct_1M89x2KkL90aZZ2")
+  const [publishableKey, setPublishableKey] = React.useState("pk_live_51M89x2KkL90aZZ2...")
+
+  // Zoom / Meet / Calendly State
+  const [zoomConnected, setZoomConnected] = React.useState(true)
+  const [zoomEmail, setZoomEmail] = React.useState("a.diarra@immigrations-boreale.ca")
+  const [calendlyUrl, setCalendlyUrl] = React.useState("https://calendly.com/me-adama-diarra/consultation-30min")
+  const [preferredPlatform, setPreferredPlatform] = React.useState<"calendly" | "zoom" | "google_meet">("calendly")
+
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault()
+    setNotice("Paramètres du cabinet et clés APIs mis à jour avec succès !")
+    setTimeout(() => setNotice(null), 5000)
+  }
+
+  return (
+    <div className="flex flex-col gap-8 pb-16">
+      
+      {/* NOTICE BANNER */}
+      {notice && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-3xl p-4 flex items-center justify-between shadow-md animate-fadeIn">
+          <div className="flex items-center gap-3 font-bold text-xs sm:text-sm">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>{notice}</span>
+          </div>
+        </div>
+      )}
+
+      <PageHeader
+        title="Paramètres Cabinet & Intégrations"
+        subtitle="Personnalisez les informations légales, numéros de taxe, intégrations Stripe et visioconférence de votre étude."
+        action={
+          <div className="flex items-center gap-3">
+            <button 
+              type="button"
+              onClick={() => router.push("/settings/audit")}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-all cursor-pointer"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Journal d&apos;Audit CICC & Approbations</span>
+            </button>
+
+            <button 
+              type="button"
+              onClick={handleSaveSettings}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>Enregistrer les Modifications</span>
+            </button>
+          </div>
+        }
+      />
+
+      {/* BANNIÈRE DE BIENVENUE MULTI-TENANT */}
+      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white rounded-3xl p-6 shadow-xl border border-blue-400/20 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="pointer-events-none absolute -top-24 -right-24 w-64 h-64 rounded-full bg-blue-500/20 blur-3xl" />
+        
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="h-12 w-12 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center font-black shadow-md shrink-0">
+            <Building2 className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-black tracking-tight text-white">Profil Cabinet CRIC & Intégrations APIs (V1 SaaS)</h2>
+              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                Multi-Tenant Isolé
+              </span>
+            </div>
+            <p className="text-xs text-white/70 mt-0.5">
+              Personnalisez les factures, numéros de taxes, Stripe Connect & visio Zoom de votre cabinet
+            </p>
+          </div>
+        </div>
+
+        <button 
+          type="button"
+          onClick={handleSaveSettings}
+          className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 text-xs font-bold transition-all shadow-md cursor-pointer self-end md:self-auto"
+        >
+          <Save className="w-4 h-4" />
+          <span>Enregistrer les Modifications</span>
+        </button>
+      </div>
+
+      {/* HEADER & ONGLETS DE NAVIGATION DE PARAMÈTRES */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab("cabinet")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "cabinet" ? "bg-white text-blue-600 shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Identité Cabinet & CICC</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("taxes")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "taxes" ? "bg-white text-blue-600 shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Taxes & Fidéicommis</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("stripe")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "stripe" ? "bg-white text-emerald-600 shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Stripe Connect (Paiements)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("zoom")}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === "zoom" ? "bg-white text-purple-600 shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <Video className="w-4 h-4" />
+            <span>Zoom & Google Calendar</span>
+          </button>
+        </div>
+      </div>
+
+      {/* CONTENU DE L'ONGLET SÉLECTIONNÉ */}
+      <form onSubmit={handleSaveSettings} className="bg-white rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 sm:p-8 flex flex-col gap-6">
+        
+        {/* TAB 1: IDENTITÉ CABINET */}
+        {activeTab === "cabinet" && (
+          <div className="flex flex-col gap-5 animate-fadeIn">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-black text-slate-900">Coordonnées Officielle du Cabinet CRIC</h3>
+              <p className="text-xs text-slate-500 font-medium">Ces informations apparaîtront sur vos factures, mandats CICC et portail client.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Raison Sociale / Nom du Cabinet</label>
+                <input
+                  type="text"
+                  required
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Nom du Consultant Principal (RCIC)</label>
+                <input
+                  type="text"
+                  required
+                  value={rcicName}
+                  onChange={(e) => setRcicName(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">N° de Permis / Licence CICC</label>
+                <input
+                  type="text"
+                  required
+                  value={rcicNumber}
+                  onChange={(e) => setRcicNumber(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all font-mono"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Adresse Physique du Cabinet au Canada</label>
+                <input
+                  type="text"
+                  required
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Courriel Professionnel Officiel</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Téléphone de Contact</label>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+              </div>
+
+              {/* GESTIONNAIRE DE LOGO DU CABINET */}
+              <div className="flex flex-col gap-2 sm:col-span-2 border-t border-slate-100 pt-4">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                  Logo Personnel du Cabinet (Affiché sur Ententes, Factures et Reçus CICC)
+                </label>
+                <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <div className="w-16 h-16 rounded-2xl border border-slate-300 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                    {logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logoUrl} alt="Logo Cabinet" className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <span className="font-black text-2xl text-slate-800 font-mono">M</span>
+                    )}
+                  </div>
+                  <div className="flex-1 flex flex-col gap-2 text-xs">
+                    <input 
+                      type="text" 
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      placeholder="URL de l'image de votre logo personnel (ou SVG/PNG)"
+                      className="w-full px-3.5 py-2 text-xs font-mono font-medium rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+                    />
+                    <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                      <Upload className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Ce logo sera imprimé en en-tête de toutes vos ententes de services, factures et reçus fidéicommis.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: TAXES & FIDÉICOMMIS */}
+        {activeTab === "taxes" && (
+          <div className="flex flex-col gap-5 animate-fadeIn">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-lg font-black text-slate-900">Matrice Fiscale & Numéros de Taxes Canadiennes</h3>
+              <p className="text-xs text-slate-500 font-medium">Configurez vos identifiants TPS/TVQ pour le calcul automatique sur les factures.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">N° de TPS / TVH (Canada Revenue Agency)</label>
+                <input
+                  type="text"
+                  required
+                  value={tpsNumber}
+                  onChange={(e) => setTpsNumber(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all font-mono"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">N° de TVQ (Revenu Québec)</label>
+                <input
+                  type="text"
+                  required
+                  value={tvqNumber}
+                  onChange={(e) => setTvqNumber(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all font-mono"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2 sm:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoTaxExempt}
+                    onChange={(e) => setAutoTaxExempt(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer"
+                  />
+                  <span>Exonérer automatiquement la TPS/TVQ pour les candidats résidant hors du Canada (Mention légale 0$)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: STRIPE CONNECT */}
+        {activeTab === "stripe" && (
+          <div className="flex flex-col gap-5 animate-fadeIn">
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">Intégration Stripe Connect (Paiements Fidéicommis & Général)</h3>
+                <p className="text-xs text-slate-500 font-medium">Encaissez les honoraires par carte de crédit sans gérer les données bancaires (Conforme PCI-DSS).</p>
+              </div>
+              <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono text-xs font-bold px-3 py-1 rounded-full">
+                <Check className="w-3.5 h-3.5" /> Connecté à Stripe
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700">Identifiant de Compte Stripe Connect :</span>
+                  <span className="font-mono text-xs font-black text-slate-900">{stripeAccountId}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-slate-200/60 pt-2">
+                  <span className="text-xs font-bold text-slate-700">Clé Publique (Publishable Key) :</span>
+                  <span className="font-mono text-xs text-slate-500">{publishableKey}</span>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 text-blue-900 p-4 rounded-2xl text-xs font-medium leading-relaxed flex items-start gap-2.5">
+                <Lock className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Isolation Fidéicommis :</strong> Les acomptes payés par carte bancaire sont dirigés directement vers votre sous-compte Fidéicommis Stripe avec rapprochement automatique dans le SaaS.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: CALENDLY & VISIOCONFÉRENCE */}
+        {activeTab === "zoom" && (
+          <div className="flex flex-col gap-5 animate-fadeIn">
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">Intégration Calendly & Visioconférence (Zoom / Google Meet)</h3>
+                <p className="text-xs text-slate-500 font-medium">Fournissez votre lien Calendly/TidyCal personnel ou utilisez la génération automatique Zoom/Meet pour vos clients.</p>
+              </div>
+              <span className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 border border-purple-300 font-mono text-xs font-bold px-3 py-1 rounded-full">
+                <Check className="w-3.5 h-3.5" /> Calendly & Zoom Activés
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Votre Lien de Réservation Calendly / TidyCal</label>
+                <div className="relative flex items-center">
+                  <Globe className="absolute left-3 w-4 h-4 text-slate-400" />
+                  <input
+                    type="url"
+                    placeholder="https://calendly.com/votre-nom/consultation"
+                    value={calendlyUrl}
+                    onChange={(e) => setCalendlyUrl(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 text-xs font-bold font-mono rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-600 focus:outline-none transition-all"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500">Ce lien sera proposé automatiquement à vos candidats sur leur Portail Client et dans vos signatures de courriels.</p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Mode de visioconférence par défaut</label>
+                <select
+                  value={preferredPlatform}
+                  onChange={(e) => setPreferredPlatform(e.target.value as "calendly" | "zoom" | "google_meet")}
+                  className="w-full px-4 py-2.5 text-xs font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-600 focus:outline-none transition-all"
+                >
+                  <option value="calendly">Utiliser mon lien Calendly (Prise de RDV libre par le client)</option>
+                  <option value="zoom">Zoom Video (Lien généré automatiquement)</option>
+                  <option value="google_meet">Google Meet (Lien généré via Google Calendar)</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Compte Zoom / Google Associé</label>
+                <input
+                  type="email"
+                  required
+                  value={zoomEmail}
+                  onChange={(e) => setZoomEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-purple-600 focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="md:col-span-2 bg-purple-50 border border-purple-200 text-purple-900 p-4 rounded-2xl text-xs font-medium leading-relaxed flex items-start gap-2.5">
+                <Video className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Synchronisation bidirectionnelle :</strong> Lorsqu&apos;un client choisit un créneau via votre lien Calendly ou que vous planifiez une visio depuis sa fiche dossier, la date et le lien de rencontre sont synchronisés en temps réel sur le <strong>Portail Client</strong>.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Save button */}
+        <div className="flex items-center justify-end pt-4 border-t border-slate-100">
+          <button
+            type="submit"
+            className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-xs font-bold shadow-md transition-all cursor-pointer"
+          >
+            <Save className="w-4 h-4" />
+            <span>Enregistrer les Paramètres</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  )
+}

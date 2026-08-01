@@ -1,0 +1,387 @@
+{
+  "Index": {
+    "title": "Bienvenue"
+  },
+  "Navigation": {
+    "dashboard": "Tableau de bord",
+    "deadlines": "Échéances & Alertes",
+    "clients": "Clients",
+    "matters": "Dossiers",
+    "agreements": "Ententes de service",
+    "pipeline": "Pipeline",
+    "tasks": "Tâches",
+    "calendar": "Calendrier",
+    "billing": "Facturation",
+    "reports": "Rapports",
+    "settings": "Paramètres",
+    "main": "Principal",
+    "other": "Autres",
+    "search": "Recherche globale",
+    "searchPlaceholder": "Rechercher un client, dossier...",
+    "notifications": "Notifications",
+    "documents": "Documents",
+    "menu": "Menu de navigation",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu"
+  },
+  "Documents": {
+    "title": "Documents",
+    "newDocument": "+ Nouveau document",
+    "folders": {
+      "visas": "Visas & Permis",
+      "contracts": "Contrats/Mandats",
+      "identity": "Preuves d'identité",
+      "forms": "Formulaires IRCC"
+    },
+    "recentFiles": "Derniers fichiers",
+    "import": "Importer",
+    "renew": "Renouveler",
+    "complete": "Compléter",
+    "search": "Rechercher...",
+    "sortBy": "Trier par",
+    "table": {
+      "type": "Type",
+      "fileId": "Fichier ID",
+      "uploadedBy": "Téléversé par",
+      "date": "Date",
+      "expiration": "Expiration",
+      "source": "Source",
+      "status": "Statut"
+    },
+    "status": {
+      "valid": "Valide",
+      "invalid": "Invalide",
+      "incomplete": "Incomplet",
+      "expired": "Expiré",
+      "pendingReview": "En révision"
+    },
+    "compliance": {
+      "title": "Conformité des documents",
+      "valid": "Documents valides",
+      "pending": "En attente",
+      "warning": "Certains documents sont expirés, incomplets ou invalides. Révisez-les pour éviter des retards."
+    },
+    "storage": {
+      "title": "Utilisation du stockage",
+      "used": "utilisé sur 500GB",
+      "policyFiles": "Fichiers de dossiers",
+      "registrations": "Preuves & Identité",
+      "reports": "Rapports & Contrats"
+    }
+  },
+  "Landing": {
+    "nav": {
+      "product": "Produit",
+      "solution": "Pour Cabinets CICC",
+      "features": "Fonctionnalités",
+      "testimonials": "Conformité",
+      "faq": "FAQ",
+      "bookDemo": "Réserver une démo",
+      "login": "Espace Cabinet"
+    },
+    "hero": {
+      "badge": "✦ NOUVEAU : CONFORMITÉ CICC & RAPPELS AUTOMATIQUES",
+      "title": "L'excellence opérationnelle pour cabinets d'immigration.",
+      "subtitle": "Éliminez les erreurs de suivi, automatisez vos rappels d'échéances IRCC/MIFI et offrez à vos clients un portail documentaire d'exception.",
+      "ctaPrimary": "Réserver une démo privée",
+      "ctaSecondary": "Explorer le portail client"
+    },
+    "stats": {
+      "stat1Value": "99.8%",
+      "stat1Label": "De conformité documentaire aux audits",
+      "stat2Value": "0 oubli",
+      "stat2Label": "Sur les échéances critiques et visas",
+      "stat3Value": "3x plus rapide",
+      "stat3Label": "Pour constituer un dossier complet"
+    },
+    "features": {
+      "sectionBadge": "CONÇU POUR LE DROIT DE L'IMMIGRATION",
+      "sectionTitle": "Une architecture pensée pour la rigueur et la clarté.",
+      "sectionSubtitle": "Chaque module résout un point de friction réel des consultants réglementés : données uniques, zéro saisie en double, traçabilité absolue.",
+      "f1Title": "Conformité Documentaire & Audits",
+      "f1Desc": "Fini les vérifications manuelles. Suivez en temps réel la validité de chaque passeport, formulaire IMM et preuve financière avec des alertes d'expiration automatiques.",
+      "f2Title": "Portail Client Sécurisé & Zéro-Friction",
+      "f2Desc": "Vos clients déposent leurs pièces dans un espace chiffré clair, suivent l'avancement de leur demande et reçoivent des instructions précises sans échange d'e-mails interminable.",
+      "f3Title": "Pipeline Commercial & Cycle de Vie",
+      "f3Desc": "Séparez nettement la prospection commerciale de la gestion de dossier. Convertissez un prospect en client en un clic sans jamais perdre son historique de communication.",
+      "f4Title": "Traçabilité & Exonération Fiscale",
+      "f4Desc": "Gestion native des règles fiscales provinciales canadiennes et exonérations internationales, couplées au journal d'audit infalsifiable exigé par le Collège."
+    },
+    "pricing": {
+      "badge": "TARIFICATION TRANSPARENTE",
+      "title": "Un investissement rentable dès le premier dossier",
+      "subtitle": "Pas de coûts cachés. Choisissez le forfait adapté à la taille de votre cabinet.",
+      "monthly": "Mensuel",
+      "annual": "Annuel (-20%)",
+      "basic": {
+        "name": "Consultant Solo",
+        "price": "99$",
+        "priceAnnual": "79$",
+        "desc": "L'essentiel pour sécuriser votre pratique indépendante et professionnaliser votre accueil client.",
+        "f1": "Jusqu'à 50 dossiers actifs simultanés",
+        "f2": "Portail client documentaire à votre marque",
+        "f3": "Alertes d'expiration & rappels automatiques",
+        "f4": "Génération de checklist par type de visa",
+        "btn": "Démarrer l'essai gratuit"
+      },
+      "business": {
+        "name": "Cabinet Pro",
+        "price": "199$",
+        "priceAnnual": "159$",
+        "desc": "Le standard d'excellence pour les cabinets en croissance exigeant une coordination parfaite.",
+        "f1": "Dossiers clients & stockage illimités",
+        "f2": "Gestion multi-utilisateurs & rôles sur mesure",
+        "f3": "Journal d'audit réglementaire complet (CICC)",
+        "f4": "Support prioritaire & intégration fiscale",
+        "badge": "RECOMMANDÉ",
+        "btn": "Passer au forfait Pro"
+      },
+      "enterprise": {
+        "name": "Grandes Études",
+        "price": "Sur mesure",
+        "desc": "Une infrastructure dédiée pour les réseaux et cabinets multi-succursales à fort volume.",
+        "f1": "Accompagnement à la migration de données",
+        "f2": "Responsable de compte & conformité dédié",
+        "f3": "Accès API & webhooks personnalisés",
+        "f4": "Audit de sécurité & SLA garanti à 99.9%",
+        "btn": "Contacter la direction"
+      }
+    },
+    "faq": {
+      "badge": "RÉPONSES CLAIRES",
+      "title": "Foire Aux Questions",
+      "q1": "Comment moncabinetcric assure-t-il la conformité avec les exigences du CICC ?",
+      "a1": "Notre architecture respecte strictement les normes de tenue de dossiers : journal d'audit infalsifiable horodaté par utilisateur, hébergement des données et séparation stricte des environnements de test et de production.",
+      "q2": "Quelle est la différence entre le pipeline commercial et le pipeline de dossiers ?",
+      "a2": "Le pipeline commercial suit vos prospects jusqu'à la signature de l'entente. Une fois converti, le client passe dans le pipeline réglementaire (IRCC / MIFI) avec ses échéances propres, sans jamais polluer vos statistiques de vente.",
+      "q3": "Mes clients à l'étranger sont-ils automatiquement exonérés des taxes canadiennes ?",
+      "a3": "Oui. Le système applique automatiquement les règles de taxation selon le pays de résidence de la fiche client (TPS/TVQ/TVH ou exonération internationale), avec mention légale sur la facture et possibilité de modification manuelle.",
+      "q4": "Puis-je exporter l'intégralité d'un dossier en cas de contrôle ou transfert ?",
+      "a4": "Absolument. En un seul clic, vous pouvez générer une archive complète (PDF consolidé ou ZIP) contenant l'historique, les notes, le contrat et toutes les pièces justificatives du client."
+    }
+  },
+  "Pipeline": {
+    "title": "Pipeline de Prospection Commerciale",
+    "subtitle": "Pilotez vos opportunités avant-mandat et convertissez vos prospects en dossiers réglementés CICC en un clic.",
+    "stats": {
+      "totalValue": "Valeur du Pipeline",
+      "activeLeads": "Prospects Actifs",
+      "conversionRate": "Taux de Conversion",
+      "b2bShare": "Part Corporative (B2B)"
+    },
+    "filters": {
+      "all": "Tous (B2B & B2C)",
+      "b2b": "Corporatif / Employeurs (B2B)",
+      "b2c": "Particuliers (B2C)",
+      "searchPlaceholder": "Rechercher un prospect ou une entreprise..."
+    },
+    "columns": {
+      "newLead": "Nouveau Prospect",
+      "consultation": "Consultation Planifiée",
+      "proposal": "Entente Envoyée",
+      "negotiation": "Négociation EIMT/LMIA",
+      "signed": "Mandat Signé"
+    },
+    "actions": {
+      "newProspect": "+ Nouveau Prospect",
+      "convertToMatter": "Convertir en Mandat CICC",
+      "viewDetails": "Détails & Historique",
+      "sendReminder": "Relancer",
+      "moveRight": "Avancer d'étape",
+      "moveLeft": "Reculer d'étape"
+    },
+    "badges": {
+      "b2b": "B2B CORPORATIF",
+      "b2c": "B2C PARTICULIER",
+      "scoreHigh": "Praticabilité : Élevée",
+      "scoreMed": "Praticabilité : Moyenne",
+      "scoreLow": "Praticabilité : À vérifier"
+    }
+  },
+  "Matters": {
+    "title": "Dossiers Réglementés CICC",
+    "subtitle": "Suivi réglementaire et état des procédures IRCC / MIFI de vos clients.",
+    "newMatter": "+ Nouveau Dossier",
+    "categories": {
+      "pr": "Résidence Permanente",
+      "prSub": "18 dossiers · 45 étapes CICC",
+      "work": "Permis de Travail / EIMT",
+      "workSub": "14 dossiers · 8 entreprises",
+      "study": "Permis d'Études / CAQ",
+      "studySub": "12 dossiers · Rentrées 2026",
+      "appeal": "Parrainages & Appels CISR",
+      "appealSub": "4 dossiers · Contentieux"
+    },
+    "filters": {
+      "all": "Tous",
+      "valid": "En règle",
+      "alert": "Attention J-18",
+      "review": "En révision IRCC",
+      "searchPlaceholder": "Rechercher par n° de dossier, client ou EIMT..."
+    },
+    "table": {
+      "id": "ID Dossier",
+      "client": "Client Principal / Entreprise",
+      "program": "Programme & Visa",
+      "openedDate": "Date d'ouverture",
+      "deadline": "Échéance Butoir",
+      "rcic": "RCIC Responsable",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "status": {
+      "valid": "En règle",
+      "alert": "Alerte J-18",
+      "review": "Audit CICC Ok",
+      "pending": "En attente client"
+    },
+    "statusLabels": {
+      "valid": "En règle",
+      "alert": "Alerte J-18",
+      "review": "Audit CICC Ok",
+      "pending": "En attente client"
+    },
+    "widgets": {
+      "complianceTitle": "Conformité & Audits CICC",
+      "validDocs": "48 Dossiers conformes",
+      "pendingReview": "4 En revue prioritaire",
+      "alertBanner": "Certaines échéances judiciaires approchent. Vérifiez les dossiers en alerte J-18 pour éviter les retards.",
+      "distributionTitle": "Répartition par Programme",
+      "totalActive": "48",
+      "totalActiveLabel": "Dossiers Actifs",
+      "prShare": "Résidence Permanente (EE/PQQ)",
+      "workShare": "Permis de travail & EIMT",
+      "studyShare": "Permis d'études & CAQ",
+      "appealShare": "Parrainages & Appels"
+    }
+  },
+  "Clients": {
+    "title": "Répertoire des Clients",
+    "subtitle": "Gestion unifiée des dossiers clients.",
+    "newClient": "+ Nouveau Client",
+    "stats": {
+      "total": "Total Clients",
+      "active": "Dossiers Actifs",
+      "pendingDocs": "En Attente Pièces",
+      "archived": "Corbeille (30j)"
+    },
+    "searchPlaceholder": "Rechercher par n° #CRIC, nom, courriel ou téléphone...",
+    "table": {
+      "fileNumber": "N° Dossier CRIC",
+      "name": "Client",
+      "contact": "Coordonnées",
+      "program": "Programme & Province",
+      "status": "Statut Parcours",
+      "actions": "Actions"
+    }
+  },
+  "Calendar": {
+    "title": "Agenda & Rencontres CICC",
+    "subtitle": "Planifiez vos rendez-vous clients, visioconférences et échéances IRCC avec synchronisation externe.",
+    "newAppointment": "+ Nouveau RDV / Consultation",
+    "views": {
+      "workweek": "Semaine de travail",
+      "week": "Semaine complète",
+      "month": "Mois",
+      "day": "Jour"
+    },
+    "styles": {
+      "grid": "Grille horodatée",
+      "list": "Liste synthétique"
+    },
+    "filters": {
+      "all": "Tous les événements",
+      "visio": "Consultations & Visioconférences",
+      "deadline": "Échéances IRCC & EIMT"
+    },
+    "sync": {
+      "title": "Synchronisation Calendriers",
+      "google": "Google Calendar",
+      "outlook": "Outlook 365",
+      "ical": "Apple iCal (.ics)"
+    }
+  },
+  "Billing": {
+    "title": "Facturation & Fidéicommis",
+    "subtitle": "Gestion comptable, factures, reçus automatiques et rapprochement fiduciaire CICC.",
+    "newInvoice": "+ Nouvelle Facture",
+    "stats": {
+      "totalBilled": "Total Facturé",
+      "collected": "Encaissé (Fidéicommis)",
+      "pending": "En Attente Paiement",
+      "overdue": "Retards (> 30j)"
+    },
+    "searchPlaceholder": "Rechercher une facture ou un client...",
+    "table": {
+      "invoiceId": "N° Facture",
+      "client": "Client / Entreprise",
+      "amount": "Montant ($ CAD)",
+      "date": "Date Émission",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "status": {
+      "paid": "Payée",
+      "pending": "En attente",
+      "trust_reconciled": "Fidéicommis Réconcilié"
+    },
+    "filters": {
+      "all": "Toutes les factures",
+      "trust": "Compte Fidéicommis",
+      "general": "Compte Général",
+      "pending": "En attente de règlement",
+      "reconciled": "Réconciliées CICC"
+    }
+  },
+  "Dashboard": {
+    "title": "Tableau de bord",
+    "welcome": "Bienvenue sur votre espace",
+    "activeMatters": "Dossiers Actifs",
+    "activeMattersSub": "+2 depuis la semaine dernière",
+    "expiredDocs": "Documents Expirés",
+    "expiredDocsSub": "Action requise immédiatement",
+    "validatedDocs": "Documents Validés",
+    "validatedDocsSub": "Dans les 30 derniers jours",
+    "recentDocsTitle": "Documents Récents",
+    "recentDocsDesc": "Vos clients ont récemment uploadé ces documents.",
+    "uploadedAgo": "Téléversé il y a 2h",
+    "pending": "En attente",
+    "storageTitle": "Stockage"
+  },
+  "Portal": {
+    "title": "Bienvenue, Client !",
+    "subtitle": "Voici l'état de votre dossier d'immigration.",
+    "stepTitle": "Entrée Express - Étape 2/4",
+    "stepDesc": "Votre dossier est en bonne voie. Nous avons besoin de quelques documents supplémentaires pour finaliser la préparation de votre demande.",
+    "eval": "Évaluation",
+    "collect": "Collecte Docs",
+    "submit": "Soumission",
+    "decision": "Décision",
+    "actionRequired": "Action Requise",
+    "actionDesc": "Veuillez téléverser ces documents.",
+    "passportTitle": "Passeport valide",
+    "passportFormat": "Format PDF ou Image",
+    "uploadBtn": "Téléverser",
+    "validatedTitle": "Documents Validés",
+    "validatedDesc": "Aucune action nécessaire.",
+    "tefTitle": "Test de langue (TEF)",
+    "tefDate": "Validé le 12/10/2025",
+    "acceptedBadge": "Accepté"
+  },
+  "MatterDetail": {
+    "headerTitle": "Dossier d'immigration CICC",
+    "rcicResponsible": "RCIC Responsable",
+    "deadline": "Échéance Butoir",
+    "status": "Statut",
+    "timelineTitle": "Parcours IRCC / MIFI",
+    "checklistTitle": "Checklist des Pièces requises",
+    "checklistComplete": "Complété",
+    "linkedDocuments": "Documents du Dossier",
+    "linkedBilling": "Facturation Liée & Fidéicommis",
+    "auditLog": "Journal d'Audit CCIC",
+    "auditDesc": "Horodatage immuable des actions sur le dossier",
+    "valid": "Valide",
+    "expired": "Expiré",
+    "missing": "Manquant"
+  }
+}

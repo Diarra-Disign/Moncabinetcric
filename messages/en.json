@@ -1,0 +1,387 @@
+{
+  "Index": {
+    "title": "Welcome"
+  },
+  "Navigation": {
+    "dashboard": "Dashboard",
+    "deadlines": "Deadlines & Alerts",
+    "clients": "Clients",
+    "matters": "Matters",
+    "agreements": "Service Agreements",
+    "pipeline": "Pipeline",
+    "tasks": "Tasks",
+    "calendar": "Calendar",
+    "billing": "Billing",
+    "reports": "Reports",
+    "settings": "Settings",
+    "main": "Main",
+    "other": "Other",
+    "search": "Global search",
+    "searchPlaceholder": "Search clients, matters...",
+    "notifications": "Notifications",
+    "documents": "Documents",
+    "menu": "Navigation menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "Documents": {
+    "title": "Documents",
+    "newDocument": "+ New Document",
+    "folders": {
+      "visas": "Visas & Permits",
+      "contracts": "Contracts/Mandates",
+      "identity": "ID Proofs",
+      "forms": "IRCC Forms"
+    },
+    "recentFiles": "Recent Files",
+    "import": "Import",
+    "renew": "Renew",
+    "complete": "Complete",
+    "search": "Search...",
+    "sortBy": "Sort by",
+    "table": {
+      "type": "Type",
+      "fileId": "File ID",
+      "uploadedBy": "Uploaded by",
+      "date": "Date",
+      "expiration": "Expiration",
+      "source": "Source",
+      "status": "Status"
+    },
+    "status": {
+      "valid": "Valid",
+      "invalid": "Invalid",
+      "incomplete": "Incomplete",
+      "expired": "Expired",
+      "pendingReview": "Pending Review"
+    },
+    "compliance": {
+      "title": "Document Compliance",
+      "valid": "Valid Documents",
+      "pending": "Pending",
+      "warning": "Some documents are close to expiring, incomplete, or failed validation. Review now to avoid delays."
+    },
+    "storage": {
+      "title": "Storage Usage",
+      "used": "used out of 500GB",
+      "policyFiles": "Matter Files",
+      "registrations": "ID Proofs",
+      "reports": "Reports & Contracts"
+    }
+  },
+  "Landing": {
+    "nav": {
+      "product": "Product",
+      "solution": "For CICC Firms",
+      "features": "Features",
+      "testimonials": "Compliance",
+      "faq": "FAQ",
+      "bookDemo": "Book a Demo",
+      "login": "Firm Login"
+    },
+    "hero": {
+      "badge": "✦ NEW : CICC COMPLIANCE & AUTOMATED WARNINGS",
+      "title": "Operational excellence for immigration law firms.",
+      "subtitle": "Eliminate case tracking errors, automate IRCC/MIFI deadlines, and offer your clients an exceptional encrypted document portal.",
+      "ctaPrimary": "Request a Private Demo",
+      "ctaSecondary": "Explore Client Portal"
+    },
+    "stats": {
+      "stat1Value": "99.8%",
+      "stat1Label": "Audit compliance pass rate",
+      "stat2Value": "0 missed",
+      "stat2Label": "Critical IRCC/MIFI deadlines",
+      "stat3Value": "3x faster",
+      "stat3Label": "Application assembly turnaround"
+    },
+    "features": {
+      "sectionBadge": "BUILT FOR IMMIGRATION LAW",
+      "sectionTitle": "An architecture designed for precision and clarity.",
+      "sectionSubtitle": "Every module solves a real regulatory friction point: single source of truth, zero duplicate entry, absolute traceability.",
+      "f1Title": "Document Compliance & Audit Readiness",
+      "f1Desc": "No more manual checking. Track passport validity, IMM forms, and financial proofs in real time with automated expiration alerts.",
+      "f2Title": "Secure & Zero-Friction Client Portal",
+      "f2Desc": "Your clients upload their files into a structured encrypted vault, track their application progress, and follow clear guidance without email threads.",
+      "f3Title": "Sales Pipeline & Practice Lifecycle",
+      "f3Desc": "Keep commercial prospecting separate from regulatory casework. Convert a prospect to a mandate in one click while preserving communication history.",
+      "f4Title": "Traceability & International Taxation",
+      "f4Desc": "Native handling of Canadian provincial tax rules and international tax exemptions, paired with the immutable audit log required by the College."
+    },
+    "pricing": {
+      "badge": "TRANSPARENT PRICING",
+      "title": "A profitable investment from your very first case",
+      "subtitle": "No hidden fees. Choose the plan tailored to your firm's volume.",
+      "monthly": "Monthly",
+      "annual": "Annual (-20%)",
+      "basic": {
+        "name": "Solo Consultant",
+        "price": "$99",
+        "priceAnnual": "$79",
+        "desc": "Everything you need to secure your solo practice and elevate your client intake.",
+        "f1": "Up to 50 simultaneous active cases",
+        "f2": "Branded client document portal",
+        "f3": "Expiration alerts & automated reminders",
+        "f4": "Visa-specific checklist generator",
+        "btn": "Start Free Trial"
+      },
+      "business": {
+        "name": "Firm Pro",
+        "price": "$199",
+        "priceAnnual": "$159",
+        "desc": "The gold standard for growing firms demanding seamless team coordination.",
+        "f1": "Unlimited active cases & secure storage",
+        "f2": "Multi-user role & access management",
+        "f3": "Full regulatory audit trail (CICC compliant)",
+        "f4": "Priority support & tax engine integration",
+        "badge": "RECOMMENDED",
+        "btn": "Upgrade to Pro"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "price": "Custom",
+        "desc": "Dedicated infrastructure for multi-branch firms and high-volume networks.",
+        "f1": "White-glove data migration assistance",
+        "f2": "Dedicated account & compliance manager",
+        "f3": "Custom API access & secure webhooks",
+        "f4": "Security review & 99.9% uptime SLA",
+        "btn": "Contact Leadership"
+      }
+    },
+    "faq": {
+      "badge": "CLEAR ANSWERS",
+      "title": "Frequently Asked Questions",
+      "q1": "How does moncabinetcric ensure compliance with CICC regulations?",
+      "a1": "Our architecture strictly adheres to College record-keeping requirements: timestamped immutable user logs, Canadian data hosting, and strict segregation of staging and production data.",
+      "q2": "What is the difference between the commercial pipeline and the casework pipeline?",
+      "a2": "The commercial pipeline tracks prospects until retainer signature. Once converted, the client enters the regulatory pipeline (IRCC / MIFI) with distinct milestones, never skewing your sales analytics.",
+      "q3": "Are international clients automatically exempted from Canadian sales taxes?",
+      "a3": "Yes. Our tax engine automatically applies provincial rules (GST/PST/HST or international tax exemption) based on client residency, generating compliant invoices with manual override option.",
+      "q4": "Can I export an entire client file in case of an inspection or transfer?",
+      "a4": "Absolutely. In one click, you can generate a consolidated archive (merged PDF or ZIP) containing client history, notes, retainer agreements, and all uploaded proofs."
+    }
+  },
+  "Pipeline": {
+    "title": "Commercial Prospecting Pipeline",
+    "subtitle": "Manage your pre-mandate opportunities and convert prospects into CICC-regulated casework in one click.",
+    "stats": {
+      "totalValue": "Pipeline Value",
+      "activeLeads": "Active Prospects",
+      "conversionRate": "Conversion Rate",
+      "b2bShare": "Corporate Share (B2B)"
+    },
+    "filters": {
+      "all": "All (B2B & B2C)",
+      "b2b": "Corporate / Employers (B2B)",
+      "b2c": "Individuals (B2C)",
+      "searchPlaceholder": "Search for a prospect or employer..."
+    },
+    "columns": {
+      "newLead": "New Prospect",
+      "consultation": "Consultation Booked",
+      "proposal": "Retainer Sent",
+      "negotiation": "LMIA / Terms Negotiation",
+      "signed": "Mandate Signed"
+    },
+    "actions": {
+      "newProspect": "+ New Prospect",
+      "convertToMatter": "Convert to CICC Matter",
+      "viewDetails": "Details & History",
+      "sendReminder": "Send Follow-up",
+      "moveRight": "Move to next stage",
+      "moveLeft": "Move to previous stage"
+    },
+    "badges": {
+      "b2b": "B2B CORPORATE",
+      "b2c": "B2C INDIVIDUAL",
+      "scoreHigh": "Feasibility: High",
+      "scoreMed": "Feasibility: Medium",
+      "scoreLow": "Feasibility: Verify"
+    }
+  },
+  "Matters": {
+    "title": "CICC Regulated Matters",
+    "subtitle": "Regulatory compliance tracking and IRCC / MIFI procedure status for your clients.",
+    "newMatter": "+ New Matter",
+    "categories": {
+      "pr": "Permanent Residence",
+      "prSub": "18 files · 45 CICC steps",
+      "work": "Work Permits / LMIA",
+      "workSub": "14 files · 8 employers",
+      "study": "Study Permits / CAQ",
+      "studySub": "12 files · Fall 2026",
+      "appeal": "Sponsorships & CISR Appeals",
+      "appealSub": "4 files · Litigation"
+    },
+    "filters": {
+      "all": "All",
+      "valid": "Valid",
+      "alert": "Alert D-18",
+      "review": "IRCC Review",
+      "searchPlaceholder": "Search by matter #, client, or LMIA..."
+    },
+    "table": {
+      "id": "Matter ID",
+      "client": "Primary Client / Employer",
+      "program": "Program & Visa",
+      "openedDate": "Opened Date",
+      "deadline": "Target Deadline",
+      "rcic": "Assigned RCIC",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "valid": "Valid",
+      "alert": "Alert D-18",
+      "review": "CICC Audit Ok",
+      "pending": "Pending Client"
+    },
+    "statusLabels": {
+      "valid": "Valid",
+      "alert": "Alert D-18",
+      "review": "CICC Audit Ok",
+      "pending": "Pending Client"
+    },
+    "widgets": {
+      "complianceTitle": "CICC Compliance & Audit",
+      "validDocs": "48 Compliant Matters",
+      "pendingReview": "4 Priority Review",
+      "alertBanner": "Critical legal deadlines are approaching. Check matters in D-18 alert to avoid delays.",
+      "distributionTitle": "Program Distribution",
+      "totalActive": "48",
+      "totalActiveLabel": "Active Matters",
+      "prShare": "Permanent Residence (EE/QSW)",
+      "workShare": "Work Permits & LMIA",
+      "studyShare": "Study Permits & CAQ",
+      "appealShare": "Sponsorships & Appeals"
+    }
+  },
+  "Clients": {
+    "title": "Client Directory",
+    "subtitle": "Unified client management.",
+    "newClient": "+ New Client",
+    "stats": {
+      "total": "Total Clients",
+      "active": "Active Files",
+      "pendingDocs": "Pending Proofs",
+      "archived": "Trash (30d)"
+    },
+    "searchPlaceholder": "Search by #CRIC, name, email, or phone...",
+    "table": {
+      "fileNumber": "CRIC File #",
+      "name": "Client",
+      "contact": "Contact Details",
+      "program": "Program & Province",
+      "status": "Timeline Status",
+      "actions": "Actions"
+    }
+  },
+  "Calendar": {
+    "title": "Schedule & CICC Meetings",
+    "subtitle": "Schedule client appointments, video meetings, and IRCC deadlines with external calendar sync.",
+    "newAppointment": "+ New Appointment / Consultation",
+    "views": {
+      "workweek": "Work Week",
+      "week": "Full Week",
+      "month": "Month",
+      "day": "Day"
+    },
+    "styles": {
+      "grid": "Time Grid",
+      "list": "Synthetic List"
+    },
+    "filters": {
+      "all": "All Events",
+      "visio": "Consultations & Video Calls",
+      "deadline": "IRCC & LMIA Deadlines"
+    },
+    "sync": {
+      "title": "External Calendar Sync",
+      "google": "Google Calendar",
+      "outlook": "Outlook 365",
+      "ical": "Apple iCal (.ics)"
+    }
+  },
+  "Billing": {
+    "title": "Billing & Trust Accounts",
+    "subtitle": "Accounting, invoices, automated receipts, and CICC trust account reconciliation.",
+    "newInvoice": "+ New Invoice",
+    "stats": {
+      "totalBilled": "Total Billed",
+      "collected": "Collected (Trust)",
+      "pending": "Pending Payment",
+      "overdue": "Overdue (> 30d)"
+    },
+    "searchPlaceholder": "Search invoice or client...",
+    "table": {
+      "invoiceId": "Invoice #",
+      "client": "Client / Employer",
+      "amount": "Amount ($ CAD)",
+      "date": "Issue Date",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "paid": "Paid",
+      "pending": "Pending",
+      "trust_reconciled": "Trust Reconciled"
+    },
+    "filters": {
+      "all": "All Invoices",
+      "trust": "Trust Account",
+      "general": "General Account",
+      "pending": "Pending Payment",
+      "reconciled": "CICC Reconciled"
+    }
+  },
+  "Dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to your space",
+    "activeMatters": "Active Files",
+    "activeMattersSub": "+2 since last week",
+    "expiredDocs": "Expired Documents",
+    "expiredDocsSub": "Immediate action required",
+    "validatedDocs": "Validated Documents",
+    "validatedDocsSub": "In the last 30 days",
+    "recentDocsTitle": "Recent Documents",
+    "recentDocsDesc": "Your clients recently uploaded these documents.",
+    "uploadedAgo": "Uploaded 2h ago",
+    "pending": "Pending",
+    "storageTitle": "Storage"
+  },
+  "Portal": {
+    "title": "Welcome, Client!",
+    "subtitle": "Here is the status of your immigration matter.",
+    "stepTitle": "Express Entry - Step 2/4",
+    "stepDesc": "Your application is progressing well. We need a few more documents to finalize your submission.",
+    "eval": "Assessment",
+    "collect": "Doc Collection",
+    "submit": "Submission",
+    "decision": "Decision",
+    "actionRequired": "Action Required",
+    "actionDesc": "Please upload these documents.",
+    "passportTitle": "Valid Passport",
+    "passportFormat": "PDF or Image format",
+    "uploadBtn": "Upload",
+    "validatedTitle": "Validated Documents",
+    "validatedDesc": "No action required.",
+    "tefTitle": "Language Test (TEF)",
+    "tefDate": "Validated on 10/12/2025",
+    "acceptedBadge": "Accepted"
+  },
+  "MatterDetail": {
+    "headerTitle": "CICC Immigration Matter",
+    "rcicResponsible": "Responsible RCIC",
+    "deadline": "Legal Deadline",
+    "status": "Status",
+    "timelineTitle": "IRCC / MIFI Timeline",
+    "checklistTitle": "Required Documents Checklist",
+    "checklistComplete": "Completed",
+    "linkedDocuments": "Linked Documents",
+    "linkedBilling": "Linked Billing & Trust",
+    "auditLog": "CCIC Audit Log",
+    "auditDesc": "Immutable timestamp of matter actions",
+    "valid": "Valid",
+    "expired": "Expired",
+    "missing": "Missing"
+  }
+}
