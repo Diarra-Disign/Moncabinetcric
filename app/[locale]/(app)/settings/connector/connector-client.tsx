@@ -59,12 +59,17 @@ export function ConnectorClient({
     e.preventDefault()
     if (!newKeyName.trim()) return
 
+    if (!settings.enabled) {
+      setSettings(prev => ({ ...prev, enabled: true, enabledAt: new Date().toISOString() }))
+      await toggleAiConnector(true)
+    }
+
     const key = await generateAiApiKey(newKeyName, "m-owner-01", "Me Adama Diarra (Owner)")
     setApiKeys(prev => [key, ...prev])
     setNewlyCreatedKey(`${key.keyPrefix}_${Math.random().toString(36).substring(2, 18)}`)
     setShowKeyModal(false)
     setNewKeyName("")
-    setNotice(`🔑 Clé API "${key.name}" générée avec succès !`)
+    setNotice(`🔑 Clé API "${key.name}" générée avec succès et Connecteur IA activé !`)
     setTimeout(() => setNotice(null), 6000)
   }
 
@@ -271,8 +276,7 @@ export function ConnectorClient({
           <button
             type="button"
             onClick={() => setShowKeyModal(true)}
-            disabled={!settings.enabled}
-            className="px-4 py-2.5 rounded-2xl bg-indigo-900 hover:bg-indigo-950 disabled:bg-slate-300 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer shrink-0"
+            className="px-4 py-2.5 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Générer une Clé API</span>
