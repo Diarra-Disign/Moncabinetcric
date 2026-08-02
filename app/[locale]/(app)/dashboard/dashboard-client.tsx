@@ -68,25 +68,69 @@ export function DashboardClient({
   const [showComplianceModal, setShowComplianceModal] = React.useState(false)
   const [dismissedBanner, setDismissedBanner] = React.useState(false)
 
-  // DASHBOARD PERSONALIZATION STATE & PRESETS
+  // DASHBOARD PERSONALIZATION STATE & PRESETS (AVEC INITIALISATION LAZY LOCALSTORAGE)
   const [showCustomizeModal, setShowCustomizeModal] = React.useState(false)
   const [presetView, setPresetView] = React.useState<"global" | "finance" | "compliance">("global")
-  const [widgetsState, setWidgetsState] = React.useState({
-    deadlinesBanner: true,
-    trustFinance: true,
-    kpis: true,
-    todayAgenda: true,
-    mattersList: true
+  const [widgetsState, setWidgetsState] = React.useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("moncabinetcric_dashboard_widgets")
+        if (saved) return JSON.parse(saved)
+      } catch {
+        // Ignorer
+      }
+    }
+    return {
+      deadlinesBanner: true,
+      trustFinance: true,
+      kpis: true,
+      todayAgenda: true,
+      mattersList: true
+    }
   })
+
+  const updateWidgetsState = (updater: (prev: typeof widgetsState) => typeof widgetsState) => {
+    setWidgetsState(prev => {
+      const next = updater(prev)
+      try {
+        localStorage.setItem("moncabinetcric_dashboard_widgets", JSON.stringify(next))
+      } catch {
+        // Ignorer
+      }
+      return next
+    })
+  }
 
   const applyPresetView = (view: "global" | "finance" | "compliance") => {
     setPresetView(view)
-    if (view === "global") {
-      setWidgetsState({ deadlinesBanner: true, trustFinance: true, kpis: true, todayAgenda: true, mattersList: true })
-    } else if (view === "finance") {
-      setWidgetsState({ deadlinesBanner: false, trustFinance: true, kpis: true, todayAgenda: false, mattersList: true })
+    let newConfig = { deadlinesBanner: true, trustFinance: true, kpis: true, todayAgenda: true, mattersList: true }
+    if (view === "finance") {
+      newConfig = { deadlinesBanner: false, trustFinance: true, kpis: true, todayAgenda: false, mattersList: true }
     } else if (view === "compliance") {
-      setWidgetsState({ deadlinesBanner: true, trustFinance: false, kpis: false, todayAgenda: true, mattersList: true })
+      newConfig = { deadlinesBanner: true, trustFinance: false, kpis: false, todayAgenda: true, mattersList: true }
+    }
+    setWidgetsState(newConfig)
+    try {
+      localStorage.setItem("moncabinetcric_dashboard_widgets", JSON.stringify(newConfig))
+    } catch {
+      // Ignorer
+    }
+  }
+
+  const handleResetToInitial = () => {
+    const initialConfig = {
+      deadlinesBanner: true,
+      trustFinance: true,
+      kpis: true,
+      todayAgenda: true,
+      mattersList: true
+    }
+    setWidgetsState(initialConfig)
+    setPresetView("global")
+    try {
+      localStorage.removeItem("moncabinetcric_dashboard_widgets")
+    } catch {
+      // Ignorer
     }
   }
 
@@ -247,20 +291,20 @@ export function DashboardClient({
           <button
             type="button"
             onClick={() => setShowCustomizeModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 px-4 py-2.5 text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs"
+            className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 px-3.5 py-2.5 text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs"
             title="Personnaliser les widgets et la vue du tableau de bord"
           >
             <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
             <span className="hidden sm:inline">Vues & Widgets</span>
           </button>
 
-          <Link href="/clients">
+          <Link href="/clients" className="shrink-0">
             <button 
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 text-xs font-bold shadow-md shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-md hover:shadow-indigo-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
-              <span>Nouveau Client</span>
+              <Plus className="w-4 h-4 text-indigo-300" />
+              <span>+ Nouveau Client</span>
             </button>
           </Link>
         </div>
@@ -788,7 +832,7 @@ export function DashboardClient({
                     <input
                       type="checkbox"
                       checked={widgetsState.deadlinesBanner}
-                      onChange={(e) => setWidgetsState({ ...widgetsState, deadlinesBanner: e.target.checked })}
+                      onChange={(e) => updateWidgetsState(prev => ({ ...prev, deadlinesBanner: e.target.checked }))}
                       className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
                     />
                   </label>
@@ -800,20 +844,64 @@ export function DashboardClient({
                     <input
                       type="checkbox"
                       checked={widgetsState.kpis}
-                      onChange={(e) => setWidgetsState({ ...widgetsState, kpis: e.target.checked })}
+                      onChange={(e) => updateWidgetsState(prev => ({ ...prev, kpis: e.target.checked }))}
+                      className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-200/80 cursor-pointer hover:bg-slate-100">
+                    <span className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-600" /> Fidéicommis (Art. 13) & Solde en Fiducie
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={widgetsState.trustFinance}
+                      onChange={(e) => updateWidgetsState(prev => ({ ...prev, trustFinance: e.target.checked }))}
+                      className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-200/80 cursor-pointer hover:bg-slate-100">
+                    <span className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-purple-600" /> Agenda & Rendez-vous du Jour
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={widgetsState.todayAgenda}
+                      onChange={(e) => updateWidgetsState(prev => ({ ...prev, todayAgenda: e.target.checked }))}
+                      className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-200/80 cursor-pointer hover:bg-slate-100">
+                    <span className="flex items-center gap-2">
+                      <FolderOpen className="w-4 h-4 text-indigo-600" /> Dossiers Actifs & Pièces Manquantes
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={widgetsState.mattersList}
+                      onChange={(e) => updateWidgetsState(prev => ({ ...prev, mattersList: e.target.checked }))}
                       className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
                     />
                   </label>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleResetToInitial}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  🔄 Réinitialiser la configuration initiale
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setShowCustomizeModal(false)}
                   className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all"
                 >
-                  Appliquer la configuration
+                  Valider
                 </button>
               </div>
 

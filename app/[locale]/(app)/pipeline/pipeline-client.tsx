@@ -29,7 +29,8 @@ import {
   Layers,
   ChevronDown,
   Trash2,
-  GripVertical
+  GripVertical,
+  RefreshCw
 } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { Lead } from "@/lib/data/types"
@@ -53,14 +54,48 @@ interface PipelineClientProps {
 const STAGE_ORDER: Lead["stage"][] = ["newLead", "consultation", "proposal", "negotiation", "signed"]
 
 export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
-  const [leads, setLeads] = React.useState<Lead[]>(initialLeads)
+  const [leads, setLeads] = React.useState<Lead[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("moncabinetcric_pipeline_leads")
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        }
+      } catch {
+        // Ignorer
+      }
+    }
+    return initialLeads
+  })
   const [filterType, setFilterType] = React.useState<"all" | "b2b" | "b2c" | "high">("all")
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null)
   const [showNewModal, setShowNewModal] = React.useState(false)
   const [conversionSuccess, setConversionSuccess] = React.useState<string | null>(null)
+  // DRAG AND DROP STATE
   const [draggedLeadId, setDraggedLeadId] = React.useState<string | null>(null)
   const [dragOverStage, setDragOverStage] = React.useState<string | null>(null)
+
+  const persistLeads = (updatedLeads: Lead[]) => {
+    setLeads(updatedLeads)
+    try {
+      localStorage.setItem("moncabinetcric_pipeline_leads", JSON.stringify(updatedLeads))
+    } catch {
+      // Ignorer
+    }
+  }
+
+  const handleResetPipeline = () => {
+    setLeads(initialLeads)
+    try {
+      localStorage.removeItem("moncabinetcric_pipeline_leads")
+    } catch {
+      // Ignorer
+    }
+    setConversionSuccess("Configuration du Pipeline réinitialisée aux opportunités initiales ! ")
+    setTimeout(() => setConversionSuccess(null), 4000)
+  }
 
   // Form State pour un nouveau prospect (PRENOM ET NOM SEPARES)
   const [newLeadType, setNewLeadType] = React.useState<"b2b" | "b2c">("b2c")
@@ -115,7 +150,8 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     const leadId = e.dataTransfer.getData("text/plain") || draggedLeadId
     if (!leadId) return
 
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: targetStage } : l))
+    const updated = leads.map(l => l.id === leadId ? { ...l, stage: targetStage } : l)
+    persistLeads(updated)
     setDraggedLeadId(null)
     setDragOverStage(null)
     
@@ -127,14 +163,15 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
   // Stage move handler via flèches
   const moveLead = (id: string, direction: "left" | "right", e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
-    setLeads(prev => prev.map(lead => {
+    const updated = leads.map(lead => {
       if (lead.id !== id) return lead
       const currentIndex = STAGE_ORDER.indexOf(lead.stage)
       const nextIndex = direction === "right" 
         ? Math.min(STAGE_ORDER.length - 1, currentIndex + 1)
         : Math.max(0, currentIndex - 1)
       return { ...lead, stage: STAGE_ORDER[nextIndex] }
-    }))
+    })
+    persistLeads(updated)
   }
 
   // Delete lead handler
@@ -224,14 +261,26 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
         title={t.title}
         subtitle={t.subtitle}
         action={
-          <button 
-            type="button"
-            onClick={() => setShowNewModal(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>{t.actions.newProspect}</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleResetPipeline}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+              title="Réinitialiser le pipeline aux opportunités initiales"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+              <span className="hidden sm:inline">Réinitialiser</span>
+            </button>
+
+            <button 
+              type="button"
+              onClick={() => setShowNewModal(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>{t.actions.newProspect}</span>
+            </button>
+          </div>
         }
       />
 
