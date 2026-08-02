@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { 
   Building2, 
   User, 
@@ -23,18 +24,21 @@ import { PageHeader } from "@/components/app-shell/page-header"
 import { useRouter } from "@/i18n/routing"
 
 export function SettingsClient() {
+  const firm = useFirm()
   const router = useRouter()
   const [activeTab, setActiveTab] = React.useState<"cabinet" | "taxes" | "stripe" | "zoom">("cabinet")
   const [notice, setNotice] = React.useState<string | null>(null)
 
   // Cabinet state
-  const [companyName, setCompanyName] = React.useState("Cabinet Immigration Boréale Inc.")
-  const [rcicNumber, setRcicNumber] = React.useState("R-514982")
-  const [rcicName, setRcicName] = React.useState("M. Adama Diarra")
-  const [address, setAddress] = React.useState("1000 Rue Sherbrooke Ouest, Bureau 1400, Montréal, QC H3A 3G4")
-  const [phone, setPhone] = React.useState("+1 (514) 555-0100")
-  const [email, setEmail] = React.useState("contact@immigrations-boreale.ca")
-  const [logoUrl, setLogoUrl] = React.useState("https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?auto=format&fit=crop&w=120&q=80")
+  // Initialisé depuis la table firms, jamais depuis des valeurs en dur :
+  // cet écran est censé montrer le cabinet réel, pas en suggérer un.
+  const [companyName, setCompanyName] = React.useState(firm.name)
+  const [rcicNumber, setRcicNumber] = React.useState(firm.rcicNumber)
+  const [rcicName, setRcicName] = React.useState(firm.rcicName)
+  const [address, setAddress] = React.useState(firm.address)
+  const [phone, setPhone] = React.useState(firm.phone)
+  const [email, setEmail] = React.useState(firm.email)
+  const [logoUrl, setLogoUrl] = React.useState(firm.logoUrl)
 
   // Taxes state
   const [tpsNumber, setTpsNumber] = React.useState("123456789 RT0001")

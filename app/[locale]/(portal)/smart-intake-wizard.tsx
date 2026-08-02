@@ -538,7 +538,7 @@ export function SmartIntakeWizard() {
                     <Badge variant="success" className="text-[10px]">Membre Actif du Collège</Badge>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Consultant Réglementé en Immigration Canadienne · Numéro de permis : R-514982
+                    Consultant Réglementé en Immigration Canadienne
                   </p>
                 </div>
               </div>

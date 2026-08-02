@@ -1,7 +1,8 @@
 import { Sidebar } from "@/components/app-shell/sidebar"
 import { Topbar, SearchItem } from "@/components/app-shell/topbar"
 import { getClients, getMatters, getDocuments, getInvoices } from "@/lib/data"
-import { getCurrentMember } from "@/lib/supabase/session"
+import { getCurrentMember, getCurrentFirm } from "@/lib/supabase/session"
+import { FirmProvider } from "@/components/app-shell/firm-provider"
 import { redirect } from "next/navigation"
 
 export default async function AppLayout({
@@ -14,7 +15,8 @@ export default async function AppLayout({
   const member = await getCurrentMember()
   if (!member) redirect("/fr/connexion")
 
-  const [clients, matters, documents, invoices] = await Promise.all([
+  const [firm, clients, matters, documents, invoices] = await Promise.all([
+    getCurrentFirm(),
     getClients(),
     getMatters(),
     getDocuments(),
@@ -53,6 +55,7 @@ export default async function AppLayout({
   ]
 
   return (
+    <FirmProvider firm={firm}>
     <div className="h-full bg-background text-foreground">
       <Sidebar />
       <div className="lg:pl-72 flex flex-col h-full">
@@ -72,6 +75,7 @@ export default async function AppLayout({
         </main>
       </div>
     </div>
+    </FirmProvider>
   )
 }
 

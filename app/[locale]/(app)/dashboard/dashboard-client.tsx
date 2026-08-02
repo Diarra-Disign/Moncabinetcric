@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { 
   FolderOpen, 
   AlertCircle, 
@@ -61,6 +62,7 @@ export function DashboardClient({
   deadlines?: DeadlineRecord[]
   complianceScore?: CiccComplianceScore
 }) {
+  const firm = useFirm()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isSearchOpen, setIsSearchOpen] = React.useState(false)
@@ -795,7 +797,7 @@ export function DashboardClient({
             </div>
 
             <div className="px-6 py-4 bg-white border-t border-slate-200 flex items-center justify-between">
-              <span className="text-xs text-slate-500 font-medium">Permis RCIC Titulaire : <strong>Adama Diarra (#R-514982)</strong></span>
+              <span className="text-xs text-slate-500 font-medium">Permis RCIC Titulaire : <strong>{firm.rcicName} (#{firm.rcicNumber})</strong></span>
               <button 
                 onClick={() => setShowComplianceModal(false)}
                 className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all"

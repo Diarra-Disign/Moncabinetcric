@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { 
   Folder, 
   MoreVertical, 
@@ -60,6 +61,7 @@ interface DocumentsClientProps {
 }
 
 export function DocumentsClient({ t, initialFolders, initialDocuments, initialAuditLogs = [] }: DocumentsClientProps) {
+  const firm = useFirm()
   const router = useRouter()
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -132,7 +134,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
     if (e) e.stopPropagation()
     const sampleContent = doc.content || `DOCUMENT OFFICIEL CICC — ${doc.name}\nEmpreinte SHA-256: ${doc.sha256 || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}\nClient: ${doc.clientName || "M. Adama Diarra"}\nChemin Sécurisé: ${doc.storagePath || "firms/firm-boreale/matters/"}`
     triggerFileDownload(doc.name, sampleContent, "text/plain;charset=utf-8")
-    addAuditLog("download", `Téléchargement sécurisé — ${doc.name} par Me Adama Diarra (RCIC #R-514982)`, doc.id)
+    addAuditLog("download", `Téléchargement sécurisé — ${doc.name} par ${firm.rcicName} (CICC #${firm.rcicNumber})`, doc.id)
     setNotice(`⬇️ Téléchargement de "${doc.name}" sur votre ordinateur effectué.`)
     setTimeout(() => setNotice(null), 5000)
   }
@@ -179,7 +181,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
   // Action 5: Télécharger le coffre-fort complet en ZIP (Module 7 Audit Export)
   const handleDownloadAllZip = () => {
     let manifestContent = `MANIFESTE D'EXPORTATION ET D'AUDIT CICC (MODULE 7)\n`
-    manifestContent += `Cabinet: Cabinet Immigration Boréale Inc. (RCIC #R-514982)\n`
+    manifestContent += `Cabinet: ${firm.name} (CICC #${firm.rcicNumber})\n`
     manifestContent += `Date Export: ${new Date().toLocaleString("fr-CA")}\n\n`
     manifestContent += `FICHIERS COMPRIS DANS CET EXPORT :\n`
 
@@ -563,8 +565,8 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                   <div className="border-b-2 border-indigo-600 pb-4 mb-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">Cabinet Immigration Boréale Inc.</p>
-                        <p className="text-[9px] text-slate-400 font-mono">RCIC #R-514982 — Permis CICC Actif</p>
+                        <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">{firm.name}</p>
+                        <p className="text-[9px] text-slate-400 font-mono">CICC #{firm.rcicNumber}</p>
                       </div>
                       <div className="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg">M</div>
                     </div>
@@ -629,7 +631,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                   )}
 
                   <div className="mt-8 pt-4 border-t border-slate-200 text-[9px] text-slate-400 text-center font-mono">
-                    Document confidentiel — Cabinet Immigration Boréale Inc. — Chiffré AES-256
+                    Document confidentiel — {firm.name}
                   </div>
                 </div>
               </div>

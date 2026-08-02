@@ -3,7 +3,7 @@
 import React, { useState } from "react"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { AgreementRecord, ClauseDefinition, GovernmentFee } from "@/lib/data/types"
-import { FIRM_DATA } from "@/lib/data/firm"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { triggerDocumentPdfDownload } from "@/lib/utils/download-helper"
 import { SmartAgreementBuilder } from "./smart-agreement-builder"
 import { 
@@ -34,6 +34,7 @@ export function AgreementsClient({
   governmentFees,
   clauses
 }: AgreementsClientProps) {
+  const firm = useFirm()
   const [agreements, setAgreements] = useState<AgreementRecord[]>(initialAgreements)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -330,9 +331,9 @@ export function AgreementsClient({
               <div className="flex justify-between items-start border-b border-slate-900/20 pb-6 font-sans">
                 <div className="flex items-start gap-4">
                   <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
-                    {FIRM_DATA.logoUrl ? (
+                    {firm.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={FIRM_DATA.logoUrl} alt={FIRM_DATA.name} className="w-full h-full object-cover" />
+                      <img src={firm.logoUrl} alt={firm.name} className="w-full h-full object-cover" />
                     ) : (
                       <span className="font-mono font-black text-white text-xl">M</span>
                     )}
@@ -340,7 +341,7 @@ export function AgreementsClient({
                   <div>
                     <h1 className="text-xl font-black tracking-tight text-slate-900">ENTENTE DE SERVICES PROFESSIONNELS</h1>
                     <p className="text-xs text-slate-600 mt-1">Conforme au Code de conduite professionnelle du CICC</p>
-                    <p className="text-xs font-mono text-slate-600">Cabinet : <strong>Immigration Boréale Inc. (RCIC #{previewAgreement.rcicLicenceNo})</strong></p>
+                    <p className="text-xs font-mono text-slate-600">Cabinet : <strong>{firm.name} (CICC #{previewAgreement.rcicLicenceNo})</strong></p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -361,7 +362,7 @@ export function AgreementsClient({
                       LE CABINET / CONSULTANT AGRÉÉ
                     </strong>
                     <div className="space-y-1 text-slate-700">
-                      <p><strong>Cabinet :</strong> Immigration Boréale Inc.</p>
+                      <p><strong>Cabinet :</strong> {firm.name}</p>
                       <p><strong>Consultant Titulaire :</strong> {previewAgreement.rcicName} (RCIC #{previewAgreement.rcicLicenceNo})</p>
                       <p><strong>Adresse Officielle :</strong> 500 Boulevard René-Lévesque Ouest, Bureau 1200, Montréal (QC) H2Z 1W7</p>
                       <p><strong>Téléphone / Courriel :</strong> +1 (514) 800-2020 · info@immigrationboreale.ca</p>
@@ -544,7 +545,7 @@ export function AgreementsClient({
 
                     <div className="flex justify-between items-center text-[10px] font-mono text-slate-600">
                       <span>Date : {previewAgreement.date}</span>
-                      <span>Permis CICC #R-514982 Validé</span>
+                      <span>Permis CICC #{firm.rcicNumber} Validé</span>
                     </div>
                   </div>
                 </div>
@@ -622,7 +623,7 @@ export function AgreementsClient({
               </div>
               <div className="flex justify-between text-slate-300 border-t border-slate-700/60 pt-2">
                 <span>Consultant RCIC :</span>
-                <strong className="text-slate-200">Adama Diarra (#R-514982)</strong>
+                <strong className="text-slate-200">{firm.rcicName} (#{firm.rcicNumber})</strong>
               </div>
             </div>
 

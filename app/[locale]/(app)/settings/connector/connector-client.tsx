@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { 
   Bot, 
   Key, 
@@ -38,6 +39,7 @@ export function ConnectorClient({
   initialApiKeys,
   initialLogs
 }: ConnectorClientProps) {
+  const firm = useFirm()
   const [settings, setSettings] = React.useState<AiConnectorSettings>(initialSettings)
   const [apiKeys, setApiKeys] = React.useState<AiApiKeyRecord[]>(initialApiKeys)
   const [logs, setLogs] = React.useState<AiConnectorLogRecord[]>(initialLogs)
@@ -456,7 +458,7 @@ export function ConnectorClient({
                 <input
                   type="text"
                   readOnly
-                  value="Me Adama Diarra (RCIC #R-514982)"
+                  value={`${firm.rcicName} (CICC #${firm.rcicNumber})`}
                   className="w-full p-2.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-600 font-bold"
                 />
               </div>

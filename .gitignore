@@ -49,3 +49,7 @@ next-env.d.ts
 # Sources HTML brutes de l'importateur de législation : volumineuses et
 # retéléchargeables via `node scripts/import-legislation.mjs --refresh`.
 .cache/
+
+# Identité réelle du cabinet : coordonnées professionnelles et numéro de
+# permis CICC. Le modèle firm-identity.example.json est versionné, pas lui.
+firm-identity.json

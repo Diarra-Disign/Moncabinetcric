@@ -3,6 +3,7 @@ import "server-only"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { EMPTY_FIRM, mapFirmRow, type FirmIdentity, type FirmRow } from "@/lib/data/firm"
 
 /**
  * Client Supabase porteur de la session de l'utilisateur.
@@ -47,6 +48,25 @@ export async function getSessionSupabase(): Promise<SupabaseClient> {
       },
     },
   })
+}
+
+/**
+ * Identité du cabinet de l'utilisateur connecté.
+ *
+ * Lue avec le client de session : la politique RLS de `firms` restreint
+ * déjà la lecture au cabinet du membre, aucun filtre applicatif n'est
+ * donc nécessaire — et surtout, aucun n'est oubliable.
+ */
+export async function getCurrentFirm(): Promise<FirmIdentity> {
+  const supabase = await getSessionSupabase()
+
+  const { data, error } = await supabase
+    .from("firms")
+    .select("id, name, rcic_license_number, owner_name, address, phone, email, logo_letter, logo_url")
+    .maybeSingle()
+
+  if (error || !data) return EMPTY_FIRM
+  return mapFirmRow(data as FirmRow)
 }
 
 export interface CurrentMember {

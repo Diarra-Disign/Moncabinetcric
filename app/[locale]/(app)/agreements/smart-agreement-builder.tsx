@@ -3,6 +3,7 @@
 import React, { useState } from "react"
 import { X, CheckCircle2, ShieldCheck, Lock, Plus, Trash2, ArrowRight, ArrowLeft, DollarSign, Users, FileSignature, Sparkles, Building } from "lucide-react"
 import { AgreementRecord, ClauseDefinition, GovernmentFee } from "@/lib/data/types"
+import { useFirm } from "@/components/app-shell/firm-provider"
 
 interface SmartAgreementBuilderProps {
   isOpen: boolean
@@ -19,6 +20,7 @@ export function SmartAgreementBuilder({
   governmentFees,
   clauses
 }: SmartAgreementBuilderProps) {
+  const firm = useFirm()
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
 
   // Step 1: Persons
@@ -184,7 +186,7 @@ export function SmartAgreementBuilder({
       isTaxExempt,
       grandTotalCents,
       rcicName: "Adama Diarra",
-      rcicLicenceNo: "R-514982"
+      rcicLicenceNo: firm.rcicNumber
     }
 
     onCreated(created)
@@ -756,7 +758,7 @@ export function SmartAgreementBuilder({
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs flex items-center justify-between">
                 <div>
                   <strong className="block text-slate-900 font-bold">Consultant Titulaire Responsable</strong>
-                  <span className="text-slate-500 font-mono">Adama Diarra (Permis CICC #R-514982)</span>
+                  <span className="text-slate-500 font-mono">{firm.rcicName} (Permis CICC #{firm.rcicNumber})</span>
                 </div>
                 <div className="flex items-center gap-2 text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />

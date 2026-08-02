@@ -28,7 +28,7 @@ import {
 } from "lucide-react"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { AuditLogRecord, ActionApprovalRecord } from "@/lib/data/types"
-import { FIRM_DATA } from "@/lib/data/firm"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { triggerDocumentPdfDownload, triggerFileDownload } from "@/lib/utils/download-helper"
 
 interface AuditClientProps {
@@ -37,6 +37,7 @@ interface AuditClientProps {
 }
 
 export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps) {
+  const firm = useFirm()
   const [activeTab, setActiveTab] = React.useState<"logs" | "approvals">("logs")
   const [logs, setLogs] = React.useState<AuditLogRecord[]>(initialLogs)
   const [approvals, setApprovals] = React.useState<ActionApprovalRecord[]>(initialApprovals)
@@ -93,7 +94,7 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
         return {
           ...a,
           status: "approved",
-          approvedBy: `Me Adama Diarra (${FIRM_DATA.rcicNo})`,
+          approvedBy: `${firm.rcicName} (${firm.rcicNumber})`,
           approvedAt: now
         }
       }
@@ -115,7 +116,7 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
       summary: `Approbation CRIC officielle exécutée — ${target.actionTitle}`,
       changes: {
         status: { before: "pending", after: "approved" },
-        approvedBy: { before: null, after: `Me Adama Diarra (${FIRM_DATA.rcicNo})` }
+        approvedBy: { before: null, after: `${firm.rcicName} (${firm.rcicNumber})` }
       },
       ipAddress: "192.168.1.42",
       userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -158,7 +159,7 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
     logs.forEach(l => {
       csvContent += `"${l.id}","${l.occurredAt}","${l.actorEmail}","${l.actorRole}","${l.action}","${l.entityType}","${l.entityId || ""}","${l.summary.replace(/"/g, '""')}","${l.rowHash}"\n`
     })
-    triggerFileDownload("Journal_Audit_CICC_Boreale.csv", csvContent, "text/csv;charset=utf-8")
+    triggerFileDownload(`Journal_Audit_CICC_${(firm.name || "cabinet").replace(/[^A-Za-z0-9]+/g, "_")}.csv`, csvContent, "text/csv;charset=utf-8")
     setNotice("Export CSV du journal d'audit généré avec succès.")
     setTimeout(() => setNotice(null), 4000)
   }
@@ -180,7 +181,7 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
           <div>
             <h1 style="font-size:20px;margin:0;font-weight:900;color:#1e1b4b">REGISTRE INALTÉRABLE DU JOURNAL D'AUDIT CICC</h1>
             <p style="margin:4px 0 0 0;font-size:11px;color:#475569">Conformité CICC · Horodatage Horloge Cryptographique & Chaîne SHA-256</p>
-            <p style="margin:2px 0 0 0;font-size:11px;font-family:monospace">Cabinet : <strong>${FIRM_DATA.name} (RCIC ${FIRM_DATA.rcicNo})</strong></p>
+            <p style="margin:2px 0 0 0;font-size:11px;font-family:monospace">Cabinet : <strong>${firm.name} (CICC ${firm.rcicNumber})</strong></p>
           </div>
           <div style="text-align:right">
             <span style="background:#1e1b4b;color:#fff;font-family:monospace;font-size:10px;font-weight:bold;padding:4px 8px;border-radius:4px">

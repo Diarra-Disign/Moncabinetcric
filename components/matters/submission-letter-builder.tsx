@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { 
   FileText, 
   Sparkles, 
@@ -38,9 +39,17 @@ export function SubmissionLetterBuilder({
   matterId,
   clientName,
   programName,
-  rcicName = "Adama Diarra, RCIC",
-  rcicNumber = "R-514982"
+  rcicName: rcicNameProp,
+  rcicNumber: rcicNumberProp,
 }: SubmissionLetterBuilderProps) {
+  // L'identité du cabinet vient de la base. Aucune valeur par défaut : une
+  // lettre de soumission IRCC portant le permis d'un autre consultant est
+  // une faute professionnelle, pas un défaut d'affichage.
+  const firm = useFirm()
+  const rcicName = rcicNameProp ?? firm.rcicName
+  const rcicNumber = rcicNumberProp ?? firm.rcicNumber
+  const firmName = firm.name
+
   const [processingOffice, setProcessingOffice] = React.useState("Centre de Traitement des Demandes (CTD-Ottawa)")
   const [language, setLanguage] = React.useState<"fr" | "en">("fr")
   const [variantIndex, setVariantIndex] = React.useState(0)
@@ -219,7 +228,7 @@ Veuillez agréer, Madame, Monsieur l'Agent, l'expression de notre haute considé
 _______________________________________
 ${rcicName}, RCIC / CRIC
 Membre du Collège des consultants en immigration et en citoyenneté (CICC) # ${rcicNumber}
-Cabinet Immigration Boréale Inc.`
+${firmName}`
     } else {
       return `BOREAL IMMIGRATION CABINET INC.
 Regulated Canadian Immigration Consultants (RCIC)
@@ -496,7 +505,7 @@ Boreal Immigration Cabinet Inc.`
             <div className="border-b-2 border-blue-900 pb-3 flex items-center justify-between">
               <div>
                 <h3 className="font-sans font-black text-sm tracking-tight text-blue-900 uppercase">
-                  Cabinet Immigration Boréale Inc.
+                  {firmName}
                 </h3>
                 <p className="font-sans text-[10px] text-slate-500 font-semibold mt-0.5">
                   Consultants Réglementés en Immigration Canadienne (CRIC / RCIC)

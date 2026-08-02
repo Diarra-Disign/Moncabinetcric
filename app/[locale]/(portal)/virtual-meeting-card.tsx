@@ -57,7 +57,7 @@ export function VirtualMeetingCard({
               </div>
               <div className="flex items-center gap-1.5 text-slate-500 font-medium text-xs sm:text-sm">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>RCIC #R-514982</span>
+                <span>Consultant réglementé CICC</span>
               </div>
             </div>
           </div>

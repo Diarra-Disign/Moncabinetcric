@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { 
   FileUp, 
   FileSignature, 
@@ -37,6 +38,7 @@ export function DirectActionsTabs({
   programName,
   trustBalance = "$5,000 CAD"
 }: DirectActionsTabsProps) {
+  const firm = useFirm()
   const [activeTab, setActiveTab] = React.useState<"docs" | "signature" | "billing" | "visio" | "audit" | "submission">("submission")
   const [toastNotice, setToastNotice] = React.useState<string | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -238,7 +240,7 @@ export function DirectActionsTabs({
               <div>
                 <span className="text-[10px] font-black uppercase text-purple-700 bg-white px-2 py-0.5 rounded border border-purple-200 font-mono">Formulaire Officiel IRCC</span>
                 <h4 className="text-sm font-black text-purple-950 mt-1">Mandat de Représentation Legal (IMM 5476)</h4>
-                <p className="text-xs text-purple-800">Adama Diarra (RCIC #R-514982) désigné comme représentant légal payé.</p>
+                <p className="text-xs text-purple-800">{firm.rcicName} (CICC #{firm.rcicNumber}) désigné comme représentant légal payé.</p>
               </div>
               
               <div className="flex items-center gap-2">

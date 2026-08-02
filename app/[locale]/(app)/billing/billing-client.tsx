@@ -31,7 +31,7 @@ import {
 import { useRouter } from "@/i18n/routing"
 import { useTranslations } from "next-intl"
 import { InvoiceRecord } from "@/lib/data/types"
-import { FIRM_DATA } from "@/lib/data/firm"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { triggerDocumentPdfDownload } from "@/lib/utils/download-helper"
 
@@ -50,6 +50,7 @@ interface BillingClientProps {
 }
 
 export function BillingClient({ t, initialInvoices }: BillingClientProps) {
+  const firm = useFirm()
   const tBilling = useTranslations("Billing")
   const router = useRouter()
   const [invoices, setInvoices] = React.useState<InvoiceRecord[]>(initialInvoices)
@@ -699,19 +700,19 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                     <div className="flex justify-between items-start border-b border-slate-900/20 pb-6">
                       <div className="flex items-start gap-3">
                         <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-                          {FIRM_DATA.logoUrl ? (
+                          {firm.logoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={FIRM_DATA.logoUrl} alt={FIRM_DATA.name} className="w-full h-full object-cover" />
+                            <img src={firm.logoUrl} alt={firm.name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="font-mono font-black text-white text-lg">M</span>
                           )}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 text-blue-900 font-black text-lg tracking-tight">
-                            <span>Cabinet Immigration Boréale Inc.</span>
+                            <span>{firm.name}</span>
                           </div>
                           <p className="text-xs text-slate-600 mt-0.5">1000 Rue Sherbrooke Ouest, Bureau 1400, Montréal, QC H3A 3G4</p>
-                          <p className="text-xs text-slate-600 font-mono">N° Permis CICC : <strong>R-514982</strong> (Adama Diarra, RCIC)</p>
+                          <p className="text-xs text-slate-600 font-mono">N° Permis CICC : <strong>{firm.rcicNumber}</strong> ({firm.rcicName})</p>
                           <p className="text-[11px] text-slate-500 font-mono">TPS : 123456789 RT0001 · TVQ : 1234567890 TQ0001</p>
                         </div>
                       </div>
@@ -821,9 +822,9 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                     <div className="flex justify-between items-start border-b border-emerald-900/20 pb-6">
                       <div className="flex items-start gap-3">
                         <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-                          {FIRM_DATA.logoUrl ? (
+                          {firm.logoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={FIRM_DATA.logoUrl} alt={FIRM_DATA.name} className="w-full h-full object-cover" />
+                            <img src={firm.logoUrl} alt={firm.name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="font-mono font-black text-white text-lg">M</span>
                           )}
@@ -833,7 +834,7 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                             <span>ATTESTATION DE DÉPÔT EN FIDÉICOMMIS</span>
                           </div>
                           <p className="text-xs text-slate-600 mt-0.5">Conformité à l&apos;article 13 du Règlement du CICC</p>
-                          <p className="text-xs font-mono text-slate-600">Cabinet : <strong>Immigration Boréale Inc. (RCIC #R-514982)</strong></p>
+                          <p className="text-xs font-mono text-slate-600">Cabinet : <strong>{firm.name} (CICC #{firm.rcicNumber})</strong></p>
                         </div>
                       </div>
 
@@ -880,9 +881,9 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                     <div className="flex justify-between items-start border-b-2 border-indigo-900 pb-5">
                       <div className="flex items-start gap-4">
                         <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
-                          {FIRM_DATA.logoUrl ? (
+                          {firm.logoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={FIRM_DATA.logoUrl} alt={FIRM_DATA.name} className="w-full h-full object-cover" />
+                            <img src={firm.logoUrl} alt={firm.name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="font-mono font-black text-white text-xl">M</span>
                           )}
@@ -893,7 +894,7 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                             <span>RAPPORT MENSUEL DE RAPPROCHEMENT FIDÉICOMMIS</span>
                           </div>
                           <p className="text-xs text-slate-600 font-medium mt-1">Vérification Réglementaire Annuelle & Audit Fidéicommis CICC (Art. 13)</p>
-                          <p className="text-xs font-mono text-slate-700 mt-0.5">Cabinet : <strong>Immigration Boréale Inc. (RCIC #R-514982)</strong></p>
+                          <p className="text-xs font-mono text-slate-700 mt-0.5">Cabinet : <strong>{firm.name} (CICC #{firm.rcicNumber})</strong></p>
                         </div>
                       </div>
 
@@ -1020,7 +1021,7 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                         </p>
                       </div>
                       <div className="border-l border-slate-300 pl-4 shrink-0 font-mono text-right">
-                        <strong className="text-indigo-900 font-black block">Me Adama Diarra (RCIC #R-514982)</strong>
+                        <strong className="text-indigo-900 font-black block">{firm.rcicName} (CICC #{firm.rcicNumber})</strong>
                         <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded block my-1">
                           Sceau Audit CICC Validé
                         </span>
