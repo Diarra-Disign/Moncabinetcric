@@ -174,6 +174,7 @@ export function DirectActionsTabs({
         {/* TAB 1: ARGUMENTAIRE IRCC (LETTRE IA & LIPR/RIPR) */}
         {activeTab === "submission" && (
           <SubmissionLetterBuilder 
+            key={matterId}
             matterId={matterId}
             clientName={clientName}
             programName={programName}
