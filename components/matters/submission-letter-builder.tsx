@@ -77,8 +77,30 @@ export function SubmissionLetterBuilder({
 
   const legalInfo = getLegalCitations()
 
-  const generateDefaultTemplate = React.useCallback((overrideLang?: "fr" | "en") => {
+  const generateDefaultTemplate = React.useCallback((overrideLang?: "fr" | "en", overrideVariant?: number) => {
     const activeLang = overrideLang || language
+    const currentVariant = overrideVariant !== undefined ? overrideVariant : variantIndex
+
+    let variantParagraphFr = ""
+    let variantParagraphEn = ""
+
+    if (currentVariant === 1) {
+      variantParagraphFr = `ENRICHISSEMENT DU PROFIL — INTÉGRATION ÉCONOMIQUE & LINGUISTIQUE (VARIANTE 2) :
+Le candidat présente un dossier exemplaire caractérisé par une maîtrise linguistique supérieure (NCLC 9 vérifié), une expérience professionnelle ininterrompue au Canada et une contribution fiscale mesurable. Son profil s'inscrit directement dans les priorités ministérielles de rétention des talents qualifiés au Québec et au Canada.`
+      variantParagraphEn = `PROFILE ENHANCEMENT — ECONOMIC INTEGRATION & LANGUAGE PROFICIENCY (VARIANT 2):
+The applicant presents an exemplary application highlighted by superior language proficiency (verified CLB 9), uninterrupted qualifying Canadian work experience, and a established tax track record. Their profile aligns directly with ministerial priorities for retaining skilled talent.`
+    } else if (currentVariant === 2) {
+      variantParagraphFr = `CONFORMITÉ RIGOUREUSE ET TRAITEMENT PRIORITAIRE (VARIANTE 3) :
+L'ensemble des exigences médicales, sécuritaires et biométriques a fait l'objet d'un audit préalable rigoureux par notre cabinet. Aucune interdiction de territoire au sens des articles 34 à 42 de la LIPR n'est applicable. Nous sollicitons un examen diligent au regard de l'échéance d'embauche imminente.`
+      variantParagraphEn = `RIGOROUS COMPLIANCE & EXPEDITED PROCESSING (VARIANT 3):
+All medical, background, and biometric prerequisites have undergone prior verification by our firm. No inadmissibility grounds under sections 34 to 42 of the IRPA apply. We respectfully request expedited review in light of the imminent employment start date.`
+    } else {
+      variantParagraphFr = `PRÉSENTATION DU DOSSIER ET ADMISSIBILITÉ (VARIANTE 1) :
+${customArgument}`
+      variantParagraphEn = `APPLICATION OVERVIEW & ELIGIBILITY (VARIANT 1):
+${customArgument}`
+    }
+
     if (activeLang === "fr") {
       return `CABINET IMMIGRATION BORÉALE INC.
 Consultants Réglementés en Immigration Canadienne (CRIC / RCIC)
@@ -102,7 +124,7 @@ En notre qualité de mandataire accrédité au sens du formulaire IMM 5476 (Cons
 1. FONDEMENT JURIDIQUE ET ÉLIGIBILITÉ
 Cette demande est présentée en vertu de la ${legalInfo.law}, notamment l'${legalInfo.section}, ainsi que du ${legalInfo.reg} (${legalInfo.regSection}).
 
-${customArgument}
+${variantParagraphFr}
 
 2. INVENTAIRE DES PIÈCES JUSTIFICATIVES ATTACHÉES (ANNEXE A)
 Conformément au guide de contrôle d'IRCC, l'ensemble des pièces requises a été scrupuleusement vérifié, numéroté et certifié conforme par notre cabinet :
@@ -144,7 +166,7 @@ As the authorized representative under form IMM 5476 (Regulated Canadian Immigra
 1. STATUTORY BASIS & ELIGIBILITY
 This application is submitted pursuant to the ${legalInfo.law}, specifically ${legalInfo.section}, and the ${legalInfo.reg} (${legalInfo.regSection}).
 
-${customArgument}
+${variantParagraphEn}
 
 2. INDEX OF ATTACHED SUPPORTING DOCUMENTS (SCHEDULE A)
 In strict compliance with the IRCC document checklist, all required evidence has been audited, indexed, and verified by our firm:
@@ -164,17 +186,25 @@ ${rcicName}, RCIC / CRIC
 College of Immigration and Citizenship Consultants (CICC) Licence #${rcicNumber}
 Boreal Immigration Cabinet Inc.`
     }
-  }, [language, processingOffice, programName, matterId, clientName, rcicNumber, rcicName, legalInfo, customArgument])
+  }, [language, variantIndex, processingOffice, programName, matterId, clientName, rcicNumber, rcicName, legalInfo, customArgument])
 
   // État local du texte de la lettre pour permettre la modification directe
   const [editableLetterText, setEditableLetterText] = React.useState<string>(() => generateDefaultTemplate())
 
   const handleGenerate = () => {
     setIsGenerating(true)
+    const nextVariant = (variantIndex + 1) % 3
+    setVariantIndex(nextVariant)
+
     setTimeout(() => {
       setIsGenerating(false)
-      setEditableLetterText(generateDefaultTemplate())
-    }, 600)
+      const newText = generateDefaultTemplate(language, nextVariant)
+      setEditableLetterText(newText)
+      
+      const varName = language === "fr" ? VARIATION_NAMES_FR[nextVariant] : VARIATION_NAMES_EN[nextVariant]
+      setToastNotice(`✨ Nouvelle lettre IA générée avec succès : ${varName}`)
+      setTimeout(() => setToastNotice(null), 5000)
+    }, 500)
   }
 
   const handleToggleLanguage = () => {
@@ -183,12 +213,14 @@ Boreal Immigration Cabinet Inc.`
     setIsGenerating(true)
     setTimeout(() => {
       setIsGenerating(false)
-      setEditableLetterText(generateDefaultTemplate(nextLang))
+      setEditableLetterText(generateDefaultTemplate(nextLang, variantIndex))
     }, 400)
   }
 
   const handleResetToDefault = () => {
-    setEditableLetterText(generateDefaultTemplate())
+    setEditableLetterText(generateDefaultTemplate(language, variantIndex))
+    setToastNotice("Texte réinitialisé au modèle d'origine.")
+    setTimeout(() => setToastNotice(null), 3000)
   }
 
   const handleCopy = () => {
@@ -225,6 +257,17 @@ Boreal Immigration Cabinet Inc.`
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* TOAST INTAL DE CONFIRMATION DE GÉNÉRATION */}
+      {toastNotice && (
+        <div className="bg-emerald-950 text-emerald-200 border border-emerald-500/50 p-3 px-4 rounded-2xl text-xs font-bold flex items-center justify-between shadow-lg animate-fadeIn">
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            {toastNotice}
+          </span>
+          <button onClick={() => setToastNotice(null)} className="text-emerald-400 hover:text-white">✕</button>
+        </div>
+      )}
+
       {/* BANDEAU SUPÉRIEUR INTELLIGENT AVEC BADGE CICC */}
       <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl border border-blue-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
