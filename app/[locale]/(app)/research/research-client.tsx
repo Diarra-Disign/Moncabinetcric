@@ -24,6 +24,7 @@ import {
   addResearchSourceToWorkspace,
   deleteResearchSourceFromWorkspace,
 } from "@/lib/data/actions"
+import { searchProvisions } from "@/lib/data/legislation-search"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
@@ -72,21 +73,10 @@ export function ResearchClient({
 
   // Le filtrage ne dépend que de la requête et du filtre : inutile de le
   // relancer à chaque frappe dans une modale ou à chaque copie de citation.
-  const filteredProvisions = React.useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    return initialProvisions.filter((p) => {
-      if (instrumentFilter !== "all" && p.instrument !== instrumentFilter) return false
-      if (!q) return true
-      return (
-        p.provisionNo.toLowerCase().includes(q) ||
-        p.headingFr.toLowerCase().includes(q) ||
-        p.headingEn.toLowerCase().includes(q) ||
-        p.bodyFr.toLowerCase().includes(q) ||
-        p.bodyEn.toLowerCase().includes(q) ||
-        (p.tags?.some((tag) => tag.toLowerCase().includes(q)) ?? false)
-      )
-    })
-  }, [initialProvisions, searchQuery, instrumentFilter])
+  const filteredProvisions = React.useMemo(
+    () => searchProvisions(initialProvisions, searchQuery, instrumentFilter),
+    [initialProvisions, searchQuery, instrumentFilter]
+  )
 
   // Le minuteur doit être annulé au démontage, sinon React signale une mise à
   // jour d'état sur un composant démonté quand on quitte la page après copie.
