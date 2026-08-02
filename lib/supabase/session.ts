@@ -69,6 +69,42 @@ export async function getCurrentFirm(): Promise<FirmIdentity> {
   return mapFirmRow(data as FirmRow)
 }
 
+export interface PlatformAdmin {
+  userId: string
+  email: string
+  fullName: string
+}
+
+/**
+ * Administrateur de la plateforme connecté, ou null.
+ *
+ * La lecture passe par le client de session : la politique de
+ * platform_admins n'accorde la table qu'à un administrateur. Un membre de
+ * cabinet obtient donc null, sans qu'aucun filtre applicatif n'intervienne.
+ */
+export async function getCurrentPlatformAdmin(): Promise<PlatformAdmin | null> {
+  const supabase = await getSessionSupabase()
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+  if (error || !user) return null
+
+  const { data } = await supabase
+    .from("platform_admins")
+    .select("user_id, email, full_name")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  if (!data) return null
+  return {
+    userId: data.user_id as string,
+    email: (data.email as string) ?? user.email ?? "",
+    fullName: (data.full_name as string) ?? "",
+  }
+}
+
 export interface CurrentMember {
   userId: string
   email: string

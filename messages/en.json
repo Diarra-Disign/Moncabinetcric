@@ -477,5 +477,33 @@
     "signedInAs": "Signed in as",
     "securityNote": "Your credentials are never shared with a third party. Sessions expire automatically.",
     "forgotHint": "Forgot your password? Use the “Email link” tab."
+  },
+  "Admin": {
+    "title": "Operations console",
+    "subtitle": "Manage firms and their access.",
+    "badge": "Platform administrator",
+    "boundaryTitle": "Scope of this console",
+    "boundaryBody": "You administer firms and their members. Client files, documents, invoices and audit logs are reachable from no administration screen: the database itself denies them to an operations account.",
+    "statFirms": "Firms",
+    "statMembers": "Members",
+    "statNoOwner": "Without an owner",
+    "firmsHeading": "Firms",
+    "colFirm": "Firm",
+    "colLicense": "CICC licence",
+    "colContact": "Contact",
+    "colMembers": "Members",
+    "colCreated": "Created",
+    "noFirms": "No firms.",
+    "noMembers": "No member attached",
+    "noOwnerWarning": "This firm has no owner: nobody can invite members or change its identity.",
+    "roleOwner": "Owner",
+    "roleRcic": "Regulated consultant",
+    "roleRisia": "Student-intern",
+    "roleStaff": "Staff",
+    "roleBookkeeper": "Bookkeeper",
+    "roleReadonly": "Read only",
+    "backToApp": "Back to the application",
+    "scriptsHeading": "Actions outside this console",
+    "scriptsBody": "Creating firms, granting access and promoting an administrator go through scripts, deliberately outside the web interface: you do not promote yourself to administrator from a page."
   }
 }

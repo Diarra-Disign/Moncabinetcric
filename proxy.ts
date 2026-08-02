@@ -18,6 +18,9 @@ const PROTECTED_SEGMENTS = [
   'pipeline',
   'research',
   'settings',
+  // La console d'exploitation exige en outre d'être administrateur ; ce
+  // second contrôle appartient au layout, qui peut interroger la base.
+  'admin',
 ]
 
 const LOGIN_PATH = 'connexion'

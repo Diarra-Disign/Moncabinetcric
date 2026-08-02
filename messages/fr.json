@@ -477,5 +477,33 @@
     "signedInAs": "Connecté en tant que",
     "securityNote": "Vos identifiants ne sont jamais transmis à un tiers. La session expire automatiquement.",
     "forgotHint": "Mot de passe oublié ? Utilisez l'onglet « Lien par courriel »."
+  },
+  "Admin": {
+    "title": "Console d'exploitation",
+    "subtitle": "Gestion des cabinets et de leurs accès.",
+    "badge": "Administrateur plateforme",
+    "boundaryTitle": "Périmètre de cette console",
+    "boundaryBody": "Vous administrez les cabinets et leurs membres. Les dossiers clients, documents, factures et journaux d'audit ne sont accessibles depuis aucun écran d'administration : la base elle-même les refuse à un compte d'exploitation.",
+    "statFirms": "Cabinets",
+    "statMembers": "Membres",
+    "statNoOwner": "Sans propriétaire",
+    "firmsHeading": "Cabinets",
+    "colFirm": "Cabinet",
+    "colLicense": "Permis CICC",
+    "colContact": "Contact",
+    "colMembers": "Membres",
+    "colCreated": "Créé le",
+    "noFirms": "Aucun cabinet.",
+    "noMembers": "Aucun membre rattaché",
+    "noOwnerWarning": "Ce cabinet n'a pas de propriétaire : personne ne peut y inviter de membre ni modifier son identité.",
+    "roleOwner": "Propriétaire",
+    "roleRcic": "Consultant réglementé",
+    "roleRisia": "Étudiant-stagiaire",
+    "roleStaff": "Personnel",
+    "roleBookkeeper": "Teneur de livres",
+    "roleReadonly": "Lecture seule",
+    "backToApp": "Retour à l'application",
+    "scriptsHeading": "Actions hors console",
+    "scriptsBody": "La création de cabinets, l'attribution des accès et la promotion d'un administrateur passent par des scripts, volontairement hors de l'interface web : on ne se promeut pas administrateur depuis une page."
   }
 }
