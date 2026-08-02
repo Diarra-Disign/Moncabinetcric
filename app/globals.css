@@ -48,6 +48,20 @@ html[data-cabinet-theme="purple"] {
   --primary-hover: #6D28D9;
 }
 
+html[data-cabinet-theme="midnight"] {
+  --background: #090D16;
+  --foreground: #F8FAFC;
+  --card: #111827;
+  --card-foreground: #F8FAFC;
+  --primary: #3B82F6;
+  --primary-hover: #60A5FA;
+  --border: #1E293B;
+  --muted: #1E293B;
+  --muted-foreground: #94A3B8;
+  --glass-bg: rgba(17, 24, 39, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
 html[data-cabinet-theme="sapphire"] {
   --primary: #1D4ED8;
   --primary-hover: #1E40AF;

@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Palette, Check, Sparkles } from "lucide-react"
 
-export type ThemePalette = "sapphire" | "emerald" | "amber" | "purple"
+export type ThemePalette = "sapphire" | "emerald" | "amber" | "purple" | "midnight"
 
 export function ThemePicker() {
   const [isOpen, setIsOpen] = React.useState(false)
@@ -110,6 +110,19 @@ export function ThemePicker() {
                 <span className="text-xs font-black text-slate-900">Violet Exécutif</span>
               </div>
               {activeTheme === "purple" && <Check className="w-4 h-4 text-purple-600" />}
+            </button>
+
+            <button
+              onClick={() => applyTheme("midnight")}
+              className={`w-full p-2.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                activeTheme === "midnight" ? "bg-slate-900 border-slate-700 text-white ring-2 ring-blue-500/20" : "bg-slate-900/90 text-white border-slate-800 hover:bg-slate-900"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="w-4 h-4 rounded-full bg-blue-500 border border-blue-400 shrink-0" />
+                <span className="text-xs font-black text-white">Mode Nuit Calme 🌙</span>
+              </div>
+              {activeTheme === "midnight" && <Check className="w-4 h-4 text-blue-400" />}
             </button>
           </div>
         </div>
