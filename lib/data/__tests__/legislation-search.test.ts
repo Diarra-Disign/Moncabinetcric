@@ -59,9 +59,36 @@ describe("Legislation search", () => {
     assert.equal(searchProvisions(all, "24", "ripr").length, 0)
   })
 
+  test("ranks the provision itself above articles that merely cite it", () => {
+    // Le texte de l'article 20 renvoie au paragraphe 22.1(1) : sans
+    // classement, il remontait devant l'article 22 lui-même.
+    const results = searchProvisions(all, "Art. 22 LIPR")
+    assert.ok(results.length >= 1)
+    assert.equal(results[0].provisionNo, "22(1)")
+  })
+
+  test("ranking never drops a match", () => {
+    const withoutRank = all.filter((p) =>
+      ["22", "lipr"].every((tok) =>
+        JSON.stringify(p).toLowerCase().includes(tok)
+      )
+    )
+    assert.ok(searchProvisions(all, "Art. 22 LIPR").length >= Math.min(1, withoutRank.length))
+  })
+
+  test("finds section 22, added from the official consolidated text", () => {
+    // Cette recherche est celle qui a révélé le défaut initial : elle
+    // échouait d'abord parce que le moteur ne savait pas lire une citation,
+    // puis parce que la disposition manquait à la base.
+    const results = searchProvisions(all, "Art. 22 LIPR")
+    assert.ok(results.length >= 1)
+    assert.equal(results[0].provisionNo, "22(1)")
+    assert.equal(results[0].consolidatedOn, "2026-06-14")
+  })
+
   test("returns nothing for a provision absent from the base", () => {
-    // L'article 22 LIPR n'est pas dans l'échantillon : le résultat vide est
-    // correct, il traduit une lacune de données et non un défaut de recherche.
-    assert.equal(searchProvisions(all, "Art. 22 LIPR").length, 0)
+    // La base reste un échantillon : une disposition non versée n'est pas
+    // trouvée, et c'est correct — lacune de données, pas défaut de recherche.
+    assert.equal(searchProvisions(all, "Art. 743 LIPR").length, 0)
   })
 })

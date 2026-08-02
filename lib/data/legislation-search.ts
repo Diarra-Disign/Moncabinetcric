@@ -76,14 +76,42 @@ export function provisionMatches(provision: LegislationProvision, tokens: string
   return tokens.every((token) => haystack.includes(token))
 }
 
+/**
+ * Priorité d'une disposition pour une requête donnée : plus le score est
+ * bas, plus le résultat remonte.
+ *
+ * Sans ce classement, chercher « Art. 22 » plaçait l'article 20 en tête,
+ * parce que son texte renvoie au paragraphe 22.1(1). Une correspondance
+ * sur le numéro de la disposition elle-même doit primer sur une simple
+ * mention dans le corps d'un autre article.
+ */
+export function relevanceRank(provision: LegislationProvision, tokens: string[]): number {
+  const no = normalizeText(provision.provisionNo)
+  const numeric = tokens.filter((t) => /^[0-9]/.test(t))
+  if (numeric.length === 0) return 2
+
+  // « 22 » doit viser 22(1), pas 122(1) ni une mention de 22.1 ailleurs.
+  if (numeric.some((t) => no === t || no.startsWith(`${t}(`))) return 0
+  if (numeric.some((t) => no.startsWith(t))) return 1
+  return 2
+}
+
 export function searchProvisions(
   provisions: LegislationProvision[],
   query: string,
   instrumentFilter: string = "all"
 ): LegislationProvision[] {
   const tokens = tokenizeQuery(query)
-  return provisions.filter((provision) => {
+  const matched = provisions.filter((provision) => {
     if (instrumentFilter !== "all" && provision.instrument !== instrumentFilter) return false
     return provisionMatches(provision, tokens)
   })
+
+  if (tokens.length === 0) return matched
+
+  // Tri stable : à pertinence égale, l'ordre d'origine est conservé.
+  return matched
+    .map((provision, index) => ({ provision, index, rank: relevanceRank(provision, tokens) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((entry) => entry.provision)
 }

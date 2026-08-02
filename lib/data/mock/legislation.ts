@@ -154,6 +154,49 @@ export const MOCK_LEGISLATION_PROVISIONS: LegislationProvision[] = [
     sourceUrl: "https://laws-lois.justice.gc.ca/fra/reglements/DORS-2002-227/page-40.html#h-691854",
     citingCaseCount: 63,
     tags: ["Permis d'études", "Établissement désigné", "Admissibilité"]
+  },
+
+  // Bloc « Entrée et séjour » — texte consolidé officiel récupéré depuis
+  // laws-lois.justice.gc.ca le 2026-08-02, version à jour au 2026-06-14.
+  // citingCaseCount est volontairement absent : aucune source vérifiée.
+  {
+    id: "lipr-20",
+    instrument: "lipr",
+    provisionNo: "20(1)",
+    hierarchyPath: "Partie 1 / Entrée et séjour au Canada / Entrée et séjour / Article 20",
+    headingFr: "Obligation à l’entrée au Canada",
+    headingEn: "Obligation on entry",
+    bodyFr: "20 (1) L’étranger non visé à l’article 19 qui cherche à entrer au Canada ou à y séjourner est tenu de prouver : a) pour devenir un résident permanent, qu’il détient les visa ou autres documents réglementaires et vient s’y établir en permanence; b) pour devenir un résident temporaire, qu’il détient les visa ou autres documents requis par règlement et aura quitté le Canada à la fin de la période de séjour autorisée. [Déclaration] (1.1) L’étranger qui fait l’objet d’une déclaration visée au paragraphe 22.1(1) ne peut chercher à entrer au Canada ou à y séjourner à titre de résident temporaire. [Critères provinciaux] (2) L’étranger visé au paragraphe 9(1) est tenu en outre, pour devenir résident permanent, de prouver qu’il détient le document délivré par la province en cause attestant que l’autorité compétente de celle-ci est d’avis qu’il répond à ses critères de sélection.",
+    bodyEn: "20 (1) Every foreign national, other than a foreign national referred to in section 19, who seeks to enter or remain in Canada must establish, (a) to become a permanent resident, that they hold the visa or other document required under the regulations and have come to Canada in order to establish permanent residence; and (b) to become a temporary resident, that they hold the visa or other document required under the regulations and will leave Canada by the end of the period authorized for their stay. [Declaration] (1.1) A foreign national who is the subject of a declaration made under subsection 22.1(1) must not seek to enter or remain in Canada as a temporary resident. [Provincial criteria] (2) A foreign national referred to in subsection 9(1) must also establish, to become a permanent resident, that they hold a document issued by the province indicating that the competent authority of the province is of the opinion that the foreign national complies with the province’s selection criteria.",
+    consolidatedOn: "2026-06-14",
+    sourceUrl: "https://laws-lois.justice.gc.ca/fra/lois/i-2.5/section-20.html",
+    tags: ["Obligation à l’entrée", "Visa", "Résidence permanente", "Résidence temporaire"]
+  },
+  {
+    id: "lipr-21",
+    instrument: "lipr",
+    provisionNo: "21(1)",
+    hierarchyPath: "Partie 1 / Entrée et séjour au Canada / Statut et autorisation d’entrer / Article 21",
+    headingFr: "Résident permanent",
+    headingEn: "Permanent resident",
+    bodyFr: "21 (1) Devient résident permanent l’étranger dont l’agent constate qu’il a demandé ce statut, s’est déchargé des obligations prévues à l’alinéa 20(1)a) et au paragraphe 20(2) et n’est pas interdit de territoire. [Personne protégée] (2) Sous réserve d’un accord fédéro-provincial visé au paragraphe 9(1), devient résident permanent la personne à laquelle la qualité de réfugié ou celle de personne à protéger a été reconnue en dernier ressort par la Commission ou celle dont la demande de protection a été acceptée par le ministre — sauf dans le cas d’une personne visée au paragraphe 112(3) ou qui fait partie d’une catégorie réglementaire — dont l’agent constate qu’elle a présenté sa demande en conformité avec les règlements et qu’elle n’est pas interdite de territoire pour l’un des motifs visés aux articles 34, 35 ou 35.1, au paragraphe 36(1) ou aux articles 37 ou 38. [Demande pendante — paragraphe 108(2)] (3) La personne à l’égard de laquelle le ministre a fait la demande visée au paragraphe 108(2) ne peut devenir résident permanent aux termes du paragraphe (2) tant que cette demande est pendante.",
+    bodyEn: "21 (1) A foreign national becomes a permanent resident if an officer is satisfied that the foreign national has applied for that status, has met the obligations set out in paragraph 20(1)(a) and subsection 20(2) and is not inadmissible. [Protected person] (2) Except in the case of a person described in subsection 112(3) or a person who is a member of a prescribed class of persons, a person whose application for protection has been finally determined by the Board to be a Convention refugee or to be a person in need of protection, or a person whose application for protection has been allowed by the Minister, becomes, subject to any federal-provincial agreement referred to in subsection 9(1), a permanent resident if the officer is satisfied that they have made their application in accordance with the regulations and that they are not inadmissible on any ground referred to in section 34, 35 or 35.1, subsection 36(1) or section 37 or 38. [Pending application — subsection 108(2)] (3) A person in respect of whom the Minister has made an application under subsection 108(2) may not become a permanent resident under subsection (2) while the application is pending.",
+    consolidatedOn: "2026-06-14",
+    sourceUrl: "https://laws-lois.justice.gc.ca/fra/lois/i-2.5/section-21.html",
+    tags: ["Résidence permanente", "Personne protégée"]
+  },
+  {
+    id: "lipr-22",
+    instrument: "lipr",
+    provisionNo: "22(1)",
+    hierarchyPath: "Partie 1 / Entrée et séjour au Canada / Statut et autorisation d’entrer / Article 22",
+    headingFr: "Résident temporaire",
+    headingEn: "Temporary resident",
+    bodyFr: "22 (1) Devient résident temporaire l’étranger dont l’agent constate qu’il a demandé ce statut, s’est déchargé des obligations prévues à l’alinéa 20(1)b), n’est pas interdit de territoire et ne fait pas l’objet d’une déclaration visée au paragraphe 22.1(1). [Double intention] (2) L’intention qu’il a de s’établir au Canada n’empêche pas l’étranger de devenir résident temporaire sur preuve qu’il aura quitté le Canada à la fin de la période de séjour autorisée.",
+    bodyEn: "22 (1) A foreign national becomes a temporary resident if an officer is satisfied that the foreign national has applied for that status, has met the obligations set out in paragraph 20(1)(b), is not inadmissible and is not the subject of a declaration made under subsection 22.1(1). [Dual intent] (2) An intention by a foreign national to become a permanent resident does not preclude them from becoming a temporary resident if the officer is satisfied that they will leave Canada by the end of the period authorized for their stay.",
+    consolidatedOn: "2026-06-14",
+    sourceUrl: "https://laws-lois.justice.gc.ca/fra/lois/i-2.5/section-22.html",
+    tags: ["Résidence temporaire", "Double intention"]
   }
 ]
 

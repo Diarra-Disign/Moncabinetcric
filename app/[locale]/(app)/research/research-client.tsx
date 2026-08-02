@@ -358,9 +358,13 @@ export function ResearchClient({
                     <span className="rounded-md bg-muted px-2.5 py-1 font-mono text-xs text-muted-foreground">
                       {t("consolidatedDate")}: {prov.consolidatedOn}
                     </span>
-                    <span className="rounded-md border border-success/30 bg-success/10 px-2 py-1 text-xs font-bold text-success">
-                      {prov.citingCaseCount} {t("casesCiting")}
-                    </span>
+                    {/* Masqué faute de source vérifiée : un badge « décisions
+                        citant » sans nombre est pire qu'absent. */}
+                    {typeof prov.citingCaseCount === "number" && (
+                      <span className="rounded-md border border-success/30 bg-success/10 px-2 py-1 text-xs font-bold text-success">
+                        {prov.citingCaseCount} {t("casesCiting")}
+                      </span>
+                    )}
                   </div>
                 </div>
 
