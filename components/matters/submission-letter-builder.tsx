@@ -33,11 +33,21 @@ export function SubmissionLetterBuilder({
   const [language, setLanguage] = React.useState<"fr" | "en">("fr")
   const [variantIndex, setVariantIndex] = React.useState(0)
   const [toastNotice, setToastNotice] = React.useState<string | null>(null)
-  const [customArgument, setCustomArgument] = React.useState(
-    "Le candidat démontre une intégration économique et linguistique optimale avec un score NCLC 9 et une expérience qualifiée au Québec au sens de l'article 87.1 du RIPR."
-  )
-  const [isGenerating, setIsGenerating] = React.useState(false)
-  const [copied, setCopied] = React.useState(false)
+  // Argument par défaut dynamique selon le client et le programme
+  const getInitialArgument = React.useCallback(() => {
+    const prog = programName.toLowerCase()
+    if (prog.includes("peq") || prog.includes("résidence") || prog.includes("express")) {
+      return `Le candidat principal, ${clientName}, démontre une intégration économique et linguistique optimale au Québec avec des résultats attestés NCLC 9 et une expérience qualifiée en catégorie FEER 1/2 au sens de l'article 87.1 du RIPR.`
+    } else if (prog.includes("parrainage") || prog.includes("époux") || prog.includes("conjoint")) {
+      return `La relation conjugale unissant le répondant et ${clientName} est authentique, exclusive et soutenue par des preuves de cohabitation continue et d'interdépendance financière conformes à l'article 124 du RIPR.`
+    } else if (prog.includes("travail") || prog.includes("eimt") || prog.includes("lmia")) {
+      return `L'offre d'emploi dédiée à ${clientName} répond à une pénurie critique de main-d'œuvre qualifiée et s'appuie sur une étude d'impact sur le marché du travail (EIMT) favorable émise par EDSC/MIFI.`
+    } else {
+      return `Le projet d'études de ${clientName} est pleinement légitime, soutenu par une lettre d'admission d'un établissement d'enseignement désigné (EED) et une capacité financière vérifiée conforme à l'article 216 du RIPR.`
+    }
+  }, [programName, clientName])
+
+  const [customArgument, setCustomArgument] = React.useState<string>(() => getInitialArgument())
 
   // Citations légales automatiques d'après la LIPR / RIPR selon le programme
   const getLegalCitations = () => {
@@ -45,10 +55,10 @@ export function SubmissionLetterBuilder({
     if (prog.includes("peq") || prog.includes("résidence") || prog.includes("express")) {
       return {
         law: "Loi sur l'immigration et la protection des réfugiés (LIPR, L.C. 2001, c. 27)",
-        section: "Article 12(1) — Catégorie de l'immigration économique",
+        section: "Article 12(1) — Catégorie de l'immigration économique (PEQ / Entrée Express)",
         reg: "Règlement sur l'immigration et la protection des réfugiés (RIPR, DORS/2002-227)",
-        regSection: "Article 87.1 — Catégorie de l'expérience canadienne",
-        summary: "Le demandeur satisfait pleinement aux critères d'admissibilité de la catégorie économique en vertu de son expérience professionnelle qualifiée et de sa maîtrise linguistique avérée."
+        regSection: "Article 87.1 — Catégorie de l'expérience canadienne & sélection du Québec",
+        summary: `Le demandeur, ${clientName}, satisfait pleinement aux critères d'admissibilité de la catégorie économique en vertu de son expérience professionnelle qualifiée et de sa maîtrise linguistique avérée.`
       }
     } else if (prog.includes("parrainage") || prog.includes("époux") || prog.includes("conjoint")) {
       return {
@@ -56,7 +66,7 @@ export function SubmissionLetterBuilder({
         section: "Article 12(2) — Catégorie du regroupement familial (Époux / Conjoint de fait)",
         reg: "Règlement sur l'immigration et la protection des réfugiés (RIPR, DORS/2002-227)",
         regSection: "Article 124 — Membre de la catégorie des époux ou conjoints de fait au Canada",
-        summary: "La relation entre le répondant et le demandeur parrainé est authentique et n'a pas été contractée aux fins d'acquérir un statut au sens de l'article 4 du RIPR."
+        summary: `La relation entre le répondant et ${clientName} est authentique et n'a pas été contractée aux fins d'acquérir un statut au sens de l'article 4 du RIPR.`
       }
     } else if (prog.includes("travail") || prog.includes("eimt") || prog.includes("lmia")) {
       return {
@@ -64,7 +74,7 @@ export function SubmissionLetterBuilder({
         section: "Article 30(1) — Autorisation de travailler au Canada",
         reg: "Règlement sur l'immigration et la protection des réfugiés (RIPR, DORS/2002-227)",
         regSection: "Article 200 — Délivrance du permis de travail avec EIMT conforme",
-        summary: "L’offre d'emploi respecte l’ensemble des conditions du marché du travail canadien et bénéficie d’une étude d’impact sur le marché du travail (EIMT) favorable émise par EDSC/MIFI."
+        summary: `L'offre d'emploi pour ${clientName} respecte l'ensemble des conditions du marché du travail canadien et bénéficie d'une EIMT favorable.`
       }
     } else {
       return {
@@ -72,7 +82,7 @@ export function SubmissionLetterBuilder({
         section: "Article 30(2) — Autorisation d'étudier au Canada",
         reg: "Règlement sur l'immigration et la protection des réfugiés (RIPR, DORS/2002-227)",
         regSection: "Article 216 — Exigence d'établissement et capacité financière",
-        summary: "Le demandeur a établi la légitimité de son projet d'études, dispose des ressources financières suffisantes et quittera le Canada à l'expiration de son séjour autorisé."
+        summary: `Le demandeur, ${clientName}, a établi la légitimité de son projet d'études et dispose des ressources financières suffisantes.`
       }
     }
   }
@@ -82,25 +92,79 @@ export function SubmissionLetterBuilder({
   const generateDefaultTemplate = React.useCallback((overrideLang?: "fr" | "en", overrideVariant?: number) => {
     const activeLang = overrideLang || language
     const currentVariant = overrideVariant !== undefined ? overrideVariant : variantIndex
+    const prog = programName.toLowerCase()
 
     let variantParagraphFr = ""
     let variantParagraphEn = ""
 
-    if (currentVariant === 1) {
-      variantParagraphFr = `ENRICHISSEMENT DU PROFIL — INTÉGRATION ÉCONOMIQUE & LINGUISTIQUE (VARIANTE 2) :
-Le candidat présente un dossier exemplaire caractérisé par une maîtrise linguistique supérieure (NCLC 9 vérifié), une expérience professionnelle ininterrompue au Canada et une contribution fiscale mesurable. Son profil s'inscrit directement dans les priorités ministérielles de rétention des talents qualifiés au Québec et au Canada.`
-      variantParagraphEn = `PROFILE ENHANCEMENT — ECONOMIC INTEGRATION & LANGUAGE PROFICIENCY (VARIANT 2):
-The applicant presents an exemplary application highlighted by superior language proficiency (verified CLB 9), uninterrupted qualifying Canadian work experience, and a established tax track record. Their profile aligns directly with ministerial priorities for retaining skilled talent.`
-    } else if (currentVariant === 2) {
-      variantParagraphFr = `CONFORMITÉ RIGOUREUSE ET TRAITEMENT PRIORITAIRE (VARIANTE 3) :
-L'ensemble des exigences médicales, sécuritaires et biométriques a fait l'objet d'un audit préalable rigoureux par notre cabinet. Aucune interdiction de territoire au sens des articles 34 à 42 de la LIPR n'est applicable. Nous sollicitons un examen diligent au regard de l'échéance d'embauche imminente.`
-      variantParagraphEn = `RIGOROUS COMPLIANCE & EXPEDITED PROCESSING (VARIANT 3):
-All medical, background, and biometric prerequisites have undergone prior verification by our firm. No inadmissibility grounds under sections 34 to 42 of the IRPA apply. We respectfully request expedited review in light of the imminent employment start date.`
+    if (prog.includes("parrainage") || prog.includes("époux") || prog.includes("conjoint")) {
+      if (currentVariant === 1) {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET PREUVES DE LA RELATION (VARIANTE 2 — FOCUS COHABITATION & ENGAGEMENT) :
+La présente demande de parrainage en faveur de ${clientName} est étayée par un ensemble probant de preuves documentaires attestant d'une cohabitation continue, de comptes bancaires joints et d'engagements mutuels sincères. L'engagement de parrainage de 3 ans souscrit par le répondant garantit l'absence d'aide sociale au sens du RIPR.`
+        variantParagraphEn = `1. STATUTORY BASIS & PROOF OF RELATIONSHIP (VARIANT 2 — COHABITATION & UNDERTAKING FOCUS):
+This sponsorship application on behalf of ${clientName} is supported by compelling documentary evidence demonstrating continuous cohabitation, joint financial accounts, and genuine mutual commitment. The sponsor's 3-year undertaking guarantees compliance with IRPR financial requirements.`
+      } else if (currentVariant === 2) {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET Rapprochement FAMILIAL URGENT (VARIANTE 3 — CONFORMITÉ ET SÉCURITÉ) :
+Le dossier de ${clientName} a fait l'objet d'un audit préalable rigoureux quant aux exigences médicales et d'antécédents. Aucune incompatibilité au sens des articles 34 à 42 de la LIPR n'est relevée. Nous sollicitons respectueusement un traitement prioritaire afin de préserver l'unité familiale.`
+        variantParagraphEn = `1. STATUTORY BASIS & EXPEDITED FAMILY REUNIFICATION (VARIANT 3 — RIGOROUS AUDIT):
+The file for ${clientName} has undergone strict prior verification regarding medical and security requirements. No inadmissibility grounds under sections 34 to 42 of the IRPA apply. We respectfully request priority processing to uphold family unity.`
+      } else {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET ADMISSIBILITÉ AU REGROUPEMENT FAMILIAL (VARIANTE 1) :
+${customArgument}`
+        variantParagraphEn = `1. STATUTORY BASIS & FAMILY SPONSORSHIP ELIGIBILITY (VARIANT 1):
+${customArgument}`
+      }
+    } else if (prog.includes("travail") || prog.includes("eimt") || prog.includes("lmia")) {
+      if (currentVariant === 1) {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET IMPACT ÉCONOMIQUE DE L'EMPLOI (VARIANTE 2 — FOCUS APPORT TECHNIQUE) :
+Le recrutement de ${clientName} est stratégique pour l'employeur canadien. Les compétences spécialisées du demandeur comblent un besoin opérationnel immédiat validé par le numéro d'EIMT approuvé. La rémunération et les avantages sociaux respectent les barèmes prévus par le Code canadien du travail.`
+        variantParagraphEn = `1. STATUTORY BASIS & ECONOMIC IMPACT OF EMPLOYMENT (VARIANT 2 — SPECIALIZED SKILLS FOCUS):
+The hiring of ${clientName} is critical to the Canadian employer's operations. The applicant's specialized expertise fills an immediate operational gap confirmed by the approved LMIA decision. Wages and working conditions strictly adhere to Canadian labor standards.`
+      } else if (currentVariant === 2) {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET TRAITEMENT DILIGENT DE PERMIS DE TRAVAIL (VARIANTE 3 — URGENCE OPÉRATIONNELLE) :
+Considérant les impératifs de démarrage du projet d'entreprise et la conformité intégrale des pièces justificatives fournies pour ${clientName}, nous sollicitons la délivrance du permis de travail dans les meilleurs délais applicables.`
+        variantParagraphEn = `1. STATUTORY BASIS & EXPEDITED WORK PERMIT PROCESSING (VARIANT 3 — OPERATIONAL URGENCY):
+Given the critical project launch timelines and the verified compliance of all documentation submitted for ${clientName}, we respectfully request expedited issuance of the work permit.`
+      } else {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET AUTORISATION D'EMPLOI (VARIANTE 1) :
+${customArgument}`
+        variantParagraphEn = `1. STATUTORY BASIS & WORK PERMIT ELIGIBILITY (VARIANT 1):
+${customArgument}`
+      }
+    } else if (prog.includes("études") || prog.includes("caq")) {
+      if (currentVariant === 1) {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET PROJET D'ÉTUDES STRATÉGIQUE (VARIANTE 2 — CAPACITÉ FINANCIÈRE & INTENTION DOUBLE) :
+${clientName} présente un plan d'études cohérent et articulé avec son parcours académique antérieur. Les preuves de paiement des droits de scolarité et de capacité financière en fidéicommis confirment l'autonomie financière du candidat au sens de l'article 216 du RIPR.`
+        variantParagraphEn = `1. STATUTORY BASIS & STRATEGIC STUDY PLAN (VARIANT 2 — FINANCIAL SUFFICIENCY & DUAL INTENT):
+${clientName} presents a coherent study plan directly building upon prior academic achievements. Verified proof of tuition payment and trust account deposits establish complete financial sufficiency under section 216 of the IRPR.`
+      } else if (currentVariant === 2) {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET CONFORMITÉ DE L'ADMISSION (VARIANTE 3 — ÉTABLISSEMENT DÉSIGNÉ EED) :
+La lettre d'acceptation officielle émise par l'Établissement d'Enseignement Désigné (EED) ainsi que le Certificat de sélection du Québec (CAQ) confirment l'admissibilité intégrale de ${clientName} pour la rentrée académique imminente.`
+        variantParagraphEn = `1. STATUTORY BASIS & DESIGNATED LEARNING INSTITUTION ADMISSION (VARIANT 3 — DLI & CAQ COMPLIANCE):
+The official Letter of Acceptance issued by the Designated Learning Institution (DLI) and the Quebec Acceptance Certificate (CAQ) validate the complete eligibility of ${clientName} for the upcoming academic intake.`
+      } else {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET PROJET D'ÉTUDES (VARIANTE 1) :
+${customArgument}`
+        variantParagraphEn = `1. STATUTORY BASIS & STUDY PERMIT ELIGIBILITY (VARIANT 1):
+${customArgument}`
+      }
     } else {
-      variantParagraphFr = `PRÉSENTATION DU DOSSIER ET ADMISSIBILITÉ (VARIANTE 1) :
+      if (currentVariant === 1) {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET ENRICHISSEMENT DU PROFIL (VARIANTE 2 — INTÉGRATION & CONTRIBUTION) :
+Le candidat principal, ${clientName}, présente un dossier exemplaire caractérisé par une maîtrise linguistique supérieure (NCLC 9 vérifié), une expérience professionnelle qualifiée et une capacité d'établissement réussie au Canada.`
+        variantParagraphEn = `1. STATUTORY BASIS & PROFILE ENHANCEMENT (VARIANT 2 — INTEGRATION & CONTRIBUTION):
+The principal applicant, ${clientName}, demonstrates an outstanding record highlighted by superior language proficiency (CLB 9), qualifying work experience, and proven economic adaptability in Canada.`
+      } else if (currentVariant === 2) {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET AUDIT DE CONFORMITÉ CICC (VARIANTE 3 — TRAITEMENT PRIORITAIRE) :
+L'ensemble des exigences réglementaires pour le dossier ${matterId} (${clientName}) a fait l'objet d'un audit préalable inaltérable par notre cabinet. Nous sollicitons un examen diligent de cette demande.`
+        variantParagraphEn = `1. STATUTORY BASIS & CICC COMPLIANCE AUDIT (VARIANT 3 — EXPEDITED REVIEW):
+All regulatory prerequisites for matter ${matterId} (${clientName}) have undergone rigorous internal audit by our firm. We respectfully request expedited evaluation of this application.`
+      } else {
+        variantParagraphFr = `1. FONDEMENT JURIDIQUE ET ÉLIGIBILITÉ (VARIANTE 1) :
 ${customArgument}`
-      variantParagraphEn = `APPLICATION OVERVIEW & ELIGIBILITY (VARIANT 1):
+        variantParagraphEn = `1. STATUTORY BASIS & ELIGIBILITY (VARIANT 1):
 ${customArgument}`
+      }
     }
 
     if (activeLang === "fr") {
@@ -115,35 +179,32 @@ Date : ${new Date().toLocaleDateString("fr-CA", { day: "numeric", month: "long",
 Immigration, Réfugiés et Citoyenneté Canada (IRCC)
 ${processingOffice}
 
-OBJET : SOUMISSION DE LA DEMANDE D'IMMIGRATION — ${programName.toUpperCase()}
+OBJET : SOUMISSION FORMELLE DE LA DEMANDE D'IMMIGRATION — ${programName.toUpperCase()}
 Dossier Réf. : ${matterId}
 Demandeur principal : ${clientName}
 
 Madame, Monsieur l'Agent,
 
-En notre qualité de mandataire accrédité au sens du formulaire IMM 5476 (Conseiller en immigration titulaire du permis CICC n° ${rcicNumber}), nous avons l'honneur de vous soumettre la présente demande au nom de notre client(e), ${clientName}.
-
-1. FONDEMENT JURIDIQUE ET ÉLIGIBILITÉ
-Cette demande est présentée en vertu de la ${legalInfo.law}, notamment l'${legalInfo.section}, ainsi que du ${legalInfo.reg} (${legalInfo.regSection}).
+En notre qualité de mandataire accrédité au sens du formulaire IMM 5476 (Conseiller en immigration titulaire du permis CICC n° ${rcicNumber}), nous avons l'honneur de vous soumettre la présente demande officielle au nom de notre client(e), ${clientName}, dans le cadre du programme : ${programName}.
 
 ${variantParagraphFr}
 
-2. INVENTAIRE DES PIÈCES JUSTIFICATIVES ATTACHÉES (ANNEXE A)
-Conformément au guide de contrôle d'IRCC, l'ensemble des pièces requises a été scrupuleusement vérifié, numéroté et certifié conforme par notre cabinet :
-- Annexe A.1 : Pièces d'identité et Passeport certifié conforme
-- Annexe A.2 : Résultats des tests linguistiques officiels (NCLC 9)
-- Annexe A.3 : Attestations d'expérience professionnelle et relevés d'emplois qualifiés
-- Annexe A.4 : Preuves de capacité financière et quittance de fidéicommis (Art. 13 CICC)
-- Annexe A.5 : Formulaire IMM 5476 dûment signé et horodaté
+2. INVENTAIRE DES PIÈCES JUSTIFICATIVES ATTACHÉES AU DOSSIER DE ${clientName.toUpperCase()} (ANNEXE A)
+Conformément au guide de contrôle d'IRCC pour le programme ${programName}, l'ensemble des pièces requises pour ${clientName} (${matterId}) a été scrupuleusement vérifié, numéroté et certifié conforme par notre cabinet :
+- Annexe A.1 : Pièces d'identité et Passeport certifié conforme de ${clientName}
+- Annexe A.2 : Résultats des tests linguistiques officiels et équivalences d'études
+- Annexe A.3 : Attestations d'expérience professionnelle et preuves d'emploi qualifié
+- Annexe A.4 : Preuves de capacité financière et quittance du compte fidéicommis (Art. 13 CICC)
+- Annexe A.5 : Formulaire officiel de représentation IMM 5476 dûment signé et horodaté
 
 CONCLUSION ET DEMANDE FORMELLE
-Considérant que ${clientName} remplit l'ensemble des exigences statutaires prescrites par la LIPR et le RIPR, nous sollicitons respectueusement l'approbation de sa demande et l'émission des documents d'immigration correspondants.
+Considérant que ${clientName} remplit l'ensemble des exigences statutaires prescrites par la LIPR et le RIPR pour le programme ${programName}, nous sollicitons respectueusement l'approbation de sa demande et l'émission des documents d'immigration correspondants.
 
 Veuillez agréer, Madame, Monsieur l'Agent, l'expression de notre haute considération.
 
 _______________________________________
 ${rcicName}, RCIC / CRIC
-Membre du Collège des consultants en immigration (CICC) # ${rcicNumber}
+Membre du Collège des consultants en immigration et en citoyenneté (CICC) # ${rcicNumber}
 Cabinet Immigration Boréale Inc.`
     } else {
       return `BOREAL IMMIGRATION CABINET INC.
@@ -157,29 +218,26 @@ TO THE ATTENTION OF THE IMMIGRATION OFFICER
 Immigration, Refugees and Citizenship Canada (IRCC)
 ${processingOffice}
 
-SUBJECT: SUBMISSION OF IMMIGRATION APPLICATION — ${programName.toUpperCase()}
+SUBJECT: FORMAL SUBMISSION OF IMMIGRATION APPLICATION — ${programName.toUpperCase()}
 Matter Ref.: ${matterId}
 Principal Applicant: ${clientName}
 
 Dear Immigration Officer,
 
-As the authorized representative under form IMM 5476 (Regulated Canadian Immigration Consultant, CICC Licence #${rcicNumber}), we are pleased to submit this formal application on behalf of our client, ${clientName}.
-
-1. STATUTORY BASIS & ELIGIBILITY
-This application is submitted pursuant to the ${legalInfo.law}, specifically ${legalInfo.section}, and the ${legalInfo.reg} (${legalInfo.regSection}).
+As the authorized representative under form IMM 5476 (Regulated Canadian Immigration Consultant, CICC Licence #${rcicNumber}), we are pleased to submit this formal application on behalf of our client, ${clientName}, under the ${programName} program.
 
 ${variantParagraphEn}
 
-2. INDEX OF ATTACHED SUPPORTING DOCUMENTS (SCHEDULE A)
-In strict compliance with the IRCC document checklist, all required evidence has been audited, indexed, and verified by our firm:
-- Schedule A.1: Certified Passport and Identity Documents
-- Schedule A.2: Official Language Test Results
+2. INDEX OF SUPPORTING DOCUMENTS ATTACHED FOR ${clientName.toUpperCase()} (SCHEDULE A)
+In strict compliance with the IRCC document checklist for ${programName}, all required evidence for ${clientName} (${matterId}) has been audited, indexed, and verified by our firm:
+- Schedule A.1: Certified Passport and Identity Documents for ${clientName}
+- Schedule A.2: Official Language Test Results & Educational Credential Assessment (ECA)
 - Schedule A.3: Verified Employment Reference Letters & Proof of Qualifying Experience
 - Schedule A.4: Proof of Financial Sufficiency & CICC Trust Account Receipt (Art. 13)
 - Schedule A.5: Duly Executed IMM 5476 Representation Form
 
 CONCLUSION & FORMAL REQUEST
-Considering that ${clientName} fully satisfies all statutory requirements established under the IRPA and IRPR, we respectfully request the approval of this application and the issuance of the corresponding status documents.
+Considering that ${clientName} fully satisfies all statutory requirements established under the IRPA and IRPR for ${programName}, we respectfully request the approval of this application and the issuance of the corresponding status documents.
 
 Sincerely,
 
@@ -188,7 +246,7 @@ ${rcicName}, RCIC / CRIC
 College of Immigration and Citizenship Consultants (CICC) Licence #${rcicNumber}
 Boreal Immigration Cabinet Inc.`
     }
-  }, [language, variantIndex, processingOffice, programName, matterId, clientName, rcicNumber, rcicName, legalInfo, customArgument])
+  }, [language, variantIndex, processingOffice, programName, matterId, clientName, rcicNumber, rcicName, customArgument])
 
   // État local du texte de la lettre pour permettre la modification directe
   const [editableLetterText, setEditableLetterText] = React.useState<string>(() => generateDefaultTemplate())
