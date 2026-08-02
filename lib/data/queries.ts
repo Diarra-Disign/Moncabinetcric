@@ -1,4 +1,4 @@
-import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, FolderRecord, ImmigrationProgram, CalendarEvent, AuditLogRecord, ActionApprovalRecord, DeadlineRule, CiccComplianceScore } from "./types"
+import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, FolderRecord, ImmigrationProgram, CalendarEvent, AuditLogRecord, ActionApprovalRecord, DeadlineRule, CiccComplianceScore, DeadlineRecord } from "./types"
 import { MOCK_MATTERS } from "./mock/matters"
 import { MOCK_LEADS } from "./mock/leads"
 import { MOCK_INVOICES } from "./mock/invoices"
@@ -156,6 +156,11 @@ export function _getStores() {
 export async function getAuditLogs(): Promise<AuditLogRecord[]> {
   const { MOCK_AUDIT_LOGS } = await import("./mock/audit")
   return MOCK_AUDIT_LOGS
+}
+
+export async function getDocumentAuditLog(): Promise<AuditLogRecord[]> {
+  const { MOCK_DOCUMENT_AUDIT_LOG } = await import("./mock/doc-audit")
+  return MOCK_DOCUMENT_AUDIT_LOG
 }
 
 export async function getApprovalQueue(): Promise<ActionApprovalRecord[]> {

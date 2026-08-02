@@ -16,6 +16,7 @@ import {
   FileIcon, 
   FileText,
   ShieldCheck,
+  Shield,
   Lock,
   Download,
   ArrowUpRight,
@@ -39,17 +40,26 @@ import {
 } from "lucide-react"
 import { useRouter } from "@/i18n/routing"
 import { PageHeader } from "@/components/app-shell/page-header"
-import { DocumentRecord } from "@/lib/data/types"
+import { DocumentRecord, AuditLogRecord } from "@/lib/data/types"
+import { VaultAuditLog } from "@/components/documents/vault-audit-log"
 import { triggerFileDownload } from "@/lib/utils/download-helper"
 import { archiveDocumentRecord, deleteDocumentRecord, restoreDocumentRecord } from "@/lib/data/actions"
 
-interface DocumentsClientProps {
-  t: Record<string, unknown>
-  initialFolders: Array<{ id: string; title: string; files: number; size: string }>
-  initialDocuments: DocumentRecord[]
+export interface FolderItem {
+  id: string
+  title: string
+  files: number
+  size: string
 }
 
-export function DocumentsClient({ t, initialFolders, initialDocuments }: DocumentsClientProps) {
+interface DocumentsClientProps {
+  t: Record<string, unknown>
+  initialFolders: FolderItem[]
+  initialDocuments: DocumentRecord[]
+  initialAuditLogs?: AuditLogRecord[]
+}
+
+export function DocumentsClient({ t, initialFolders, initialDocuments, initialAuditLogs = [] }: DocumentsClientProps) {
   const router = useRouter()
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -57,11 +67,38 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
   const [activeCategory, setActiveCategory] = React.useState<string>("all")
   const [searchQuery, setSearchQuery] = React.useState("")
   
-  // Modals
+  // Modals & Audit
   const [showNewModal, setShowNewModal] = React.useState(false)
   const [showIrccModal, setShowIrccModal] = React.useState(false)
   const [selectedDoc, setSelectedDoc] = React.useState<DocumentRecord | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
+
+  const [sessionAuditEntries, setSessionAuditEntries] = React.useState<AuditLogRecord[]>([])
+
+  const addAuditLog = React.useCallback((action: AuditLogRecord["action"], summary: string, entityId?: string) => {
+    const lastEntry = sessionAuditEntries[0] || (initialAuditLogs && initialAuditLogs[0])
+    const prevHash = lastEntry ? lastEntry.rowHash : "0000000000000000000000000000000000000000000000000000000000000000"
+    const rowHash = `${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`.padEnd(64, "0").slice(0, 64)
+
+    const newEntry: AuditLogRecord = {
+      id: `daud-session-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      occurredAt: new Date().toISOString(),
+      actorMemberId: "mem-01",
+      actorEmail: "adama.diarra@boreale-immigration.ca",
+      actorName: "Me Adama Diarra",
+      actorRole: "rcic",
+      action,
+      entityType: "document",
+      entityId: entityId || "doc-session",
+      summary,
+      ipAddress: "192.168.1.42",
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      prevHash,
+      rowHash
+    }
+
+    setSessionAuditEntries(prev => [newEntry, ...prev])
+  }, [sessionAuditEntries, initialAuditLogs])
 
   // Form State pour le nouveau document
   const [docName, setDocName] = React.useState("")
@@ -95,6 +132,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
     if (e) e.stopPropagation()
     const sampleContent = doc.content || `DOCUMENT OFFICIEL CICC — ${doc.name}\nEmpreinte SHA-256: ${doc.sha256 || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}\nClient: ${doc.clientName || "M. Adama Diarra"}\nChemin Sécurisé: ${doc.storagePath || "firms/firm-boreale/matters/"}`
     triggerFileDownload(doc.name, sampleContent, "text/plain;charset=utf-8")
+    addAuditLog("download", `Téléchargement sécurisé — ${doc.name} par Me Adama Diarra (RCIC #R-514982)`, doc.id)
     setNotice(`⬇️ Téléchargement de "${doc.name}" sur votre ordinateur effectué.`)
     setTimeout(() => setNotice(null), 5000)
   }
@@ -107,6 +145,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
 
     setDocuments(prev => prev.map(d => d.id === id ? { ...d, status: "archived" } : d))
     await archiveDocumentRecord(id)
+    addAuditLog("update", `Archivage réglementaire — ${target.name} déplacé dans les archives conformément à la politique de rétention`, id)
     setNotice(`📁 Document "${target.name}" archivé avec succès. Retrouvez-le dans l'onglet Archives.`)
     setTimeout(() => setNotice(null), 5000)
   }
@@ -118,6 +157,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
     const { id, name } = deleteTargetDoc
     setDocuments(prev => prev.filter(d => d.id !== id))
     await deleteDocumentRecord(id)
+    addAuditLog("delete", `Suppression définitive du document ${name} du coffre-fort client`, id)
     setNotice(`🗑️ Document "${name}" supprimé définitivement du coffre-fort client.`)
     setDeleteTargetDoc(null)
     setTimeout(() => setNotice(null), 5000)
@@ -131,6 +171,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
 
     setDocuments(prev => prev.map(d => d.id === id ? { ...d, status: "valid" } : d))
     await restoreDocumentRecord(id)
+    addAuditLog("update", `Réintégration du document ${target.name} dans le dossier client actif`, id)
     setNotice(`↩️ Document "${target.name}" réintégré dans le dossier client actif.`)
     setTimeout(() => setNotice(null), 5000)
   }
@@ -147,6 +188,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
     })
 
     triggerFileDownload("Coffre_Fort_Client_Export_Complet_CICC.txt", manifestContent, "text/plain;charset=utf-8")
+    addAuditLog("export", `Export Audit CICC 1-Clic — Manifeste SHA-256 généré pour ${documents.length} documents`, "export-batch-session")
     setNotice("📦 Pack d'exportation du Coffre-Fort Client (Manifeste & Fichiers) généré avec succès.")
     setTimeout(() => setNotice(null), 6000)
   }
@@ -183,6 +225,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
     setDocuments(prev => [created, ...prev])
     setShowNewModal(false)
     setDocName("")
+    addAuditLog("create", `Téléversement sécurisé — ${created.name} (${created.fileSize}) dans le coffre-fort chiffré AES-256`, created.id)
     setNotice(`✅ Document "${created.name}" téléversé avec succès dans le coffre-fort chiffré !`)
     setTimeout(() => setNotice(null), 5000)
   }
@@ -323,115 +366,130 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
           >
             Archives ({documents.filter(d => d.status === "archived").length})
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveCategory("audit")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeCategory === "audit" ? "bg-indigo-900 text-white shadow-sm" : "bg-indigo-50 text-indigo-900 hover:bg-indigo-100"
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Journal d&apos;Audit SHA-256</span>
+          </button>
         </div>
       </div>
 
-      {/* BARRE DE RECHERCHE */}
-      <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs flex items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Rechercher un document par nom, client ou ID dossier..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-600 focus:outline-none transition-all"
-          />
-        </div>
-      </div>
+      {activeCategory === "audit" ? (
+        <VaultAuditLog initialAuditEntries={initialAuditLogs} sessionAuditEntries={sessionAuditEntries} />
+      ) : (
+        <>
+          {/* BARRE DE RECHERCHE */}
+          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs flex items-center justify-between gap-4">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un document par nom, client ou ID dossier..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-600 focus:outline-none transition-all"
+              />
+            </div>
+          </div>
 
-      {/* TABLEAU DES DOCUMENTS AVEC ACTIONS DIRECTES (TELECHARGER, ARCHIVER, SUPPRIMER) */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left border-collapse">
-            <thead className="bg-slate-50 font-black uppercase text-[10px] text-slate-500 border-b border-slate-200">
-              <tr>
-                <th className="py-3.5 px-4 w-[28%]">Nom du Fichier</th>
-                <th className="py-3.5 px-4 w-[18%]">Catégorie & Source</th>
-                <th className="py-3.5 px-4 w-[20%]">Client & Dossier Associe</th>
-                <th className="py-3.5 px-4 w-[14%]">Date & Taille</th>
-                <th className="py-3.5 px-4 w-[20%] text-right whitespace-nowrap">Actions de Gestion</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
-              {filteredDocuments.map(doc => (
-                <tr 
-                  key={doc.id} 
-                  className="hover:bg-slate-50/80 transition-colors group"
-                >
-                  {/* Nom Fichier */}
-                  <td className="py-3.5 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700 shrink-0">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <strong className="font-bold text-slate-900 block group-hover:text-indigo-600 transition-colors">{doc.name}</strong>
-                        <span className="text-[10px] font-mono text-slate-400">ID: {doc.id}</span>
-                      </div>
-                    </div>
-                  </td>
+          {/* TABLEAU DES DOCUMENTS AVEC ACTIONS DIRECTES (TELECHARGER, ARCHIVER, SUPPRIMER) */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead className="bg-slate-50 font-black uppercase text-[10px] text-slate-500 border-b border-slate-200">
+                  <tr>
+                    <th className="py-3.5 px-4 w-[28%]">Nom du Fichier</th>
+                    <th className="py-3.5 px-4 w-[18%]">Catégorie & Source</th>
+                    <th className="py-3.5 px-4 w-[20%]">Client & Dossier Associe</th>
+                    <th className="py-3.5 px-4 w-[14%]">Date & Taille</th>
+                    <th className="py-3.5 px-4 w-[20%] text-right whitespace-nowrap">Actions de Gestion</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                  {filteredDocuments.map(doc => (
+                    <tr 
+                      key={doc.id} 
+                      className="hover:bg-slate-50/80 transition-colors group"
+                    >
+                      {/* Nom Fichier */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700 shrink-0">
+                            <FileText className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <strong className="font-bold text-slate-900 block group-hover:text-indigo-600 transition-colors">{doc.name}</strong>
+                            <span className="text-[10px] font-mono text-slate-400">ID: {doc.id}</span>
+                          </div>
+                        </div>
+                      </td>
 
-                  {/* Catégorie */}
-                  <td className="py-3.5 px-4">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
-                      doc.category === "client_upload" ? "bg-sky-100 text-sky-900 border border-sky-200" :
-                      doc.category === "consultant_upload" ? "bg-indigo-100 text-indigo-900 border border-indigo-200" :
-                      doc.category === "contract" ? "bg-emerald-100 text-emerald-900 border border-emerald-200" :
-                      "bg-amber-100 text-amber-900 border border-amber-200"
-                    }`}>
-                      {doc.category === "client_upload" ? "Pièce Client" :
-                       doc.category === "consultant_upload" ? "Note Consultant" :
-                       doc.category === "contract" ? "Contrat CICC" : "Facture / Reçu"}
-                    </span>
-                    <div className="text-[10px] text-slate-500 mt-1">Source : {doc.source}</div>
-                  </td>
+                      {/* Catégorie */}
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
+                          doc.category === "client_upload" ? "bg-sky-100 text-sky-900 border border-sky-200" :
+                          doc.category === "consultant_upload" ? "bg-indigo-100 text-indigo-900 border border-indigo-200" :
+                          doc.category === "contract" ? "bg-emerald-100 text-emerald-900 border border-emerald-200" :
+                          "bg-amber-100 text-amber-900 border border-amber-200"
+                        }`}>
+                          {doc.category === "client_upload" ? "Pièce Client" :
+                           doc.category === "consultant_upload" ? "Note Consultant" :
+                           doc.category === "contract" ? "Contrat CICC" : "Facture / Reçu"}
+                        </span>
+                        <div className="text-[10px] text-slate-500 mt-1">Source : {doc.source}</div>
+                      </td>
 
-                  {/* Client & Dossier */}
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-slate-900">{doc.clientName || doc.uploadedBy}</div>
-                    <div className="text-[10px] font-mono text-slate-500">{doc.matterId || "#DOS-35695"}</div>
-                  </td>
+                      {/* Client & Dossier */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-900">{doc.clientName || doc.uploadedBy}</div>
+                        <div className="text-[10px] font-mono text-slate-500">{doc.matterId || "#DOS-35695"}</div>
+                      </td>
 
-                  {/* Date & Taille */}
-                  <td className="py-3.5 px-4 whitespace-nowrap">
-                    <div className="font-mono text-slate-700">{doc.date}</div>
-                    <div className="text-[10px] font-mono text-slate-400">{doc.fileSize || "2.1 MB"}</div>
-                  </td>
+                      {/* Date & Taille */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="font-mono text-slate-700">{doc.date}</div>
+                        <div className="text-[10px] font-mono text-slate-400">{doc.fileSize || "2.1 MB"}</div>
+                      </td>
 
-                  {/* Actions de Gestion (Aperçu, Télécharger, Archiver, Supprimer) */}
-                  <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {/* Bouton Aperçu */}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDoc(doc)}
-                        title="Aperçu du document"
-                        className="p-2 rounded-xl border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 transition-colors cursor-pointer"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
+                      {/* Actions de Gestion (Aperçu, Télécharger, Archiver, Supprimer) */}
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Bouton Aperçu */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDoc(doc)}
+                            title="Aperçu du document"
+                            className="p-2 rounded-xl border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 transition-colors cursor-pointer"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
 
-                      {/* Bouton Télécharger sur Ordi */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleDownloadDocument(doc, e)}
-                        title="Télécharger sur mon ordinateur"
-                        className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
+                          {/* Bouton Télécharger sur Ordi */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleDownloadDocument(doc, e)}
+                            title="Télécharger sur mon ordinateur"
+                            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
 
-                      {/* Bouton Archiver */}
-                      {doc.status !== "archived" && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleArchiveDocument(doc.id, e)}
-                          title="Archiver ce document"
-                          className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-amber-50 text-slate-700 hover:text-amber-600 transition-colors cursor-pointer"
-                        >
-                          <Archive className="w-4 h-4" />
-                        </button>
+                          {/* Bouton Archiver */}
+                          {doc.status !== "archived" && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleArchiveDocument(doc.id, e)}
+                              title="Archiver ce document"
+                              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-amber-50 text-slate-700 hover:text-amber-600 transition-colors cursor-pointer"
+                            >
+                              <Archive className="w-4 h-4" />
+                            </button>
                       )}
 
                       {/* Bouton Réintégrer (visible uniquement sur les documents archivés) */}
@@ -463,6 +521,8 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
           </table>
         </div>
       </div>
+    </>
+  )}
 
       {/* MODAL APERÇU COMPLET DU DOCUMENT */}
       {selectedDoc && (
@@ -519,7 +579,20 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
                      "Formulaire officiel IRCC / MIFI"}
                   </p>
 
+                  {selectedDoc.content ? (
+                    /* Rendu du contenu réel du document */
+                    <pre className="whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed text-slate-700">
+                      {selectedDoc.content}
+                    </pre>
+                  ) : (
                   <div className="space-y-3 text-xs text-slate-700">
+                    {/* Repli : aucun contenu stocké pour ce document (ex. téléversement récent) */}
+                    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 mb-4">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-px" />
+                      <p className="text-[10px] font-bold text-amber-900 leading-relaxed">
+                        Contenu du fichier non disponible à l&apos;aperçu. Seules les métadonnées du dossier sont affichées ci-dessous.
+                      </p>
+                    </div>
                     <div className="flex justify-between border-b border-slate-100 pb-2">
                       <span className="font-bold text-slate-500">Client / Dossier</span>
                       <span className="font-bold">{selectedDoc.clientName || selectedDoc.uploadedBy}</span>
@@ -553,6 +626,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments }: Documen
                       }`}>{selectedDoc.status === "valid" ? "Valide" : selectedDoc.status === "archived" ? "Archivé" : "Invalide"}</span>
                     </div>
                   </div>
+                  )}
 
                   <div className="mt-8 pt-4 border-t border-slate-200 text-[9px] text-slate-400 text-center font-mono">
                     Document confidentiel — Cabinet Immigration Boréale Inc. — Chiffré AES-256

@@ -1,0 +1,137 @@
+import { AuditLogRecord } from "../types"
+
+/**
+ * Journal d'audit des opérations sur les documents du Coffre-Fort CICC
+ * Chaque action sur un document (téléversement, téléchargement, archivage, suppression, vérification)
+ * est consignée avec horodatage, acteur, IP et empreinte SHA-256 chaînée.
+ */
+export const MOCK_DOCUMENT_AUDIT_LOG: AuditLogRecord[] = [
+  {
+    id: "daud-001",
+    occurredAt: "2026-08-01T14:32:11Z",
+    actorMemberId: "mem-01",
+    actorEmail: "adama.diarra@boreale-immigration.ca",
+    actorName: "Me Adama Diarra",
+    actorRole: "rcic",
+    action: "create",
+    entityType: "document",
+    entityId: "doc-101",
+    summary: "Téléversement sécurisé — Passeport_Officiel_M_Diarra.pdf (3.2 MB) dans le coffre-fort chiffré AES-256",
+    ipAddress: "192.168.1.42",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    prevHash: "0000000000000000000000000000000000000000000000000000000000000000",
+    rowHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    id: "daud-002",
+    occurredAt: "2026-08-01T13:15:44Z",
+    actorMemberId: "mem-02",
+    actorEmail: "sophie.tremblay@boreale-immigration.ca",
+    actorName: "Sophie Tremblay",
+    actorRole: "staff",
+    action: "create",
+    entityType: "document",
+    entityId: "doc-102",
+    summary: "Téléversement — Attestation_TEF_Canada_Dr_Rahman.pdf (1.8 MB) rattaché au dossier #DOS-35697",
+    ipAddress: "192.168.1.55",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    prevHash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    rowHash: "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284ddd200126d9069"
+  },
+  {
+    id: "daud-003",
+    occurredAt: "2026-08-01T11:45:20Z",
+    actorMemberId: "mem-01",
+    actorEmail: "adama.diarra@boreale-immigration.ca",
+    actorName: "Me Adama Diarra",
+    actorRole: "rcic",
+    action: "download",
+    entityType: "document",
+    entityId: "doc-103",
+    summary: "Téléchargement sécurisé — Entente_de_Service_CICC_SA-2026-000142.pdf par le titulaire RCIC #R-514982",
+    ipAddress: "192.168.1.42",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    prevHash: "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284ddd200126d9069",
+    rowHash: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+  },
+  {
+    id: "daud-004",
+    occurredAt: "2026-07-31T16:10:30Z",
+    actorMemberId: "mem-03",
+    actorEmail: "julie.roy@boreale-immigration.ca",
+    actorName: "Julie Roy",
+    actorRole: "risia",
+    action: "view",
+    entityType: "document",
+    entityId: "doc-106",
+    summary: "Consultation en lecture seule — Formulaire_IMM5476_Recrutement_Infirmieres.pdf (vérification avant soumission IRCC)",
+    ipAddress: "192.168.1.60",
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    prevHash: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    rowHash: "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+  },
+  {
+    id: "daud-005",
+    occurredAt: "2026-07-31T10:22:15Z",
+    actorMemberId: "mem-01",
+    actorEmail: "adama.diarra@boreale-immigration.ca",
+    actorName: "Me Adama Diarra",
+    actorRole: "owner",
+    action: "update",
+    entityType: "document",
+    entityId: "doc-107",
+    summary: "Archivage réglementaire — Ancien_Diplome_Master_Archived.pdf déplacé dans les archives conformément à la politique de rétention 6 ans",
+    ipAddress: "192.168.1.42",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    prevHash: "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+    rowHash: "a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0"
+  },
+  {
+    id: "daud-006",
+    occurredAt: "2026-07-30T09:05:42Z",
+    actorMemberId: "mem-01",
+    actorEmail: "adama.diarra@boreale-immigration.ca",
+    actorName: "Me Adama Diarra",
+    actorRole: "rcic",
+    action: "export",
+    entityType: "document",
+    entityId: "export-batch-001",
+    summary: "Export Audit CICC 1-Clic — Manifeste SHA-256 généré pour 7 documents (Checksum global : 4f2e8a...)",
+    ipAddress: "192.168.1.42",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    prevHash: "a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0",
+    rowHash: "4f2e8a1b3c5d7e9f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f"
+  },
+  {
+    id: "daud-007",
+    occurredAt: "2026-07-29T15:48:10Z",
+    actorMemberId: "mem-02",
+    actorEmail: "sophie.tremblay@boreale-immigration.ca",
+    actorName: "Sophie Tremblay",
+    actorRole: "staff",
+    action: "create",
+    entityType: "document",
+    entityId: "doc-105",
+    summary: "Téléversement — Note_Consultation_Eligibilite_PEQ.pdf (1.2 MB) par le consultant pour le dossier #DOS-35695",
+    ipAddress: "192.168.1.55",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    prevHash: "4f2e8a1b3c5d7e9f0a2b4c6d8e0f1a3b5c7d9e1f2a4b6c8d0e2f4a6b8c0d2e4f",
+    rowHash: "fcde2b2edba56bf408601fb721fe9b5c338d10ee429c7047b37b12d62e157790"
+  },
+  {
+    id: "daud-008",
+    occurredAt: "2026-07-28T11:30:00Z",
+    actorMemberId: "mem-01",
+    actorEmail: "adama.diarra@boreale-immigration.ca",
+    actorName: "Me Adama Diarra",
+    actorRole: "rcic",
+    action: "create",
+    entityType: "document",
+    entityId: "doc-104",
+    summary: "Téléversement automatique — Facture_Officielle_FAC-202601.pdf (420 KB) générée par le module de facturation",
+    ipAddress: "192.168.1.42",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+    prevHash: "fcde2b2edba56bf408601fb721fe9b5c338d10ee429c7047b37b12d62e157790",
+    rowHash: "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+  }
+]

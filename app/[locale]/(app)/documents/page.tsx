@@ -1,12 +1,13 @@
 import { getTranslations } from "next-intl/server"
-import { getFolders, getDocuments } from "@/lib/data"
-import { DocumentsClient, FolderItem, DocumentItem } from "./documents-client"
+import { getFolders, getDocuments, getDocumentAuditLog } from "@/lib/data"
+import { DocumentsClient, FolderItem } from "./documents-client"
 
 export default async function DocumentsPage() {
   const tDocs = await getTranslations("Documents")
 
   const foldersData = await getFolders()
   const recentFilesData = await getDocuments()
+  const auditLogsData = await getDocumentAuditLog()
 
   const formattedFolders: FolderItem[] = [
     { id: "visas", title: tDocs("folders.visas"), files: 12, size: "45.2 MB" },
@@ -20,6 +21,8 @@ export default async function DocumentsPage() {
       t={{}} 
       initialFolders={formattedFolders}
       initialDocuments={recentFilesData}
+      initialAuditLogs={auditLogsData}
     />
   )
 }
+
