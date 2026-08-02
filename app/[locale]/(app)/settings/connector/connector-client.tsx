@@ -73,19 +73,15 @@ export function ConnectorClient({
     setTimeout(() => setNotice(null), 6000)
   }
 
-  const [keyToRevoke, setKeyToRevoke] = React.useState<{ id: string; name: string } | null>(null)
+  const [revokeTargetKey, setRevokeTargetKey] = React.useState<{ id: string; name: string } | null>(null)
 
-  const handleRevokeKey = (id: string, name: string) => {
-    setKeyToRevoke({ id, name })
-  }
-
-  const confirmRevokeKey = async () => {
-    if (!keyToRevoke) return
-    const { id, name } = keyToRevoke
+  const handleConfirmRevoke = async () => {
+    if (!revokeTargetKey) return
+    const { id, name } = revokeTargetKey
     setApiKeys(prev => prev.map(k => k.id === id ? { ...k, isActive: false } : k))
     await revokeAiApiKey(id)
-    setNotice(`🚫 Clé API "${name}" révoquée.`)
-    setKeyToRevoke(null)
+    setNotice(`🚫 Clé API "${name}" révoquée avec succès.`)
+    setRevokeTargetKey(null)
     setTimeout(() => setNotice(null), 5000)
   }
 
@@ -314,7 +310,7 @@ export function ConnectorClient({
                     {k.isActive ? (
                       <button
                         type="button"
-                        onClick={() => handleRevokeKey(k.id, k.name)}
+                        onClick={() => setRevokeTargetKey({ id: k.id, name: k.name })}
                         className="px-3 py-1 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
                       >
                         Révoquer
@@ -474,37 +470,41 @@ export function ConnectorClient({
         </div>
       )}
 
-      {/* MODAL SUR-MESURE DE CONFIRMATION DE RÉVOCATION (Design MonCabinetCRIC) */}
-      {keyToRevoke && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setKeyToRevoke(null)}>
-          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 flex flex-col items-center text-center gap-5" onClick={(e) => e.stopPropagation()}>
-            <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center font-bold shadow-xs shrink-0">
-              <Ban className="w-7 h-7" />
+      {/* MODAL PERSONNALISÉ DE CONFIRMATION DE RÉVOCATION DE CLÉ API */}
+      {revokeTargetKey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setRevokeTargetKey(null)}>
+          <div className="bg-white w-full max-w-md rounded-3xl border border-rose-100 shadow-2xl p-6 flex flex-col gap-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold shrink-0">
+                <Ban className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Révoquer la Clé API ?</h3>
+                <p className="text-xs text-slate-500">Cette action est irréversible.</p>
+              </div>
             </div>
 
-            <div>
-              <h3 className="text-base font-black text-slate-900">Confirmer la Révocation</h3>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Voulez-vous vraiment révoquer la clé API <strong className="text-slate-900 font-mono">&quot;{keyToRevoke.name}&quot;</strong> ?
+            <div className="p-4 bg-rose-50/70 border border-rose-200/60 rounded-2xl text-xs text-slate-700 leading-relaxed space-y-2">
+              <p>
+                Voulez-vous vraiment révoquer la clé API <strong className="text-slate-900 font-bold font-mono">« {revokeTargetKey.name} »</strong> ?
               </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                L&apos;assistant IA configuré avec cette clé ne pourra plus accéder à votre compte.
+              <p className="text-[11px] text-slate-500">
+                L&apos;assistant IA (ChatGPT ou Claude Desktop) utilisant cette clé perdra immédiatement l&apos;accès à votre compte MonCabinetCRIC.
               </p>
             </div>
 
-            <div className="flex items-center justify-center gap-3 w-full pt-2">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setKeyToRevoke(null)}
-                className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                onClick={() => setRevokeTargetKey(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
               >
                 Annuler
               </button>
-
               <button
                 type="button"
-                onClick={confirmRevokeKey}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+                onClick={handleConfirmRevoke}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-all shadow-md cursor-pointer"
               >
                 Révoquer la Clé
               </button>
