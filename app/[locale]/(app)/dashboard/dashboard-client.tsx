@@ -349,329 +349,385 @@ export function DashboardClient({
           </div>
         </div>
       )}
+      {widgetsState.kpis && (
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 animate-fadeIn">
+          
+          {/* KPI 1: DOSSIERS ACTIFS IRCC (CLIC -> BASCULE VERS /matters) */}
+          <div 
+            onClick={() => router.push("/matters")}
+            className="group bg-gradient-to-br from-blue-50/90 via-white to-blue-50/30 p-6 rounded-3xl border border-blue-200 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-blue-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
+          >
+            <div className="flex items-center justify-between pb-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-blue-600" />
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900">DOSSIERS ACTIFS IRCC</span>
+              </div>
+              <div className="h-10 w-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20 group-hover:scale-110 transition-transform">
+                <FolderOpen className="h-5 w-5" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-black text-slate-900 tracking-tight">45</span>
+                <span className="inline-flex items-center gap-0.5 text-xs font-extrabold text-emerald-700 bg-emerald-100/80 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                  <TrendingUp className="w-3 h-3" /> +12% ce mois
+                </span>
+              </div>
+              <p className="text-xs font-bold text-slate-600 mt-1">Cliquer pour basculer vers les dossiers</p>
+            </div>
+          </div>
 
-      {/* 2. KPIS METRICS GRID (4 CARTES AVEC BASCULEMENT DIRECT VERS LES DOSSIERS & DOCUMENTS) */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        
-        {/* KPI 1: DOSSIERS ACTIFS IRCC (CLIC -> BASCULE VERS /matters) */}
-        <div 
-          onClick={() => router.push("/matters")}
-          className="group bg-gradient-to-br from-blue-50/90 via-white to-blue-50/30 p-6 rounded-3xl border border-blue-200 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-blue-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
-        >
-          <div className="flex items-center justify-between pb-4">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-600" />
-              <span className="text-xs font-black uppercase tracking-wider text-slate-900">DOSSIERS ACTIFS IRCC</span>
+          {/* KPI 2: ÉCHÉANCES IMMINENTES J-30 (CLIC -> BASCULE VERS /deadlines) */}
+          <div 
+            onClick={() => router.push("/deadlines")}
+            className="group bg-gradient-to-br from-amber-50/90 via-white to-amber-50/30 p-6 rounded-3xl border border-amber-300 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-amber-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
+          >
+            <div className="flex items-center justify-between pb-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />
+                <span className="text-xs font-black uppercase tracking-wider text-amber-900">ÉCHÉANCES CRITIQUES</span>
+              </div>
+              <div className="h-10 w-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 group-hover:scale-110 transition-transform">
+                <AlertCircle className="h-5 w-5" />
+              </div>
             </div>
-            <div className="h-10 w-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-600/20 group-hover:scale-110 transition-transform">
-              <FolderOpen className="h-5 w-5" />
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-black text-amber-600 tracking-tight">{deadlines.length}</span>
+                <span className="inline-flex items-center gap-1 text-xs font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                  <Clock className="w-3 h-3" /> Suivi &lt; 30j
+                </span>
+              </div>
+              <p className="text-xs font-bold text-slate-600 mt-1">Cliquer pour ouvrir la console d&apos;échéances</p>
             </div>
           </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900 tracking-tight">45</span>
-              <span className="inline-flex items-center gap-0.5 text-xs font-extrabold text-emerald-700 bg-emerald-100/80 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                <TrendingUp className="w-3 h-3" /> +12% ce mois
-              </span>
+
+          {/* KPI 3: PIÈCES VALIDÉES & CONFORMES (CLIC -> BASCULE VERS /documents) */}
+          <div 
+            onClick={() => router.push("/documents")}
+            className="group bg-gradient-to-br from-emerald-50/90 via-white to-emerald-50/30 p-6 rounded-3xl border border-emerald-200 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-emerald-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
+          >
+            <div className="flex items-center justify-between pb-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                <span className="text-xs font-black uppercase tracking-wider text-slate-900">PIÈCES VÉRIFIÉES CICC</span>
+              </div>
+              <div className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 group-hover:scale-110 transition-transform">
+                <CheckCircle2 className="h-5 w-5" />
+              </div>
             </div>
-            <p className="text-xs font-bold text-slate-600 mt-1">Cliquer pour basculer vers les dossiers</p>
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-black text-slate-900 tracking-tight">421</span>
+                <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                  <UserCheck className="w-3 h-3" /> 100% Conformes
+                </span>
+              </div>
+              <p className="text-xs font-bold text-slate-600 mt-1">Cliquer pour ouvrir le coffre-fort</p>
+            </div>
           </div>
+
+          {/* KPI 4: SCORE DE CONFORMITÉ RÉGLEMENTAIRE (CLIC -> OUVRE MODAL DÉCOMPOSITION CICC) */}
+          <div 
+            onClick={() => setShowComplianceModal(true)}
+            className="group bg-gradient-to-br from-indigo-50/90 via-white to-indigo-50/30 p-6 rounded-3xl border border-indigo-200 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-indigo-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
+          >
+            <div className="flex items-center justify-between pb-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                <span className="text-xs font-black uppercase tracking-wider text-indigo-950">SCORE CICC AUDIT</span>
+              </div>
+              <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20 group-hover:scale-110 transition-transform">
+                <Sparkles className="h-5 w-5" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-black text-indigo-600 tracking-tight">
+                  {complianceScore?.totalScore || 98}%
+                </span>
+                <span className="text-xs font-extrabold text-indigo-900 bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-300">
+                  Audit Ready
+                </span>
+              </div>
+              <div className="h-2.5 w-full bg-slate-200/80 rounded-full mt-2.5 overflow-hidden flex">
+                <div className="h-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 w-[98%] rounded-full" />
+              </div>
+              <p className="text-[11px] font-bold text-indigo-900 mt-1">Cliquer pour voir les 7 critères CICC</p>
+            </div>
+          </div>
+
         </div>
-
-        {/* KPI 2: ÉCHÉANCES IMMINENTES J-30 (CLIC -> BASCULE VERS /deadlines) */}
-        <div 
-          onClick={() => router.push("/deadlines")}
-          className="group bg-gradient-to-br from-amber-50/90 via-white to-amber-50/30 p-6 rounded-3xl border border-amber-300 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-amber-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
-        >
-          <div className="flex items-center justify-between pb-4">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />
-              <span className="text-xs font-black uppercase tracking-wider text-amber-900">ÉCHÉANCES CRITIQUES</span>
-            </div>
-            <div className="h-10 w-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 group-hover:scale-110 transition-transform">
-              <AlertCircle className="h-5 w-5" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-amber-600 tracking-tight">{deadlines.length}</span>
-              <span className="inline-flex items-center gap-1 text-xs font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
-                <Clock className="w-3 h-3" /> Suivi &lt; 30j
-              </span>
-            </div>
-            <p className="text-xs font-bold text-slate-600 mt-1">Cliquer pour ouvrir la console d&apos;échéances</p>
-          </div>
-        </div>
-
-        {/* KPI 3: PIÈCES VALIDÉES & CONFORMES (CLIC -> BASCULE VERS /documents) */}
-        <div 
-          onClick={() => router.push("/documents")}
-          className="group bg-gradient-to-br from-emerald-50/90 via-white to-emerald-50/30 p-6 rounded-3xl border border-emerald-200 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-emerald-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
-        >
-          <div className="flex items-center justify-between pb-4">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-600" />
-              <span className="text-xs font-black uppercase tracking-wider text-slate-900">PIÈCES VÉRIFIÉES CICC</span>
-            </div>
-            <div className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 group-hover:scale-110 transition-transform">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900 tracking-tight">421</span>
-              <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
-                <UserCheck className="w-3 h-3" /> 100% Conformes
-              </span>
-            </div>
-            <p className="text-xs font-bold text-slate-600 mt-1">Cliquer pour ouvrir le coffre-fort</p>
-          </div>
-        </div>
-
-        {/* KPI 4: SCORE DE CONFORMITÉ RÉGLEMENTAIRE (CLIC -> OUVRE MODAL DÉCOMPOSITION CICC) */}
-        <div 
-          onClick={() => setShowComplianceModal(true)}
-          className="group bg-gradient-to-br from-indigo-50/90 via-white to-indigo-50/30 p-6 rounded-3xl border border-indigo-200 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-indigo-500 hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
-        >
-          <div className="flex items-center justify-between pb-4">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-indigo-600" />
-              <span className="text-xs font-black uppercase tracking-wider text-indigo-950">SCORE CICC AUDIT</span>
-            </div>
-            <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20 group-hover:scale-110 transition-transform">
-              <Sparkles className="h-5 w-5" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-indigo-600 tracking-tight">
-                {complianceScore?.totalScore || 98}%
-              </span>
-              <span className="text-xs font-extrabold text-indigo-900 bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-300">
-                Audit Ready
-              </span>
-            </div>
-            <div className="h-2.5 w-full bg-slate-200/80 rounded-full mt-2.5 overflow-hidden flex">
-              <div className="h-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 w-[98%] rounded-full" />
-            </div>
-            <p className="text-[11px] font-bold text-indigo-900 mt-1">Cliquer pour voir les 7 critères CICC</p>
-          </div>
-        </div>
-
-      </div>
+      )}
 
       {/* 3. NOUVELLE RANGÉE : RÉPARTITION DYNAMIQUE DES PROGRAMMES IRCC + RACCOURCIS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        
-        {/* GRAPH D'AVANCEMENT & RÉPARTITION DES PROGRAMMES IRCC */}
-        <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 flex flex-col justify-between gap-5">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-blue-600" />
-                <span>Répartition des Mandats & Programmes IRCC</span>
-              </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">Ventilation des dossiers actifs par catégorie réglementaire</p>
+      {widgetsState.trustFinance && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch animate-fadeIn">
+          
+          {/* GRAPH D'AVANCEMENT & RÉPARTITION DES PROGRAMMES IRCC */}
+          <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 flex flex-col justify-between gap-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-black text-base text-slate-900 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-blue-600" />
+                  <span>Répartition des Mandats & Solde Fidéicommis (Art. 13)</span>
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Ventilation des dossiers actifs et honoraires en fiducie</p>
+              </div>
+              <span className="text-xs font-black text-blue-900 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full font-mono">
+                $42,500 CAD Fidéicommis
+              </span>
             </div>
-            <span className="text-xs font-black text-blue-900 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-              45 Dossiers au Total
-            </span>
+
+            <div className="flex flex-col gap-4 text-xs font-bold">
+              <div>
+                <div className="flex justify-between mb-1.5">
+                  <span className="text-slate-900 font-black flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-blue-600" />
+                    <span>Résidence Permanente (PEQ & Entrée Express)</span>
+                  </span>
+                  <span className="font-mono font-black text-blue-700">25 dossiers (55%)</span>
+                </div>
+                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-blue-700 rounded-full w-[55%]" />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1.5">
+                  <span className="text-slate-900 font-black flex items-center gap-1.5">
+                    <Briefcase className="w-4 h-4 text-purple-600" />
+                    <span>Permis de Travail & EIMT B2B (Outaouais & Montréal)</span>
+                  </span>
+                  <span className="font-mono font-black text-purple-700">12 dossiers (27%)</span>
+                </div>
+                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-purple-500 to-purple-700 rounded-full w-[27%]" />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between mb-1.5">
+                  <span className="text-slate-900 font-black flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-emerald-600" />
+                    <span>Permis d&apos;Études & CAQ Québec</span>
+                  </span>
+                  <span className="font-mono font-black text-emerald-700">8 dossiers (18%)</span>
+                </div>
+                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-700 rounded-full w-[18%]" />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-4 text-xs font-bold">
-            <div>
-              <div className="flex justify-between mb-1.5">
-                <span className="text-slate-900 font-black flex items-center gap-1.5">
-                  <Award className="w-4 h-4 text-blue-600" />
-                  <span>Résidence Permanente (PEQ & Entrée Express)</span>
-                </span>
-                <span className="font-mono font-black text-blue-700">25 dossiers (55%)</span>
-              </div>
-              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-blue-500 to-blue-700 rounded-full w-[55%]" />
-              </div>
-            </div>
+          {/* RACCOURCIS DE PRODUCTIVITÉ EN 1-CLIC */}
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-6 shadow-xl border border-blue-400/20 flex flex-col justify-between gap-5 relative overflow-hidden">
+            <div className="pointer-events-none absolute -bottom-16 -right-16 w-48 h-48 rounded-full bg-blue-500/20 blur-2xl" />
 
             <div>
-              <div className="flex justify-between mb-1.5">
-                <span className="text-slate-900 font-black flex items-center gap-1.5">
-                  <Briefcase className="w-4 h-4 text-purple-600" />
-                  <span>Permis de Travail & EIMT B2B (Outaouais & Montréal)</span>
-                </span>
-                <span className="font-mono font-black text-purple-700">12 dossiers (27%)</span>
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="w-5 h-5 text-amber-400" />
+                <h3 className="font-black text-base text-white">Raccourcis SaaS 1-Clic</h3>
               </div>
-              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-purple-500 to-purple-700 rounded-full w-[27%]" />
-              </div>
+              <p className="text-xs text-white/70">Accès direct aux modules clés de votre cabinet</p>
             </div>
 
-            <div>
-              <div className="flex justify-between mb-1.5">
-                <span className="text-slate-900 font-black flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-emerald-600" />
-                  <span>Permis d&apos;Études & CAQ Québec</span>
-                </span>
-                <span className="font-mono font-black text-emerald-700">8 dossiers (18%)</span>
-              </div>
-              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-700 rounded-full w-[18%]" />
-              </div>
+            <div className="flex flex-col gap-2.5 relative z-10">
+              <Link href="/documents">
+                <button 
+                  type="button"
+                  className="w-full inline-flex items-center justify-between p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <Wand2 className="w-4 h-4 text-emerald-400" />
+                    <span>Autoremplissage IRCC</span>
+                  </span>
+                  <ArrowUpRight className="w-4 h-4 text-white/60" />
+                </button>
+              </Link>
+
+              <Link href="/billing">
+                <button 
+                  type="button"
+                  className="w-full inline-flex items-center justify-between p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-amber-400" />
+                    <span>Facture & Fidéicommis</span>
+                  </span>
+                  <ArrowUpRight className="w-4 h-4 text-white/60" />
+                </button>
+              </Link>
+
+              <Link href="/settings">
+                <button 
+                  type="button"
+                  className="w-full inline-flex items-center justify-between p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-blue-400" />
+                    <span>Paramètres Cabinet</span>
+                  </span>
+                  <ArrowUpRight className="w-4 h-4 text-white/60" />
+                </button>
+              </Link>
             </div>
           </div>
+
         </div>
+      )}
 
-        {/* RACCOURCIS DE PRODUCTIVITÉ EN 1-CLIC */}
-        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white rounded-3xl p-6 shadow-xl border border-blue-400/20 flex flex-col justify-between gap-5 relative overflow-hidden">
-          <div className="pointer-events-none absolute -bottom-16 -right-16 w-48 h-48 rounded-full bg-blue-500/20 blur-2xl" />
-
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="w-5 h-5 text-amber-400" />
-              <h3 className="font-black text-base text-white">Raccourcis SaaS 1-Clic</h3>
+      {/* 3.5. AGENDA & RENCONTRES DU JOUR (WIDGET DÉDIÉ) */}
+      {widgetsState.todayAgenda && (
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 space-y-4 animate-fadeIn">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-black text-base text-slate-900">Agenda & Consultations du Jour</h3>
+                <p className="text-xs text-slate-500 font-medium">3 rendez-vous confirmés et synchronisés</p>
+              </div>
             </div>
-            <p className="text-xs text-white/70">Accès direct aux modules clés de votre cabinet</p>
-          </div>
-
-          <div className="flex flex-col gap-2.5 relative z-10">
-            <Link href="/documents">
-              <button 
-                type="button"
-                className="w-full inline-flex items-center justify-between p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <Wand2 className="w-4 h-4 text-emerald-400" />
-                  <span>Autoremplissage IRCC</span>
-                </span>
-                <ArrowUpRight className="w-4 h-4 text-white/60" />
-              </button>
-            </Link>
-
-            <Link href="/billing">
-              <button 
-                type="button"
-                className="w-full inline-flex items-center justify-between p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-amber-400" />
-                  <span>Facture & Fidéicommis</span>
-                </span>
-                <ArrowUpRight className="w-4 h-4 text-white/60" />
-              </button>
-            </Link>
-
-            <Link href="/settings">
-              <button 
-                type="button"
-                className="w-full inline-flex items-center justify-between p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs font-bold transition-all cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-blue-400" />
-                  <span>Paramètres Cabinet</span>
-                </span>
-                <ArrowUpRight className="w-4 h-4 text-white/60" />
-              </button>
-            </Link>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 4. SECTION PRINCIPALE : DOSSIERS RÉCENTS & JAUGE DE STOCKAGE AUDITABLE */}
-      <div className="grid gap-6 lg:grid-cols-7 items-start">
-        
-        {/* TABLEAU DES DOSSIERS PRIORITAIRES (COLONNE 4/7) */}
-        <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-black text-slate-900">{t.recentDocsTitle}</h2>
-              <p className="text-xs font-semibold text-slate-500 mt-0.5">{t.recentDocsDesc}</p>
-            </div>
-            <Link href="/matters">
-              <button type="button" className="text-xs font-extrabold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer">
-                <span>Voir tout</span>
+            <Link href="/calendar">
+              <button type="button" className="text-xs font-extrabold text-purple-700 hover:text-purple-900 flex items-center gap-1 cursor-pointer">
+                <span>Ouvrir l&apos;Agenda complet</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             </Link>
           </div>
 
-          <div className="divide-y divide-slate-100">
-            {[
-              { id: "IMM5709_Tremblay_K.pdf", type: "Permis d'études", time: "Il y a 10 min", status: "En cours", client: "K. Tremblay", href: "/matters/DOS-35694", badge: "bg-blue-50 text-blue-800 border-blue-200" },
-              { id: "Passeport_Rahman_S.pdf", type: "Visas & LMIA", time: "Il y a 45 min", status: "Échéance J-18", client: "Dr. S. Rahman", href: "/matters/DOS-35697", badge: "bg-amber-100 text-amber-900 border-amber-300" },
-              { id: "Contrat_Mandat_Dubois.pdf", type: "Entente de service", time: "Il y a 2 hrs", status: "Signé & Conforme", client: "Mme. K. Dubois", href: "/matters/DOS-35694", badge: "bg-emerald-100 text-emerald-900 border-emerald-300" },
-              { id: "Preuve_Fonds_Diarra.pdf", type: "Résidence Permanente", time: "Il y a 4 hrs", status: "En cours", client: "M. A. Diarra", href: "/matters/DOS-35695", badge: "bg-blue-50 text-blue-800 border-blue-200" }
-            ].map((item, idx) => (
-              <div 
-                key={idx} 
-                onClick={() => router.push(item.href as Parameters<typeof router.push>[0])}
-                className="p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="h-10 w-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0 group-hover:scale-110 transition-transform">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors">{item.id}</div>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                      <span className="font-bold text-slate-800">{item.client}</span>
-                      <span>•</span>
-                      <span>{item.type}</span>
-                      <span>•</span>
-                      <span>{item.time}</span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200/80 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono font-bold text-purple-700 block">14 h 00 – 15 h 00</span>
+                <span className="text-xs font-black text-slate-900">M. Adama Diarra</span>
+                <span className="text-[11px] text-slate-500 block">PEQ Québec (#DOS-35695)</span>
+              </div>
+              <a href="https://calendly.com/me-adama-diarra/consultation-30min" target="_blank" rel="noopener noreferrer" className="p-2 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition-colors">Visio</a>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200/80 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono font-bold text-sky-700 block">15 h 30 – 16 h 30</span>
+                <span className="text-xs font-black text-slate-900">Dr. S. Rahman</span>
+                <span className="text-[11px] text-slate-500 block">Entrée Express (#DOS-35697)</span>
+              </div>
+              <a href="https://meet.google.com" target="_blank" rel="noopener noreferrer" className="p-2 bg-sky-600 text-white rounded-xl font-bold text-xs hover:bg-sky-700 transition-colors">Meet</a>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono font-bold text-emerald-700 block">17 h 00 – 17 h 30</span>
+                <span className="text-xs font-black text-slate-900">Les Industries Nordiques</span>
+                <span className="text-[11px] text-slate-500 block">EIMT B2B (#DOS-35698)</span>
+              </div>
+              <a href="https://zoom.us" target="_blank" rel="noopener noreferrer" className="p-2 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-colors">Zoom</a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. SECTION PRINCIPALE : DOSSIERS RÉCENTS & JAUGE DE STOCKAGE AUDITABLE */}
+      {widgetsState.mattersList && (
+        <div className="grid gap-6 lg:grid-cols-7 items-start animate-fadeIn">
+          
+          {/* TABLEAU DES DOSSIERS PRIORITAIRES (COLONNE 4/7) */}
+          <div className="lg:col-span-4 bg-white rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-black text-slate-900">{t.recentDocsTitle}</h2>
+                <p className="text-xs font-semibold text-slate-500 mt-0.5">{t.recentDocsDesc}</p>
+              </div>
+              <Link href="/matters">
+                <button type="button" className="text-xs font-extrabold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer">
+                  <span>Voir tout</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+              </Link>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              {[
+                { id: "IMM5709_Tremblay_K.pdf", type: "Permis d'études", time: "Il y a 10 min", status: "En cours", client: "K. Tremblay", href: "/matters/DOS-35694", badge: "bg-blue-50 text-blue-800 border-blue-200" },
+                { id: "Passeport_Rahman_S.pdf", type: "Visas & LMIA", time: "Il y a 45 min", status: "Échéance J-18", client: "Dr. S. Rahman", href: "/matters/DOS-35697", badge: "bg-amber-100 text-amber-900 border-amber-300" },
+                { id: "Contrat_Mandat_Dubois.pdf", type: "Entente de service", time: "Il y a 2 hrs", status: "Signé & Conforme", client: "Mme. K. Dubois", href: "/matters/DOS-35694", badge: "bg-emerald-100 text-emerald-900 border-emerald-300" },
+                { id: "Preuve_Fonds_Diarra.pdf", type: "Résidence Permanente", time: "Il y a 4 hrs", status: "En cours", client: "M. A. Diarra", href: "/matters/DOS-35695", badge: "bg-blue-50 text-blue-800 border-blue-200" }
+              ].map((item, idx) => (
+                <div 
+                  key={idx} 
+                  onClick={() => router.push(item.href as Parameters<typeof router.push>[0])}
+                  className="p-5 flex items-center justify-between hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-10 w-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0 group-hover:scale-110 transition-transform">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-black text-slate-900 group-hover:text-blue-600 transition-colors">{item.id}</div>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                        <span className="font-bold text-slate-800">{item.client}</span>
+                        <span>•</span>
+                        <span>{item.type}</span>
+                        <span>•</span>
+                        <span>{item.time}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <span className={`px-3 py-1 rounded-full text-xs font-black border ${item.badge}`}>
-                  {item.status}
+                  <span className={`px-3 py-1 rounded-full text-xs font-black border ${item.badge}`}>
+                    {item.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CARTE STOCKAGE CHIFFRÉ & JOURNAL D'AUDIT (COLONNE 3/7) */}
+          <div className="lg:col-span-3 bg-gradient-to-b from-[#1e40af] to-[#1e3a8a] text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-blue-400/20 relative overflow-hidden flex flex-col justify-between min-h-[380px]">
+            
+            <div className="pointer-events-none absolute -bottom-20 -right-20 w-60 h-60 rounded-full bg-blue-400/20 blur-3xl" />
+
+            <div>
+              <div className="flex items-center justify-between pb-4 border-b border-white/15">
+                <div className="flex items-center gap-2.5">
+                  <Database className="w-5 h-5 text-blue-300" />
+                  <h3 className="text-base font-black tracking-tight text-white">{t.storageTitle}</h3>
+                </div>
+                <span className="text-[11px] font-bold font-mono bg-white/15 text-blue-200 px-2.5 py-0.5 rounded-full uppercase">
+                  AES-256
                 </span>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* CARTE STOCKAGE CHIFFRÉ & JOURNAL D'AUDIT (COLONNE 3/7) */}
-        <div className="lg:col-span-3 bg-gradient-to-b from-[#1e40af] to-[#1e3a8a] text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-blue-400/20 relative overflow-hidden flex flex-col justify-between min-h-[380px]">
-          
-          <div className="pointer-events-none absolute -bottom-20 -right-20 w-60 h-60 rounded-full bg-blue-400/20 blur-3xl" />
-
-          <div>
-            <div className="flex items-center justify-between pb-4 border-b border-white/15">
-              <div className="flex items-center gap-2.5">
-                <Database className="w-5 h-5 text-blue-300" />
-                <h3 className="text-base font-black tracking-tight text-white">{t.storageTitle}</h3>
-              </div>
-              <span className="text-[11px] font-bold font-mono bg-white/15 text-blue-200 px-2.5 py-0.5 rounded-full uppercase">
-                AES-256
-              </span>
-            </div>
-
-            {/* Jauge Circulaire Visuelle */}
-            <div className="flex flex-col items-center justify-center py-8">
-              <div className="relative flex h-36 w-36 items-center justify-center rounded-full border-8 border-white/15 shadow-inner">
-                <div className="absolute inset-0 rounded-full border-8 border-emerald-400 border-t-transparent border-r-transparent transform -rotate-45" />
-                <div className="flex flex-col items-center">
-                  <span className="text-4xl font-black text-white tracking-tight">25%</span>
-                  <span className="text-[11px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">Utilisé</span>
+              {/* Jauge Circulaire Visuelle */}
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="relative flex h-36 w-36 items-center justify-center rounded-full border-8 border-white/15 shadow-inner">
+                  <div className="absolute inset-0 rounded-full border-8 border-emerald-400 border-t-transparent border-r-transparent transform -rotate-45" />
+                  <div className="flex flex-col items-center">
+                    <span className="text-4xl font-black text-white tracking-tight">25%</span>
+                    <span className="text-[11px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">Utilisé</span>
+                  </div>
                 </div>
+                <p className="text-sm font-bold text-white/90 mt-4">
+                  124 GB / 500 GB Sécurisés CICC
+                </p>
               </div>
-              <p className="text-sm font-bold text-white/90 mt-4">
-                124 GB / 500 GB Sécurisés CICC
-              </p>
             </div>
-          </div>
 
-          <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-md border border-white/15 flex items-center justify-between text-xs font-bold text-white/90">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>Horodatage Infalsifiable Actif</span>
+            <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-md border border-white/15 flex items-center justify-between text-xs font-bold text-white/90">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Horodatage Infalsifiable Actif</span>
+              </div>
+              <span className="text-emerald-300 font-extrabold">100% Valide</span>
             </div>
-            <span className="text-emerald-300 font-extrabold">100% Valide</span>
+
           </div>
 
         </div>
-
-      </div>
+      )}
 
       {/* MODAL DE DÉCOMPOSITION DU SCORE DE CONFORMITÉ CICC (7 CRITÈRES BILINGUES) */}
       {showComplianceModal && complianceScore && (
