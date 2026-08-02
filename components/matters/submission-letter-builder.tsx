@@ -33,6 +33,8 @@ export function SubmissionLetterBuilder({
   const [language, setLanguage] = React.useState<"fr" | "en">("fr")
   const [variantIndex, setVariantIndex] = React.useState(0)
   const [toastNotice, setToastNotice] = React.useState<string | null>(null)
+  const [isGenerating, setIsGenerating] = React.useState(false)
+  const [copied, setCopied] = React.useState(false)
   // Argument par défaut dynamique selon le client et le programme
   const getInitialArgument = React.useCallback(() => {
     const prog = programName.toLowerCase()
