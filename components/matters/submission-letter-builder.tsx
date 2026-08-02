@@ -4,16 +4,14 @@ import * as React from "react"
 import { 
   FileText, 
   Sparkles, 
-  Download, 
   Copy, 
   CheckCircle2, 
   ShieldCheck, 
-  Award, 
   Printer, 
   RefreshCw, 
   BookOpen,
-  Send,
-  ChevronRight
+  Edit3,
+  RotateCcw
 } from "lucide-react"
 
 interface SubmissionLetterBuilderProps {
@@ -38,7 +36,6 @@ export function SubmissionLetterBuilder({
   )
   const [isGenerating, setIsGenerating] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
-  const [generatedCount, setGeneratedCount] = React.useState(1)
 
   // Citations légales automatiques d'après la LIPR / RIPR selon le programme
   const getLegalCitations = () => {
@@ -50,6 +47,14 @@ export function SubmissionLetterBuilder({
         reg: "Règlement sur l'immigration et la protection des réfugiés (RIPR, DORS/2002-227)",
         regSection: "Article 87.1 — Catégorie de l'expérience canadienne",
         summary: "Le demandeur satisfait pleinement aux critères d'admissibilité de la catégorie économique en vertu de son expérience professionnelle qualifiée et de sa maîtrise linguistique avérée."
+      }
+    } else if (prog.includes("parrainage") || prog.includes("époux") || prog.includes("conjoint")) {
+      return {
+        law: "Loi sur l'immigration et la protection des réfugiés (LIPR, L.C. 2001, c. 27)",
+        section: "Article 12(2) — Catégorie du regroupement familial (Époux / Conjoint de fait)",
+        reg: "Règlement sur l'immigration et la protection des réfugiés (RIPR, DORS/2002-227)",
+        regSection: "Article 124 — Membre de la catégorie des époux ou conjoints de fait au Canada",
+        summary: "La relation entre le répondant et le demandeur parrainé est authentique et n'a pas été contractée aux fins d'acquérir un statut au sens de l'article 4 du RIPR."
       }
     } else if (prog.includes("travail") || prog.includes("eimt") || prog.includes("lmia")) {
       return {
@@ -72,16 +77,9 @@ export function SubmissionLetterBuilder({
 
   const legalInfo = getLegalCitations()
 
-  const handleGenerate = () => {
-    setIsGenerating(true)
-    setTimeout(() => {
-      setIsGenerating(false)
-      setGeneratedCount(prev => prev + 1)
-    }, 600)
-  }
-
-  const getLetterBodyText = () => {
-    if (language === "fr") {
+  const generateDefaultTemplate = React.useCallback((overrideLang?: "fr" | "en") => {
+    const activeLang = overrideLang || language
+    if (activeLang === "fr") {
       return `CABINET IMMIGRATION BORÉALE INC.
 Consultants Réglementés en Immigration Canadienne (CRIC / RCIC)
 Permis CICC : ${rcicNumber} | Titulaire : ${rcicName}
@@ -166,10 +164,35 @@ ${rcicName}, RCIC / CRIC
 College of Immigration and Citizenship Consultants (CICC) Licence #${rcicNumber}
 Boreal Immigration Cabinet Inc.`
     }
+  }, [language, processingOffice, programName, matterId, clientName, rcicNumber, rcicName, legalInfo, customArgument])
+
+  // État local du texte de la lettre pour permettre la modification directe
+  const [editableLetterText, setEditableLetterText] = React.useState<string>(() => generateDefaultTemplate())
+
+  const handleGenerate = () => {
+    setIsGenerating(true)
+    setTimeout(() => {
+      setIsGenerating(false)
+      setEditableLetterText(generateDefaultTemplate())
+    }, 600)
+  }
+
+  const handleToggleLanguage = () => {
+    const nextLang = language === "fr" ? "en" : "fr"
+    setLanguage(nextLang)
+    setIsGenerating(true)
+    setTimeout(() => {
+      setIsGenerating(false)
+      setEditableLetterText(generateDefaultTemplate(nextLang))
+    }, 400)
+  }
+
+  const handleResetToDefault = () => {
+    setEditableLetterText(generateDefaultTemplate())
   }
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(getLetterBodyText())
+    navigator.clipboard.writeText(editableLetterText)
     setCopied(true)
     setTimeout(() => setCopied(false), 3000)
   }
@@ -191,7 +214,7 @@ Boreal Immigration Cabinet Inc.`
             </style>
           </head>
           <body>
-            <pre>${getLetterBodyText()}</pre>
+            <pre>${editableLetterText}</pre>
             <script>window.print();</script>
           </body>
         </html>
@@ -214,14 +237,14 @@ Boreal Immigration Cabinet Inc.`
                 Générateur d&apos;Élite IRCC / LIPR
               </span>
               <span className="text-[10px] font-mono text-slate-300">
-                v2.4 Audit-Ready
+                v2.5 Éditabilité Intégrale
               </span>
             </div>
             <h2 className="text-lg font-black text-white mt-1">
               Générateur d&apos;Argumentaire & Lettre de Soumission IRCC
             </h2>
             <p className="text-xs text-slate-300 font-medium mt-0.5">
-              Citations légales automatiques de la LIPR / RIPR et mise en page officielle pour l&apos;Agent des Visas.
+              Citations légales automatiques de la LIPR / RIPR. Rédigez, modifiez ou ajoutez directement vos éléments dans le texte.
             </p>
           </div>
         </div>
@@ -229,7 +252,7 @@ Boreal Immigration Cabinet Inc.`
         <div className="flex items-center gap-2 shrink-0 self-end md:self-auto">
           <button
             type="button"
-            onClick={() => setLanguage(language === "fr" ? "en" : "fr")}
+            onClick={handleToggleLanguage}
             className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/15 transition-all cursor-pointer"
           >
             🌐 {language === "fr" ? "Passer en Anglais (EN)" : "Passer en Français (FR)"}
@@ -247,7 +270,7 @@ Boreal Immigration Cabinet Inc.`
         </div>
       </div>
 
-      {/* RANGÉE : CONFIGURATION DU BAREME JURIDIQUE + APERÇU LEATHERMAN */}
+      {/* RANGÉE : CONFIGURATION DU BAREME JURIDIQUE + FEUILLE ÉDITABLE */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
         {/* PARAMÈTRES JURIDIQUES ET ARGUMENTS (COLONNE 1/3) */}
@@ -306,18 +329,31 @@ Boreal Immigration Cabinet Inc.`
           </div>
         </div>
 
-        {/* APERÇU LEATHERMAN ET FEUILLE OFFICIELLE (COLONNE 2/3) */}
+        {/* FEUILLE D'ÉDITION DIRECTE ET IMPRESSION (COLONNE 2/3) */}
         <div className="lg:col-span-2 space-y-4">
           
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-600" />
+              <Edit3 className="w-4 h-4 text-blue-600" />
               <span className="text-xs font-black text-slate-900">
-                Lettre de Soumission Officielle CICC ({language.toUpperCase()})
+                Texte Éditable en Direct ({language.toUpperCase()})
+              </span>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                Modification interactive active
               </span>
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetToDefault}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                title="Rétablir le modèle de base initial"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Réinitialiser</span>
+              </button>
+
               <button
                 type="button"
                 onClick={handleCopy}
@@ -338,8 +374,8 @@ Boreal Immigration Cabinet Inc.`
             </div>
           </div>
 
-          {/* FEUILLE PAPIER BLANCHE STYLE PAPIER À EN-TÊTE PROFESSIONNEL */}
-          <div className="bg-white p-8 sm:p-10 rounded-3xl border border-slate-300 shadow-xl font-serif text-slate-900 text-xs leading-relaxed space-y-4 relative min-h-[500px] ring-1 ring-slate-900/5">
+          {/* FEUILLE ÉDITABLE STYLE PAPIER DE SOUMISSION OFFICIEL */}
+          <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-300 shadow-xl font-serif text-slate-900 text-xs leading-relaxed space-y-4 relative min-h-[550px] ring-1 ring-slate-900/5">
             <div className="border-b-2 border-blue-900 pb-3 flex items-center justify-between">
               <div>
                 <h3 className="font-sans font-black text-sm tracking-tight text-blue-900 uppercase">
@@ -355,9 +391,14 @@ Boreal Immigration Cabinet Inc.`
               </div>
             </div>
 
-            <pre className="whitespace-pre-wrap font-serif text-xs leading-relaxed text-slate-800 font-normal">
-              {getLetterBodyText()}
-            </pre>
+            {/* TEXTAREA INTERACTIF EN GUISE DE FEUILLE DE SOUMISSION */}
+            <textarea
+              value={editableLetterText}
+              onChange={(e) => setEditableLetterText(e.target.value)}
+              rows={22}
+              className="w-full font-serif text-xs leading-relaxed text-slate-900 bg-transparent border-0 focus:ring-0 focus:outline-none resize-y p-1 selection:bg-blue-100 leading-relaxed font-normal"
+              placeholder="Saisissez ou modifiez le contenu de votre lettre..."
+            />
           </div>
 
         </div>

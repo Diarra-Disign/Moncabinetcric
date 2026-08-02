@@ -15,7 +15,7 @@ export const MOCK_AUDIT_LOGS: Record<string, AuditLogEntry[]> = {
     { id: "aud-21", timestamp: "2026-05-17 15:20", author: "Me. S. Lavoie (RCIC)", actionFr: "Alerte de conformité : vérification des équivalences de diplôme en attente", actionEn: "Compliance alert: pending educational credential verification" }
   ],
   "#DOS-35695": [
-    { id: "aud-30", timestamp: "2026-05-12 13:00", author: "Me. A. Diarra (RCIC)", actionFr: "Ouverture du dossier Parrainage Spousal", actionEn: "Opened Spousal Sponsorship matter" },
+    { id: "aud-30", timestamp: "2026-05-12 13:00", author: "Me. A. Diarra (RCIC)", actionFr: "Ouverture du dossier Parrainage d'Époux / Conjoint de fait", actionEn: "Opened Spousal Sponsorship matter" },
     { id: "aud-31", timestamp: "2026-05-14 10:10", author: "K. Tremblay (Client)", actionFr: "Téléversement de l'acte de mariage et preuves de cohabitation", actionEn: "Uploaded marriage certificate and cohabitation proofs" }
   ]
 }

@@ -87,7 +87,7 @@ export const IMMIGRATION_PROGRAMS: ImmigrationProgram[] = [
   },
   {
     id: "prog-sponsorship",
-    nameFr: "Parrainage Spousal",
+    nameFr: "Parrainage d'Époux / Conjoint de fait",
     nameEn: "Spousal Sponsorship",
     forms: ["IMM 5476", "IMM 1344", "IMM 5532", "IMM 0008", "IMM 5406"],
     delayDays: 365,

@@ -656,7 +656,7 @@ export function ClientsClient({ t, initialClients }: ClientsClientProps) {
                   <option value="Résidence Permanente (PEQ / Entrée Express)">Résidence Permanente (PEQ Québec & Entrée Express)</option>
                   <option value="Permis de Travail (EIMT / LMIA Exemption)">Permis de Travail & EIMT B2B (Employeurs)</option>
                   <option value="Permis d'études + CAQ Québec">Permis d&apos;études + CAQ Québec (MIFI)</option>
-                  <option value="Parrainage Familial & Spousal">Parrainage Familial & Époux(se)</option>
+                  <option value="Parrainage Familial & Spousal">Parrainage Familial & Époux / Conjoint de fait</option>
                 </select>
               </div>
             </div>

@@ -44,7 +44,7 @@ export const MOCK_EVENTS: CalendarEvent[] = [
     clientInitials: "KT",
     avatarBg: "bg-emerald-600",
     matterId: "#DOS-35695",
-    program: "Parrainage Spousal",
+    program: "Parrainage d'Époux / Conjoint de fait",
     type: "visio",
     platform: "calendly",
     link: "https://calendly.com/me-adama-diarra/consultation-30min",

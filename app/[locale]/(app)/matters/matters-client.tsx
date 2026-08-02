@@ -445,7 +445,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                   <option value="PTO">Permis de Travail Ouvert (PTO / Mobilité Francophone)</option>
                   <option value="EIMT">Permis de Travail / EIMT Volet Talent</option>
                   <option value="CAQ">Permis d&apos;études & CAQ Québec</option>
-                  <option value="Parrainage">Parrainage Familial / Spousal</option>
+                  <option value="Parrainage">Parrainage Familial / Époux & Conjoint de fait</option>
                 </select>
               </div>
 

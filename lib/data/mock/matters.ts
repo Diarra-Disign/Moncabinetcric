@@ -40,7 +40,7 @@ export const MOCK_MATTERS: Matter[] = [
     id: "#DOS-35695",
     clientName: "K. Tremblay",
     clientType: "b2c",
-    program: "Parrainage Spousal",
+    program: "Parrainage d'Époux / Conjoint de fait",
     openedDate: "12-05-26",
     deadline: "14-10-26",
     rcic: "Me. A. Diarra",

@@ -51,7 +51,7 @@ export const MOCK_LEADS: Lead[] = [
     id: "lead-4",
     name: "K. Tremblay",
     type: "b2c",
-    visaType: "Parrainage Spousal (Québec MIFI)",
+    visaType: "Parrainage d'Époux / Conjoint de fait (Québec MIFI)",
     estimatedValue: 3800,
     score: 74,
     scoreLabel: "med",
