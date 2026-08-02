@@ -78,7 +78,7 @@ export const MOCK_LEADS: Lead[] = [
   {
     id: "lead-6",
     name: "J. Morvan (PDG)",
-    company: "Construction Boréale Ltée",
+    company: "Construction Démonstration Ltée",
     type: "b2b",
     visaType: "EIMT - Charpentiers-Menuisiers (6 postes)",
     estimatedValue: 11200,
@@ -86,7 +86,7 @@ export const MOCK_LEADS: Lead[] = [
     scoreLabel: "high",
     stage: "consultation",
     lastContact: "Appel - il y a 3j",
-    email: "jmorvan@boreale-construction.ca",
+    email: "jmorvan@demo-construction.ca",
     phone: "+1 (819) 555-0176",
     notes: "Urgence de recrutement avant la saison automnale. Synchronisation Outlook confirmée pour jeudi.",
     lmiaPositions: 6

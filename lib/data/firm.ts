@@ -19,6 +19,7 @@ export interface FirmIdentity {
   address: string
   phone: string
   email: string
+  website: string
   logoLetter: string
   logoUrl: string
 }
@@ -39,6 +40,7 @@ export const EMPTY_FIRM: FirmIdentity = {
   address: "",
   phone: "",
   email: "",
+  website: "",
   logoLetter: "",
   logoUrl: "",
 }
@@ -52,6 +54,7 @@ export interface FirmRow {
   address: string | null
   phone: string | null
   email: string | null
+  website: string | null
   logo_letter: string | null
   logo_url: string | null
 }
@@ -66,6 +69,7 @@ export function mapFirmRow(row: FirmRow): FirmIdentity {
     address: row.address ?? "",
     phone: row.phone ?? "",
     email: row.email ?? "",
+    website: row.website ?? "",
     // À défaut d'initiale explicite, la première lettre de la raison sociale.
     logoLetter: row.logo_letter || name.trim().charAt(0).toUpperCase() || "",
     logoUrl: row.logo_url ?? "",

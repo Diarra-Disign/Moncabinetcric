@@ -5,7 +5,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     id: "aud-001",
     occurredAt: "2026-08-01T14:20:11Z",
     actorMemberId: "mem-01",
-    actorEmail: "adama.diarra@boreale-immigration.ca",
+    actorEmail: "adama.diarra@demo-immigration.ca",
     actorName: "Me Adama Diarra",
     actorRole: "rcic",
     action: "approval",
@@ -14,7 +14,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     summary: "Approbation RCIC exécutée — Virement Fidéicommis 10 000,00 $ (Phase 1 EIMT)",
     changes: {
       status: { before: "pending", after: "approved" },
-      approvedBy: { before: null, after: "Me Adama Diarra (RCIC #R-514982)" }
+      approvedBy: { before: null, after: "Me Adama Diarra (RCIC #R000000)" }
     },
     ipAddress: "192.168.1.42",
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -25,7 +25,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     id: "aud-002",
     occurredAt: "2026-08-01T13:45:00Z",
     actorMemberId: "mem-02",
-    actorEmail: "sophie.tremblay@boreale-immigration.ca",
+    actorEmail: "sophie.tremblay@demo-immigration.ca",
     actorName: "Sophie Tremblay",
     actorRole: "staff",
     action: "create",
@@ -45,7 +45,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     id: "aud-003",
     occurredAt: "2026-08-01T11:12:30Z",
     actorMemberId: "mem-01",
-    actorEmail: "adama.diarra@boreale-immigration.ca",
+    actorEmail: "adama.diarra@demo-immigration.ca",
     actorName: "Me Adama Diarra",
     actorRole: "rcic",
     action: "trust_transfer",
@@ -65,7 +65,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     id: "aud-004",
     occurredAt: "2026-07-31T16:05:12Z",
     actorMemberId: "mem-03",
-    actorEmail: "julie.roy@boreale-immigration.ca",
+    actorEmail: "julie.roy@demo-immigration.ca",
     actorName: "Julie Roy",
     actorRole: "risia",
     action: "download",
@@ -81,7 +81,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     id: "aud-005",
     occurredAt: "2026-07-30T09:30:00Z",
     actorMemberId: "mem-01",
-    actorEmail: "adama.diarra@boreale-immigration.ca",
+    actorEmail: "adama.diarra@demo-immigration.ca",
     actorName: "Me Adama Diarra",
     actorRole: "owner",
     action: "update",
@@ -101,7 +101,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
 export const MOCK_APPROVAL_QUEUE: ActionApprovalRecord[] = [
   {
     id: "appr-102",
-    firmId: "firm-boreale",
+    firmId: "firm-demo",
     matterId: "DOS-35698",
     matterTitle: "Mandat Recrutement 12 EIMT & Permis de Travail",
     clientName: "Les Industries Nordiques Inc.",
@@ -122,7 +122,7 @@ export const MOCK_APPROVAL_QUEUE: ActionApprovalRecord[] = [
   },
   {
     id: "appr-103",
-    firmId: "firm-boreale",
+    firmId: "firm-demo",
     matterId: "DOS-35697",
     matterTitle: "Entrée Express — Résidence Permanente & ÉDE",
     clientName: "Dr. S. Rahman",
@@ -142,7 +142,7 @@ export const MOCK_APPROVAL_QUEUE: ActionApprovalRecord[] = [
   },
   {
     id: "appr-101",
-    firmId: "firm-boreale",
+    firmId: "firm-demo",
     matterId: "DOS-35696",
     matterTitle: "Programme Recrutement Infirmières Santé Québec",
     clientName: "Santé Québec Express",
@@ -156,7 +156,7 @@ export const MOCK_APPROVAL_QUEUE: ActionApprovalRecord[] = [
     preparedBy: "Sophie Tremblay (Adjointe Staff)",
     preparedByRole: "staff",
     preparedAt: "2026-07-30T15:20:00Z",
-    approvedBy: "Me Adama Diarra (RCIC #R-514982)",
+    approvedBy: "Me Adama Diarra (RCIC #R000000)",
     approvedAt: "2026-07-31T09:00:00Z",
     status: "approved"
   }

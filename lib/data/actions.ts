@@ -249,7 +249,12 @@ export async function executeAiConnectorAction(
   }
 }
 
-export async function createResearchWorkspace(title: string, matterId?: string, notes?: string): Promise<ResearchWorkspace> {
+export async function createResearchWorkspace(
+  title: string,
+  matterId?: string,
+  notes?: string,
+  createdBy?: string
+): Promise<ResearchWorkspace> {
   const stores = _getResearchStores()
   const now = new Date().toISOString().split("T")[0]
   const newWorkspace: ResearchWorkspace = {
@@ -257,7 +262,10 @@ export async function createResearchWorkspace(title: string, matterId?: string, 
     title: title.trim() || "Nouvel espace de recherche",
     matterId: matterId || undefined,
     matterReference: matterId || undefined,
-    createdBy: "Me Adama Diarra (RCIC #R-514982)",
+    // L'auteur vient de l'appelant, jamais d'une valeur figée : cette ligne
+    // inscrivait le consultant et le numéro de permis d'un cabinet fictif
+    // dans des données réelles.
+    createdBy: createdBy?.trim() || "",
     createdAt: now,
     updatedAt: now,
     notes: notes || undefined,

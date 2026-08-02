@@ -22,6 +22,7 @@ begin;
 alter table public.firms add column if not exists address       text;
 alter table public.firms add column if not exists phone         text;
 alter table public.firms add column if not exists email         text;
+alter table public.firms add column if not exists website       text;
 alter table public.firms add column if not exists logo_letter   text;
 alter table public.firms add column if not exists logo_url      text;
 alter table public.firms add column if not exists updated_at    timestamptz not null default now();
@@ -33,10 +34,16 @@ alter table public.firms alter column owner_name          drop default;
 comment on column public.firms.rcic_license_number is
   'Numéro de permis CICC du consultant réglementé. Aucune valeur par défaut : doit être saisi explicitement.';
 
--- Le format R-XXXXXX est celui du Collège. La contrainte est volontairement
--- tolérante à la casse et aux espaces, mais refuse une valeur vide.
+-- Format : R suivi de chiffres, avec ou sans tiret.
+--
+-- La longueur varie selon l'époque de délivrance : les permis anciens
+-- portent six chiffres, les plus récents sept. Une contrainte fixée à six
+-- rejetterait des numéros parfaitement valides — c'est précisément ce qui
+-- s'est produit à la première rédaction. On accepte donc six à huit
+-- chiffres, ce qui reste discriminant sans présumer d'un format que le
+-- Collège peut faire évoluer.
 alter table public.firms drop constraint if exists firms_rcic_license_format;
 alter table public.firms add constraint firms_rcic_license_format
-  check (rcic_license_number is null or rcic_license_number ~ '^[Rr]-?[0-9]{6}$');
+  check (rcic_license_number is null or rcic_license_number ~ '^[Rr]-?[0-9]{6,8}$');
 
 commit;

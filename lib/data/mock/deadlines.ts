@@ -154,7 +154,7 @@ export const MOCK_DEADLINE_RECORDS: DeadlineRecord[] = [
   {
     id: "dead-004",
     matterId: "CAB-2026",
-    clientName: "Cabinet Immigration Boréale Inc.",
+    clientName: "Cabinet de démonstration",
     program: "Conformité Cabinet CICC",
     title: "Rapprochement Mensuel Obligatoire du Compte Fidéicommis (Août 2026)",
     ruleCode: "cicc_trust_reconciliation_monthly",
@@ -242,8 +242,8 @@ export const OFFICIAL_CICC_COMPLIANCE_SCORE: CiccComplianceScore = {
     },
     {
       id: "cicc-07",
-      labelFr: "Permis CICC (#R-514982) et assurance responsabilité en règle",
-      labelEn: "CICC Licence (#R-514982) & E&O Insurance Active",
+      labelFr: "Permis CICC (#R000000) et assurance responsabilité en règle",
+      labelEn: "CICC Licence (#R000000) & E&O Insurance Active",
       weight: 5,
       isSatisfied: false,
       detailFr: "Avis préventif : renouvellement annuel de la police d'assurance responsabilité dans 60 jours.",

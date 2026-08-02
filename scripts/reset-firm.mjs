@@ -70,9 +70,11 @@ async function loadIdentity() {
 
   // Le format du permis est vérifié ici ET par une contrainte en base : une
   // erreur de saisie sur ce champ se propage à toutes les ententes.
-  if (!/^[Rr]-?\d{6}$/.test(String(id.rcicLicenseNumber).trim())) {
+  // Six à huit chiffres : la longueur varie selon l'époque de délivrance.
+  // Une contrainte à six rejetait des numéros valides.
+  if (!/^[Rr]-?\d{6,8}$/.test(String(id.rcicLicenseNumber).trim())) {
     throw new Error(
-      `Numéro de permis « ${id.rcicLicenseNumber} » non conforme. Format attendu : R-123456.`
+      `Numéro de permis « ${id.rcicLicenseNumber} » non conforme. Attendu : R suivi de 6 à 8 chiffres.`
     )
   }
 
@@ -143,6 +145,7 @@ async function main() {
         address: identity.address ?? null,
         phone: identity.phone ?? null,
         email: identity.email ?? null,
+        website: identity.website ?? null,
         logo_letter: identity.logoLetter ?? null,
         updated_at: new Date().toISOString(),
       })

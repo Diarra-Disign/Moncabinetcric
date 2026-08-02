@@ -30,7 +30,7 @@ export const INITIAL_AI_API_KEYS: AiApiKeyRecord[] = [
     keyPrefix: "cric_live_7a8b9c0d",
     secretHash: "sha256-hash-secret-01",
     createdForMemberId: "m-owner-01",
-    createdForMemberName: "Me Adama Diarra (RCIC #R-514982)",
+    createdForMemberName: "Me Adama Diarra (RCIC #R000000)",
     createdAt: "2026-07-29",
     lastUsedAt: "2026-08-01 14:15",
     isActive: true

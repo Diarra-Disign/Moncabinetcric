@@ -60,7 +60,7 @@ export const MOCK_MATTERS: Matter[] = [
   },
   {
     id: "#DOS-35693",
-    clientName: "Construction Boréale Ltée (6 postes)",
+    clientName: "Construction Démonstration Ltée (6 postes)",
     clientType: "b2b",
     program: "EIMT - Charpentiers",
     openedDate: "08-05-26",

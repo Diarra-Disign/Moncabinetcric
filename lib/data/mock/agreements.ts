@@ -122,8 +122,8 @@ export const MOCK_CLAUSES: ClauseDefinition[] = [
     level: "cicc_required",
     titleFr: "4. Procédure de Traitement des Différends & Plaintes CICC",
     titleEn: "4. Disputes & CICC Complaints Procedure",
-    bodyFr: "En cas de différend, le Client s'adresse en premier lieu au consultant titulaire (Adama Diarra, RCIC #R-514982, info@immigrationboreale.ca). Si le différend persiste, le Client conserve le droit inaliénable de porter plainte auprès du Collège des consultants en immigration et en citoyenneté (CICC) à complaints@college-ic.ca.",
-    bodyEn: "In case of dispute, the Client first contacts the responsible RCIC (Adama Diarra, RCIC #R-514982, info@immigrationboreale.ca). If unresolved, the Client retains the right to file a formal complaint with the CICC at complaints@college-ic.ca.",
+    bodyFr: "En cas de différend, le Client s'adresse en premier lieu au consultant titulaire (Adama Diarra, RCIC #R000000, info@immigrationdemo.ca). Si le différend persiste, le Client conserve le droit inaliénable de porter plainte auprès du Collège des consultants en immigration et en citoyenneté (CICC) à complaints@college-ic.ca.",
+    bodyEn: "In case of dispute, the Client first contacts the responsible RCIC (Adama Diarra, RCIC #R000000, info@immigrationdemo.ca). If unresolved, the Client retains the right to file a formal complaint with the CICC at complaints@college-ic.ca.",
     isEditable: true,
     isOptional: false
   },
@@ -234,7 +234,7 @@ export const MOCK_AGREEMENTS: AgreementRecord[] = [
     tvqCents: 44888, // $448.88 (9.975%)
     grandTotalCents: 772388, // $7,723.88 CAD
     rcicName: "Adama Diarra",
-    rcicLicenceNo: "R-514982",
+    rcicLicenceNo: "R000000",
     signedAt: "01-08-2026 14:15",
     sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
@@ -294,7 +294,7 @@ export const MOCK_AGREEMENTS: AgreementRecord[] = [
     tvqCents: 47880,
     grandTotalCents: 660380, // $6,603.80 CAD
     rcicName: "Adama Diarra",
-    rcicLicenceNo: "R-514982"
+    rcicLicenceNo: "R000000"
   },
   {
     id: "agr-03",
@@ -342,6 +342,6 @@ export const MOCK_AGREEMENTS: AgreementRecord[] = [
     tvqCents: 28928,
     grandTotalCents: 485928, // $4,859.28 CAD
     rcicName: "Adama Diarra",
-    rcicLicenceNo: "R-514982"
+    rcicLicenceNo: "R000000"
   }
 ]

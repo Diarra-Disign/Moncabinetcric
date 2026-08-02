@@ -217,7 +217,7 @@ export interface AgreementRecord {
   isTaxExempt?: boolean // True si client réside hors-Canada (Exonération 0% taxes)
   grandTotalCents: number // Honoraires + Taxes + Débours
   rcicName: string
-  rcicLicenceNo: string // "R-514982"
+  rcicLicenceNo: string // numéro de permis CICC, ex. « R1041776 »
   signedAt?: string
   sha256?: string
 }
@@ -308,7 +308,7 @@ export interface ActionApprovalRecord {
   preparedBy: string // "Sophie Tremblay (Adjointe Staff)"
   preparedByRole: "staff" | "risia"
   preparedAt: string
-  approvedBy?: string // "Me Adama Diarra (RCIC #R-514982)"
+  approvedBy?: string // nom et permis du consultant approbateur
   approvedAt?: string
   rejectedReason?: string
   status: "pending" | "approved" | "rejected" | "executed"

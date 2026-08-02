@@ -24,7 +24,7 @@ export const MOCK_DOCUMENTS: DocumentRecord[] = [
     clientName: "M. Adama Diarra",
     fileSize: "3.2 MB",
     sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    storagePath: "firms/firm-boreale/matters/DOS-35695/Passeport_Officiel_M_Diarra.pdf",
+    storagePath: "firms/firm-demo/matters/DOS-35695/Passeport_Officiel_M_Diarra.pdf",
     content: `PASSEPORT — PAGE D'IDENTITÉ (DONNÉES EXTRAITES)
 
 Type de document ......... Passeport ordinaire
@@ -64,7 +64,7 @@ Aucune anomalie relevée lors de la vérification du 2026-07-28.`
     clientName: "Dr. S. Rahman",
     fileSize: "1.8 MB",
     sha256: "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284ddd200126d9069",
-    storagePath: "firms/firm-boreale/matters/DOS-35697/Attestation_TEF_Canada_Dr_Rahman.pdf",
+    storagePath: "firms/firm-demo/matters/DOS-35697/Attestation_TEF_Canada_Dr_Rahman.pdf",
     content: `TEST D'ÉVALUATION DE FRANÇAIS ADAPTÉ POUR LE CANADA
 TEF CANADA — ATTESTATION DE RÉSULTATS
 
@@ -105,13 +105,13 @@ postérieur à cette date exigera de repasser l'épreuve.`
     clientName: "Les Industries Nordiques Inc.",
     fileSize: "850 KB",
     sha256: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
-    storagePath: "firms/firm-boreale/agreements/Entente_de_Service_CICC_SA-2026-000142.pdf",
+    storagePath: "firms/firm-demo/agreements/Entente_de_Service_CICC_SA-2026-000142.pdf",
     content: `ENTENTE DE SERVICES PROFESSIONNELS
 Contrat n° SA-2026-000142
 
-ENTRE : Cabinet Immigration Boréale Inc.
+ENTRE : Cabinet de démonstration
         Représenté par Me Adama Diarra
-        Consultant réglementé — RCIC #R-514982
+        Consultant réglementé — RCIC #R000000
         Membre en règle du Collège des consultants en
         immigration et en citoyenneté (CICC)
 
@@ -152,7 +152,7 @@ ET :    Les Industries Nordiques Inc. (« le Client »)
    compétentes.
 
 SIGNATURES
-   Me Adama Diarra (RCIC #R-514982) ..... 25 juillet 2026
+   Me Adama Diarra (RCIC #R000000) ..... 25 juillet 2026
    Les Industries Nordiques Inc. ........ 25 juillet 2026`
   },
   {
@@ -170,10 +170,10 @@ SIGNATURES
     clientName: "Les Industries Nordiques Inc.",
     fileSize: "420 KB",
     sha256: "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
-    storagePath: "firms/firm-boreale/invoices/Facture_Officielle_FAC-202601.pdf",
+    storagePath: "firms/firm-demo/invoices/Facture_Officielle_FAC-202601.pdf",
     content: `FACTURE
 
-Cabinet Immigration Boréale Inc. — RCIC #R-514982
+Cabinet de démonstration — RCIC #R000000
 TPS 123456789 RT0001 — TVQ 1234567890 TQ0001
 
 Facture n° ............... FAC-202601
@@ -220,13 +220,13 @@ après l'échéance.`
     clientName: "M. Adama Diarra",
     fileSize: "1.2 MB",
     sha256: "fcde2b2edba56bf408601fb721fe9b5c338d10ee429c7047b37b12d62e157790",
-    storagePath: "firms/firm-boreale/matters/DOS-35695/Note_Consultation_Eligibilite_PEQ.pdf",
+    storagePath: "firms/firm-demo/matters/DOS-35695/Note_Consultation_Eligibilite_PEQ.pdf",
     content: `NOTE DE CONSULTATION — ANALYSE D'ADMISSIBILITÉ
 CONFIDENTIEL — COUVERT PAR LE SECRET PROFESSIONNEL
 
 Dossier .............. #DOS-35695
 Client ............... M. Adama Diarra
-Consultant ........... Me Adama Diarra (RCIC #R-514982)
+Consultant ........... Me Adama Diarra (RCIC #R000000)
 Entretien ............ 29 juillet 2026 — 45 min, visioconférence
 
 1. PROGRAMME ÉVALUÉ
@@ -279,7 +279,7 @@ décision relève du ministère compétent.`
     clientName: "Santé Québec Express",
     fileSize: "2.1 MB",
     sha256: "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
-    storagePath: "firms/firm-boreale/forms/Formulaire_IMM5476_Recrutement_Infirmieres.pdf",
+    storagePath: "firms/firm-demo/forms/Formulaire_IMM5476_Recrutement_Infirmieres.pdf",
     content: `IMM 5476 — RECOURS AUX SERVICES D'UN REPRÉSENTANT
 USE OF A REPRESENTATIVE
 Immigration, Réfugiés et Citoyenneté Canada (IRCC)
@@ -296,9 +296,9 @@ SECTION B — NOMINATION D'UN REPRÉSENTANT
    Type .................. Représentant rémunéré
    Organisme de régie .... Collège des consultants en
                            immigration et en citoyenneté (CICC)
-   N° de membre .......... R-514982
-   Cabinet ............... Cabinet Immigration Boréale Inc.
-   Courriel .............. adama.diarra@boreale-immigration.ca
+   N° de membre .......... R000000
+   Cabinet ............... Cabinet de démonstration
+   Courriel .............. adama.diarra@demo-immigration.ca
 
 SECTION C — CONSENTEMENT À LA DIVULGATION
    J'autorise IRCC à divulguer les renseignements de mon
@@ -331,7 +331,7 @@ Champs obligatoires remplis ............... 14 / 14
     clientName: "M. Adama Diarra",
     fileSize: "4.5 MB",
     sha256: "a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0",
-    storagePath: "firms/firm-boreale/archive/Ancien_Diplome_Master_Archived.pdf",
+    storagePath: "firms/firm-demo/archive/Ancien_Diplome_Master_Archived.pdf",
     content: `DIPLÔME — DOCUMENT ARCHIVÉ
 
 Université de Bamako — Faculté des Sciences et Techniques
