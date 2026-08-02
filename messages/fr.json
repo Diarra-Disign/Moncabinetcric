@@ -456,5 +456,26 @@
     "truncatedResults": "{shown} dispositions affichées sur {total}. Affinez votre recherche pour réduire la liste.",
     "corpusNote": "Corpus LIPR / RIPR consolidé au {date}",
     "frequentlyUsed": "Usage fréquent"
+  },
+  "Auth": {
+    "title": "Connexion au cabinet",
+    "subtitle": "Espace réservé aux membres du cabinet. L'accès se donne, il ne se demande pas : aucune inscription n'est ouverte.",
+    "emailLabel": "Adresse courriel",
+    "emailPlaceholder": "vous@votre-cabinet.ca",
+    "passwordLabel": "Mot de passe",
+    "signIn": "Se connecter",
+    "signingIn": "Connexion…",
+    "magicLinkTab": "Lien par courriel",
+    "passwordTab": "Mot de passe",
+    "sendMagicLink": "Recevoir un lien de connexion",
+    "sendingMagicLink": "Envoi…",
+    "magicLinkSent": "Si un compte existe pour cette adresse, un lien de connexion vient d'y être envoyé. Il expire après un usage unique.",
+    "invalidCredentials": "Adresse courriel ou mot de passe incorrect.",
+    "noProfile": "Ce compte n'est rattaché à aucun cabinet. Contactez le propriétaire du cabinet.",
+    "genericError": "La connexion a échoué. Réessayez dans un instant.",
+    "signOut": "Se déconnecter",
+    "signedInAs": "Connecté en tant que",
+    "securityNote": "Vos identifiants ne sont jamais transmis à un tiers. La session expire automatiquement.",
+    "forgotHint": "Mot de passe oublié ? Utilisez l'onglet « Lien par courriel »."
   }
 }

@@ -1,9 +1,94 @@
-import createMiddleware from 'next-intl/middleware';
-import {routing} from './i18n/routing';
+import createMiddleware from 'next-intl/middleware'
+import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { routing } from './i18n/routing'
 
-export default createMiddleware(routing);
+const handleI18n = createMiddleware(routing)
+
+/** Segments réservés aux membres du cabinet, après le préfixe de langue. */
+const PROTECTED_SEGMENTS = [
+  'dashboard',
+  'clients',
+  'matters',
+  'documents',
+  'billing',
+  'calendar',
+  'deadlines',
+  'agreements',
+  'pipeline',
+  'research',
+  'settings',
+]
+
+const LOGIN_PATH = 'connexion'
+
+function localeOf(pathname: string): string {
+  const segment = pathname.split('/')[1]
+  return routing.locales.includes(segment as (typeof routing.locales)[number])
+    ? segment
+    : routing.defaultLocale
+}
+
+function isProtected(pathname: string): boolean {
+  const parts = pathname.split('/').filter(Boolean)
+  const afterLocale = routing.locales.includes(parts[0] as (typeof routing.locales)[number])
+    ? parts[1]
+    : parts[0]
+  return PROTECTED_SEGMENTS.includes(afterLocale ?? '')
+}
+
+export default async function proxy(request: NextRequest) {
+  // L'internationalisation d'abord : elle peut rediriger ou réécrire, et
+  // c'est sur SA réponse que les cookies de session doivent être posés,
+  // sinon le jeton rafraîchi est perdu à la redirection.
+  const response = handleI18n(request)
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !anonKey) return response
+
+  const supabase = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll()
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, options)
+        }
+      },
+    },
+  })
+
+  // Appel systématique : c'est lui qui fait tourner le jeton d'accès avant
+  // expiration. Sans cela l'utilisateur serait déconnecté au bout d'une heure.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+
+  if (isProtected(pathname) && !user) {
+    const locale = localeOf(pathname)
+    const redirect = request.nextUrl.clone()
+    redirect.pathname = `/${locale}/${LOGIN_PATH}`
+    // Mémorise la destination pour y revenir après connexion.
+    redirect.searchParams.set('suivant', pathname)
+    return NextResponse.redirect(redirect)
+  }
+
+  // Déjà connecté : la page de connexion n'a plus lieu d'être.
+  if (user && pathname.endsWith(`/${LOGIN_PATH}`)) {
+    const locale = localeOf(pathname)
+    const redirect = request.nextUrl.clone()
+    redirect.pathname = `/${locale}/dashboard`
+    redirect.search = ''
+    return NextResponse.redirect(redirect)
+  }
+
+  return response
+}
 
 export const config = {
-  // Match only internationalized pathnames
-  matcher: ['/', '/(fr|en)/:path*']
-};
+  matcher: ['/', '/(fr|en)/:path*'],
+}

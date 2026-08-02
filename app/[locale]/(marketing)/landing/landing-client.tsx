@@ -222,7 +222,7 @@ export function LandingClient({ t }: LandingClientProps) {
 
             <div className="flex items-center gap-3">
               <Link 
-                href="/dashboard" 
+                href="/connexion" 
                 className="hidden sm:inline-flex items-center justify-center rounded-full border border-white/20 bg-white/10 hover:bg-white/20 text-white px-5 py-2.5 text-xs sm:text-sm font-semibold backdrop-blur-md transition-all duration-200 hover:border-white/40"
               >
                 {t.nav.login}
@@ -767,7 +767,7 @@ export function LandingClient({ t }: LandingClientProps) {
               Démarrer l&apos;essai gratuit
             </a>
             <Link 
-              href="/dashboard"
+              href="/connexion"
               className="rounded-full border border-white/20 bg-white/10 hover:bg-white/20 text-white px-8 py-4 text-sm sm:text-base font-semibold backdrop-blur-md transition-all"
             >
               Connexion Cabinet
@@ -786,7 +786,7 @@ export function LandingClient({ t }: LandingClientProps) {
           <a href="#features" className="hover:text-slate-900 transition-colors">Fonctionnalités</a>
           <a href="#pricing" className="hover:text-slate-900 transition-colors">Tarification</a>
           <a href="#faq" className="hover:text-slate-900 transition-colors">FAQ</a>
-          <Link href="/dashboard" className="hover:text-slate-900 transition-colors">Portail Client</Link>
+          <Link href="/portal" className="hover:text-slate-900 transition-colors">Portail Client</Link>
           <Link href="/confidentialite" className="hover:text-slate-900 transition-colors">
             {tLegal("privacy.title")}
           </Link>

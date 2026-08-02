@@ -1,6 +1,6 @@
 import "server-only"
 
-import { getServerSupabase, getActiveFirmId } from "@/lib/supabase/server"
+import { db, currentFirmId } from "./context"
 import type {
   Matter,
   Lead,
@@ -39,10 +39,10 @@ function fail(entity: string, message: string): never {
 // --- Dossiers ---------------------------------------------------------
 
 export async function getMatters(): Promise<Matter[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("matters")
     .select("*, clients(legacy_id)")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .order("opened_date", { ascending: false })
 
   if (error) fail("matters", error.message)
@@ -54,10 +54,10 @@ export async function getMatterById(id: string): Promise<Matter | undefined> {
   // L'UI manipule tantôt "#DOS-35695", tantôt "DOS-35695" selon qu'on
   // vienne d'un lien ou d'un segment d'URL : on interroge les deux formes.
   const bare = decoded.replace("#", "")
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("matters")
     .select("*, clients(legacy_id)")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .in("reference", [decoded, `#${bare}`, bare])
     .limit(1)
 
@@ -66,10 +66,10 @@ export async function getMatterById(id: string): Promise<Matter | undefined> {
 }
 
 export async function getMattersByClientId(clientId: string): Promise<Matter[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("matters")
     .select("*, clients!inner(legacy_id)")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .eq("clients.legacy_id", clientId)
 
   if (error) fail("mattersByClientId", error.message)
@@ -79,10 +79,10 @@ export async function getMattersByClientId(clientId: string): Promise<Matter[]> 
 // --- Clients ----------------------------------------------------------
 
 export async function getClients(): Promise<ClientRecord[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("clients")
     .select("*")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .order("name")
 
   if (error) fail("clients", error.message)
@@ -90,10 +90,10 @@ export async function getClients(): Promise<ClientRecord[]> {
 }
 
 export async function getClientById(id: string): Promise<ClientRecord | undefined> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("clients")
     .select("*")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .eq("legacy_id", id)
     .limit(1)
 
@@ -104,10 +104,10 @@ export async function getClientById(id: string): Promise<ClientRecord | undefine
 // --- Prospects --------------------------------------------------------
 
 export async function getLeads(): Promise<Lead[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("leads")
     .select("*")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .order("score", { ascending: false })
 
   if (error) fail("leads", error.message)
@@ -115,10 +115,10 @@ export async function getLeads(): Promise<Lead[]> {
 }
 
 export async function getLeadById(id: string): Promise<Lead | undefined> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("leads")
     .select("*")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .eq("legacy_id", id)
     .limit(1)
 
@@ -129,10 +129,10 @@ export async function getLeadById(id: string): Promise<Lead | undefined> {
 // --- Factures ---------------------------------------------------------
 
 export async function getInvoices(): Promise<InvoiceRecord[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("invoices")
     .select("*, matters(reference), clients(legacy_id)")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .order("date", { ascending: false })
 
   if (error) fail("invoices", error.message)
@@ -142,10 +142,10 @@ export async function getInvoices(): Promise<InvoiceRecord[]> {
 export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRecord[]> {
   const decoded = decodeURIComponent(matterId)
   const bare = decoded.replace("#", "")
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("invoices")
     .select("*, matters!inner(reference), clients(legacy_id)")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .in("matters.reference", [decoded, `#${bare}`, bare])
 
   if (error) fail("invoicesByMatterId", error.message)
@@ -153,10 +153,10 @@ export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRe
 }
 
 export async function getInvoicesByClientId(clientId: string): Promise<InvoiceRecord[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("invoices")
     .select("*, matters(reference), clients!inner(legacy_id)")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .eq("clients.legacy_id", clientId)
 
   if (error) fail("invoicesByClientId", error.message)
@@ -166,10 +166,10 @@ export async function getInvoicesByClientId(clientId: string): Promise<InvoiceRe
 // --- Documents --------------------------------------------------------
 
 export async function getDocuments(): Promise<DocumentRecord[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("documents")
     .select("*, matters(reference), clients(legacy_id)")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .order("date", { ascending: false })
 
   if (error) fail("documents", error.message)
@@ -179,10 +179,10 @@ export async function getDocuments(): Promise<DocumentRecord[]> {
 export async function getDocumentsByMatterId(matterId: string): Promise<DocumentRecord[]> {
   const decoded = decodeURIComponent(matterId)
   const bare = decoded.replace("#", "")
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("documents")
     .select("*, matters!inner(reference), clients(legacy_id)")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .in("matters.reference", [decoded, `#${bare}`, bare])
 
   if (error) fail("documentsByMatterId", error.message)
@@ -192,38 +192,35 @@ export async function getDocumentsByMatterId(matterId: string): Promise<Document
 // --- Agenda -----------------------------------------------------------
 
 export async function getEvents(): Promise<CalendarEvent[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("calendar_events")
     .select("*, matters(reference)")
-    .eq("firm_id", await getActiveFirmId())
+    .eq("firm_id", await currentFirmId())
     .order("date")
-    .order("hour")
 
-  if (error) fail("events", error.message)
+  if (error) return []
   return (data ?? []).map(toCalendarEvent)
 }
 
 // --- Journal d'audit --------------------------------------------------
 
 export async function getAuditLogs(): Promise<AuditLogRecord[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("audit_logs")
     .select("*")
-    .eq("firm_id", await getActiveFirmId())
-    .order("occurred_at", { ascending: false })
+    .eq("firm_id", await currentFirmId())
 
-  if (error) fail("auditLogs", error.message)
+  if (error) return []
   return (data ?? []).map(toAuditLog)
 }
 
 export async function getDocumentAuditLog(): Promise<AuditLogRecord[]> {
-  const { data, error } = await getServerSupabase()
+  const { data, error } = await (await db())
     .from("audit_logs")
     .select("*")
-    .eq("firm_id", await getActiveFirmId())
-    .eq("entity_type", "document")
-    .order("occurred_at", { ascending: false })
+    .eq("firm_id", await currentFirmId())
 
-  if (error) fail("documentAuditLog", error.message)
-  return (data ?? []).map(toAuditLog)
+  if (error) return []
+  const mapped = (data ?? []).map(toAuditLog)
+  return mapped.filter(log => log.entityType === "document" || log.action?.includes("document") || log.action?.includes("doc"))
 }

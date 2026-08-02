@@ -1,5 +1,6 @@
 "use server"
 
+import { isSupabaseSource } from "./source"
 import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, ResearchWorkspace, ResearchSource, LegislationProvision } from "./types"
 // Import depuis ./stores et non ./queries : ce module est "use server" mais
 // des composants clients l'importent, et passer par queries.ts entraînerait
@@ -8,7 +9,10 @@ import { _getStores, _getResearchStores, _getAiStores, _findLegislationProvision
 import { generateChecklistForProgram } from "./programs"
 import { searchProvisions } from "./legislation-search"
 
+const sbWrites = () => import("./supabase/writes")
+
 export async function createMatter(data: Omit<Matter, "id"> & { id?: string }): Promise<Matter> {
+  if (isSupabaseSource()) return (await sbWrites()).createMatter(data)
   const stores = _getStores()
   const id = data.id || `#DOS-${Math.floor(10000 + Math.random() * 90000)}`
   const newMatter: Matter = {
@@ -20,6 +24,7 @@ export async function createMatter(data: Omit<Matter, "id"> & { id?: string }): 
 }
 
 export async function updateMatterStatus(id: string, status: Matter["status"]): Promise<Matter | undefined> {
+  if (isSupabaseSource()) return (await sbWrites()).updateMatterStatus(id, status)
   const stores = _getStores()
   const idx = stores.mattersStore.findIndex(m => m.id === id)
   if (idx === -1) return undefined
@@ -31,6 +36,7 @@ export async function updateMatterStatus(id: string, status: Matter["status"]): 
 }
 
 export async function createLead(data: Omit<Lead, "id"> & { id?: string }): Promise<Lead> {
+  if (isSupabaseSource()) return (await sbWrites()).createLead(data)
   const stores = _getStores()
   const id = data.id || `lead-${Date.now()}`
   const newLead: Lead = {
@@ -42,6 +48,7 @@ export async function createLead(data: Omit<Lead, "id"> & { id?: string }): Prom
 }
 
 export async function moveLeadStage(id: string, stage: Lead["stage"]): Promise<Lead | undefined> {
+  if (isSupabaseSource()) return (await sbWrites()).moveLeadStage(id, stage)
   const stores = _getStores()
   const idx = stores.leadsStore.findIndex(l => l.id === id)
   if (idx === -1) return undefined
@@ -53,6 +60,7 @@ export async function moveLeadStage(id: string, stage: Lead["stage"]): Promise<L
 }
 
 export async function createInvoice(data: Omit<InvoiceRecord, "id"> & { id?: string }): Promise<InvoiceRecord> {
+  if (isSupabaseSource()) return (await sbWrites()).createInvoice(data)
   const stores = _getStores()
   const id = data.id || `inv-${Date.now()}`
   const newInv: InvoiceRecord = {
@@ -64,6 +72,7 @@ export async function createInvoice(data: Omit<InvoiceRecord, "id"> & { id?: str
 }
 
 export async function createClient(data: Omit<ClientRecord, "id"> & { id?: string }): Promise<ClientRecord> {
+  if (isSupabaseSource()) return (await sbWrites()).createClient(data)
   const stores = _getStores()
   const id = data.id || `c-${Date.now()}`
   const newClient: ClientRecord = {
@@ -75,6 +84,7 @@ export async function createClient(data: Omit<ClientRecord, "id"> & { id?: strin
 }
 
 export async function createDocument(data: Omit<DocumentRecord, "id"> & { id?: string }): Promise<DocumentRecord> {
+  if (isSupabaseSource()) return (await sbWrites()).createDocument(data)
   const stores = _getStores()
   const id = data.id || `doc-${Date.now()}`
   const newDoc: DocumentRecord = {
@@ -86,6 +96,7 @@ export async function createDocument(data: Omit<DocumentRecord, "id"> & { id?: s
 }
 
 export async function archiveDocumentRecord(id: string): Promise<DocumentRecord | undefined> {
+  if (isSupabaseSource()) return (await sbWrites()).archiveDocumentRecord(id)
   const stores = _getStores()
   const idx = stores.documentsStore.findIndex(d => d.id === id)
   if (idx === -1) return undefined
@@ -97,6 +108,7 @@ export async function archiveDocumentRecord(id: string): Promise<DocumentRecord 
 }
 
 export async function deleteDocumentRecord(id: string): Promise<boolean> {
+  if (isSupabaseSource()) return (await sbWrites()).deleteDocumentRecord(id)
   const stores = _getStores()
   const idx = stores.documentsStore.findIndex(d => d.id === id)
   if (idx === -1) return false
@@ -106,6 +118,7 @@ export async function deleteDocumentRecord(id: string): Promise<boolean> {
 }
 
 export async function restoreDocumentRecord(id: string): Promise<DocumentRecord | undefined> {
+  if (isSupabaseSource()) return (await sbWrites()).restoreDocumentRecord(id)
   const stores = _getStores()
   const idx = stores.documentsStore.findIndex(d => d.id === id)
   if (idx === -1) return undefined

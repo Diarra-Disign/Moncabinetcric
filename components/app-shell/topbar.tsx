@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { LocaleSwitcher } from "./locale-switcher"
 import { ThemePicker } from "./theme-picker"
+import { MemberMenu } from "./member-menu"
 import { MobileNav } from "./mobile-nav"
 import { useTranslations } from "next-intl"
 import { useRouter } from "@/i18n/routing"
@@ -18,11 +19,20 @@ export interface SearchItem {
   href: string
 }
 
-interface TopbarProps {
-  searchDb?: SearchItem[]
+export interface TopbarMember {
+  fullName: string
+  email: string
+  ciccRole: string
+  initials: string
 }
 
-export function Topbar({ searchDb = [] }: TopbarProps = {}) {
+interface TopbarProps {
+  searchDb?: SearchItem[]
+  /** Membre connecté, résolu côté serveur depuis la session. */
+  member?: TopbarMember | null
+}
+
+export function Topbar({ searchDb = [], member = null }: TopbarProps = {}) {
   const t = useTranslations("Navigation")
   const router = useRouter()
   const [query, setQuery] = React.useState("")
@@ -145,16 +155,14 @@ export function Topbar({ searchDb = [] }: TopbarProps = {}) {
 
           <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-border" aria-hidden="true" />
 
-          <div className="flex items-center gap-x-3">
-            <div className="h-9 w-9 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center text-xs font-black shadow-md shadow-primary/20">
-              AD
-            </div>
-            <span className="hidden lg:flex lg:items-center">
-              <span className="text-xs font-black leading-6 text-foreground" aria-hidden="true">
-                Me. Adama Diarra (RCIC)
-              </span>
-            </span>
-          </div>
+          {member && (
+            <MemberMenu
+              fullName={member.fullName}
+              email={member.email}
+              ciccRole={member.ciccRole}
+              initials={member.initials}
+            />
+          )}
         </div>
       </div>
     </header>

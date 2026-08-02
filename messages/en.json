@@ -456,5 +456,26 @@
     "truncatedResults": "Showing {shown} of {total} provisions. Refine your search to narrow the list.",
     "corpusNote": "IRPA / IRPR corpus current to {date}",
     "frequentlyUsed": "Frequently used"
+  },
+  "Auth": {
+    "title": "Firm sign-in",
+    "subtitle": "Reserved for firm members. Access is granted, not requested: there is no public sign-up.",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "you@your-firm.ca",
+    "passwordLabel": "Password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "magicLinkTab": "Email link",
+    "passwordTab": "Password",
+    "sendMagicLink": "Send me a sign-in link",
+    "sendingMagicLink": "Sending…",
+    "magicLinkSent": "If an account exists for this address, a sign-in link has just been sent to it. It expires after a single use.",
+    "invalidCredentials": "Incorrect email address or password.",
+    "noProfile": "This account is not linked to any firm. Contact the firm owner.",
+    "genericError": "Sign-in failed. Please try again in a moment.",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as",
+    "securityNote": "Your credentials are never shared with a third party. Sessions expire automatically.",
+    "forgotHint": "Forgot your password? Use the “Email link” tab."
   }
 }
