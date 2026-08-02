@@ -502,8 +502,8 @@
     "roleStaff": "Personnel",
     "roleBookkeeper": "Teneur de livres",
     "roleReadonly": "Lecture seule",
-    "backToApp": "Retour à l'application",
     "scriptsHeading": "Actions hors console",
-    "scriptsBody": "La création de cabinets, l'attribution des accès et la promotion d'un administrateur passent par des scripts, volontairement hors de l'interface web : on ne se promeut pas administrateur depuis une page."
+    "scriptsBody": "La création de cabinets, l'attribution des accès et la promotion d'un administrateur passent par des scripts, volontairement hors de l'interface web : on ne se promeut pas administrateur depuis une page.",
+    "backToSite": "Retour au site public"
   }
 }

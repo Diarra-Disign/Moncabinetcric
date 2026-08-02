@@ -80,8 +80,12 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(redirect)
   }
 
-  // Déjà connecté : la page de connexion n'a plus lieu d'être.
-  if (user && pathname.endsWith(`/${LOGIN_PATH}`)) {
+  // Déjà connecté : la page de connexion n'a plus lieu d'être — sauf
+  // lorsqu'elle signale un problème de compte. Sans cette exception, un
+  // utilisateur connecté mais sans profil rebondirait indéfiniment entre
+  // la connexion et le tableau de bord.
+  const hasProblem = request.nextUrl.searchParams.has('probleme')
+  if (user && !hasProblem && pathname.endsWith(`/${LOGIN_PATH}`)) {
     const locale = localeOf(pathname)
     const redirect = request.nextUrl.clone()
     redirect.pathname = `/${locale}/dashboard`

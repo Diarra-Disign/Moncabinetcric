@@ -1,7 +1,7 @@
 import { Sidebar } from "@/components/app-shell/sidebar"
 import { Topbar, SearchItem } from "@/components/app-shell/topbar"
 import { getClients, getMatters, getDocuments, getInvoices } from "@/lib/data"
-import { getCurrentMember, getCurrentFirm } from "@/lib/supabase/session"
+import { getCurrentMember, getCurrentFirm, getCurrentPlatformAdmin } from "@/lib/supabase/session"
 import { FirmProvider } from "@/components/app-shell/firm-provider"
 import { redirect } from "next/navigation"
 
@@ -13,7 +13,18 @@ export default async function AppLayout({
   // Seconde barrière, après proxy.ts : le middleware peut être contourné
   // par une route mal déclarée dans son matcher, pas ce contrôle-ci.
   const member = await getCurrentMember()
-  if (!member) redirect("/fr/connexion")
+  if (!member) {
+    // Un compte connecté sans profil n'est pas forcément un intrus : c'est
+    // le cas normal d'un administrateur de plateforme, qui n'est membre
+    // d'aucun cabinet. Le renvoyer vers la connexion créait une boucle —
+    // proxy.ts voyait une session valide et le retournait aussitôt ici.
+    const admin = await getCurrentPlatformAdmin()
+    if (admin) redirect("/fr/admin")
+
+    // Ni membre, ni administrateur : le paramètre rend la page de connexion
+    // terminale, sinon la même boucle se reformerait.
+    redirect("/fr/connexion?probleme=profil")
+  }
 
   const [firm, clients, matters, documents, invoices] = await Promise.all([
     getCurrentFirm(),

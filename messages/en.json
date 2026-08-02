@@ -502,8 +502,8 @@
     "roleStaff": "Staff",
     "roleBookkeeper": "Bookkeeper",
     "roleReadonly": "Read only",
-    "backToApp": "Back to the application",
     "scriptsHeading": "Actions outside this console",
-    "scriptsBody": "Creating firms, granting access and promoting an administrator go through scripts, deliberately outside the web interface: you do not promote yourself to administrator from a page."
+    "scriptsBody": "Creating firms, granting access and promoting an administrator go through scripts, deliberately outside the web interface: you do not promote yourself to administrator from a page.",
+    "backToSite": "Back to the public site"
   }
 }

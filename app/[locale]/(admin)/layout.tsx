@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { getTranslations } from "next-intl/server"
-import { ShieldCheck, ArrowLeft } from "lucide-react"
+import { ShieldCheck, ArrowLeft, LogOut } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { getCurrentPlatformAdmin, getCurrentMember } from "@/lib/supabase/session"
 
@@ -28,7 +28,10 @@ export default async function AdminLayout({
   const [admin, member] = await Promise.all([getCurrentPlatformAdmin(), getCurrentMember()])
   if (!admin) redirect(member ? "/fr/dashboard" : "/fr/connexion")
 
-  const t = await getTranslations("Admin")
+  const [t, tAuth] = await Promise.all([
+    getTranslations("Admin"),
+    getTranslations("Auth"),
+  ])
 
   return (
     <div className="min-h-dvh bg-background">
@@ -46,17 +49,32 @@ export default async function AdminLayout({
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <span className="hidden font-mono text-xs text-muted-foreground sm:inline">
               {admin.email}
             </span>
+
+            {/* Un administrateur n'a pas d'espace applicatif où « revenir » :
+                il n'est membre d'aucun cabinet. Le lien mène donc au site
+                public, pas au tableau de bord. */}
             <Link
-              href="/"
+              href="/landing"
               className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <ArrowLeft aria-hidden className="h-3.5 w-3.5" />
-              {t("backToApp")}
+              {t("backToSite")}
             </Link>
+
+            <form action="/api/auth/sign-out" method="post">
+              <button
+                type="submit"
+                title={`${tAuth("signedInAs")} ${admin.email}`}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"
+              >
+                <LogOut aria-hidden className="h-3.5 w-3.5" />
+                {tAuth("signOut")}
+              </button>
+            </form>
           </div>
         </div>
       </header>
