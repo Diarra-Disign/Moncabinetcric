@@ -26,7 +26,10 @@ import {
   ChevronRight,
   X,
   FileSignature,
-  Building
+  Building,
+  SlidersHorizontal,
+  Eye,
+  Settings
 } from "lucide-react"
 import { Link, useRouter } from "@/i18n/routing"
 
@@ -61,9 +64,29 @@ export function DashboardClient({
   const router = useRouter()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isSearchOpen, setIsSearchOpen] = React.useState(false)
-  const [showComplianceModal, setShowComplianceModal] = React.useState(false)
-  const [dismissedBanner, setDismissedBanner] = React.useState(false)
-  const searchRef = React.useRef<HTMLDivElement>(null)
+  const [searchRef] = React.useState<React.RefObject<HTMLDivElement | null>>({ current: null })
+
+  // DASHBOARD PERSONALIZATION STATE & PRESETS
+  const [showCustomizeModal, setShowCustomizeModal] = React.useState(false)
+  const [presetView, setPresetView] = React.useState<"global" | "finance" | "compliance">("global")
+  const [widgetsState, setWidgetsState] = React.useState({
+    deadlinesBanner: true,
+    trustFinance: true,
+    kpis: true,
+    todayAgenda: true,
+    mattersList: true
+  })
+
+  const applyPresetView = (view: "global" | "finance" | "compliance") => {
+    setPresetView(view)
+    if (view === "global") {
+      setWidgetsState({ deadlinesBanner: true, trustFinance: true, kpis: true, todayAgenda: true, mattersList: true })
+    } else if (view === "finance") {
+      setWidgetsState({ deadlinesBanner: false, trustFinance: true, kpis: true, todayAgenda: false, mattersList: true })
+    } else if (view === "compliance") {
+      setWidgetsState({ deadlinesBanner: true, trustFinance: false, kpis: false, todayAgenda: true, mattersList: true })
+    }
+  }
 
   const criticalDeadlines = deadlines.filter(d => d.severity === "critical" && d.status === "open")
 
@@ -87,38 +110,40 @@ export function DashboardClient({
     <div className="space-y-8 pb-16">
 
       {/* BANDEAU D'ALERTES RÉGLEMENTAIRES OBLIGATOIRE EN TÊTE DE DASHBOARD (SPEC 2.5) */}
-      <div className="bg-gradient-to-r from-amber-500 via-rose-600 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-amber-400/40 relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4 relative z-10">
-          <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black shrink-0 shadow-inner">
-            <Clock className="w-6 h-6 text-amber-300 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-black uppercase tracking-wider bg-white/20 text-amber-200 px-2.5 py-0.5 rounded-full">
-                MOTEUR D&apos;ÉCHÉANCES CICC & LIPR
-              </span>
-              <span className="text-xs font-bold text-slate-200">Surveillance Continue</span>
+      {widgetsState.deadlinesBanner && (
+        <div className="bg-gradient-to-r from-amber-500 via-rose-600 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-amber-400/40 relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fadeIn">
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black shrink-0 shadow-inner">
+              <Clock className="w-6 h-6 text-amber-300 animate-pulse" />
             </div>
-            <h2 className="text-base sm:text-lg font-black tracking-tight text-white mt-1">
-              {deadlines.filter(d => d.daysRemaining <= 14).length > 0
-                ? `${deadlines.filter(d => d.daysRemaining <= 14).length} Échéance(s) Réglementaire(s) Critique(s) (< 14 jours)`
-                : "Toutes les échéances légales LIPR/RIPR sont sous contrôle"}
-            </h2>
-            <p className="text-xs text-amber-100/90 mt-0.5">
-              Prochaine échéance : <strong className="text-white">Les Industries Nordiques (Biométrie J-7)</strong> & <strong className="text-white">Dr. S. Rahman (ITA Entrée Express J-13)</strong>
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-black uppercase tracking-wider bg-white/20 text-amber-200 px-2.5 py-0.5 rounded-full">
+                  MOTEUR D&apos;ÉCHÉANCES CICC & LIPR
+                </span>
+                <span className="text-xs font-bold text-slate-200">Surveillance Continue</span>
+              </div>
+              <h2 className="text-base sm:text-lg font-black tracking-tight text-white mt-1">
+                {deadlines.filter(d => d.daysRemaining <= 14).length > 0
+                  ? `${deadlines.filter(d => d.daysRemaining <= 14).length} Échéance(s) Réglementaire(s) Critique(s) (< 14 jours)`
+                  : "Toutes les échéances légales LIPR/RIPR sont sous contrôle"}
+              </h2>
+              <p className="text-xs text-amber-100/90 mt-0.5">
+                Prochaine échéance : <strong className="text-white">Les Industries Nordiques (Biométrie J-7)</strong> & <strong className="text-white">Dr. S. Rahman (ITA Entrée Express J-13)</strong>
+              </p>
+            </div>
           </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => router.push("/deadlines")}
-          className="px-5 py-2.5 rounded-2xl bg-white text-slate-950 hover:bg-amber-50 text-xs font-extrabold shadow-md transition-all shrink-0 cursor-pointer flex items-center gap-2"
-        >
-          <span>Ouvrir l&apos;Avertisseur ({deadlines.length})</span>
-          <ChevronRight className="w-4 h-4 text-slate-900" />
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => router.push("/deadlines")}
+            className="px-5 py-2.5 rounded-2xl bg-white text-slate-950 hover:bg-amber-50 text-xs font-extrabold shadow-md transition-all shrink-0 cursor-pointer flex items-center gap-2"
+          >
+            <span>Ouvrir l&apos;Avertisseur ({deadlines.length})</span>
+            <ChevronRight className="w-4 h-4 text-slate-900" />
+          </button>
+        </div>
+      )}
 
       {/* 1. EN-TÊTE D'ACCUEIL UI/UX PRO MAX (SANS OVERFLOW HIDDEN POUR NE PAS ROGNER LE DROPDOWN) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.03)] relative z-20">
@@ -216,6 +241,16 @@ export function DashboardClient({
               </div>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowCustomizeModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 px-4 py-2.5 text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs"
+            title="Personnaliser les widgets et la vue du tableau de bord"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+            <span className="hidden sm:inline">Vues & Widgets</span>
+          </button>
 
           <Link href="/clients">
             <button 
@@ -670,6 +705,117 @@ export function DashboardClient({
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE PERSONNALISATION DES VUES ET WIDGETS DU TABLEAU DE BORD */}
+      {showCustomizeModal && (
+        <div className="fixed inset-0 z-[280] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden animate-scaleUp">
+            
+            <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-md">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Personnaliser le Tableau de Bord</h3>
+                  <p className="text-xs text-slate-500 font-medium">Choisissez vos vues pré-configurées ou activez vos widgets sur mesure.</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowCustomizeModal(false)}
+                className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* SECTEUR VUES PRÉRÉGLÉES */}
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Vues Rapides Préréglées</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => applyPresetView("global")}
+                    className={`p-3 rounded-2xl border text-xs font-bold text-center transition-all cursor-pointer ${
+                      presetView === "global"
+                        ? "bg-indigo-900 text-white border-indigo-900 shadow-md font-black"
+                        : "bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200"
+                    }`}
+                  >
+                    Vue Globale
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetView("finance")}
+                    className={`p-3 rounded-2xl border text-xs font-bold text-center transition-all cursor-pointer ${
+                      presetView === "finance"
+                        ? "bg-indigo-900 text-white border-indigo-900 shadow-md font-black"
+                        : "bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200"
+                    }`}
+                  >
+                    Finance & Trust
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyPresetView("compliance")}
+                    className={`p-3 rounded-2xl border text-xs font-bold text-center transition-all cursor-pointer ${
+                      presetView === "compliance"
+                        ? "bg-indigo-900 text-white border-indigo-900 shadow-md font-black"
+                        : "bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200"
+                    }`}
+                  >
+                    Conformité CICC
+                  </button>
+                </div>
+              </div>
+
+              {/* TOGGLES INDIVIDUELS DES WIDGETS */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <label className="text-xs font-black uppercase text-slate-400 tracking-wider">Activation des Widgets</label>
+                
+                <div className="space-y-2 text-xs font-bold text-slate-800">
+                  <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-200/80 cursor-pointer hover:bg-slate-100">
+                    <span className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-500" /> Bandeau Avertisseur d&apos;Échéances CICC
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={widgetsState.deadlinesBanner}
+                      onChange={(e) => setWidgetsState({ ...widgetsState, deadlinesBanner: e.target.checked })}
+                      className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-200/80 cursor-pointer hover:bg-slate-100">
+                    <span className="flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-emerald-500" /> KPIs & Métriques de Performance
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={widgetsState.kpis}
+                      onChange={(e) => setWidgetsState({ ...widgetsState, kpis: e.target.checked })}
+                      className="h-4 w-4 rounded accent-indigo-600 cursor-pointer"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomizeModal(false)}
+                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-all"
+                >
+                  Appliquer la configuration
+                </button>
+              </div>
+
+            </div>
           </div>
         </div>
       )}
