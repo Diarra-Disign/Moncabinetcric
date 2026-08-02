@@ -53,6 +53,65 @@ interface PipelineClientProps {
 
 const STAGE_ORDER: Lead["stage"][] = ["newLead", "consultation", "proposal", "negotiation", "signed"]
 
+function getStageHeaderConfig(stage: Lead["stage"]) {
+  switch (stage) {
+    case "newLead":
+      return {
+        title: "Nouveau Prospect",
+        borderLeft: "border-l-4 border-l-blue-600",
+        bgGradient: "bg-gradient-to-r from-blue-500/10 via-sky-500/5 to-transparent",
+        badgeBg: "bg-blue-600 text-white font-mono shadow-2xs",
+        dotBg: "bg-blue-500 animate-pulse",
+        textAccent: "text-blue-700"
+      }
+    case "consultation":
+      return {
+        title: "Consultation Planifiée",
+        borderLeft: "border-l-4 border-l-purple-600",
+        bgGradient: "bg-gradient-to-r from-purple-500/10 via-indigo-500/5 to-transparent",
+        badgeBg: "bg-purple-600 text-white font-mono shadow-2xs",
+        dotBg: "bg-purple-500",
+        textAccent: "text-purple-700"
+      }
+    case "proposal":
+      return {
+        title: "Proposition Transmise",
+        borderLeft: "border-l-4 border-l-amber-500",
+        bgGradient: "bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent",
+        badgeBg: "bg-amber-500 text-slate-950 font-mono shadow-2xs",
+        dotBg: "bg-amber-500",
+        textAccent: "text-amber-700"
+      }
+    case "negotiation":
+      return {
+        title: "Négociation & Révision",
+        borderLeft: "border-l-4 border-l-orange-500",
+        bgGradient: "bg-gradient-to-r from-orange-500/10 via-rose-500/5 to-transparent",
+        badgeBg: "bg-orange-600 text-white font-mono shadow-2xs",
+        dotBg: "bg-orange-500",
+        textAccent: "text-orange-700"
+      }
+    case "signed":
+      return {
+        title: "Mandat Signé CICC",
+        borderLeft: "border-l-4 border-l-emerald-600",
+        bgGradient: "bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent",
+        badgeBg: "bg-emerald-600 text-white font-mono shadow-2xs",
+        dotBg: "bg-emerald-500",
+        textAccent: "text-emerald-700"
+      }
+    default:
+      return {
+        title: stage,
+        borderLeft: "border-l-4 border-l-slate-400",
+        bgGradient: "bg-slate-100",
+        badgeBg: "bg-slate-700 text-white font-mono shadow-2xs",
+        dotBg: "bg-slate-400",
+        textAccent: "text-slate-700"
+      }
+  }
+}
+
 export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
   const [leads, setLeads] = React.useState<Lead[]>(() => {
     if (typeof window !== "undefined") {
@@ -426,6 +485,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
           const columnLeads = filteredLeads.filter(l => l.stage === stageKey)
           const columnTotal = columnLeads.reduce((acc, l) => acc + l.estimatedValue, 0)
           const isDragOver = dragOverStage === stageKey
+          const cfg = getStageHeaderConfig(stageKey)
           
           return (
             <div 
@@ -433,21 +493,25 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
               onDragOver={(e) => handleDragOver(e, stageKey)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, stageKey)}
-              className={`p-3.5 rounded-3xl border transition-all flex flex-col gap-3 min-w-[260px] ${
-                isDragOver ? "bg-blue-50 border-blue-500 ring-2 ring-blue-400/40" : "bg-slate-50/70 border-slate-200/80"
+              className={`p-3.5 rounded-3xl border transition-all flex flex-col gap-3 min-w-[260px] shadow-2xs ${cfg.borderLeft} ${
+                isDragOver ? "bg-blue-50/90 border-blue-500 ring-2 ring-blue-400/40 scale-[1.01]" : "bg-slate-50/70 border-slate-200/80"
               }`}
             >
-              {/* Column Header */}
-              <div className="flex items-center justify-between px-1 pb-1">
-                <div>
-                  <h3 className="font-black text-xs text-slate-900 uppercase tracking-wider">
-                    {t.columns[stageKey]}
-                  </h3>
-                  <span className="text-[10px] font-mono font-bold text-slate-500">
-                    {formatCurrency(columnTotal)}
-                  </span>
+              {/* EN-TÊTE DE COLONNE HAUTEMENT MIS EN VALEUR STYLE LINEAR/NOTION */}
+              <div className={`p-3 rounded-2xl border border-slate-200/60 shadow-2xs ${cfg.bgGradient} flex items-center justify-between`}>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${cfg.dotBg}`} />
+                  <div>
+                    <h3 className="font-black text-xs text-slate-900 tracking-tight">
+                      {cfg.title}
+                    </h3>
+                    <span className={`text-[10px] font-mono font-extrabold ${cfg.textAccent} block mt-0.5`}>
+                      {formatCurrency(columnTotal)}
+                    </span>
+                  </div>
                 </div>
-                <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-extrabold text-[11px] flex items-center justify-center">
+
+                <span className={`w-6 h-6 rounded-xl flex items-center justify-center text-xs font-black ${cfg.badgeBg}`}>
                   {columnLeads.length}
                 </span>
               </div>
@@ -460,7 +524,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                     draggable
                     onDragStart={(e) => handleDragStart(e, lead.id)}
                     onClick={() => setSelectedLead(lead)}
-                    className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-blue-400 transition-all cursor-grab active:cursor-grabbing flex flex-col gap-3 group relative"
+                    className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-blue-400 hover:-translate-y-0.5 transition-all duration-200 cursor-grab active:cursor-grabbing flex flex-col gap-3 group relative overflow-hidden"
                   >
                     {/* Header Carte avec Grip Icon */}
                     <div className="flex items-start justify-between gap-2">
