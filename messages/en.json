@@ -516,5 +516,27 @@
     "accessOpen": "Access open",
     "accessClosed": "Access closed",
     "trialUntil": "until"
+  },
+  "Invite": {
+    "title": "Welcome",
+    "subtitle": "You have been invited to join a firm.",
+    "invitedTo": "You are invited to join",
+    "asRole": "as",
+    "emailLabel": "Email address",
+    "emailLocked": "This is the address the invitation was sent to and cannot be changed.",
+    "nameLabel": "Full name",
+    "namePlaceholder": "First and last name",
+    "passwordLabel": "Choose a password",
+    "passwordHint": "12 characters minimum.",
+    "submit": "Create my access",
+    "submitting": "Creating…",
+    "invalidTitle": "Invalid invitation",
+    "invalidBody": "This link is unknown, expired, revoked or already used. Ask the person who contacted you for a new invitation.",
+    "errorWeak": "The password must be at least 12 characters.",
+    "errorExists": "This account is already a member of this firm. Sign in instead.",
+    "errorFailed": "Creation failed. Please try again in a moment.",
+    "successTitle": "Access created",
+    "successBody": "Your account is ready. You can now sign in.",
+    "goToSignIn": "Go to sign-in"
   }
 }

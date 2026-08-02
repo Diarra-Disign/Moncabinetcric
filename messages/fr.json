@@ -516,5 +516,27 @@
     "accessOpen": "Accès ouvert",
     "accessClosed": "Accès fermé",
     "trialUntil": "jusqu'au"
+  },
+  "Invite": {
+    "title": "Bienvenue",
+    "subtitle": "Vous avez été invité à rejoindre un cabinet.",
+    "invitedTo": "Vous êtes invité à rejoindre",
+    "asRole": "en qualité de",
+    "emailLabel": "Adresse courriel",
+    "emailLocked": "Cette adresse est celle de l'invitation et ne peut pas être modifiée.",
+    "nameLabel": "Nom complet",
+    "namePlaceholder": "Prénom et nom",
+    "passwordLabel": "Choisissez un mot de passe",
+    "passwordHint": "12 caractères minimum.",
+    "submit": "Créer mon accès",
+    "submitting": "Création…",
+    "invalidTitle": "Invitation non valide",
+    "invalidBody": "Ce lien est inconnu, expiré, révoqué ou déjà utilisé. Demandez une nouvelle invitation à la personne qui vous a contacté.",
+    "errorWeak": "Le mot de passe doit compter au moins 12 caractères.",
+    "errorExists": "Ce compte est déjà membre de ce cabinet. Connectez-vous plutôt.",
+    "errorFailed": "La création a échoué. Réessayez dans un instant.",
+    "successTitle": "Accès créé",
+    "successBody": "Votre compte est prêt. Vous pouvez maintenant vous connecter.",
+    "goToSignIn": "Aller à la connexion"
   }
 }
