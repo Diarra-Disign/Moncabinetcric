@@ -57,9 +57,15 @@ async function main() {
 
   // ---------------------------------------------------------------- 0
   console.log("0. Nature des clés")
-  const roleOf = (jwt) => {
+  // Deux formats coexistent chez Supabase : l'ancien JWT, où le rôle est
+  // une revendication à décoder, et le nouveau, où il est porté par le
+  // préfixe. Ne reconnaître que le premier faisait passer une clé secrète
+  // valide pour illisible.
+  const roleOf = (key) => {
+    if (key.startsWith("sb_secret_")) return "service_role"
+    if (key.startsWith("sb_publishable_")) return "anon"
     try {
-      const part = jwt.split(".")[1]
+      const part = key.split(".")[1]
       const json = Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8")
       return JSON.parse(json).role ?? "?"
     } catch {
