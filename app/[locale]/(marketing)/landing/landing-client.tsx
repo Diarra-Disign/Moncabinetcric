@@ -25,6 +25,7 @@ import {
   Award
 } from "lucide-react"
 import { Link } from "@/i18n/routing"
+import { useTranslations } from "next-intl"
 
 interface LandingClientProps {
   t: {
@@ -58,6 +59,9 @@ interface LandingClientProps {
 }
 
 export function LandingClient({ t }: LandingClientProps) {
+  // Les libellés légaux réutilisent les titres du catalogue juridique
+  // plutôt que d'introduire des clés en double.
+  const tLegal = useTranslations("Legal")
   const [isAnnual, setIsAnnual] = React.useState(true)
   const [openFaq, setOpenFaq] = React.useState<number | null>(0)
   const [activeTab, setActiveTab] = React.useState<"all" | "expiring" | "audit">("all")
@@ -778,12 +782,18 @@ export function LandingClient({ t }: LandingClientProps) {
           <div className="h-6 w-6 rounded-md bg-blue-600 text-white flex items-center justify-center text-xs font-black">M</div>
           <span>moncabinetcric</span>
         </div>
-        <div className="flex items-center gap-6 text-xs font-medium">
+        <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium">
           <a href="#features" className="hover:text-slate-900 transition-colors">Fonctionnalités</a>
           <a href="#pricing" className="hover:text-slate-900 transition-colors">Tarification</a>
           <a href="#faq" className="hover:text-slate-900 transition-colors">FAQ</a>
           <Link href="/dashboard" className="hover:text-slate-900 transition-colors">Portail Client</Link>
-        </div>
+          <Link href="/confidentialite" className="hover:text-slate-900 transition-colors">
+            {tLegal("privacy.title")}
+          </Link>
+          <Link href="/conditions" className="hover:text-slate-900 transition-colors">
+            {tLegal("terms.title")}
+          </Link>
+        </nav>
         <div className="text-xs text-slate-400">
           © 2026 moncabinetcric. Conçu avec excellence pour les consultants réglementés CICC.
         </div>

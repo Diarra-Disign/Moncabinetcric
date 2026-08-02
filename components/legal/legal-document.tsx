@@ -49,8 +49,10 @@ export function LegalDocument({
     // <article> et non <main> : le gabarit marketing fournit déjà le <main>
     // de la page, et deux <main> imbriqués sont invalides.
     <article className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16">
+      {/* Vers /landing et non / : la racine sert le portail client, alors que
+          ces pages sont atteintes depuis le pied de page marketing. */}
       <Link
-        href="/"
+        href="/landing"
         className="mb-8 inline-flex items-center gap-2 text-xs font-bold text-muted-foreground transition-colors hover:text-foreground"
       >
         ← {backLabel}
