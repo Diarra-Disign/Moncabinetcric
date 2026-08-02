@@ -22,6 +22,18 @@ interface SubmissionLetterBuilderProps {
   rcicNumber?: string
 }
 
+const VARIATION_NAMES_FR = [
+  "Variante 1 : Standard Accrédité & Conformité CICC",
+  "Variante 2 : Focus Intégration Économique & Expérience Canadienne",
+  "Variante 3 : Urgence d'Instruction & Profil Prioritaire"
+]
+
+const VARIATION_NAMES_EN = [
+  "Variant 1: Accredited Standard & CICC Compliance",
+  "Variant 2: Economic Integration & Canadian Experience Focus",
+  "Variant 3: Expedited Processing & Priority Profile"
+]
+
 export function SubmissionLetterBuilder({
   matterId,
   clientName,
