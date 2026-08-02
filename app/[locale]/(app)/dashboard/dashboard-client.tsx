@@ -65,6 +65,8 @@ export function DashboardClient({
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isSearchOpen, setIsSearchOpen] = React.useState(false)
   const [searchRef] = React.useState<React.RefObject<HTMLDivElement | null>>({ current: null })
+  const [showComplianceModal, setShowComplianceModal] = React.useState(false)
+  const [dismissedBanner, setDismissedBanner] = React.useState(false)
 
   // DASHBOARD PERSONALIZATION STATE & PRESETS
   const [showCustomizeModal, setShowCustomizeModal] = React.useState(false)
