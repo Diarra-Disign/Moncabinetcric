@@ -17,6 +17,7 @@
 import { mkdir, readFile, writeFile, access } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { PRACTICE_HIGHLIGHTS } from "./practice-highlights.mjs"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const CACHE = join(ROOT, ".cache", "legislation")
@@ -228,6 +229,10 @@ async function main() {
       const provEn = en.get(label)
       if (!provEn) stats.sansAnglais++
 
+      const highlight = PRACTICE_HIGHLIGHTS.find(
+        (h) => h.instrument === instrument && h.no === label
+      )
+
       records.push({
         id: `${instrument}-${label}`,
         instrument,
@@ -242,7 +247,8 @@ async function main() {
           instrument === "lipr"
             ? `https://laws-lois.justice.gc.ca/fra/lois/i-2.5/section-${label}.html`
             : `https://laws-lois.justice.gc.ca/fra/reglements/DORS-2002-227/section-${label}.html`,
-        tags: [],
+        tags: highlight ? [highlight.area] : [],
+        frequentlyUsed: Boolean(highlight),
       })
       stats.retenus++
     }
@@ -271,11 +277,32 @@ async function main() {
     process.exit(1)
   }
 
-  records.sort((a, b) =>
-    a.instrument === b.instrument
+  // Ordre par défaut : les dispositions d'usage fréquent d'abord, dans
+  // l'ordre thématique de la liste, puis le reste par instrument et numéro.
+  // Sans cela les 218 articles de la LIPR précèdent les 400 du RIPR, et une
+  // première page de 25 n'affiche jamais le moindre article du règlement.
+  const rank = new Map(
+    PRACTICE_HIGHLIGHTS.map((h, i) => [`${h.instrument}-${h.no}`, i])
+  )
+  records.sort((a, b) => {
+    const ra = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER
+    const rb = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER
+    if (ra !== rb) return ra - rb
+    return a.instrument === b.instrument
       ? numeric(a.provisionNo) - numeric(b.provisionNo)
       : a.instrument.localeCompare(b.instrument)
+  })
+
+  // Une entrée de la sélection qui ne trouve pas sa disposition signale une
+  // faute de frappe ou un article sorti du périmètre : il faut le savoir.
+  const orphelins = PRACTICE_HIGHLIGHTS.filter(
+    (h) => !records.some((r) => r.id === `${h.instrument}-${h.no}`)
   )
+  if (orphelins.length > 0) {
+    console.error(`\n  ÉCHEC : ${orphelins.length} entrée(s) d'usage fréquent sans disposition correspondante :`)
+    for (const o of orphelins) console.error(`    ${o.instrument} ${o.no} (${o.area})`)
+    process.exit(1)
+  }
 
   await mkdir(dirname(OUT), { recursive: true })
   await writeFile(OUT, `${JSON.stringify(records, null, 1)}\n`, "utf8")

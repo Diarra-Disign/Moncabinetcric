@@ -364,6 +364,8 @@ export interface LegislationProvision {
   sourceUrl: string // justice.gc.ca official URL
   citingCaseCount?: number
   tags?: string[]
+  /** Sélection éditoriale des dispositions les plus consultées en pratique. */
+  frequentlyUsed?: boolean
 }
 
 export interface ResearchSource {

@@ -454,6 +454,7 @@
     "searchLabel": "Rechercher dans la base légale et réglementaire",
     "searching": "Recherche en cours…",
     "truncatedResults": "{shown} dispositions affichées sur {total}. Affinez votre recherche pour réduire la liste.",
-    "corpusNote": "Corpus LIPR / RIPR consolidé au {date}"
+    "corpusNote": "Corpus LIPR / RIPR consolidé au {date}",
+    "frequentlyUsed": "Usage fréquent"
   }
 }

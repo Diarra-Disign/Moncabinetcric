@@ -202,7 +202,7 @@ export async function getAiConnectorLogs(): Promise<AiConnectorLogRecord[]> {
  * chargement de page annulerait le bénéfice de l'import. On ne transmet
  * donc qu'une tranche, et la recherche s'exécute côté serveur.
  */
-export const LEGISLATION_PAGE_SIZE = 25
+export const LEGISLATION_PAGE_SIZE = 60
 
 export async function getLegislationProvisions(
   instrumentFilter?: string,

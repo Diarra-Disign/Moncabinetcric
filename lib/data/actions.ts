@@ -315,7 +315,7 @@ export async function deleteResearchSourceFromWorkspace(workspaceId: string, sou
  * que des fonctions asynchrones. Exporter une constante ici invalide le
  * module entier et fait disparaître toutes les autres actions.
  */
-const LEGISLATION_RESULT_LIMIT = 25
+const LEGISLATION_RESULT_LIMIT = 60
 
 /**
  * Recherche dans le corpus LIPR / RIPR, exécutée sur le serveur.

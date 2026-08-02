@@ -58,6 +58,33 @@ describe("Legislation search", () => {
     assert.equal(results[0].provisionNo, "87.1")
   })
 
+  test("the default listing surfaces both instruments, not LIPR only", () => {
+    // Régression constatée : le tri plaçait les 218 articles de la LIPR
+    // avant les 400 du RIPR, si bien qu'une première page n'affichait
+    // jamais le moindre article du règlement.
+    const firstPage = searchProvisions(all, "").slice(0, 60)
+    const lipr = firstPage.filter((p) => p.instrument === "lipr").length
+    const ripr = firstPage.filter((p) => p.instrument === "ripr").length
+    assert.ok(lipr > 0, "aucun article de la LIPR sur la première page")
+    assert.ok(ripr > 0, "aucun article du RIPR sur la première page")
+  })
+
+  test("every frequently-used provision fits on the default page", () => {
+    const highlighted = all.filter((p) => p.frequentlyUsed)
+    assert.ok(highlighted.length >= 50, `sélection trop courte : ${highlighted.length}`)
+    const firstPage = searchProvisions(all, "").slice(0, 60)
+    assert.equal(
+      firstPage.filter((p) => p.frequentlyUsed).length,
+      highlighted.length,
+      "des dispositions d'usage fréquent sont hors de la première page"
+    )
+    // La sélection doit couvrir les deux instruments.
+    assert.ok(highlighted.some((p) => p.instrument === "lipr"))
+    assert.ok(highlighted.some((p) => p.instrument === "ripr"))
+    // Et chacune doit porter son étiquette de domaine.
+    assert.ok(highlighted.every((p) => p.tags && p.tags.length > 0))
+  })
+
   test("the corpus is the full imported one, not a sample", () => {
     // Garde-fou : ce fichier a longtemps testé un échantillon de 14
     // dispositions, ce qui masquait l'absence de la quasi-totalité du texte.

@@ -454,6 +454,7 @@
     "searchLabel": "Search the legal and regulatory base",
     "searching": "Searching…",
     "truncatedResults": "Showing {shown} of {total} provisions. Refine your search to narrow the list.",
-    "corpusNote": "IRPA / IRPR corpus current to {date}"
+    "corpusNote": "IRPA / IRPR corpus current to {date}",
+    "frequentlyUsed": "Frequently used"
   }
 }

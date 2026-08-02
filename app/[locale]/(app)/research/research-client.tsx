@@ -385,9 +385,16 @@ export function ResearchClient({
                     <h3 className="text-base font-black text-foreground">
                       {t("articlePrefix")} {prov.provisionNo}
                     </h3>
-                    <span className="hidden text-xs text-muted-foreground sm:inline">
-                      • {prov.hierarchyPath}
-                    </span>
+                    {prov.frequentlyUsed && (
+                      <span className="rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-gold">
+                        {t("frequentlyUsed")}
+                      </span>
+                    )}
+                    {prov.hierarchyPath && (
+                      <span className="hidden text-xs text-muted-foreground sm:inline">
+                        • {prov.hierarchyPath}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
