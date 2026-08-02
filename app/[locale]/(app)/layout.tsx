@@ -3,6 +3,8 @@ import { Topbar, SearchItem } from "@/components/app-shell/topbar"
 import { getClients, getMatters, getDocuments, getInvoices } from "@/lib/data"
 import { getCurrentMember, getCurrentFirm, getCurrentPlatformAdmin } from "@/lib/supabase/session"
 import { FirmProvider } from "@/components/app-shell/firm-provider"
+import { AccessClosed } from "@/components/app-shell/access-closed"
+import { getTranslations } from "next-intl/server"
 import { redirect } from "next/navigation"
 
 export default async function AppLayout({
@@ -24,6 +26,28 @@ export default async function AppLayout({
     // Ni membre, ni administrateur : le paramètre rend la page de connexion
     // terminale, sinon la même boucle se reformerait.
     redirect("/fr/connexion?probleme=profil")
+  }
+
+  // L'abonnement est vérifié AVANT de charger quoi que ce soit : inutile de
+  // lancer cinq requêtes que la base refusera. Ce contrôle sert à afficher
+  // une explication, pas à protéger — la protection est dans
+  // current_firm_id(), qui renvoie NULL et fait refuser toutes les
+  // politiques.
+  const firmForAccess = await getCurrentFirm()
+  if (!firmForAccess.accessOpen) {
+    const tAuth = await getTranslations("Auth")
+    return (
+      <AccessClosed
+        firm={firmForAccess}
+        title={tAuth("accessClosedTitle")}
+        suspendedBody={tAuth("accessSuspendedBody")}
+        expiredBody={tAuth("accessExpiredBody")}
+        contactLabel={tAuth("accessContact")}
+        signOutLabel={tAuth("signOut")}
+        planLabel={tAuth("planLabel")}
+        statusLabel={tAuth("statusLabel")}
+      />
+    )
   }
 
   const [firm, clients, matters, documents, invoices] = await Promise.all([

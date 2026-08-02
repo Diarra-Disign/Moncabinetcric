@@ -476,7 +476,13 @@
     "signOut": "Sign out",
     "signedInAs": "Signed in as",
     "securityNote": "Your credentials are never shared with a third party. Sessions expire automatically.",
-    "forgotHint": "Forgot your password? Use the “Email link” tab."
+    "forgotHint": "Forgot your password? Use the “Email link” tab.",
+    "accessClosedTitle": "Access suspended",
+    "accessSuspendedBody": "This firm's access has been closed. Your data is neither deleted nor altered: it remains stored and will be visible again as soon as access is restored. Contact the platform operator to reinstate it.",
+    "accessExpiredBody": "This firm's trial period has ended. Your data is neither deleted nor altered: it remains stored and will be visible again once a subscription is taken out.",
+    "accessContact": "Contact the operator",
+    "planLabel": "Plan",
+    "statusLabel": "Status"
   },
   "Admin": {
     "title": "Operations console",
@@ -504,6 +510,11 @@
     "roleReadonly": "Read only",
     "scriptsHeading": "Actions outside this console",
     "scriptsBody": "Creating firms, granting access and promoting an administrator go through scripts, deliberately outside the web interface: you do not promote yourself to administrator from a page.",
-    "backToSite": "Back to the public site"
+    "backToSite": "Back to the public site",
+    "colPlan": "Subscription",
+    "statClosed": "Closed access",
+    "accessOpen": "Access open",
+    "accessClosed": "Access closed",
+    "trialUntil": "until"
   }
 }

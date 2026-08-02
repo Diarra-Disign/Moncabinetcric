@@ -226,6 +226,59 @@ async function main() {
             if not found then raise exception 'aucune ligne modifiée'; end if;`,
       expected: false,
     },
+
+    // Abonnement : la suspension doit fermer l'accès immédiatement, sans
+    // qu'aucune politique métier n'ait été modifiée. Le verrou est porté
+    // par current_firm_id(), qui renvoie NULL quand l'accès est fermé.
+    {
+      who: owner,
+      pre: `update public.firms set status = 'suspended' where id = '${owner.firm_id}';`,
+      label: "cabinet SUSPENDU — le propriétaire lit ses clients",
+      sql: `perform 1 from public.clients limit 1;
+            if not found then raise exception 'rien de visible'; end if;`,
+      expected: false,
+    },
+    {
+      who: owner,
+      pre: `update public.firms set status = 'suspended' where id = '${owner.firm_id}';`,
+      label: "cabinet SUSPENDU — le propriétaire crée un client",
+      sql: `insert into public.clients(firm_id, file_number, name, email)
+            values ('${owner.firm_id}', 'PROBE-SUSP', 'Interdit', 'susp@example.invalid');`,
+      expected: false,
+    },
+    {
+      who: owner,
+      pre: `update public.firms set status = 'suspended' where id = '${owner.firm_id}';`,
+      label: "cabinet SUSPENDU — lecture du cabinet, pour s'expliquer",
+      sql: `perform 1 from public.firms where id = '${owner.firm_id}';
+            if not found then raise exception 'cabinet invisible'; end if;`,
+      expected: true,
+    },
+    {
+      who: owner,
+      pre: `update public.firms set status = 'suspended' where id = '${owner.firm_id}';`,
+      label: "cabinet SUSPENDU — le propriétaire se réactive lui-même",
+      sql: `update public.firms set status = 'active' where id = '${owner.firm_id}';
+            if not found then raise exception 'aucune ligne modifiée'; end if;`,
+      expected: false,
+    },
+    {
+      who: owner,
+      pre: `update public.firms set status = 'active', plan = 'trial',
+              trial_ends_at = current_date - 1 where id = '${owner.firm_id}';`,
+      label: "essai ÉCHU — le propriétaire lit ses clients",
+      sql: `perform 1 from public.clients limit 1;
+            if not found then raise exception 'rien de visible'; end if;`,
+      expected: false,
+    },
+    padmin && {
+      who: padmin,
+      pre: `update public.firms set status = 'suspended' where id = '${owner.firm_id}';`,
+      label: "administrateur réactive un cabinet suspendu",
+      sql: `update public.firms set status = 'active' where id = '${owner.firm_id}';
+            if not found then raise exception 'aucune ligne modifiée'; end if;`,
+      expected: true,
+    },
   ].filter(Boolean)
 
   // Une donnée témoin est nécessaire pour que « lire » ait un sens : sans

@@ -476,7 +476,13 @@
     "signOut": "Se déconnecter",
     "signedInAs": "Connecté en tant que",
     "securityNote": "Vos identifiants ne sont jamais transmis à un tiers. La session expire automatiquement.",
-    "forgotHint": "Mot de passe oublié ? Utilisez l'onglet « Lien par courriel »."
+    "forgotHint": "Mot de passe oublié ? Utilisez l'onglet « Lien par courriel ».",
+    "accessClosedTitle": "Accès suspendu",
+    "accessSuspendedBody": "L'accès de ce cabinet a été fermé. Vos données ne sont ni supprimées ni modifiées : elles restent conservées et redeviendront visibles dès la réactivation. Contactez l'exploitant de la plateforme pour rétablir l'accès.",
+    "accessExpiredBody": "La période d'essai de ce cabinet est échue. Vos données ne sont ni supprimées ni modifiées : elles restent conservées et redeviendront visibles dès la souscription d'un abonnement.",
+    "accessContact": "Contacter l'exploitant",
+    "planLabel": "Plan",
+    "statusLabel": "Statut"
   },
   "Admin": {
     "title": "Console d'exploitation",
@@ -504,6 +510,11 @@
     "roleReadonly": "Lecture seule",
     "scriptsHeading": "Actions hors console",
     "scriptsBody": "La création de cabinets, l'attribution des accès et la promotion d'un administrateur passent par des scripts, volontairement hors de l'interface web : on ne se promeut pas administrateur depuis une page.",
-    "backToSite": "Retour au site public"
+    "backToSite": "Retour au site public",
+    "colPlan": "Abonnement",
+    "statClosed": "Accès fermés",
+    "accessOpen": "Accès ouvert",
+    "accessClosed": "Accès fermé",
+    "trialUntil": "jusqu'au"
   }
 }

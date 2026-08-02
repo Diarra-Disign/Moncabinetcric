@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { getTranslations } from "next-intl/server"
-import { Building2, Users, AlertTriangle, Terminal, Lock } from "lucide-react"
+import { Building2, Users, AlertTriangle, Terminal, Lock, Ban } from "lucide-react"
 import { getAdminFirms, summarise, type AdminMemberRow } from "@/lib/data/admin"
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -63,6 +63,12 @@ export default async function AdminPage() {
       value: stats.firmsWithoutOwner,
       warn: stats.firmsWithoutOwner > 0,
     },
+    {
+      icon: Ban,
+      label: t("statClosed"),
+      value: stats.firmsClosed,
+      warn: stats.firmsClosed > 0,
+    },
   ]
 
   return (
@@ -84,7 +90,7 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map(({ icon: Icon, label, value, warn }) => (
           <div
             key={label}
@@ -122,6 +128,7 @@ export default async function AdminPage() {
                 <tr className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
                   <th className="px-4 py-3 font-bold">{t("colFirm")}</th>
                   <th className="px-4 py-3 font-bold">{t("colLicense")}</th>
+                  <th className="px-4 py-3 font-bold">{t("colPlan")}</th>
                   <th className="px-4 py-3 font-bold">{t("colContact")}</th>
                   <th className="px-4 py-3 font-bold">{t("colMembers")}</th>
                   <th className="px-4 py-3 font-bold whitespace-nowrap">{t("colCreated")}</th>
@@ -146,6 +153,23 @@ export default async function AdminPage() {
                       </td>
                       <td className="px-4 py-4 font-mono text-xs text-foreground">
                         {f.rcicLicenseNumber}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-xs font-bold text-foreground">{f.plan}</div>
+                        <div
+                          className={`mt-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                            f.accessOpen
+                              ? "bg-success/10 text-success"
+                              : "bg-error/10 text-error"
+                          }`}
+                        >
+                          {f.accessOpen ? t("accessOpen") : t("accessClosed")}
+                        </div>
+                        {f.trialEndsAt && (
+                          <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                            {t("trialUntil")} {f.trialEndsAt}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-xs text-muted-foreground">
                         <div>{f.ownerName}</div>
@@ -175,6 +199,8 @@ export default async function AdminPage() {
           <pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-3 font-mono text-[11px] leading-relaxed text-foreground">
 {`node scripts/setup-accounts.mjs --apply
 node scripts/grant-platform-admin.mjs --grant=<courriel>
+node scripts/manage-subscription.mjs --firm=<permis> --plan=courtoisie
+node scripts/manage-subscription.mjs --firm=<permis> --suspend
 node scripts/verify-roles.mjs`}
           </pre>
         </div>

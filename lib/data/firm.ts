@@ -22,6 +22,11 @@ export interface FirmIdentity {
   website: string
   logoLetter: string
   logoUrl: string
+  /** Abonnement : détermine si l'accès aux données est ouvert. */
+  plan: string
+  status: string
+  trialEndsAt: string
+  accessOpen: boolean
 }
 
 /**
@@ -43,6 +48,10 @@ export const EMPTY_FIRM: FirmIdentity = {
   website: "",
   logoLetter: "",
   logoUrl: "",
+  plan: "",
+  status: "",
+  trialEndsAt: "",
+  accessOpen: false,
 }
 
 /** Ligne brute de la table firms, en snake_case. */
@@ -57,6 +66,9 @@ export interface FirmRow {
   website: string | null
   logo_letter: string | null
   logo_url: string | null
+  plan?: string | null
+  status?: string | null
+  trial_ends_at?: string | null
 }
 
 export function mapFirmRow(row: FirmRow): FirmIdentity {
@@ -73,5 +85,16 @@ export function mapFirmRow(row: FirmRow): FirmIdentity {
     // À défaut d'initiale explicite, la première lettre de la raison sociale.
     logoLetter: row.logo_letter || name.trim().charAt(0).toUpperCase() || "",
     logoUrl: row.logo_url ?? "",
+    plan: row.plan ?? "",
+    status: row.status ?? "",
+    trialEndsAt: row.trial_ends_at ?? "",
+    // Reproduit firm_access_open() côté application, pour afficher un écran
+    // d'explication. Ce n'est PAS le contrôle de sécurité : celui-ci est en
+    // base, dans current_firm_id(), et ne dépend pas de ce calcul.
+    accessOpen:
+      row.status === "active" &&
+      (row.plan !== "trial" ||
+        !row.trial_ends_at ||
+        row.trial_ends_at >= new Date().toISOString().slice(0, 10)),
   }
 }

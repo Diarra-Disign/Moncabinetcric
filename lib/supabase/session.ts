@@ -62,7 +62,7 @@ export async function getCurrentFirm(): Promise<FirmIdentity> {
 
   const { data, error } = await supabase
     .from("firms")
-    .select("id, name, rcic_license_number, owner_name, address, phone, email, logo_letter, logo_url")
+    .select("id, name, rcic_license_number, owner_name, address, phone, email, logo_letter, logo_url, plan, status, trial_ends_at")
     .maybeSingle()
 
   if (error || !data) return EMPTY_FIRM

@@ -25,6 +25,10 @@ export interface AdminFirmRow {
   phone: string
   city: string
   createdAt: string
+  plan: string
+  status: string
+  trialEndsAt: string
+  accessOpen: boolean
   members: AdminMemberRow[]
 }
 
@@ -48,7 +52,7 @@ export async function getAdminFirms(): Promise<AdminFirmRow[]> {
   const [{ data: firms }, { data: profiles }] = await Promise.all([
     supabase
       .from("firms")
-      .select("id, name, rcic_license_number, owner_name, email, phone, address, created_at")
+      .select("id, name, rcic_license_number, owner_name, email, phone, address, created_at, plan, status, trial_ends_at")
       .order("created_at", { ascending: true }),
     supabase.from("profiles").select("id, firm_id, email, full_name, cicc_role"),
   ])
@@ -62,6 +66,14 @@ export async function getAdminFirms(): Promise<AdminFirmRow[]> {
     phone: (f.phone as string) ?? "",
     city: cityOf(f.address as string | null),
     createdAt: ((f.created_at as string) ?? "").slice(0, 10),
+    plan: (f.plan as string) ?? "",
+    status: (f.status as string) ?? "",
+    trialEndsAt: (f.trial_ends_at as string) ?? "",
+    accessOpen:
+      f.status === "active" &&
+      (f.plan !== "trial" ||
+        !f.trial_ends_at ||
+        (f.trial_ends_at as string) >= new Date().toISOString().slice(0, 10)),
     members: (profiles ?? [])
       .filter((p) => p.firm_id === f.id)
       .map((p) => ({
@@ -77,6 +89,7 @@ export interface AdminOverview {
   firmCount: number
   memberCount: number
   firmsWithoutOwner: number
+  firmsClosed: number
 }
 
 export function summarise(firms: AdminFirmRow[]): AdminOverview {
@@ -86,5 +99,6 @@ export function summarise(firms: AdminFirmRow[]): AdminOverview {
     // Un cabinet sans propriétaire ne peut ni inviter, ni modifier son
     // identité : c'est une impasse silencieuse, à signaler.
     firmsWithoutOwner: firms.filter((f) => !f.members.some((m) => m.ciccRole === "owner")).length,
+    firmsClosed: firms.filter((f) => !f.accessOpen).length,
   }
 }
