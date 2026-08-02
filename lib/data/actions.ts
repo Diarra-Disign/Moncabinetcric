@@ -1,7 +1,10 @@
 "use server"
 
-import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord } from "./types"
-import { _getStores } from "./queries"
+import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, ResearchWorkspace, ResearchSource, LegislationProvision } from "./types"
+// Import depuis ./stores et non ./queries : ce module est "use server" mais
+// des composants clients l'importent, et passer par queries.ts entraînerait
+// supabase/reads.ts (server-only) dans le bundle navigateur.
+import { _getStores, _getResearchStores, _getAiStores, _findLegislationProvision } from "./stores"
 import { generateChecklistForProgram } from "./programs"
 
 export async function createMatter(data: Omit<Matter, "id"> & { id?: string }): Promise<Matter> {
@@ -112,7 +115,6 @@ export async function restoreDocumentRecord(id: string): Promise<DocumentRecord 
   return updated
 }
 
-import { _getAiStores } from "./queries"
 import { AiApiKeyRecord, AiConnectorLogRecord } from "./types"
 
 export async function toggleAiConnector(enabled: boolean): Promise<boolean> {
@@ -232,3 +234,75 @@ export async function executeAiConnectorAction(
     }
   }
 }
+
+export async function createResearchWorkspace(title: string, matterId?: string, notes?: string): Promise<ResearchWorkspace> {
+  const stores = _getResearchStores()
+  const now = new Date().toISOString().split("T")[0]
+  const newWorkspace: ResearchWorkspace = {
+    id: `ws-${Date.now()}`,
+    title: title.trim() || "Nouvel espace de recherche",
+    matterId: matterId || undefined,
+    matterReference: matterId || undefined,
+    createdBy: "Me Adama Diarra (RCIC #R-514982)",
+    createdAt: now,
+    updatedAt: now,
+    notes: notes || undefined,
+    sources: []
+  }
+  stores.setResearchWorkspacesStore([newWorkspace, ...stores.researchWorkspacesStore])
+  return newWorkspace
+}
+
+export async function addResearchSourceToWorkspace(workspaceId: string, provisionId: string, note?: string): Promise<ResearchWorkspace | undefined> {
+  const stores = _getResearchStores()
+  const idx = stores.researchWorkspacesStore.findIndex(w => w.id === workspaceId)
+  if (idx === -1) return undefined
+  const provision = _findLegislationProvision(provisionId)
+  if (!provision) return undefined
+
+  const now = new Date().toISOString().split("T")[0]
+  const workspace = stores.researchWorkspacesStore[idx]
+  const newSource: ResearchSource = {
+    id: `src-${Date.now()}`,
+    workspaceId,
+    provisionId: provision.id,
+    provisionNo: provision.provisionNo,
+    instrument: provision.instrument,
+    headingFr: provision.headingFr,
+    headingEn: provision.headingEn,
+    citationSnapshot: `${provision.instrument.toUpperCase()} art. ${provision.provisionNo} (version cons. ${provision.consolidatedOn})`,
+    textSnapshotFr: provision.bodyFr,
+    textSnapshotEn: provision.bodyEn,
+    note: note || undefined,
+    sortOrder: (workspace.sources.length || 0) + 1,
+    addedAt: now
+  }
+
+  const updatedWorkspace: ResearchWorkspace = {
+    ...workspace,
+    sources: [...workspace.sources, newSource],
+    updatedAt: now
+  }
+  const newArr = [...stores.researchWorkspacesStore]
+  newArr[idx] = updatedWorkspace
+  stores.setResearchWorkspacesStore(newArr)
+  return updatedWorkspace
+}
+
+export async function deleteResearchSourceFromWorkspace(workspaceId: string, sourceId: string): Promise<ResearchWorkspace | undefined> {
+  const stores = _getResearchStores()
+  const idx = stores.researchWorkspacesStore.findIndex(w => w.id === workspaceId)
+  if (idx === -1) return undefined
+  const now = new Date().toISOString().split("T")[0]
+  const workspace = stores.researchWorkspacesStore[idx]
+  const updatedWorkspace: ResearchWorkspace = {
+    ...workspace,
+    sources: workspace.sources.filter(s => s.id !== sourceId),
+    updatedAt: now
+  }
+  const newArr = [...stores.researchWorkspacesStore]
+  newArr[idx] = updatedWorkspace
+  stores.setResearchWorkspacesStore(newArr)
+  return updatedWorkspace
+}
+

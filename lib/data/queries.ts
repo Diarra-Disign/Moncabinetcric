@@ -1,52 +1,72 @@
-import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, FolderRecord, ImmigrationProgram, CalendarEvent, AuditLogRecord, ActionApprovalRecord, DeadlineRule, CiccComplianceScore, DeadlineRecord } from "./types"
+import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, FolderRecord, ImmigrationProgram, CalendarEvent, AuditLogRecord, ActionApprovalRecord, DeadlineRule, CiccComplianceScore, DeadlineRecord, LegislationProvision, ResearchWorkspace } from "./types"
 import { MOCK_MATTERS } from "./mock/matters"
 import { MOCK_LEADS } from "./mock/leads"
 import { MOCK_INVOICES } from "./mock/invoices"
 import { MOCK_CLIENTS } from "./mock/clients"
 import { MOCK_DOCUMENTS, MOCK_FOLDERS } from "./mock/documents"
 import { MOCK_EVENTS } from "./mock/events"
+import { MOCK_LEGISLATION_PROVISIONS, MOCK_RESEARCH_WORKSPACES } from "./mock/legislation"
 import { IMMIGRATION_PROGRAMS, getPrograms as getProgramsFromRef, getProgramByName as getProgramByNameFromRef } from "./programs"
+import { isSupabaseSource } from "./source"
+import { _mockStores } from "./stores"
 
-// Internal mutable stores for demo persistence in memory during session
-let mattersStore: Matter[] = [...MOCK_MATTERS]
-let leadsStore: Lead[] = [...MOCK_LEADS]
-let invoicesStore: InvoiceRecord[] = [...MOCK_INVOICES]
-let clientsStore: ClientRecord[] = [...MOCK_CLIENTS]
-let documentsStore: DocumentRecord[] = [...MOCK_DOCUMENTS]
-const foldersStore: FolderRecord[] = [...MOCK_FOLDERS]
-const eventsStore: CalendarEvent[] = [...MOCK_EVENTS]
+// Réexportés pour compatibilité : leur définition vit désormais dans ./stores,
+// afin qu'actions.ts n'ait plus à importer ce module (voir stores.ts).
+export { _getStores, _getResearchStores, _getAiStores } from "./stores"
+
+// Chargement paresseux des lectures Supabase.
+//
+// L'import est dynamique et non statique à dessein : ./supabase/reads
+// importe "server-only", qui lève dès qu'il est évalué hors du bundler
+// Next — ce qui casserait le lanceur de tests et tout usage de ce module
+// en dehors d'un Server Component. En mode mock, ce module n'est donc
+// jamais chargé.
+const sbReads = () => import("./supabase/reads")
+
+//
+// Les entités dont la table n'est pas encore peuplée (dossiers du coffre,
+// ententes, référentiels réglementaires, échéances, connecteur IA)
+// restent servies par les mocks, quelle que soit la valeur de DATA_SOURCE.
+
 
 // MATTERS
 export async function getMatters(): Promise<Matter[]> {
-  return mattersStore
+  if (isSupabaseSource()) return (await sbReads()).getMatters()
+  return _mockStores.matters
 }
 
 export async function getMatterById(id: string): Promise<Matter | undefined> {
+  if (isSupabaseSource()) return (await sbReads()).getMatterById(id)
   const decodedId = decodeURIComponent(id)
-  return mattersStore.find(m => m.id === decodedId || m.id === `#${decodedId}` || m.id.replace("#", "") === decodedId.replace("#", ""))
+  return _mockStores.matters.find(m => m.id === decodedId || m.id === `#${decodedId}` || m.id.replace("#", "") === decodedId.replace("#", ""))
 }
 
 export async function getMattersByClientId(clientId: string): Promise<Matter[]> {
-  return mattersStore.filter(m => m.clientId === clientId)
+  if (isSupabaseSource()) return (await sbReads()).getMattersByClientId(clientId)
+  return _mockStores.matters.filter(m => m.clientId === clientId)
 }
 
 // LEADS
 export async function getLeads(): Promise<Lead[]> {
-  return leadsStore
+  if (isSupabaseSource()) return (await sbReads()).getLeads()
+  return _mockStores.leads
 }
 
 export async function getLeadById(id: string): Promise<Lead | undefined> {
-  return leadsStore.find(l => l.id === id)
+  if (isSupabaseSource()) return (await sbReads()).getLeadById(id)
+  return _mockStores.leads.find(l => l.id === id)
 }
 
 // INVOICES
 export async function getInvoices(): Promise<InvoiceRecord[]> {
-  return invoicesStore
+  if (isSupabaseSource()) return (await sbReads()).getInvoices()
+  return _mockStores.invoices
 }
 
 export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRecord[]> {
+  if (isSupabaseSource()) return (await sbReads()).getInvoicesByMatterId(matterId)
   const decodedId = decodeURIComponent(matterId)
-  return invoicesStore.filter(i => 
+  return _mockStores.invoices.filter(i => 
     i.matterId === decodedId || 
     i.matterId === `#${decodedId}` || 
     i.matterId?.replace("#", "") === decodedId.replace("#", "")
@@ -54,30 +74,37 @@ export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRe
 }
 
 export async function getInvoicesByClientId(clientId: string): Promise<InvoiceRecord[]> {
-  return invoicesStore.filter(i => i.clientId === clientId)
+  if (isSupabaseSource()) return (await sbReads()).getInvoicesByClientId(clientId)
+  return _mockStores.invoices.filter(i => i.clientId === clientId)
 }
 
 // CLIENTS
 export async function getClients(): Promise<ClientRecord[]> {
-  return clientsStore
+  if (isSupabaseSource()) return (await sbReads()).getClients()
+  return _mockStores.clients
 }
 
 export async function getClientById(id: string): Promise<ClientRecord | undefined> {
-  return clientsStore.find(c => c.id === id)
+  if (isSupabaseSource()) return (await sbReads()).getClientById(id)
+  return _mockStores.clients.find(c => c.id === id)
 }
 
 // DOCUMENTS & FOLDERS
 export async function getDocuments(): Promise<DocumentRecord[]> {
-  return documentsStore
+  if (isSupabaseSource()) return (await sbReads()).getDocuments()
+  return _mockStores.documents
 }
 
+// Les dossiers du coffre restent des agrégats calculés côté mock :
+// aucune table folders n'existe encore.
 export async function getFolders(): Promise<FolderRecord[]> {
-  return foldersStore
+  return _mockStores.folders
 }
 
 export async function getDocumentsByMatterId(matterId: string): Promise<DocumentRecord[]> {
+  if (isSupabaseSource()) return (await sbReads()).getDocumentsByMatterId(matterId)
   const decodedId = decodeURIComponent(matterId)
-  return documentsStore.filter(d => 
+  return _mockStores.documents.filter(d => 
     d.matterId === decodedId || 
     d.matterId === `#${decodedId}` || 
     d.matterId?.replace("#", "") === decodedId.replace("#", "")
@@ -86,21 +113,21 @@ export async function getDocumentsByMatterId(matterId: string): Promise<Document
 
 // EVENTS
 export async function getEvents(): Promise<CalendarEvent[]> {
-  return eventsStore
+  if (isSupabaseSource()) return (await sbReads()).getEvents()
+  return _mockStores.events
 }
 
 // AGREEMENTS & GOVERNMENT FEES
 import { MOCK_AGREEMENTS, MOCK_GOVERNMENT_FEES, MOCK_CLAUSES } from "./mock/agreements"
 import { AgreementRecord, ClauseDefinition, GovernmentFee } from "./types"
 
-let agreementsStore: AgreementRecord[] = [...MOCK_AGREEMENTS]
 
 export async function getAgreements(): Promise<AgreementRecord[]> {
-  return agreementsStore
+  return _mockStores.agreements
 }
 
 export async function getAgreementById(id: string): Promise<AgreementRecord | undefined> {
-  return agreementsStore.find(a => a.id === id || a.reference === id)
+  return _mockStores.agreements.find(a => a.id === id || a.reference === id)
 }
 
 export async function getGovernmentFees(): Promise<GovernmentFee[]> {
@@ -114,10 +141,9 @@ export async function getClauses(): Promise<ClauseDefinition[]> {
 // DEADLINES & COMPLIANCE
 import { MOCK_DEADLINE_RECORDS, OFFICIAL_DEADLINE_RULES, OFFICIAL_CICC_COMPLIANCE_SCORE } from "./mock/deadlines"
 
-let deadlinesStore: DeadlineRecord[] = [...MOCK_DEADLINE_RECORDS]
 
 export async function getDeadlines(): Promise<DeadlineRecord[]> {
-  return deadlinesStore
+  return _mockStores.deadlines
 }
 
 export async function getDeadlineRules(): Promise<DeadlineRule[]> {
@@ -132,33 +158,15 @@ export async function getComplianceScore(): Promise<CiccComplianceScore> {
   return OFFICIAL_CICC_COMPLIANCE_SCORE
 }
 
-// ACCESS TO INTERNAL STORE (for actions.ts mutation)
-export function _getStores() {
-  return {
-    mattersStore,
-    leadsStore,
-    invoicesStore,
-    clientsStore,
-    documentsStore,
-    foldersStore,
-    agreementsStore,
-    deadlinesStore,
-    setMattersStore: (newVal: Matter[]) => { mattersStore = newVal },
-    setLeadsStore: (newVal: Lead[]) => { leadsStore = newVal },
-    setInvoicesStore: (newVal: InvoiceRecord[]) => { invoicesStore = newVal },
-    setClientsStore: (newVal: ClientRecord[]) => { clientsStore = newVal },
-    setDocumentsStore: (newVal: DocumentRecord[]) => { documentsStore = newVal },
-    setAgreementsStore: (newVal: AgreementRecord[]) => { agreementsStore = newVal },
-    setDeadlinesStore: (newVal: DeadlineRecord[]) => { deadlinesStore = newVal }
-  }
-}
 
 export async function getAuditLogs(): Promise<AuditLogRecord[]> {
+  if (isSupabaseSource()) return (await sbReads()).getAuditLogs()
   const { MOCK_AUDIT_LOGS } = await import("./mock/audit")
   return MOCK_AUDIT_LOGS
 }
 
 export async function getDocumentAuditLog(): Promise<AuditLogRecord[]> {
+  if (isSupabaseSource()) return (await sbReads()).getDocumentAuditLog()
   const { MOCK_DOCUMENT_AUDIT_LOG } = await import("./mock/doc-audit")
   return MOCK_DOCUMENT_AUDIT_LOG
 }
@@ -171,29 +179,50 @@ export async function getApprovalQueue(): Promise<ActionApprovalRecord[]> {
 import { INITIAL_AI_CONNECTOR_SETTINGS, INITIAL_AI_API_KEYS, INITIAL_AI_CONNECTOR_LOGS } from "./mock/connector"
 import { AiConnectorSettings, AiApiKeyRecord, AiConnectorLogRecord } from "./types"
 
-let aiConnectorSettingsStore: AiConnectorSettings = { ...INITIAL_AI_CONNECTOR_SETTINGS }
-let aiApiKeysStore: AiApiKeyRecord[] = [...INITIAL_AI_API_KEYS]
-let aiConnectorLogsStore: AiConnectorLogRecord[] = [...INITIAL_AI_CONNECTOR_LOGS]
 
 export async function getAiConnectorSettings(): Promise<AiConnectorSettings> {
-  return aiConnectorSettingsStore
+  return _mockStores.aiConnectorSettings
 }
 
 export async function getAiApiKeys(): Promise<AiApiKeyRecord[]> {
-  return aiApiKeysStore
+  return _mockStores.aiApiKeys
 }
 
 export async function getAiConnectorLogs(): Promise<AiConnectorLogRecord[]> {
-  return aiConnectorLogsStore
+  return _mockStores.aiConnectorLogs
 }
 
-export function _getAiStores() {
-  return {
-    aiConnectorSettingsStore,
-    aiApiKeysStore,
-    aiConnectorLogsStore,
-    setAiConnectorSettingsStore: (val: AiConnectorSettings) => { aiConnectorSettingsStore = val },
-    setAiApiKeysStore: (val: AiApiKeyRecord[]) => { aiApiKeysStore = val },
-    setAiConnectorLogsStore: (val: AiConnectorLogRecord[]) => { aiConnectorLogsStore = val }
+
+
+export async function getLegislationProvisions(instrumentFilter?: string, query?: string): Promise<LegislationProvision[]> {
+  let list = [..._mockStores.legislationProvisions]
+  if (instrumentFilter && instrumentFilter !== "all") {
+    list = list.filter(p => p.instrument === instrumentFilter)
   }
+  if (query && query.trim() !== "") {
+    const q = query.toLowerCase().trim()
+    list = list.filter(p =>
+      p.provisionNo.toLowerCase().includes(q) ||
+      p.headingFr.toLowerCase().includes(q) ||
+      p.headingEn.toLowerCase().includes(q) ||
+      p.bodyFr.toLowerCase().includes(q) ||
+      p.bodyEn.toLowerCase().includes(q) ||
+      (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
+    )
+  }
+  return list
 }
+
+export async function getLegislationProvisionById(id: string): Promise<LegislationProvision | undefined> {
+  return _mockStores.legislationProvisions.find(p => p.id === id)
+}
+
+export async function getResearchWorkspaces(): Promise<ResearchWorkspace[]> {
+  return [..._mockStores.researchWorkspaces].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}
+
+export async function getResearchWorkspaceById(id: string): Promise<ResearchWorkspace | undefined> {
+  return _mockStores.researchWorkspaces.find(w => w.id === id)
+}
+
+

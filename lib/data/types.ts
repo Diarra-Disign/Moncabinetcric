@@ -348,3 +348,51 @@ export interface AiConnectorLogRecord {
   summary: string
   rowHash: string
 }
+
+export type LegislationInstrument = "lipr" | "ripr" | "loi_citoyennete"
+
+export interface LegislationProvision {
+  id: string
+  instrument: LegislationInstrument
+  provisionNo: string // "38(1)"
+  hierarchyPath: string // "Partie 1 / Section 3 / Article 38"
+  headingFr: string
+  headingEn: string
+  bodyFr: string
+  bodyEn: string
+  consolidatedOn: string // YYYY-MM-DD
+  sourceUrl: string // justice.gc.ca official URL
+  citingCaseCount?: number
+  tags?: string[]
+}
+
+export interface ResearchSource {
+  id: string
+  workspaceId: string
+  provisionId: string
+  provisionNo: string
+  instrument: LegislationInstrument
+  headingFr: string
+  headingEn: string
+  citationSnapshot: string
+  textSnapshotFr: string
+  textSnapshotEn: string
+  note?: string
+  sortOrder: number
+  addedAt: string
+}
+
+export interface ResearchWorkspace {
+  id: string
+  title: string
+  matterId?: string
+  matterReference?: string
+  clientName?: string
+  program?: string
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  sources: ResearchSource[]
+  notes?: string
+}
+
