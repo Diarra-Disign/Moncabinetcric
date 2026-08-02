@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Link } from "@/i18n/routing"
 
+import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
+
 interface DirectActionsTabsProps {
   matterId: string
   clientName: string
@@ -35,7 +37,7 @@ export function DirectActionsTabs({
   programName,
   trustBalance = "$5,000 CAD"
 }: DirectActionsTabsProps) {
-  const [activeTab, setActiveTab] = React.useState<"docs" | "signature" | "billing" | "visio" | "audit">("docs")
+  const [activeTab, setActiveTab] = React.useState<"docs" | "signature" | "billing" | "visio" | "audit" | "submission">("submission")
   const [toastNotice, setToastNotice] = React.useState<string | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [customDocs, setCustomDocs] = React.useState<Array<{ name: string; status: string }>>([])
@@ -80,7 +82,7 @@ export function DirectActionsTabs({
                 Actions Directes & Exécutions Rapides
               </CardTitle>
               <CardDescription className="text-xs font-medium text-slate-500">
-                Guichet unique pour téléverser, faire signer le mandat CICC, facturer et inviter en visio.
+                Guichet unique pour téléverser, rédiger la lettre d&apos;argumentaire IRCC, faire signer le mandat CICC, facturer et inviter en visio.
               </CardDescription>
             </div>
           </div>
@@ -90,8 +92,20 @@ export function DirectActionsTabs({
           </Badge>
         </div>
 
-        {/* BARS DES 5 ONGLETS D'ACTIONS DIRECTES */}
+        {/* BARS DES ONGLETS D'ACTIONS DIRECTES */}
         <div className="flex items-center gap-1.5 pt-4 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab("submission")}
+            className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === "submission"
+                ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>1. Argumentaire IRCC (Lettre IA)</span>
+          </button>
+
           <button
             onClick={() => setActiveTab("docs")}
             className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
@@ -101,7 +115,7 @@ export function DirectActionsTabs({
             }`}
           >
             <FileUp className="w-3.5 h-3.5" />
-            <span>1. Pièces & Téléversement</span>
+            <span>2. Pièces & Téléversement</span>
           </button>
 
           <button
@@ -113,7 +127,7 @@ export function DirectActionsTabs({
             }`}
           >
             <FileSignature className="w-3.5 h-3.5" />
-            <span>2. Signature Mandat IMM 5476</span>
+            <span>3. Signature Mandat IMM 5476</span>
           </button>
 
           <button
@@ -125,7 +139,7 @@ export function DirectActionsTabs({
             }`}
           >
             <DollarSign className="w-3.5 h-3.5" />
-            <span>3. Fidéicommis & Honoraires</span>
+            <span>4. Fidéicommis & Honoraires</span>
           </button>
 
           <button
@@ -137,7 +151,7 @@ export function DirectActionsTabs({
             }`}
           >
             <Video className="w-3.5 h-3.5" />
-            <span>4. Visio & Calendly</span>
+            <span>5. Visio & Calendly</span>
           </button>
 
           <button
@@ -157,7 +171,14 @@ export function DirectActionsTabs({
       {/* BODY DE L'ONGLET SÉLECTIONNÉ */}
       <CardContent className="p-6">
         
-        {/* TAB 1: PIÈCES & TÉLÉVERSEMENT */}
+        {/* TAB 1: ARGUMENTAIRE IRCC (LETTRE IA & LIPR/RIPR) */}
+        {activeTab === "submission" && (
+          <SubmissionLetterBuilder 
+            matterId={matterId}
+            clientName={clientName}
+            programName={programName}
+          />
+        )}
         {activeTab === "docs" && (
           <div className="space-y-4 animate-fadeIn">
             <input 
