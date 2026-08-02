@@ -24,6 +24,16 @@ const OK = "  \x1b[32m✓\x1b[0m"
 const KO = "  \x1b[31m✗\x1b[0m"
 const WARN = "  \x1b[33m!\x1b[0m"
 
+/**
+ * Comptes d'exploitation de la plateforme.
+ *
+ * Ils ne doivent être rattachés à AUCUN cabinet : c'est précisément
+ * l'absence de profil qui les empêche de lire les dossiers clients, la RLS
+ * n'accordant rien sans firm_id. Un profil ici serait une régression, pas
+ * un oubli — le diagnostic le signale donc dans l'autre sens.
+ */
+const PLATFORM_OPERATORS = ["diarrasf@outlook.fr"]
+
 let failures = 0
 function pass(msg) { console.log(`${OK} ${msg}`) }
 function fail(msg) { console.log(`${KO} ${msg}`); failures++ }
@@ -132,6 +142,18 @@ async function main() {
 
     for (const u of users) {
       const prof = (profiles ?? []).find((p) => p.user_id === u.id)
+      const isOperator = PLATFORM_OPERATORS.includes(u.email)
+
+      if (isOperator) {
+        prof
+          ? fail(
+              `${u.email} : compte d'exploitation rattaché au cabinet « ${prof.firm_id} ». ` +
+                "Un exploitant ne doit voir aucun dossier client."
+            )
+          : pass(`${u.email} : exploitant, sans cabinet — ne peut lire aucun dossier.`)
+        continue
+      }
+
       if (!prof) {
         fail(`${u.email} : aucun profil rattaché — ce compte se connectera mais ne verra rien.`)
       } else if (!prof.firm_id) {
