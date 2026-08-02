@@ -134,6 +134,13 @@ export function DashboardClient({
     }
   }
 
+  // Écouter l'événement global déclenché par le bouton "Vues & Widgets" dans la Topbar (à côté du thème)
+  React.useEffect(() => {
+    const handleOpenModal = () => setShowCustomizeModal(true)
+    window.addEventListener("cric_open_widgets_modal", handleOpenModal)
+    return () => window.removeEventListener("cric_open_widgets_modal", handleOpenModal)
+  }, [])
+
   const criticalDeadlines = deadlines.filter(d => d.severity === "critical" && d.status === "open")
 
   const filteredSearch = searchQuery.trim() === "" ? [] : SEARCH_DATABASE.filter(item =>
@@ -288,23 +295,13 @@ export function DashboardClient({
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowCustomizeModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 px-3.5 py-2.5 text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs"
-            title="Personnaliser les widgets et la vue du tableau de bord"
-          >
-            <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
-            <span className="hidden sm:inline">Vues & Widgets</span>
-          </button>
-
-          <Link href="/clients" className="shrink-0">
+          <Link href="/clients">
             <button 
               type="button"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white px-5 py-2.5 text-xs sm:text-sm font-extrabold shadow-md hover:shadow-indigo-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 text-xs font-bold shadow-md shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
             >
-              <Plus className="w-4 h-4 text-indigo-300" />
-              <span>+ Nouveau Client</span>
+              <Plus className="w-4 h-4" />
+              <span>Nouveau Client</span>
             </button>
           </Link>
         </div>

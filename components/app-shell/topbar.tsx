@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Search, Bell, ChevronRight, X } from "lucide-react"
+import { Search, Bell, ChevronRight, X, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { LocaleSwitcher } from "./locale-switcher"
@@ -43,6 +43,12 @@ export function Topbar({ searchDb = [] }: TopbarProps = {}) {
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
+
+  const handleOpenCustomizeModal = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("cric_open_widgets_modal"))
+    }
+  }
 
   return (
     <header className="sticky top-0 z-[100] flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background/95 backdrop-blur-md px-4 shadow-xs sm:gap-x-6 sm:px-6 lg:px-8">
@@ -119,7 +125,18 @@ export function Topbar({ searchDb = [] }: TopbarProps = {}) {
           )}
         </div>
 
-        <div className="flex items-center gap-x-3.5 lg:gap-x-4 ml-auto">
+        <div className="flex items-center gap-x-3 lg:gap-x-3.5 ml-auto">
+          {/* BOUTON VUES & WIDGETS DANS LA BARRE SUPÉRIEURE À CÔTÉ DU THÈME */}
+          <button
+            type="button"
+            onClick={handleOpenCustomizeModal}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-muted/60 hover:bg-muted border border-border/80 px-3 py-1.5 text-xs font-bold text-foreground transition-all cursor-pointer shadow-2xs"
+            title="Personnaliser les vues & widgets du tableau de bord"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
+            <span className="hidden sm:inline">Vues & Widgets</span>
+          </button>
+
           <ThemePicker />
           <LocaleSwitcher />
           <Button variant="ghost" size="icon" aria-label={t('notifications')} className="rounded-xl">
