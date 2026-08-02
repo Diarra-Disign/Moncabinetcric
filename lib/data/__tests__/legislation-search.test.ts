@@ -26,10 +26,14 @@ describe("Legislation search", () => {
 
   test("finds a provision written as a natural citation", () => {
     // C'est précisément la forme qui ne retournait rien avant correctif.
+    // Sur un corpus de plusieurs centaines d'articles, « 24 » apparaît
+    // légitimement dans le corps de beaucoup d'entre eux : ce qui compte
+    // n'est plus le nombre de résultats mais l'article placé en tête.
     const results = searchProvisions(all, "Art. 24 LIPR")
-    assert.equal(results.length, 1)
-    assert.equal(results[0].provisionNo, "24(1)")
+    assert.ok(results.length >= 1)
+    assert.equal(results[0].provisionNo, "24")
     assert.equal(results[0].instrument, "lipr")
+    assert.ok(results.every((p) => p.instrument === "lipr"))
   })
 
   test("matches the instrument on its own", () => {
@@ -39,15 +43,30 @@ describe("Legislation search", () => {
   })
 
   test("combines every token instead of cancelling them out", () => {
-    // "24 ripr" ne doit rien donner : l'article 24 existe, mais en LIPR.
-    assert.equal(searchProvisions(all, "art 24 ripr").length, 0)
-    assert.equal(searchProvisions(all, "art 200 ripr").length, 1)
+    // Le jeton d'instrument doit contraindre le résultat, pas l'élargir.
+    const ripr = searchProvisions(all, "art 24 ripr")
+    assert.ok(ripr.every((p) => p.instrument === "ripr"))
+
+    const r200 = searchProvisions(all, "art 200 ripr")
+    assert.equal(r200[0].provisionNo, "200")
+    assert.equal(r200[0].instrument, "ripr")
   })
 
   test("handles provision numbers containing a period", () => {
     const results = searchProvisions(all, "87.1")
-    assert.equal(results.length, 1)
-    assert.equal(results[0].provisionNo, "87.1(2)")
+    assert.ok(results.length >= 1)
+    assert.equal(results[0].provisionNo, "87.1")
+  })
+
+  test("the corpus is the full imported one, not a sample", () => {
+    // Garde-fou : ce fichier a longtemps testé un échantillon de 14
+    // dispositions, ce qui masquait l'absence de la quasi-totalité du texte.
+    assert.ok(all.length > 500, `corpus trop petit : ${all.length} dispositions`)
+    assert.ok(all.every((p) => p.bodyFr && p.bodyEn), "corpus bilingue incomplet")
+    assert.ok(
+      all.every((p) => p.bodyFr.trim().startsWith(p.provisionNo)),
+      "un corps ne commence pas par son numéro : découpage tronqué"
+    )
   })
 
   test("an empty query returns everything", () => {
@@ -55,8 +74,11 @@ describe("Legislation search", () => {
   })
 
   test("honours the instrument filter alongside the query", () => {
-    assert.equal(searchProvisions(all, "", "ripr").length, all.filter((p) => p.instrument === "ripr").length)
-    assert.equal(searchProvisions(all, "24", "ripr").length, 0)
+    assert.equal(
+      searchProvisions(all, "", "ripr").length,
+      all.filter((p) => p.instrument === "ripr").length
+    )
+    assert.ok(searchProvisions(all, "24", "ripr").every((p) => p.instrument === "ripr"))
   })
 
   test("ranks the provision itself above articles that merely cite it", () => {
@@ -64,7 +86,7 @@ describe("Legislation search", () => {
     // classement, il remontait devant l'article 22 lui-même.
     const results = searchProvisions(all, "Art. 22 LIPR")
     assert.ok(results.length >= 1)
-    assert.equal(results[0].provisionNo, "22(1)")
+    assert.equal(results[0].provisionNo, "22")
   })
 
   test("ranking never drops a match", () => {
@@ -82,7 +104,7 @@ describe("Legislation search", () => {
     // puis parce que la disposition manquait à la base.
     const results = searchProvisions(all, "Art. 22 LIPR")
     assert.ok(results.length >= 1)
-    assert.equal(results[0].provisionNo, "22(1)")
+    assert.equal(results[0].provisionNo, "22")
     assert.equal(results[0].consolidatedOn, "2026-06-14")
   })
 

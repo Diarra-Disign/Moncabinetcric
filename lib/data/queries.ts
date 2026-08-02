@@ -6,6 +6,7 @@ import { MOCK_CLIENTS } from "./mock/clients"
 import { MOCK_DOCUMENTS, MOCK_FOLDERS } from "./mock/documents"
 import { MOCK_EVENTS } from "./mock/events"
 import { MOCK_LEGISLATION_PROVISIONS, MOCK_RESEARCH_WORKSPACES } from "./mock/legislation"
+import { searchProvisions } from "./legislation-search"
 import { IMMIGRATION_PROGRAMS, getPrograms as getProgramsFromRef, getProgramByName as getProgramByNameFromRef } from "./programs"
 import { isSupabaseSource } from "./source"
 import { _mockStores } from "./stores"
@@ -194,23 +195,32 @@ export async function getAiConnectorLogs(): Promise<AiConnectorLogRecord[]> {
 
 
 
-export async function getLegislationProvisions(instrumentFilter?: string, query?: string): Promise<LegislationProvision[]> {
-  let list = [..._mockStores.legislationProvisions]
-  if (instrumentFilter && instrumentFilter !== "all") {
-    list = list.filter(p => p.instrument === instrumentFilter)
-  }
-  if (query && query.trim() !== "") {
-    const q = query.toLowerCase().trim()
-    list = list.filter(p =>
-      p.provisionNo.toLowerCase().includes(q) ||
-      p.headingFr.toLowerCase().includes(q) ||
-      p.headingEn.toLowerCase().includes(q) ||
-      p.bodyFr.toLowerCase().includes(q) ||
-      p.bodyEn.toLowerCase().includes(q) ||
-      (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
-    )
-  }
-  return list
+/**
+ * Nombre de dispositions renvoyées au navigateur en une fois.
+ *
+ * Le corpus complet pèse environ 1,4 Mo : l'expédier en entier à chaque
+ * chargement de page annulerait le bénéfice de l'import. On ne transmet
+ * donc qu'une tranche, et la recherche s'exécute côté serveur.
+ */
+export const LEGISLATION_PAGE_SIZE = 25
+
+export async function getLegislationProvisions(
+  instrumentFilter?: string,
+  query?: string
+): Promise<LegislationProvision[]> {
+  // Même moteur que la recherche client : une seule sémantique de recherche
+  // dans le projet, sinon les deux divergent — ce qui était déjà le cas ici,
+  // cette fonction reproduisait la comparaison naïve corrigée côté client.
+  return searchProvisions([..._mockStores.legislationProvisions], query ?? "", instrumentFilter ?? "all")
+}
+
+export async function searchLegislation(
+  query: string,
+  instrumentFilter: string,
+  limit: number = LEGISLATION_PAGE_SIZE
+): Promise<{ items: LegislationProvision[]; total: number }> {
+  const matched = searchProvisions([..._mockStores.legislationProvisions], query, instrumentFilter)
+  return { items: matched.slice(0, limit), total: matched.length }
 }
 
 export async function getLegislationProvisionById(id: string): Promise<LegislationProvision | undefined> {

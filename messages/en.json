@@ -451,6 +451,9 @@
     "filterInstrumentLabel": "Filter by instrument",
     "viewModeLabel": "Display language",
     "resultsCount": "{count, plural, =0 {No results} one {# provision} other {# provisions}}",
-    "searchLabel": "Search the legal and regulatory base"
+    "searchLabel": "Search the legal and regulatory base",
+    "searching": "Searching…",
+    "truncatedResults": "Showing {shown} of {total} provisions. Refine your search to narrow the list.",
+    "corpusNote": "IRPA / IRPR corpus current to {date}"
   }
 }

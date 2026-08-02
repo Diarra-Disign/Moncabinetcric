@@ -45,3 +45,7 @@ next-env.d.ts
 
 # local node runtime
 /.local-node/
+
+# Sources HTML brutes de l'importateur de législation : volumineuses et
+# retéléchargeables via `node scripts/import-legislation.mjs --refresh`.
+.cache/

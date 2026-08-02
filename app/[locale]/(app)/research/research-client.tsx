@@ -23,8 +23,8 @@ import {
   createResearchWorkspace,
   addResearchSourceToWorkspace,
   deleteResearchSourceFromWorkspace,
+  searchLegislationAction,
 } from "@/lib/data/actions"
-import { searchProvisions } from "@/lib/data/legislation-search"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
@@ -32,6 +32,8 @@ import { cn } from "@/lib/utils"
 
 interface ResearchClientProps {
   initialProvisions: LegislationProvision[]
+  /** Nombre total de dispositions correspondant, avant troncature. */
+  initialTotal: number
   initialWorkspaces: ResearchWorkspace[]
   initialMatters: Matter[]
 }
@@ -46,10 +48,15 @@ const FIELD =
 
 export function ResearchClient({
   initialProvisions,
+  initialTotal,
   initialWorkspaces,
   initialMatters,
 }: ResearchClientProps) {
   const t = useTranslations("Research")
+
+  const [provisions, setProvisions] = React.useState(initialProvisions)
+  const [total, setTotal] = React.useState(initialTotal)
+  const [isSearching, setIsSearching] = React.useState(false)
 
   const [workspaces, setWorkspaces] = React.useState<ResearchWorkspace[]>(initialWorkspaces)
   const [activeTab, setActiveTab] = React.useState<Tab>("provisions")
@@ -71,12 +78,32 @@ export function ResearchClient({
 
   const [isPending, startTransition] = React.useTransition()
 
-  // Le filtrage ne dépend que de la requête et du filtre : inutile de le
-  // relancer à chaque frappe dans une modale ou à chaque copie de citation.
-  const filteredProvisions = React.useMemo(
-    () => searchProvisions(initialProvisions, searchQuery, instrumentFilter),
-    [initialProvisions, searchQuery, instrumentFilter]
-  )
+  // La recherche s'exécute sur le serveur : le corpus complet pèse environ
+  // 1,4 Mo et ne doit pas être transmis au navigateur. On débat la frappe
+  // pour ne pas déclencher un aller-retour à chaque caractère, et on ignore
+  // les réponses arrivées dans le désordre.
+  const requestRef = React.useRef(0)
+
+  React.useEffect(() => {
+    const requestId = ++requestRef.current
+    const timer = window.setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const res = await searchLegislationAction(searchQuery, instrumentFilter)
+        if (requestRef.current === requestId) {
+          setProvisions(res.items)
+          setTotal(res.total)
+        }
+      } finally {
+        if (requestRef.current === requestId) setIsSearching(false)
+      }
+    }, 250)
+
+    return () => window.clearTimeout(timer)
+  }, [searchQuery, instrumentFilter])
+
+  const filteredProvisions = provisions
+  const truncated = total > filteredProvisions.length
 
   // Le minuteur doit être annulé au démontage, sinon React signale une mise à
   // jour d'état sur un composant démonté quand on quitte la page après copie.
@@ -287,7 +314,7 @@ export function ResearchClient({
       {/* Onglets — sémantique ARIA complète, navigation clavier native */}
       <div role="tablist" aria-label={t("title")} className="flex items-center border-b border-border">
         {([
-          { id: "provisions" as const, icon: BookOpen, label: t("tabProvisions"), count: filteredProvisions.length },
+          { id: "provisions" as const, icon: BookOpen, label: t("tabProvisions"), count: total },
           { id: "workspaces" as const, icon: Layers, label: t("tabWorkspaces"), count: workspaces.length },
         ]).map(({ id, icon: Icon, label, count }) => (
           <button
@@ -319,8 +346,17 @@ export function ResearchClient({
       {activeTab === "provisions" && (
         <div role="tabpanel" id="panel-provisions" aria-labelledby="tab-provisions" className="flex flex-col gap-4">
           <p className="sr-only" aria-live="polite">
-            {t("resultsCount", { count: filteredProvisions.length })}
+            {isSearching ? t("searching") : t("resultsCount", { count: total })}
           </p>
+
+          {/* La liste est tronquée : le dire explicitement, sinon l'utilisateur
+              croit que le corpus s'arrête là — c'est exactement le malentendu
+              qui a motivé ce chantier. */}
+          {truncated && (
+            <p className="rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
+              {t("truncatedResults", { shown: filteredProvisions.length, total })}
+            </p>
+          )}
 
           {filteredProvisions.length === 0 ? (
             <EmptyState

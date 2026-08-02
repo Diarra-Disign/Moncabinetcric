@@ -6,6 +6,7 @@ import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, ResearchWork
 // supabase/reads.ts (server-only) dans le bundle navigateur.
 import { _getStores, _getResearchStores, _getAiStores, _findLegislationProvision } from "./stores"
 import { generateChecklistForProgram } from "./programs"
+import { searchProvisions } from "./legislation-search"
 
 export async function createMatter(data: Omit<Matter, "id"> & { id?: string }): Promise<Matter> {
   const stores = _getStores()
@@ -306,3 +307,29 @@ export async function deleteResearchSourceFromWorkspace(workspaceId: string, sou
   return updatedWorkspace
 }
 
+
+/**
+ * Taille d'une page de résultats renvoyée au navigateur.
+ *
+ * Volontairement NON exportée : un module « use server » ne peut exposer
+ * que des fonctions asynchrones. Exporter une constante ici invalide le
+ * module entier et fait disparaître toutes les autres actions.
+ */
+const LEGISLATION_RESULT_LIMIT = 25
+
+/**
+ * Recherche dans le corpus LIPR / RIPR, exécutée sur le serveur.
+ *
+ * Le corpus pèse environ 1,4 Mo : le sérialiser vers le client à chaque
+ * chargement coûterait plus de 300 Ko compressés. Seuls les résultats
+ * transitent, et le total permet d'indiquer combien ont été tronqués.
+ */
+export async function searchLegislationAction(
+  query: string,
+  instrumentFilter: string,
+  limit: number = LEGISLATION_RESULT_LIMIT
+): Promise<{ items: LegislationProvision[]; total: number }> {
+  const { legislationProvisionsStore } = _getResearchStores()
+  const matched = searchProvisions(legislationProvisionsStore, query, instrumentFilter)
+  return { items: matched.slice(0, limit), total: matched.length }
+}

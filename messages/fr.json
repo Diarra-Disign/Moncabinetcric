@@ -451,6 +451,9 @@
     "filterInstrumentLabel": "Filtrer par instrument",
     "viewModeLabel": "Langue d'affichage",
     "resultsCount": "{count, plural, =0 {Aucun résultat} one {# disposition} other {# dispositions}}",
-    "searchLabel": "Rechercher dans la base légale et réglementaire"
+    "searchLabel": "Rechercher dans la base légale et réglementaire",
+    "searching": "Recherche en cours…",
+    "truncatedResults": "{shown} dispositions affichées sur {total}. Affinez votre recherche pour réduire la liste.",
+    "corpusNote": "Corpus LIPR / RIPR consolidé au {date}"
   }
 }
