@@ -8,9 +8,17 @@ export default getRequestConfig(async ({requestLocale}) => {
     locale = routing.defaultLocale;
   }
 
+  // Les textes légaux vivent dans un catalogue distinct : ce sont de longs
+  // documents dont la révision juridique suit son propre cycle, et qui
+  // alourdiraient inutilement les catalogues d'interface.
+  const [app, legal] = await Promise.all([
+    import(`../messages/${locale}.json`),
+    import(`../messages/legal.${locale}.json`)
+  ]);
+
   return {
     locale,
-    messages: (await import(`../messages/${locale}.json`)).default
+    messages: {...app.default, ...legal.default}
   };
 });
 

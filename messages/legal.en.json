@@ -1,0 +1,221 @@
+{
+  "Legal": {
+    "common": {
+      "effectiveLabel": "Effective",
+      "lastUpdatedLabel": "Last updated",
+      "backToHome": "Back to home",
+      "tableOfContents": "Contents",
+      "draftNotice": "This document is a first draft prepared in accordance with the principles of PIPEDA, Quebec's Law 25 and CASL. It must be reviewed by a lawyer specializing in privacy law before any publication or production use.",
+      "contactHeading": "Contact us",
+      "firmName": "Cabinet Immigration Boréale Inc.",
+      "firmRcic": "Regulated Canadian Immigration Consultant — CICC No. R-514982",
+      "firmEmail": "adama.diarra@boreale-immigration.ca",
+      "firmCity": "Montreal, Quebec, Canada"
+    },
+
+    "privacy": {
+      "title": "Privacy Policy",
+      "subtitle": "Protection of personal information — PIPEDA, Quebec's Law 25 and equivalent provincial statutes",
+      "effectiveDate": "2026-08-02",
+      "intro": "This policy describes how Cabinet Immigration Boréale Inc. collects, uses, discloses and retains the personal information of people who use its practice management platform and of the clients whose files are handled through it. It supplements — and does not replace — the professional secrecy owed by every Regulated Canadian Immigration Consultant who is a member of the College of Immigration and Citizenship Consultants.",
+
+      "s1": {
+        "heading": "1. Person responsible for the protection of personal information",
+        "p1": "Under Law 25, the person exercising the highest authority within the business is responsible for the protection of personal information. This role is held by Adama Diarra, Regulated Canadian Immigration Consultant (CICC No. R-514982).",
+        "p2": "Any question, access or rectification request, withdrawal of consent, or complaint may be sent to adama.diarra@boreale-immigration.ca. A response is provided within thirty days."
+      },
+
+      "s2": {
+        "heading": "2. Information we collect",
+        "p1": "We collect the following categories of information, depending on the role of the individual concerned.",
+        "cat1Title": "Identity and contact information",
+        "cat1Body": "Name, email address, telephone number, country of citizenship, country of residence, province, and where applicable the Quebec enterprise number for employer clients.",
+        "cat2Title": "Immigration status information",
+        "cat2Body": "Target immigration program, file category, opening and deadline dates, reason for consultation, file history and consultation notes. This information is considered sensitive.",
+        "cat3Title": "Supporting documents",
+        "cat3Body": "Identity documents including passports, language test results, diplomas and educational credential assessments, official forms intended for the authorities, and signed service agreements. These documents contain sensitive information.",
+        "cat4Title": "Financial information",
+        "cat4Body": "Invoices, professional fees, government disbursements, and trust account movements attached to the file.",
+        "cat5Title": "Prospect information",
+        "cat5Body": "Contact details, contemplated visa type, estimated value of the mandate, source of the contact and notes of exchanges, for people who have expressed interest without yet being clients.",
+        "cat6Title": "Technical logs",
+        "cat6Body": "IP address, browser identifier, timestamp and description of operations performed, recorded in an internal audit log."
+      },
+
+      "s3": {
+        "heading": "3. Purposes of collection",
+        "p1": "Each category of information is collected only for the following purposes, determined before collection.",
+        "l1": "Assess a person's eligibility for an immigration program and advise them.",
+        "l2": "Prepare, assemble and file applications with the competent authorities.",
+        "l3": "Draft and perform professional service agreements.",
+        "l4": "Bill professional fees and administer the trust account in accordance with CICC ethical obligations.",
+        "l5": "Comply with the record-keeping and traceability obligations imposed on regulated consultants.",
+        "l6": "Communicate with the individual about their file.",
+        "p2": "No information is used for a secondary purpose not stated above without obtaining fresh consent."
+      },
+
+      "s4": {
+        "heading": "4. Consent and withdrawal",
+        "p1": "Consent is requested separately from any other information, in plain language, and for specific purposes. Given the sensitivity of immigration status information, the consent obtained is express consent.",
+        "p2": "You may withdraw your consent at any time by writing to the person responsible for the protection of personal information. Withdrawal ends the processing that depends on it, subject to information we must retain to satisfy a legal, ethical or retention obligation described in section 7.",
+        "p3": "Where a mandate concerns a minor, the consent of the person having parental authority is required for those under fourteen years of age."
+      },
+
+      "s5": {
+        "heading": "5. Disclosure to third parties",
+        "p1": "We do not sell any personal information. Information is disclosed only to the following categories of recipients.",
+        "l1Title": "Government authorities",
+        "l1Body": "Immigration, Refugees and Citizenship Canada, Quebec's Ministère de l'Immigration, de la Francisation et de l'Intégration, Employment and Social Development Canada and other competent authorities, solely for the purposes of the mandate entrusted to us.",
+        "l2Title": "Cloud hosting provider",
+        "l2Body": "The platform relies on a third-party hosting and database provider. The location of the servers and the contractual framework governing that provider are the subject of the assessment described in section 6.",
+        "l3Title": "Artificial intelligence assistants, when enabled",
+        "l3Body": "The platform includes a connector allowing external artificial intelligence assistants to consult and prepare draft service agreements. When this connector is enabled, information including the client's name, the target program and the fee amount is transmitted to the assistant's operator, which may be located outside Quebec. This connector is disabled by default and may only be enabled by the firm's principal. Reserved acts — signing, sending, finalizing and cancelling — are at all times performed by a natural person.",
+        "l4Title": "Professional advisors",
+        "l4Body": "Lawyers, accountants or auditors, where required and under a duty of confidentiality."
+      },
+
+      "s6": {
+        "heading": "6. Hosting and transfers outside Quebec",
+        "p1": "Information is hosted with a third-party cloud provider. The effective hosting region must be confirmed and documented before any production use with real files.",
+        "p2": "Where personal information is disclosed outside Quebec, Law 25 requires a prior privacy impact assessment taking into account the protection regime applicable in the receiving jurisdiction, together with a contractual framework binding the recipient. This assessment is under way and is a prerequisite to handling real files.",
+        "p3": "Until that assessment is complete and the hosting region is confirmed in writing, this policy makes no representation that data resides in Canada."
+      },
+
+      "s7": {
+        "heading": "7. Retention and destruction",
+        "p1": "Client files and related documents are retained for the period required by the record-keeping obligations applicable to regulated consultants, then securely destroyed.",
+        "p2": "Prospect information concerning a person who does not become a client is destroyed once it is no longer necessary for the purposes for which it was collected.",
+        "p3": "Audit logs are retained in append-only form, with no possibility of modification or deletion, for regulatory traceability purposes."
+      },
+
+      "s8": {
+        "heading": "8. Security measures",
+        "p1": "Access to information is restricted to members of the firm who need it in the performance of their duties. Each firm's data is logically partitioned and every query is filtered by firm.",
+        "p2": "Exchanges between the browser and the platform are protected by the standard encrypted transport protocol. Data at rest benefits from the encryption measures offered by the hosting provider.",
+        "p3": "No security measure is described in this policy without having been confirmed as actually implemented. Additional measures that are planned but not yet deployed are documented in our internal compliance plan and are not presented here as existing."
+      },
+
+      "s9": {
+        "heading": "9. Your rights",
+        "p1": "You have the following rights, which you may exercise by writing to the person responsible for the protection of personal information.",
+        "l1": "Access the personal information we hold about you.",
+        "l2": "Have inaccurate, incomplete or ambiguous information corrected.",
+        "l3": "Withdraw your consent, subject to our legal retention obligations.",
+        "l4": "Obtain your information in a structured, commonly used technological format, or request its transfer to a third party.",
+        "l5": "Request that dissemination of information cease or that it be de-indexed, in the cases provided by law.",
+        "l6": "Be informed where a decision concerning you is based exclusively on automated processing, and submit your observations.",
+        "p2": "No fee is charged for a first access request."
+      },
+
+      "s10": {
+        "heading": "10. Cookies and similar technologies",
+        "p1": "The platform uses only the cookies strictly necessary for its operation, in particular to maintain your session and remember your display language. These cookies are used neither for advertising nor for cross-site tracking.",
+        "p2": "Should analytics or advertising cookies be added, your prior consent would be obtained and this policy updated accordingly."
+      },
+
+      "s11": {
+        "heading": "11. Automated decisions and profiling",
+        "p1": "The platform assigns an indicative score to people who have expressed interest in our services, to help the firm prioritize follow-ups. This score constitutes profiling within the meaning of Law 25.",
+        "p2": "No decision producing legal effects or significantly affecting you is made solely on the basis of automated processing. Every eligibility assessment, recommendation and reserved act is made by a regulated consultant, a natural person.",
+        "p3": "You may request to know the information used to establish this score and submit your observations."
+      },
+
+      "s12": {
+        "heading": "12. Information concerning minors",
+        "p1": "Some immigration files concern minors as dependants. Information about them is collected from the person having parental authority and processed with the same safeguards as that of adults, together with the additional protections provided by Law 25.",
+        "p2": "The platform is not intended for direct use by minors."
+      },
+
+      "s13": {
+        "heading": "13. Confidentiality incidents",
+        "p1": "We maintain a register of confidentiality incidents. Where an incident presents a risk of serious injury, we promptly notify the Commission d'accès à l'information and the individuals concerned, and take reasonable measures to reduce the risk of injury and prevent recurrence.",
+        "p2": "If you have reason to believe an incident has occurred, please notify us immediately at the address given in section 1."
+      },
+
+      "s14": {
+        "heading": "14. Complaints",
+        "p1": "If our response does not satisfy you, you may complain to the competent authority.",
+        "l1": "In Quebec, to the Commission d'accès à l'information du Québec.",
+        "l2": "Elsewhere in Canada, to the Office of the Privacy Commissioner of Canada.",
+        "l3": "In Alberta and British Columbia, to the Information and Privacy Commissioner of the province concerned."
+      },
+
+      "s15": {
+        "heading": "15. Changes to this policy",
+        "p1": "We may amend this policy to reflect changes in our practices or in the legal framework. The effective date shown at the head of the document indicates the applicable version.",
+        "p2": "Any material change is brought to the attention of the individuals concerned before it takes effect."
+      }
+    },
+
+    "terms": {
+      "title": "Terms of Use",
+      "subtitle": "Terms governing access to and use of the platform",
+      "effectiveDate": "2026-08-02",
+      "intro": "These terms govern access to and use of the practice management platform operated by Cabinet Immigration Boréale Inc. By accessing the platform, you agree to be bound by these terms.",
+
+      "s1": {
+        "heading": "1. Purpose and acceptance",
+        "p1": "The platform is a management tool intended for Regulated Canadian Immigration Consultant firms and their clients. It supports file tracking, document retention, production of service agreements and billing.",
+        "p2": "Use of the platform constitutes acceptance of these terms. If you do not agree to them, you must stop accessing it."
+      },
+
+      "s2": {
+        "heading": "2. Eligibility",
+        "p1": "Access is reserved for adults having the legal capacity to contract, and for legal persons acting through a duly authorized representative.",
+        "p2": "Professional access is further reserved for consultants in good standing with the College of Immigration and Citizenship Consultants and their authorized staff."
+      },
+
+      "s3": {
+        "heading": "3. Accounts and responsibilities",
+        "p1": "You are responsible for the confidentiality of your credentials and for all activity carried out through your account.",
+        "p2": "You undertake to provide accurate information, keep it up to date, and notify us without delay of any unauthorized use of your account.",
+        "p3": "It is prohibited to attempt to access another firm's or another client's data, to circumvent security measures, or to use the platform for any unlawful purpose."
+      },
+
+      "s4": {
+        "heading": "4. Licence to use",
+        "p1": "Subject to compliance with these terms, you are granted a personal, non-exclusive, non-transferable and revocable right to use the platform for its intended purposes.",
+        "p2": "No intellectual property right in the platform, its code, its presentation or its components is assigned."
+      },
+
+      "s5": {
+        "heading": "5. Content and data you entrust to us",
+        "p1": "You retain ownership of the documents and information you upload. You grant us the right to host, process and display them solely to perform the mandate and provide the service.",
+        "p2": "You warrant that you hold the authorizations necessary to entrust us with any information concerning a third party, in particular a family member or an employee.",
+        "p3": "You may obtain a copy of your data at any time, in accordance with the privacy policy."
+      },
+
+      "s6": {
+        "heading": "6. Fees, billing and trust account",
+        "p1": "Professional fees are set out in the separately concluded service agreement. Government fees are not professional fees: they are payable to the competent authorities, are not refundable by the firm and are not included in any flat rate.",
+        "p2": "Amounts received in advance are deposited in the firm's trust account and administered in accordance with the Code of Professional Conduct of the College of Immigration and Citizenship Consultants.",
+        "p3": "In the event of a discrepancy between these terms and the signed service agreement, the service agreement prevails as to fees and the scope of the mandate."
+      },
+
+      "s7": {
+        "heading": "7. No guarantee of outcome",
+        "p1": "No decision on an immigration application rests with the firm. Such decisions belong exclusively to the competent government authorities.",
+        "p2": "No platform content, including eligibility analyses, checklists and generated documents, constitutes a guarantee of a favourable outcome."
+      },
+
+      "s8": {
+        "heading": "8. Limitation of liability",
+        "p1": "The platform is provided as is. To the extent permitted by law, we are not liable for indirect damages, loss of profits or loss of data arising from use of the platform.",
+        "p2": "Nothing in these terms limits the professional liability of the regulated consultant in respect of the mandate entrusted to them, nor the rights conferred on you by law as a consumer."
+      },
+
+      "s9": {
+        "heading": "9. Termination",
+        "p1": "You may stop using the platform at any time and request closure of your account.",
+        "p2": "We may suspend or terminate access in the event of a breach of these terms, subject to any required reasonable notice and to our professional file-retention obligations.",
+        "p3": "Termination of access does not entail immediate destruction of information: it continues to be retained for the periods set out in the privacy policy."
+      },
+
+      "s10": {
+        "heading": "10. Governing law and changes",
+        "p1": "These terms are governed by the law applicable in the Province of Quebec and by applicable Canadian law. The courts of the judicial district of Montreal have jurisdiction, subject to mandatory consumer protection rules.",
+        "p2": "We may amend these terms. Any material change is brought to your attention before it takes effect, and continued use of the platform constitutes acceptance of the amended version."
+      }
+    }
+  }
+}
