@@ -40,6 +40,8 @@ import { Link, useRouter } from "@/i18n/routing"
 import { Matter } from "@/lib/data/types"
 import { PageHeader } from "@/components/app-shell/page-header"
 
+import { SideSheetDrawer } from "@/components/ui/side-sheet-drawer"
+
 interface MattersClientProps {
   t: {
     title: string
@@ -61,6 +63,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
   const [filterStatus, setFilterStatus] = React.useState<"all" | "valid" | "alert" | "review">("all")
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedMatter, setSelectedMatter] = React.useState<Matter>(matters[0])
+  const [drawerMatter, setDrawerMatter] = React.useState<Matter | null>(null)
 
   // NEW MATTER MODAL
   const [isNewModalOpen, setIsNewModalOpen] = React.useState(false)
@@ -228,20 +231,31 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                         </span>
                       )}
                     </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setDrawerMatter(m); }}
+                        className="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                        title="Ouvrir le tiroir coulissant"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Coulissant</span>
+                      </button>
 
-                    {m.status === "valid" ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                        <Check className="w-3.5 h-3.5" /> Conforme CICC
-                      </span>
-                    ) : m.status === "alert" ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full animate-pulse">
-                        <AlertCircle className="w-3.5 h-3.5" /> Pièce manquante
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
-                        <Clock className="w-3.5 h-3.5" /> En révision
-                      </span>
-                    )}
+                      {m.status === "valid" ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Conforme
+                        </span>
+                      ) : m.status === "alert" ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full animate-pulse">
+                          <AlertCircle className="w-3.5 h-3.5" /> Pièce manquante
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+                          <Clock className="w-3.5 h-3.5" /> En révision
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* CLIENT & PROGRAM */}
@@ -466,6 +480,64 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
           </div>
         </div>
       )}
+
+      {/* TIROIR COULISSANT LATERAL SANS PERTE DE CONTEXTE */}
+      <SideSheetDrawer
+        isOpen={!!drawerMatter}
+        onClose={() => setDrawerMatter(null)}
+        title={drawerMatter?.clientName || "Dossier Client"}
+        subtitle={`Programme ${drawerMatter?.program} · ID: ${drawerMatter?.id}`}
+        badgeText={drawerMatter?.status === "valid" ? "Conforme CICC" : drawerMatter?.status === "alert" ? "Pièce Manquante" : "En Révision"}
+        badgeVariant={drawerMatter?.status === "valid" ? "emerald" : drawerMatter?.status === "alert" ? "amber" : "blue"}
+      >
+        {drawerMatter && (
+          <div className="space-y-6 text-xs text-slate-800">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+              <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                <User className="w-4 h-4 text-indigo-600" /> Profil Candidate & Procédure
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-500 font-bold block">Nom du Client :</span>
+                  <span className="font-bold text-slate-900">{drawerMatter.clientName}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-bold block">Programme IRCC :</span>
+                  <span className="font-bold text-indigo-700">{drawerMatter.program}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-bold block">Échéance Réglementaire :</span>
+                  <span className="font-mono font-bold text-amber-700">{drawerMatter.deadline}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-bold block">Consultant RCIC :</span>
+                  <span className="font-bold text-slate-900">{drawerMatter.rcic}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-5 rounded-2xl shadow-md space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-indigo-300 uppercase font-mono">Solde Fidéicommis (Art. 13)</span>
+                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold px-2 py-0.5 rounded-full font-mono">$5,000.00 CAD</span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Les fonds sont protégés en fiducie. Le virement vers le compte général sera proposé après validation de l&apos;étape de service.
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center gap-3">
+              <Link
+                href={`/matters/${drawerMatter.id.replace('#', '')}`}
+                className="w-full py-3 bg-indigo-900 hover:bg-indigo-950 text-white font-bold rounded-2xl text-center shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                <span>Ouvrir la Fiche Complète du Dossier</span>
+                <ArrowUpRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        )}
+      </SideSheetDrawer>
 
     </div>
   )
