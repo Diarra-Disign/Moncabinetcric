@@ -97,6 +97,32 @@ interface CalendarClientProps {
   initialEvents?: CalendarEvent[]
 }
 
+function formatMeetingTimeRange(startTime: string, durationMinutes: number): string {
+  const [hStr, mStr] = (startTime || "14:00").split(":")
+  const startH = parseInt(hStr, 10) || 14
+  const startM = parseInt(mStr, 10) || 0
+
+  const totalStartMin = startH * 60 + startM
+  const totalEndMin = totalStartMin + durationMinutes
+
+  const endH = Math.floor(totalEndMin / 60) % 24
+  const endM = totalEndMin % 60
+
+  const formatH = (h: number) => h < 10 ? `0${h}` : `${h}`
+  const formatM = (m: number) => m < 10 ? `0${m}` : `${m}`
+
+  let durationLabel = ""
+  if (durationMinutes < 60) {
+    durationLabel = `${durationMinutes} min`
+  } else {
+    const hours = Math.floor(durationMinutes / 60)
+    const mins = durationMinutes % 60
+    durationLabel = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
+  }
+
+  return `${formatH(startH)} h ${formatM(startM)} – ${formatH(endH)} h ${formatM(endM)} (${durationLabel})`
+}
+
 export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
   const t = useTranslations("Calendar")
   const [currentDate, setCurrentDate] = React.useState<Date>(new Date("2026-07-31T12:00:00"))
@@ -130,7 +156,9 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
     matterId: "#DOS-35695",
     reason: "Consultation Initiale d'évaluation",
     date: "2026-08-05",
-    time: "14 h 00 – 15 h 00 (HE)",
+    startTime: "14:00",
+    durationMinutes: 60,
+    time: "14 h 00 – 15 h 00 (60 min)",
     platform: "calendly" as "calendly" | "google_meet" | "zoom",
     calendlyLink: "https://calendly.com/me-adama-diarra/consultation-30min",
     customNotes: "Discussion initiale pour l'analyse d'éligibilité Entrée Express et PEQ."
@@ -384,6 +412,9 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
     const monthNames = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."]
     const formattedDayName = `${selectedD.getDate()} ${monthNames[selectedD.getMonth()]} ${selectedD.getFullYear()}`
 
+    const calculatedTimeRange = formatMeetingTimeRange(inviteForm.startTime, inviteForm.durationMinutes)
+    const calculatedHour = parseInt((inviteForm.startTime || "14:00").split(":")[0], 10) || 14
+
     const newEvent: CalendarEvent = {
       id: `evt-${Date.now()}`,
       title: `${inviteForm.reason}`,
@@ -397,8 +428,8 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
       link: inviteForm.platform === "calendly" ? inviteForm.calendlyLink : "https://meet.google.com/new-meeting",
       date: inviteForm.date,
       dayName: formattedDayName,
-      time: inviteForm.time,
-      hour: 14,
+      time: calculatedTimeRange,
+      hour: calculatedHour,
       status: "ready",
       trustBalance: "$2,500 CAD",
       notes: inviteForm.customNotes
@@ -1251,18 +1282,68 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">Créneau Horaire (HE)</label>
+                  <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">Heure de Début (HE / Montréal)</label>
                   <select
-                    value={inviteForm.time}
-                    onChange={e => setInviteForm({ ...inviteForm, time: e.target.value })}
-                    className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    value={inviteForm.startTime}
+                    onChange={e => setInviteForm({ ...inviteForm, startTime: e.target.value })}
+                    className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all font-mono"
                   >
-                    <option value="09 h 00 – 10 h 00 (HE)">09 h 00 – 10 h 00 (Matin / HE)</option>
-                    <option value="10 h 00 – 11 h 00 (HE)">10 h 00 – 11 h 00 (Matin / HE)</option>
-                    <option value="11 h 00 – 12 h 00 (HE)">11 h 00 – 12 h 00 (Matin / HE)</option>
-                    <option value="14 h 00 – 15 h 00 (HE)">14 h 00 – 15 h 00 (Après-midi / HE)</option>
-                    <option value="15 h 30 – 16 h 30 (HE)">15 h 30 – 16 h 30 (Après-midi / HE)</option>
+                    <option value="08:00">08 h 00 (Matin / HE)</option>
+                    <option value="08:30">08 h 30 (Matin / HE)</option>
+                    <option value="09:00">09 h 00 (Matin / HE)</option>
+                    <option value="09:30">09 h 30 (Matin / HE)</option>
+                    <option value="10:00">10 h 00 (Matin / HE)</option>
+                    <option value="10:30">10 h 30 (Matin / HE)</option>
+                    <option value="11:00">11 h 00 (Matin / HE)</option>
+                    <option value="11:30">11 h 30 (Matin / HE)</option>
+                    <option value="12:00">12 h 00 (Midi / HE)</option>
+                    <option value="13:00">13 h 00 (Après-midi / HE)</option>
+                    <option value="14:00">14 h 00 (Après-midi / HE)</option>
+                    <option value="14:30">14 h 30 (Après-midi / HE)</option>
+                    <option value="15:00">15 h 00 (Après-midi / HE)</option>
+                    <option value="15:30">15 h 30 (Après-midi / HE)</option>
+                    <option value="16:00">16 h 00 (Après-midi / HE)</option>
+                    <option value="16:30">16 h 30 (Après-midi / HE)</option>
+                    <option value="17:00">17 h 00 (Après-midi / HE)</option>
                   </select>
+                </div>
+              </div>
+
+              {/* SÉLECTEUR DE DURÉE DE RENCONTRE (15min à 3h+) */}
+              <div className="flex flex-col gap-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-indigo-600" />
+                    <span>Durée de la rencontre (Flexibilité 15 min ➔ 3h)</span>
+                  </label>
+                  <span className="text-xs font-mono font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                    {formatMeetingTimeRange(inviteForm.startTime, inviteForm.durationMinutes)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 pt-1">
+                  {[
+                    { label: "15 min", value: 15 },
+                    { label: "30 min", value: 30 },
+                    { label: "45 min", value: 45 },
+                    { label: "1 h", value: 60 },
+                    { label: "1 h 30", value: 90 },
+                    { label: "2 h", value: 120 },
+                    { label: "3 h", value: 180 }
+                  ].map((dur) => (
+                    <button
+                      key={dur.value}
+                      type="button"
+                      onClick={() => setInviteForm({ ...inviteForm, durationMinutes: dur.value })}
+                      className={`py-2 px-1 rounded-xl text-xs font-bold text-center transition-all cursor-pointer ${
+                        inviteForm.durationMinutes === dur.value
+                          ? "bg-indigo-900 text-white font-black shadow-md ring-2 ring-indigo-500/20"
+                          : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                      }`}
+                    >
+                      {dur.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
