@@ -31,6 +31,8 @@ export function SubmissionLetterBuilder({
 }: SubmissionLetterBuilderProps) {
   const [processingOffice, setProcessingOffice] = React.useState("Centre de Traitement des Demandes (CTD-Ottawa)")
   const [language, setLanguage] = React.useState<"fr" | "en">("fr")
+  const [variantIndex, setVariantIndex] = React.useState(0)
+  const [toastNotice, setToastNotice] = React.useState<string | null>(null)
   const [customArgument, setCustomArgument] = React.useState(
     "Le candidat démontre une intégration économique et linguistique optimale avec un score NCLC 9 et une expérience qualifiée au Québec au sens de l'article 87.1 du RIPR."
   )
