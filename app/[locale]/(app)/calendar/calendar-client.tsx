@@ -35,7 +35,11 @@ import {
   Layers,
   ArrowUpRight,
   UserCheck,
-  Download
+  Download,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Minimize2
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -100,6 +104,10 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
   const [viewMode, setViewMode] = React.useState<"workweek" | "week" | "month" | "day">("workweek")
   // displayStyle: "grid" (Grille Horodatée) | "list" (Vue Liste Synthétique)
   const [displayStyle, setDisplayStyle] = React.useState<"grid" | "list">("grid")
+
+  // OUTLOOK STYLE ZOOM CONTROL STATE (50% à 200%, 100% par défaut)
+  const [zoomLevel, setZoomLevel] = React.useState<number>(100)
+  const slotRowHeightPx = Math.round((zoomLevel / 100) * 76)
 
   const [activeFilter, setActiveFilter] = React.useState<"all" | "visio" | "deadline">("all")
   const [events, setEvents] = React.useState<CalendarEvent[]>(initialEvents || [])
@@ -584,6 +592,42 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
               </button>
             </div>
 
+            {/* BARRE DE ZOOM OUTLOOK EN-TÊTE (- / + Slider) */}
+            <div className="inline-flex items-center bg-muted p-1 rounded-xl gap-2 border border-border/60">
+              <button
+                type="button"
+                onClick={() => setZoomLevel(prev => Math.max(50, prev - 15))}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition-colors cursor-pointer"
+                title="Rétrécir / Densité compacte (-)"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+
+              <input
+                type="range"
+                min="50"
+                max="200"
+                step="10"
+                value={zoomLevel}
+                onChange={(e) => setZoomLevel(Number(e.target.value))}
+                className="w-16 h-1.5 bg-border rounded-lg appearance-none cursor-pointer accent-primary"
+                title={`Niveau de Zoom: ${zoomLevel}%`}
+              />
+
+              <button
+                type="button"
+                onClick={() => setZoomLevel(prev => Math.min(200, prev + 15))}
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition-colors cursor-pointer"
+                title="Agrandir / Vue détaillée (+)"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+
+              <span className="font-mono text-[10px] font-black text-foreground bg-card border border-border/60 px-1.5 py-0.5 rounded-md min-w-[34px] text-center">
+                {zoomLevel}%
+              </span>
+            </div>
+
             {/* Primary Action Button */}
             <button
               type="button"
@@ -651,7 +695,8 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
                   )}
 
                   <div 
-                    className={`grid gap-2 items-stretch min-h-[76px] border-b border-border/40 pb-2 ${
+                    style={{ minHeight: `${slotRowHeightPx}px` }}
+                    className={`grid gap-2 items-stretch border-b border-border/40 pb-2 transition-all duration-200 ${
                       viewMode === "workweek" ? "grid-cols-[70px_repeat(5,1fr)]" : "grid-cols-[70px_repeat(7,1fr)]"
                     }`}
                   >
@@ -1418,6 +1463,79 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
           </div>
         </div>
       )}
+
+      {/* FLOATING OUTLOOK-STYLE ZOOM DOCK BAR (BOTTOM RIGHT) */}
+      <div className="fixed bottom-6 right-6 z-40 bg-slate-900/90 text-white backdrop-blur-md rounded-2xl p-2.5 shadow-2xl border border-slate-800 flex items-center gap-3 animate-fadeIn">
+        <span className="text-[10px] font-black uppercase text-slate-400 font-mono tracking-wider pl-1 hidden sm:inline">
+          Zoom Outlook
+        </span>
+
+        <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl">
+          <button
+            type="button"
+            onClick={() => setZoomLevel(50)}
+            className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+              zoomLevel <= 60 ? "bg-indigo-600 text-white font-black" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Compact (50%)
+          </button>
+          <button
+            type="button"
+            onClick={() => setZoomLevel(100)}
+            className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+              zoomLevel === 100 ? "bg-indigo-600 text-white font-black" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            100%
+          </button>
+          <button
+            type="button"
+            onClick={() => setZoomLevel(150)}
+            className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+              zoomLevel >= 140 ? "bg-indigo-600 text-white font-black" : "text-slate-400 hover:text-white"
+            }`}
+          >
+            Confort (150%)
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 border-l border-slate-700 pl-2">
+          <button
+            type="button"
+            onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Rétrécir (-)"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+
+          <input
+            type="range"
+            min="50"
+            max="200"
+            step="10"
+            value={zoomLevel}
+            onChange={(e) => setZoomLevel(Number(e.target.value))}
+            className="w-20 sm:w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+            title={`Niveau de zoom: ${zoomLevel}%`}
+          />
+
+          <button
+            type="button"
+            onClick={() => setZoomLevel(prev => Math.min(200, prev + 10))}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Agrandir (+)"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+
+          <span className="font-mono text-xs font-black text-indigo-300 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-lg">
+            {zoomLevel}%
+          </span>
+        </div>
+      </div>
+
     </div>
   )
 }
