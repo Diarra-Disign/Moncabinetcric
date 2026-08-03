@@ -32,6 +32,7 @@ case "$commande" in
   cabinet)      exec node scripts/reset-firm.mjs "$@" ;;
   verifier)     exec node scripts/verify-auth.mjs "$@" ;;
   roles)        exec node scripts/verify-roles.mjs "$@" ;;
+  motdepasse)   exec node scripts/set-password.mjs "$@" ;;
   cle)          exec node scripts/set-service-key.mjs "$@" ;;
   legislation)  exec node scripts/import-legislation.mjs "$@" ;;
   test)         exec pnpm test "$@" ;;
@@ -53,6 +54,10 @@ Usage : ./cric <commande> [options]
   admin        Administrateurs de la plateforme
                  ./cric admin
                  ./cric admin --grant=courriel@exemple.ca
+
+  motdepasse   Poser ou changer le mot de passe d'un compte
+                 ./cric motdepasse
+                 ./cric motdepasse --email=infos@dgvimmigration.com
 
   verifier     Diagnostic : clés, comptes, fermeture de la base
   roles        Éprouve la matrice des droits en base
