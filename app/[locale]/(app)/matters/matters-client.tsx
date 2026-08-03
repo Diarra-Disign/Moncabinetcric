@@ -62,7 +62,10 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
   const [activeTab, setActiveTab] = React.useState<"all" | "pr" | "work" | "study" | "tr">("all")
   const [filterStatus, setFilterStatus] = React.useState<"all" | "valid" | "alert" | "review">("all")
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [selectedMatter, setSelectedMatter] = React.useState<Matter>(matters[0])
+  // La liste peut être vide — un cabinet neuf n'a aucun dossier. L'annoter
+  // « Matter » mentait au compilateur et laissait passer un accès à
+  // undefined jusqu'à l'exécution.
+  const [selectedMatter, setSelectedMatter] = React.useState<Matter | undefined>(matters[0])
   const [drawerMatter, setDrawerMatter] = React.useState<Matter | null>(null)
 
   // NEW MATTER MODAL
@@ -203,7 +206,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
 
           <div className="space-y-3.5">
             {filteredMatters.map((m) => {
-              const isSelected = selectedMatter.id === m.id
+              const isSelected = selectedMatter?.id === m.id
 
               return (
                 <div
@@ -286,6 +289,13 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
 
         {/* RIGHT COLUMN: FICHE COMPLÈTE DU DOSSIER SÉLECTIONNÉ (5 COLONNES) */}
         <div className="lg:col-span-5 space-y-6">
+          {!selectedMatter ? (
+            <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-10 text-center shadow-xs sticky top-6">
+              <FolderOpen className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm font-black text-slate-800">Aucun dossier sélectionné</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Créez un premier dossier pour voir sa fiche s'afficher ici.</p>
+            </div>
+          ) : (
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-md space-y-6 sticky top-6">
             
             {/* CARD HEADER */}
@@ -389,6 +399,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
             </div>
 
           </div>
+          )}
         </div>
 
       </div>
