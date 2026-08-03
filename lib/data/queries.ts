@@ -30,6 +30,19 @@ const sbReads = () => import("./supabase/reads")
 // restent servies par les mocks, quelle que soit la valeur de DATA_SOURCE.
 
 
+// ---------------------------------------------------------------------
+// Entités non encore branchées sur Supabase.
+//
+// Elles renvoyaient les mocks quelle que soit la source, si bien qu'un
+// cabinet réel voyait s'afficher les dossiers, échéances et ententes d'un
+// cabinet fictif. En mode supabase elles renvoient donc vide : l'absence
+// de données est la vérité tant que la table n'existe pas.
+//
+// Distinction assumée : les RÉFÉRENTIELS (grille de frais gouvernementaux,
+// clauses types, textes de loi) ne sont pas des données de démonstration.
+// Ils restent servis, car ils sont identiques pour tous les cabinets.
+// ---------------------------------------------------------------------
+
 // MATTERS
 export async function getMatters(): Promise<Matter[]> {
   if (isSupabaseSource()) return (await sbReads()).getMatters()
@@ -99,6 +112,7 @@ export async function getDocuments(): Promise<DocumentRecord[]> {
 // Les dossiers du coffre restent des agrégats calculés côté mock :
 // aucune table folders n'existe encore.
 export async function getFolders(): Promise<FolderRecord[]> {
+  if (isSupabaseSource()) return []
   return _mockStores.folders
 }
 
@@ -124,10 +138,12 @@ import { AgreementRecord, ClauseDefinition, GovernmentFee } from "./types"
 
 
 export async function getAgreements(): Promise<AgreementRecord[]> {
+  if (isSupabaseSource()) return []
   return _mockStores.agreements
 }
 
 export async function getAgreementById(id: string): Promise<AgreementRecord | undefined> {
+  if (isSupabaseSource()) return undefined
   return _mockStores.agreements.find(a => a.id === id || a.reference === id)
 }
 
@@ -144,6 +160,7 @@ import { MOCK_DEADLINE_RECORDS, OFFICIAL_DEADLINE_RULES, OFFICIAL_CICC_COMPLIANC
 
 
 export async function getDeadlines(): Promise<DeadlineRecord[]> {
+  if (isSupabaseSource()) return []
   return _mockStores.deadlines
 }
 
@@ -173,6 +190,7 @@ export async function getDocumentAuditLog(): Promise<AuditLogRecord[]> {
 }
 
 export async function getApprovalQueue(): Promise<ActionApprovalRecord[]> {
+  if (isSupabaseSource()) return []
   const { MOCK_APPROVAL_QUEUE } = await import("./mock/audit")
   return MOCK_APPROVAL_QUEUE
 }
@@ -186,10 +204,12 @@ export async function getAiConnectorSettings(): Promise<AiConnectorSettings> {
 }
 
 export async function getAiApiKeys(): Promise<AiApiKeyRecord[]> {
+  if (isSupabaseSource()) return []
   return _mockStores.aiApiKeys
 }
 
 export async function getAiConnectorLogs(): Promise<AiConnectorLogRecord[]> {
+  if (isSupabaseSource()) return []
   return _mockStores.aiConnectorLogs
 }
 
@@ -228,6 +248,7 @@ export async function getLegislationProvisionById(id: string): Promise<Legislati
 }
 
 export async function getResearchWorkspaces(): Promise<ResearchWorkspace[]> {
+  if (isSupabaseSource()) return []
   return [..._mockStores.researchWorkspaces].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 }
 

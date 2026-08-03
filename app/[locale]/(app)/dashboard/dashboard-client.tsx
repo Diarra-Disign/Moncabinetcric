@@ -44,14 +44,9 @@ interface SearchItem {
   href: string
 }
 
-const SEARCH_DATABASE: SearchItem[] = [
-  { id: "1", title: "M. A. Diarra", subtitle: "Dossier #DOS-35695 · PEQ Québec", type: "client", href: "/matters/DOS-35695" },
-  { id: "2", title: "Dr. S. Rahman", subtitle: "Dossier #DOS-35697 · Entrée Express", type: "client", href: "/matters/DOS-35697" },
-  { id: "3", title: "Les Industries Nordiques", subtitle: "Dossier #DOS-35698 · EIMT B2B", type: "client", href: "/matters/DOS-35698" },
-  { id: "4", title: "IMM 5476 (Formulaire Représentant)", subtitle: "Document officiel IRCC pré-rempli", type: "document", href: "/documents" },
-  { id: "5", title: "Passeport_Diarra_Adama.pdf", subtitle: "Pièce d'identité conforme", type: "document", href: "/documents" },
-  { id: "6", title: "Facture #FAC-202601", subtitle: "Rapprochement Fidéicommis CICC", type: "matter", href: "/billing" },
-]
+// Vidée : elle contenait les clients et documents d'un cabinet fictif,
+// qui remontaient dans la recherche globale d'un cabinet réel.
+const SEARCH_DATABASE: SearchItem[] = []
 
 export function DashboardClient({ 
   t, 
@@ -184,7 +179,7 @@ export function DashboardClient({
                   : "Toutes les échéances légales LIPR/RIPR sont sous contrôle"}
               </h2>
               <p className="text-xs text-amber-100/90 mt-0.5">
-                Prochaine échéance : <strong className="text-white">Les Industries Nordiques (Biométrie J-7)</strong> & <strong className="text-white">Dr. S. Rahman (ITA Entrée Express J-13)</strong>
+                Aucune échéance à venir.
               </p>
             </div>
           </div>
@@ -225,7 +220,12 @@ export function DashboardClient({
               </span>
             </div>
             <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-1">
-              Bienvenue, Me. Adama Diarra · Cabinet d&apos;immigration agréé CICC #R708149
+              {/* Le nom et le numéro de permis étaient écrits en dur, et le
+                  numéro — R708149 — n'appartenait à aucun cabinet réel.
+                  Afficher un permis CICC erroné n'est pas un défaut cosmétique.
+                  Ils viennent désormais de la base. */}
+              Bienvenue, {firm.rcicName || firm.name}
+              {firm.rcicNumber && ` · Consultant réglementé CICC ${firm.rcicNumber}`}
             </p>
           </div>
         </div>
@@ -601,33 +601,14 @@ export function DashboardClient({
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200/80 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-purple-700 block">14 h 00 – 15 h 00</span>
-                <span className="text-xs font-black text-slate-900">M. Adama Diarra</span>
-                <span className="text-[11px] text-slate-500 block">PEQ Québec (#DOS-35695)</span>
-              </div>
-              <a href="https://calendly.com/me-adama-diarra/consultation-30min" target="_blank" rel="noopener noreferrer" className="p-2 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition-colors">Visio</a>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200/80 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-sky-700 block">15 h 30 – 16 h 30</span>
-                <span className="text-xs font-black text-slate-900">Dr. S. Rahman</span>
-                <span className="text-[11px] text-slate-500 block">Entrée Express (#DOS-35697)</span>
-              </div>
-              <a href="https://meet.google.com" target="_blank" rel="noopener noreferrer" className="p-2 bg-sky-600 text-white rounded-xl font-bold text-xs hover:bg-sky-700 transition-colors">Meet</a>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-center justify-between">
-              <div>
-                <span className="text-[10px] font-mono font-bold text-emerald-700 block">17 h 00 – 17 h 30</span>
-                <span className="text-xs font-black text-slate-900">Les Industries Nordiques</span>
-                <span className="text-[11px] text-slate-500 block">EIMT B2B (#DOS-35698)</span>
-              </div>
-              <a href="https://zoom.us" target="_blank" rel="noopener noreferrer" className="p-2 bg-emerald-600 text-white rounded-xl font-bold text-xs hover:bg-emerald-700 transition-colors">Zoom</a>
-            </div>
+          {/* Les trois rendez-vous qui figuraient ici étaient écrits en dur,
+              avec les clients d'un cabinet fictif. Ils s'affichaient donc sur
+              un cabinet réel n'ayant aucun rendez-vous. */}
+          <div className="rounded-2xl border border-dashed border-slate-300 px-6 py-10 text-center">
+            <p className="text-xs font-bold text-slate-700">Aucun rendez-vous planifié</p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Les rencontres à venir apparaîtront ici.
+            </p>
           </div>
         </div>
       )}
@@ -652,12 +633,19 @@ export function DashboardClient({
             </div>
 
             <div className="divide-y divide-slate-100">
-              {[
-                { id: "IMM5709_Tremblay_K.pdf", type: "Permis d'études", time: "Il y a 10 min", status: "En cours", client: "K. Tremblay", href: "/matters/DOS-35694", badge: "bg-blue-50 text-blue-800 border-blue-200" },
-                { id: "Passeport_Rahman_S.pdf", type: "Visas & LMIA", time: "Il y a 45 min", status: "Échéance J-18", client: "Dr. S. Rahman", href: "/matters/DOS-35697", badge: "bg-amber-100 text-amber-900 border-amber-300" },
-                { id: "Contrat_Mandat_Dubois.pdf", type: "Entente de service", time: "Il y a 2 hrs", status: "Signé & Conforme", client: "Mme. K. Dubois", href: "/matters/DOS-35694", badge: "bg-emerald-100 text-emerald-900 border-emerald-300" },
-                { id: "Preuve_Fonds_Diarra.pdf", type: "Résidence Permanente", time: "Il y a 4 hrs", status: "En cours", client: "M. A. Diarra", href: "/matters/DOS-35695", badge: "bg-blue-50 text-blue-800 border-blue-200" }
-              ].map((item, idx) => (
+              {/* Cette liste était écrite en dur : quatre documents appartenant
+                  à des clients fictifs, affichés sur un cabinet réel dont le
+                  coffre est vide. Vidée jusqu'à ce qu'elle soit alimentée par
+                  les documents du cabinet. */}
+              {([] as {
+                id: string
+                type: string
+                time: string
+                status: string
+                client: string
+                href: string
+                badge: string
+              }[]).map((item, idx) => (
                 <div 
                   key={idx} 
                   onClick={() => router.push(item.href as Parameters<typeof router.push>[0])}
