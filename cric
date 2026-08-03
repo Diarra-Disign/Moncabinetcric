@@ -1,0 +1,85 @@
+#!/bin/bash
+#
+# Lanceur des commandes d'administration.
+#
+#   ./cric                      liste les commandes
+#   ./cric inviter --email=…    invite quelqu'un
+#
+# Raison d'être : sur cette machine, node n'est pas dans le PATH d'un
+# terminal ordinaire — il vit uniquement dans .local-node/bin. Toute
+# commande « node scripts/… » y échoue en « command not found ». Ce
+# lanceur pose le chemin une fois pour toutes.
+
+set -euo pipefail
+
+RACINE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="$RACINE/.local-node/bin:$PATH"
+cd "$RACINE"
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "node introuvable, y compris dans .local-node/bin." >&2
+  exit 1
+fi
+
+commande="${1:-}"
+shift || true
+
+case "$commande" in
+  inviter)      exec node scripts/invite.mjs "$@" ;;
+  abonnement)   exec node scripts/manage-subscription.mjs "$@" ;;
+  admin)        exec node scripts/grant-platform-admin.mjs "$@" ;;
+  comptes)      exec node scripts/setup-accounts.mjs "$@" ;;
+  cabinet)      exec node scripts/reset-firm.mjs "$@" ;;
+  verifier)     exec node scripts/verify-auth.mjs "$@" ;;
+  roles)        exec node scripts/verify-roles.mjs "$@" ;;
+  cle)          exec node scripts/set-service-key.mjs "$@" ;;
+  legislation)  exec node scripts/import-legislation.mjs "$@" ;;
+  test)         exec pnpm test "$@" ;;
+  dev)          exec npm run dev ;;
+  ""|aide|-h|--help)
+    cat <<'AIDE'
+Usage : ./cric <commande> [options]
+
+  inviter      Créer, lister ou révoquer une invitation
+                 ./cric inviter
+                 ./cric inviter --email=confrere@cabinet.ca --firm=R000000 --role=rcic
+                 ./cric inviter --revoke=confrere@cabinet.ca --firm=R000000
+
+  abonnement   Plans et accès des cabinets
+                 ./cric abonnement
+                 ./cric abonnement --firm=R000000 --suspend
+                 ./cric abonnement --firm=R000000 --activate
+
+  admin        Administrateurs de la plateforme
+                 ./cric admin
+                 ./cric admin --grant=courriel@exemple.ca
+
+  verifier     Diagnostic : clés, comptes, fermeture de la base
+  roles        Éprouve la matrice des droits en base
+  comptes      Met en place les cabinets et comptes de départ
+  cabinet      Purge les données de démonstration, écrit l'identité réelle
+  cle          Enregistre la clé de service Supabase
+  legislation  Réimporte la LIPR et le RIPR
+  test         Suite de tests
+  dev          Démarre le serveur de développement
+
+Les identifiants de cabinet sont les numéros de permis :
+AIDE
+    node -e '
+      const { readFileSync } = require("fs")
+      const env = Object.fromEntries(readFileSync(".env.local","utf8").split("\n")
+        .map(l=>l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/)).filter(Boolean)
+        .map(m=>[m[1],m[2].trim().replace(/^["\x27]|["\x27]$/g,"")]))
+      const { createClient } = require("@supabase/supabase-js")
+      createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY,
+        {auth:{persistSession:false}})
+        .from("firms").select("name, rcic_license_number").then(({data}) => {
+          for (const f of data ?? []) console.log(`  ${f.rcic_license_number.padEnd(11)} ${f.name}`)
+        })
+    ' 2>/dev/null || echo "  (base non jointe)"
+    ;;
+  *)
+    echo "Commande « $commande » inconnue. Lancez ./cric pour la liste." >&2
+    exit 1
+    ;;
+esac
