@@ -53,7 +53,7 @@ export function SettingsClient() {
   // Zoom / Meet / Calendly State
   const [zoomConnected, setZoomConnected] = React.useState(true)
   const [zoomEmail, setZoomEmail] = React.useState("")
-  const [calendlyUrl, setCalendlyUrl] = React.useState("https://calendly.com/me-adama-diarra/consultation-30min")
+  const [calendlyUrl, setCalendlyUrl] = React.useState("")  // À saisir par le cabinet : aucun lien par défaut.
   const [preferredPlatform, setPreferredPlatform] = React.useState<"calendly" | "zoom" | "google_meet">("calendly")
 
   const handleSaveSettings = (e: React.FormEvent) => {

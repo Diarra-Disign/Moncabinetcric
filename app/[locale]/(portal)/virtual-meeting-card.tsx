@@ -10,16 +10,45 @@ interface VirtualMeetingCardProps {
   calendlyUrl?: string
 }
 
-export function VirtualMeetingCard({ 
-  calendlyUrl = "https://calendly.com/me-adama-diarra/consultation-30min" 
-}: VirtualMeetingCardProps) {
+export function VirtualMeetingCard({ calendlyUrl = "" }: VirtualMeetingCardProps) {
+  // Ce bloc décrivait un rendez-vous entièrement fictif — date, motif et
+  // lien — affiché à tout client ouvrant le portail. Vidé : la carte
+  // n'annonce plus une rencontre qui n'existe pas.
   const [meetingState] = React.useState({
-    status: "scheduled",
-    reason: "Consultation Initiale d'évaluation",
-    date: "Mercredi 5 août 2026",
-    time: "14 h 00 – 15 h 00 (HE)",
-    link: "https://calendly.com/me-adama-diarra/consultation-30min"
+    status: "none",
+    reason: "",
+    date: "",
+    time: "",
+    link: "",
   })
+
+  const hasMeeting = meetingState.status === "scheduled" && meetingState.link !== ""
+
+  if (!hasMeeting) {
+    return (
+      <Card className="border-slate-200 bg-slate-50/60 rounded-3xl">
+        <CardContent className="p-7 sm:p-8 text-center">
+          <Video className="w-7 h-7 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-base font-black text-slate-800">
+            Aucune rencontre planifiée
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Votre consultant vous transmettra un lien lorsqu&apos;un rendez-vous sera fixé.
+          </p>
+          {calendlyUrl && (
+            <Button
+              variant="outline"
+              onClick={() => window.open(calendlyUrl, "_blank")}
+              className="mt-5 gap-2 text-xs font-bold border-slate-300 text-slate-800 bg-white hover:bg-slate-100 rounded-2xl px-6 py-3"
+            >
+              <Calendar className="w-4 h-4 text-blue-600" />
+              <span>Demander un créneau</span>
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className="border-blue-200/80 bg-gradient-to-r from-blue-50/90 via-slate-50 to-indigo-50/70 shadow-md rounded-3xl overflow-hidden">

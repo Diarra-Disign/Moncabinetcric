@@ -160,7 +160,7 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
     durationMinutes: 60,
     time: "14 h 00 – 15 h 00 (60 min)",
     platform: "calendly" as "calendly" | "google_meet" | "zoom",
-    calendlyLink: "https://calendly.com/me-adama-diarra/consultation-30min",
+    calendlyLink: "",
     customNotes: "Discussion initiale pour l'analyse d'éligibilité Entrée Express et PEQ."
   })
 
@@ -425,7 +425,7 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
       program: "Dossier Immigration CICC",
       type: "visio",
       platform: inviteForm.platform,
-      link: inviteForm.platform === "calendly" ? inviteForm.calendlyLink : "https://meet.google.com/new-meeting",
+      link: inviteForm.calendlyLink,
       date: inviteForm.date,
       dayName: formattedDayName,
       time: calculatedTimeRange,
@@ -1352,7 +1352,7 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
-                    onClick={() => setInviteForm({ ...inviteForm, platform: "google_meet", calendlyLink: "https://meet.google.com/meet-cicc-direct" })}
+                    onClick={() => setInviteForm({ ...inviteForm, platform: "google_meet", calendlyLink: "" })}
                     className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       inviteForm.platform === "google_meet"
                         ? "bg-blue-600 text-white border-blue-600 shadow-xs"
@@ -1364,7 +1364,7 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
 
                   <button
                     type="button"
-                    onClick={() => setInviteForm({ ...inviteForm, platform: "zoom", calendlyLink: "https://zoom.us/j/9876543210" })}
+                    onClick={() => setInviteForm({ ...inviteForm, platform: "zoom", calendlyLink: "" })}
                     className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       inviteForm.platform === "zoom"
                         ? "bg-blue-600 text-white border-blue-600 shadow-xs"
@@ -1388,7 +1388,7 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
 
                   <button
                     type="button"
-                    onClick={() => setInviteForm({ ...inviteForm, platform: "calendly", calendlyLink: "https://calendly.com/me-adama-diarra/consultation-30min" })}
+                    onClick={() => setInviteForm({ ...inviteForm, platform: "calendly", calendlyLink: "" })}
                     className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       inviteForm.platform === "calendly"
                         ? "bg-blue-600 text-white border-blue-600 shadow-xs"
