@@ -45,7 +45,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useTranslations } from "next-intl"
-import { CalendarEvent } from "@/lib/data/types"
+import { CalendarEvent, ClientRecord, Matter } from "@/lib/data/types"
 import { PageHeader } from "@/components/app-shell/page-header"
 
 export type { CalendarEvent }
@@ -95,6 +95,25 @@ const HOURLY_ROW_TIMES = [
 
 interface CalendarClientProps {
   initialEvents?: CalendarEvent[]
+  /** Clients réels du cabinet, pour la liste du formulaire d'invitation. */
+  clients?: ClientRecord[]
+  /** Dossiers réels, pour rattacher le rendez-vous au bon mandat. */
+  matters?: Matter[]
+}
+
+/**
+ * Date locale au format AAAA-MM-JJ.
+ *
+ * toISOString() convertit en UTC : à Gatineau, un dimanche à 20 h devient
+ * déjà lundi. La colonne « aujourd'hui » se décalait donc en soirée, et la
+ * date par défaut d'un rendez-vous sautait au lendemain. Dans une
+ * application qui suit des échéances d'immigration, un jour d'écart n'est
+ * pas anodin.
+ */
+function toLocalISO(d: Date): string {
+  const mois = String(d.getMonth() + 1).padStart(2, "0")
+  const jour = String(d.getDate()).padStart(2, "0")
+  return `${d.getFullYear()}-${mois}-${jour}`
 }
 
 function formatMeetingTimeRange(startTime: string, durationMinutes: number): string {
@@ -123,9 +142,9 @@ function formatMeetingTimeRange(startTime: string, durationMinutes: number): str
   return `${formatH(startH)} h ${formatM(startM)} – ${formatH(endH)} h ${formatM(endM)} (${durationLabel})`
 }
 
-export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
+export function CalendarClient({ initialEvents, clients = [], matters = [] }: CalendarClientProps = {}) {
   const t = useTranslations("Calendar")
-  const [currentDate, setCurrentDate] = React.useState<Date>(new Date("2026-07-31T12:00:00"))
+  const [currentDate, setCurrentDate] = React.useState<Date>(() => new Date())
   // viewMode options: "workweek" (Lun-Ven), "week" (Lun-Dim), "month" (31J), "day" (Jour)
   const [viewMode, setViewMode] = React.useState<"workweek" | "week" | "month" | "day">("workweek")
   // displayStyle: "grid" (Grille Horodatée) | "list" (Vue Liste Synthétique)
@@ -147,21 +166,21 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
 
   // MOVE / RESCHEDULE MODAL STATE
   const [movingEvent, setMovingEvent] = React.useState<CalendarEvent | null>(null)
-  const [targetMoveDate, setTargetMoveDate] = React.useState("2026-08-03")
+  const [targetMoveDate, setTargetMoveDate] = React.useState(toLocalISO(new Date()))
   const [targetMoveHour, setTargetMoveHour] = React.useState(14)
 
   // INVITATION FORM STATE
   const [inviteForm, setInviteForm] = React.useState({
-    clientName: "M. Adama Diarra",
-    matterId: "#DOS-35695",
+    clientName: "",
+    matterId: "",
     reason: "Consultation Initiale d'évaluation",
-    date: "2026-08-05",
+    date: toLocalISO(new Date()),
     startTime: "14:00",
     durationMinutes: 60,
     time: "14 h 00 – 15 h 00 (60 min)",
     platform: "calendly" as "calendly" | "google_meet" | "zoom",
     calendlyLink: "",
-    customNotes: "Discussion initiale pour l'analyse d'éligibilité Entrée Express et PEQ."
+    customNotes: ""
   })
 
   // REAL-TIME CURRENT TIME TRACKER HOOK
@@ -239,7 +258,9 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
   }
 
   const handleToday = () => {
-    setCurrentDate(new Date("2026-07-31T12:00:00"))
+    // « Aujourd'hui » doit ramener au jour courant : il ramenait au
+    // 31 juillet 2026, date figée à l'écriture du composant.
+    setCurrentDate(new Date())
   }
 
   const handleSlotClick = (dateIso: string, hourNum: number) => {
@@ -338,7 +359,7 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
   }, [currentDate, viewMode])
 
   const currentDateISO = React.useMemo(() => {
-    return currentDate.toISOString().split("T")[0]
+    return toLocalISO(currentDate)
   }, [currentDate])
 
   const activeDaysList = React.useMemo(() => {
@@ -354,9 +375,9 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
     for (let i = 0; i < count; i++) {
       const d = new Date(startOfWeek)
       d.setDate(startOfWeek.getDate() + i)
-      const iso = d.toISOString().split("T")[0]
-      const isToday = iso === "2026-07-31"
-      const isSelected = iso === currentDate.toISOString().split("T")[0]
+      const iso = toLocalISO(d)
+      const isToday = iso === toLocalISO(new Date())
+      const isSelected = iso === toLocalISO(currentDate)
       result.push({
         label: dayLabels[i],
         dayNum: d.getDate(),
@@ -861,11 +882,17 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
               </div>
 
               <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((dayNum) => {
-                  const iso = `2026-07-${dayNum < 10 ? "0" + dayNum : dayNum}`
+                {/* Le mois était figé à juillet 2026 et « aujourd'hui » au 31 :
+                    la vue mensuelle affichait toujours le même mois, quel que
+                    soit le mois consulté. */}
+                {Array.from(
+                  { length: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate() },
+                  (_, i) => i + 1
+                ).map((dayNum) => {
+                  const iso = toLocalISO(new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNum))
                   const dayEvts = filteredEvents.filter(e => e.date === iso)
                   const isSelected = currentDateISO === iso
-                  const isToday = dayNum === 31
+                  const isToday = iso === toLocalISO(new Date())
 
                   return (
                     <button
@@ -1244,13 +1271,33 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
                 <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">Candidat / Client Destinataire</label>
                 <select
                   value={inviteForm.clientName}
-                  onChange={e => setInviteForm({ ...inviteForm, clientName: e.target.value })}
+                  onChange={e => {
+                    // Le dossier suit le client : sans ce rattachement, le
+                    // rendez-vous n'appartiendrait à aucun mandat.
+                    const choisi = clients.find(c => c.name === e.target.value)
+                    const dossier = choisi ? matters.find(m => m.clientId === choisi.id) : undefined
+                    setInviteForm({
+                      ...inviteForm,
+                      clientName: e.target.value,
+                      matterId: dossier?.id ?? "",
+                    })
+                  }}
                   className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
                 >
-                  <option value="M. Adama Diarra">M. Adama Diarra (#DOS-35695 - PEQ Québec)</option>
-                  <option value="Dr. S. Rahman">Dr. S. Rahman (#DOS-35697 - Entrée Express)</option>
-                  <option value="Les Industries Nordiques">Les Industries Nordiques (#DOS-35698 - EIMT B2B)</option>
-                  <option value="Mme. Mariam Dubois">Mme. Mariam Dubois (#DOS-35700 - Permis Études)</option>
+                  <option value="">
+                    {clients.length === 0
+                      ? "Aucun client — créez-en un depuis Clients"
+                      : "Choisir un client…"}
+                  </option>
+                  {clients.map(c => {
+                    const dossier = matters.find(m => m.clientId === c.id)
+                    return (
+                      <option key={c.id} value={c.name}>
+                        {c.name}
+                        {dossier ? ` (${dossier.id} — ${dossier.program})` : c.program ? ` — ${c.program}` : ""}
+                      </option>
+                    )
+                  })}
                 </select>
               </div>
 
@@ -1545,77 +1592,9 @@ export function CalendarClient({ initialEvents }: CalendarClientProps = {}) {
         </div>
       )}
 
-      {/* FLOATING OUTLOOK-STYLE ZOOM DOCK BAR (BOTTOM RIGHT) */}
-      <div className="fixed bottom-6 right-6 z-40 bg-slate-900/90 text-white backdrop-blur-md rounded-2xl p-2.5 shadow-2xl border border-slate-800 flex items-center gap-3 animate-fadeIn">
-        <span className="text-[10px] font-black uppercase text-slate-400 font-mono tracking-wider pl-1 hidden sm:inline">
-          Zoom Outlook
-        </span>
-
-        <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setZoomLevel(50)}
-            className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-              zoomLevel <= 60 ? "bg-indigo-600 text-white font-black" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Compact (50%)
-          </button>
-          <button
-            type="button"
-            onClick={() => setZoomLevel(100)}
-            className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-              zoomLevel === 100 ? "bg-indigo-600 text-white font-black" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            100%
-          </button>
-          <button
-            type="button"
-            onClick={() => setZoomLevel(150)}
-            className={`px-2 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-              zoomLevel >= 140 ? "bg-indigo-600 text-white font-black" : "text-slate-400 hover:text-white"
-            }`}
-          >
-            Confort (150%)
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2 border-l border-slate-700 pl-2">
-          <button
-            type="button"
-            onClick={() => setZoomLevel(prev => Math.max(50, prev - 10))}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Rétrécir (-)"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-
-          <input
-            type="range"
-            min="50"
-            max="200"
-            step="10"
-            value={zoomLevel}
-            onChange={(e) => setZoomLevel(Number(e.target.value))}
-            className="w-20 sm:w-24 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-            title={`Niveau de zoom: ${zoomLevel}%`}
-          />
-
-          <button
-            type="button"
-            onClick={() => setZoomLevel(prev => Math.min(200, prev + 10))}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            title="Agrandir (+)"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-
-          <span className="font-mono text-xs font-black text-indigo-300 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-lg">
-            {zoomLevel}%
-          </span>
-        </div>
-      </div>
+      {/* La barre de zoom flottante a été retirée : elle recouvrait la
+          grille en bas d'écran et dupliquait le réglage déjà présent
+          dans la barre d'outils. */}
 
     </div>
   )
