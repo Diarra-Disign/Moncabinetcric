@@ -59,6 +59,18 @@ export async function moveLeadStage(id: string, stage: Lead["stage"]): Promise<L
   return updated
 }
 
+export async function updateLead(id: string, updates: Partial<Lead>): Promise<Lead | undefined> {
+  if (isSupabaseSource()) return (await sbWrites()).updateLead(id, updates)
+  const stores = _getStores()
+  const idx = stores.leadsStore.findIndex(l => l.id === id)
+  if (idx === -1) return undefined
+  const updated = { ...stores.leadsStore[idx], ...updates }
+  const newArr = [...stores.leadsStore]
+  newArr[idx] = updated
+  stores.setLeadsStore(newArr)
+  return updated
+}
+
 export async function createInvoice(data: Omit<InvoiceRecord, "id"> & { id?: string }): Promise<InvoiceRecord> {
   if (isSupabaseSource()) return (await sbWrites()).createInvoice(data)
   const stores = _getStores()
@@ -354,3 +366,17 @@ export async function searchLegislationAction(
   const matched = searchProvisions(legislationProvisionsStore, query, instrumentFilter)
   return { items: matched.slice(0, limit), total: matched.length }
 }
+
+export async function updateFirmSettings(data: {
+  name?: string
+  rcicNumber?: string
+  rcicName?: string
+  address?: string
+  phone?: string
+  email?: string
+  logoUrl?: string
+}): Promise<boolean> {
+  if (isSupabaseSource()) return (await sbWrites()).updateFirmSettings(data)
+  return true
+}
+

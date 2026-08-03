@@ -293,7 +293,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
             <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-10 text-center shadow-xs sticky top-6">
               <FolderOpen className="w-8 h-8 text-slate-300 mx-auto mb-3" />
               <p className="text-sm font-black text-slate-800">Aucun dossier sélectionné</p>
-              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Créez un premier dossier pour voir sa fiche s'afficher ici.</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Créez un premier dossier pour voir sa fiche s&apos;afficher ici.</p>
             </div>
           ) : (
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-md space-y-6 sticky top-6">

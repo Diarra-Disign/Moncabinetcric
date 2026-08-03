@@ -30,13 +30,58 @@ import {
   ChevronDown,
   Trash2,
   GripVertical,
-  RefreshCw
+  RefreshCw,
+  Edit3,
+  HelpCircle,
+  FileText,
+  Check,
+  Info,
+  MessageSquare
 } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { Lead } from "@/lib/data/types"
 import { PageHeader } from "@/components/app-shell/page-header"
+import { createLead, updateLead } from "@/lib/data/actions"
 
 export type { Lead }
+
+export const PROGRAM_GROUPS = [
+  {
+    label: "Information & Renseignements",
+    options: [
+      { value: "Renseignements Généraux Cabinet", label: "Renseignements Généraux sur le Cabinet", defaultPrice: 0 },
+      { value: "Consultation Initiale d'Évaluation", label: "Consultation Initiale d'Évaluation (Payante)", defaultPrice: 150 },
+      { value: "Analyse de Refus & Conseils IRCC", label: "Analyse d'un Refus IRCC & Recommandations", defaultPrice: 500 },
+    ]
+  },
+  {
+    label: "Résidence Permanente (IRCC / MIFI)",
+    options: [
+      { value: "Résidence Permanente (Entrée Express)", label: "Entrée Express (FSW / CEC / FST)", defaultPrice: 4500 },
+      { value: "PEQ - Expérience Québécoise", label: "PEQ - Programme de l'Expérience Québécoise", defaultPrice: 4200 },
+      { value: "PRTQ - Travailleurs Qualifiés Québec", label: "PRTQ - Travailleurs Qualifiés Québec (MIFI)", defaultPrice: 4200 },
+      { value: "Parrainage d'Époux / Conjoint / Famille", label: "Parrainage Familial (Conjoint / Enfants)", defaultPrice: 3800 },
+      { value: "Programme Régional / PNP", label: "Programme des Candidats des Provinces (PCP/PNP)", defaultPrice: 4800 },
+    ]
+  },
+  {
+    label: "Résidence Temporaire (Visas & Permis)",
+    options: [
+      { value: "Permis d'Études & CAQ", label: "Permis d'Études & CAQ Québec", defaultPrice: 2500 },
+      { value: "EIMT / Permis de Travail (LMIA)", label: "EIMT & Permis de Travail (LMIA)", defaultPrice: 4500 },
+      { value: "Visa de Visiteur / AVE / Super Visa", label: "Visa de Visiteur / AVE / Super Visa Parents", defaultPrice: 1800 },
+      { value: "Prolongation de Statut / Rétablissement", label: "Prolongation de Statut ou Rétablissement", defaultPrice: 1500 },
+    ]
+  },
+  {
+    label: "Services aux Employeurs (B2B)",
+    options: [
+      { value: "EIMT - Recrutement International", label: "EIMT Volet Haute-Basse Rémunération", defaultPrice: 6500 },
+      { value: "Conformité Employeur IRCC", label: "Audit de Conformité Employeur & Inspection IRCC", defaultPrice: 3500 },
+    ]
+  }
+]
+
 
 interface PipelineClientProps {
   t: {
@@ -156,19 +201,103 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     setTimeout(() => setConversionSuccess(null), 4000)
   }
 
-  // Form State pour un nouveau prospect (PRENOM ET NOM SEPARES)
+  // Form State pour un nouveau prospect (Renseignements, Consultation ou Mandat)
   const [newLeadType, setNewLeadType] = React.useState<"b2b" | "b2c">("b2c")
   const [newLeadFirstName, setNewLeadFirstName] = React.useState("")
   const [newLeadLastName, setNewLeadLastName] = React.useState("")
   const [newLeadCompany, setNewLeadCompany] = React.useState("")
   const [newLeadEmail, setNewLeadEmail] = React.useState("")
   const [newLeadPhone, setNewLeadPhone] = React.useState("")
-  const [newLeadVisa, setNewLeadVisa] = React.useState("EIMT / Permis de Travail (LMIA)")
+  const [newLeadIntent, setNewLeadIntent] = React.useState<"info" | "consultation" | "mandate">("mandate")
+  const [newLeadVisa, setNewLeadVisa] = React.useState("Résidence Permanente (Entrée Express)")
   const [newLeadValue, setNewLeadValue] = React.useState("4500")
-  const [newLeadPositions, setNewLeadPositions] = React.useState("5")
+  const [newLeadPositions, setNewLeadPositions] = React.useState("1")
   const [newLeadFeasibility, setNewLeadFeasibility] = React.useState<"high" | "med" | "low">("high")
   const [newLeadSource, setNewLeadSource] = React.useState("Site Web moncabinetcric")
   const [newLeadNotes, setNewLeadNotes] = React.useState("")
+
+  // Également état pour l'édition dans le modal de détails
+  const [isEditingSelectedLead, setIsEditingSelectedLead] = React.useState(false)
+  const [editLeadName, setEditLeadName] = React.useState("")
+  const [editLeadCompany, setEditLeadCompany] = React.useState("")
+  const [editLeadEmail, setEditLeadEmail] = React.useState("")
+  const [editLeadPhone, setEditLeadPhone] = React.useState("")
+  const [editLeadVisa, setEditLeadVisa] = React.useState("")
+  const [editLeadValue, setEditLeadValue] = React.useState("")
+  const [editLeadScoreLabel, setEditLeadScoreLabel] = React.useState<"high" | "med" | "low">("high")
+  const [editLeadNotes, setEditLeadNotes] = React.useState("")
+
+  const handleStartEditLead = () => {
+    if (!selectedLead) return
+    setEditLeadName(selectedLead.name)
+    setEditLeadCompany(selectedLead.company || "")
+    setEditLeadEmail(selectedLead.email)
+    setEditLeadPhone(selectedLead.phone)
+    setEditLeadVisa(selectedLead.visaType)
+    setEditLeadValue(String(selectedLead.estimatedValue))
+    setEditLeadScoreLabel(selectedLead.scoreLabel)
+    setEditLeadNotes(selectedLead.notes || "")
+    setIsEditingSelectedLead(true)
+  }
+
+  const handleSaveEditLead = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedLead) return
+
+    const scoreMap = { high: 90, med: 72, low: 55 }
+    const numValue = Number(editLeadValue) || 0
+
+    const updates: Partial<Lead> = {
+      name: editLeadName,
+      company: selectedLead.type === "b2b" ? editLeadCompany : undefined,
+      email: editLeadEmail,
+      phone: editLeadPhone,
+      visaType: editLeadVisa,
+      estimatedValue: numValue,
+      scoreLabel: editLeadScoreLabel,
+      score: scoreMap[editLeadScoreLabel],
+      notes: editLeadNotes,
+    }
+
+    const updatedList = leads.map(l => l.id === selectedLead.id ? { ...l, ...updates } : l)
+    persistLeads(updatedList)
+
+    try {
+      await updateLead(selectedLead.id, updates)
+    } catch (err) {
+      console.error("Erreur mise à jour prospect :", err)
+    }
+
+    setSelectedLead(prev => prev ? { ...prev, ...updates } : null)
+    setIsEditingSelectedLead(false)
+    setConversionSuccess(`Fiche prospect "${editLeadName}" mise à jour avec succès !`)
+    setTimeout(() => setConversionSuccess(null), 4000)
+  }
+
+  const handleIntentChange = (intent: "info" | "consultation" | "mandate") => {
+    setNewLeadIntent(intent)
+    if (intent === "info") {
+      setNewLeadVisa("Renseignements Généraux Cabinet")
+      setNewLeadValue("0")
+    } else if (intent === "consultation") {
+      setNewLeadVisa("Consultation Initiale d'Évaluation")
+      setNewLeadValue("150")
+    } else {
+      setNewLeadVisa("Résidence Permanente (Entrée Express)")
+      setNewLeadValue("4500")
+    }
+  }
+
+  const handleVisaChange = (visaValue: string) => {
+    setNewLeadVisa(visaValue)
+    for (const group of PROGRAM_GROUPS) {
+      const found = group.options.find(opt => opt.value === visaValue)
+      if (found) {
+        setNewLeadValue(String(found.defaultPrice))
+        break
+      }
+    }
+  }
 
   // Calculated metrics
   const filteredLeads = leads.filter(lead => {
@@ -238,7 +367,10 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     if (e) e.stopPropagation()
     const targetLead = leads.find(l => l.id === id)
     setLeads(prev => prev.filter(l => l.id !== id))
-    if (selectedLead?.id === id) setSelectedLead(null)
+    if (selectedLead?.id === id) {
+      setSelectedLead(null)
+      setIsEditingSelectedLead(false)
+    }
     setConversionSuccess(`Prospect "${targetLead?.company || targetLead?.name}" supprimé avec succès !`)
     setTimeout(() => setConversionSuccess(null), 5000)
   }
@@ -248,18 +380,21 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     setConversionSuccess(`Mandat CICC "${lead.company || lead.name}" ouvert avec succès ! Référence horodatée générée dans le journal réglementaire.`)
     setTimeout(() => setConversionSuccess(null), 6000)
     setSelectedLead(null)
+    setIsEditingSelectedLead(false)
   }
 
   // Create new lead handler
-  const handleCreateLead = (e: React.FormEvent) => {
+  const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault()
     const fullName = `${newLeadFirstName.trim()} ${newLeadLastName.trim()}`.trim()
     if (!fullName && !newLeadCompany.trim()) return
 
     const scoreMap = { high: 90, med: 72, low: 55 }
-    const formattedVisa = newLeadType === "b2b" && Number(newLeadPositions) > 0
+    const formattedVisa = newLeadType === "b2b" && Number(newLeadPositions) > 1
       ? `${newLeadVisa} (${newLeadPositions} postes)`
       : newLeadVisa
+
+    const numValue = Number(newLeadValue) || 0
 
     const created: Lead = {
       id: `lead-${Date.now()}`,
@@ -269,27 +404,42 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
       company: newLeadType === "b2b" ? newLeadCompany : undefined,
       type: newLeadType,
       visaType: formattedVisa,
-      estimatedValue: Number(newLeadValue) || 3000,
+      estimatedValue: numValue,
       score: scoreMap[newLeadFeasibility],
       scoreLabel: newLeadFeasibility,
       stage: "newLead",
-      lastContact: "Nouveau prospect - À l'instant",
+      // Champ date en base : une phrase d'affichage y faisait échouer
+      // l'enregistrement entier.
+      lastContact: new Date().toISOString().slice(0, 10),
       email: newLeadEmail || "prospect@consulting.ca",
       phone: newLeadPhone || "+1 (514) 555-0100",
-      notes: newLeadNotes || "Praticabilité initialisée depuis le formulaire CRM.",
+      notes: newLeadNotes || "Fiche prospect créée depuis le pipeline CRM.",
       lmiaPositions: newLeadType === "b2b" ? Number(newLeadPositions) : undefined,
-      source: newLeadSource
+      source: newLeadSource,
+      contactIntent: newLeadIntent,
     }
 
-    setLeads(prev => [created, ...prev])
+    const updated = [created, ...leads]
+    persistLeads(updated)
+
+    try {
+      await createLead(created)
+    } catch (err) {
+      console.error("Erreur création prospect backend :", err)
+    }
+
     setShowNewModal(false)
-    
+    // Réinitialisation des champs
     setNewLeadFirstName("")
     setNewLeadLastName("")
     setNewLeadCompany("")
     setNewLeadEmail("")
     setNewLeadPhone("")
     setNewLeadNotes("")
+    setNewLeadValue("4500")
+
+    setConversionSuccess(`Nouveau prospect "${created.company || created.name}" ajouté avec succès !`)
+    setTimeout(() => setConversionSuccess(null), 4000)
   }
 
   const formatCurrency = (val: number) => {
@@ -628,84 +778,233 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
         })}
       </div>
 
-      {/* MODAL 1 : DÉTAILS PROSPECT ET CONVERSION MANDAT CICC */}
+      {/* MODAL 1 : DÉTAILS PROSPECT & ÉDITION & CONVERSION MANDAT CICC */}
       {selectedLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 animate-fadeIn overflow-y-auto">
           <div className="bg-white w-full max-w-2xl rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden my-8 max-h-[90vh] overflow-y-auto">
             
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <span className="bg-purple-100 text-purple-900 border border-purple-300 font-mono text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-1 inline-block">
-                  Praticabilité CICC : {selectedLead.score}% ({selectedLead.scoreLabel.toUpperCase()})
-                </span>
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="bg-purple-100 text-purple-900 border border-purple-300 font-mono text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                    Praticabilité CICC : {selectedLead.score}% ({selectedLead.scoreLabel.toUpperCase()})
+                  </span>
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                    selectedLead.type === "b2b" ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-blue-50 text-blue-700 border-blue-200"
+                  }`}>
+                    {selectedLead.type === "b2b" ? "Employeur (B2B)" : "Particulier (B2C)"}
+                  </span>
+                </div>
                 <h3 className="text-xl font-black text-slate-900">{selectedLead.company || selectedLead.name}</h3>
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedLead(null)}
+                onClick={() => {
+                  setSelectedLead(null)
+                  setIsEditingSelectedLead(false)
+                }}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center transition-colors cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                <span className="text-slate-400 font-semibold block">Courriel du prospect</span>
-                <strong className="text-slate-900 font-mono">{selectedLead.email}</strong>
-              </div>
+            {/* SI MODE ÉDITION ACTIF */}
+            {isEditingSelectedLead ? (
+              <form onSubmit={handleSaveEditLead} className="flex flex-col gap-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-extrabold text-slate-500 uppercase tracking-wider">Nom complet / Contact</label>
+                    <input
+                      type="text"
+                      required
+                      value={editLeadName}
+                      onChange={(e) => setEditLeadName(e.target.value)}
+                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                <span className="text-slate-400 font-semibold block">Téléphone</span>
-                <strong className="text-slate-900 font-mono">{selectedLead.phone}</strong>
-              </div>
+                  {selectedLead.type === "b2b" && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="font-extrabold text-slate-500 uppercase tracking-wider">Raison Sociale de l&apos;Entreprise</label>
+                      <input
+                        type="text"
+                        required
+                        value={editLeadCompany}
+                        onChange={(e) => setEditLeadCompany(e.target.value)}
+                        className="w-full px-3.5 py-2 font-medium rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+                      />
+                    </div>
+                  )}
 
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                <span className="text-slate-400 font-semibold block">Programme IRCC</span>
-                <strong className="text-slate-900">{selectedLead.visaType}</strong>
-              </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-extrabold text-slate-500 uppercase tracking-wider">Courriel</label>
+                    <input
+                      type="email"
+                      required
+                      value={editLeadEmail}
+                      onChange={(e) => setEditLeadEmail(e.target.value)}
+                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                <span className="text-slate-400 font-semibold block">Valeur estimée des honoraires</span>
-                <strong className="text-blue-600 font-mono text-sm">{formatCurrency(selectedLead.estimatedValue)} CAD</strong>
-              </div>
-            </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-extrabold text-slate-500 uppercase tracking-wider">Téléphone</label>
+                    <input
+                      type="tel"
+                      required
+                      value={editLeadPhone}
+                      onChange={(e) => setEditLeadPhone(e.target.value)}
+                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
 
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
-              <span className="text-slate-400 font-semibold block mb-1">Notes de consultation & praticabilité :</span>
-              <p className="text-slate-700 leading-relaxed font-medium">{selectedLead.notes}</p>
-            </div>
+                  <div className="flex flex-col gap-1.5 sm:col-span-2">
+                    <label className="font-extrabold text-slate-500 uppercase tracking-wider">Programme ou Service Souhaité</label>
+                    <select
+                      value={editLeadVisa}
+                      onChange={(e) => setEditLeadVisa(e.target.value)}
+                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+                    >
+                      {PROGRAM_GROUPS.map((group) => (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.options.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={(e) => handleDeleteLead(selectedLead.id, e)}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl border border-rose-200 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Supprimer le prospect</span>
-              </button>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-extrabold text-slate-500 uppercase tracking-wider">Valeur Estimée ($ CAD)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="50"
+                      required
+                      value={editLeadValue}
+                      onChange={(e) => setEditLeadValue(e.target.value)}
+                      className="w-full px-3.5 py-2 font-mono font-bold rounded-xl border border-blue-400 bg-blue-50/20 focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
 
-              <button
-                type="button"
-                onClick={() => handleConvertToMatter(selectedLead)}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Convertir en Mandat CICC</span>
-              </button>
-            </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="font-extrabold text-slate-500 uppercase tracking-wider">Praticabilité CICC</label>
+                    <select
+                      value={editLeadScoreLabel}
+                      onChange={(e) => setEditLeadScoreLabel(e.target.value as "high" | "med" | "low")}
+                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+                    >
+                      <option value="high">Haute (90%) - Dossier Solide</option>
+                      <option value="med">Moyenne (72%) - Analyse Requise</option>
+                      <option value="low">Faible (55%) - Risque d&apos;Admissibilité</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 sm:col-span-2">
+                    <label className="font-extrabold text-slate-500 uppercase tracking-wider">Notes & Remarques</label>
+                    <textarea
+                      rows={3}
+                      value={editLeadNotes}
+                      onChange={(e) => setEditLeadNotes(e.target.value)}
+                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingSelectedLead(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-300 font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Enregistrer les Modifications</span>
+                  </button>
+                </div>
+              </form>
+            ) : (
+              /* MODE AFFICHAGE NORMAL */
+              <>
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                    <span className="text-slate-400 font-semibold block">Courriel du prospect</span>
+                    <strong className="text-slate-900 font-mono">{selectedLead.email}</strong>
+                  </div>
+
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                    <span className="text-slate-400 font-semibold block">Téléphone</span>
+                    <strong className="text-slate-900 font-mono">{selectedLead.phone}</strong>
+                  </div>
+
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                    <span className="text-slate-400 font-semibold block">Programme / Service Souhaité</span>
+                    <strong className="text-slate-900">{selectedLead.visaType}</strong>
+                  </div>
+
+                  <div className="bg-slate-50 p-3.5 rounded-2xl border border-blue-200 bg-blue-50/30">
+                    <span className="text-slate-400 font-semibold block">Valeur estimée des honoraires</span>
+                    <strong className="text-blue-600 font-mono text-base">{formatCurrency(selectedLead.estimatedValue)} CAD</strong>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+                  <span className="text-slate-400 font-semibold block mb-1">Notes de consultation & praticabilité :</span>
+                  <p className="text-slate-700 leading-relaxed font-medium">{selectedLead.notes}</p>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteLead(selectedLead.id, e)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-rose-200 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Supprimer</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleStartEditLead}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Éditer la Fiche</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleConvertToMatter(selectedLead)}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Convertir en Mandat CICC</span>
+                  </button>
+                </div>
+              </>
+            )}
 
           </div>
         </div>
       )}
 
-      {/* MODAL 2 : SÉPARATION PRÉNOM ET NOM PROSPECT */}
+      {/* MODAL 2 : CREATION STRUCTURÉE DE PROSPECT (MOTIF, SERVICE & HONORAIRES ÉDITABLES) */}
       {showNewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-md p-4 animate-fadeIn overflow-y-auto">
           <form
             onSubmit={handleCreateLead}
-            className="bg-white w-full max-w-xl rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 flex flex-col gap-5 relative overflow-hidden my-8"
+            className="bg-white w-full max-w-2xl rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden my-8 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
@@ -723,36 +1022,97 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Type de Prospect</label>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="leadType"
-                      checked={newLeadType === "b2c"}
-                      onChange={() => setNewLeadType("b2c")}
-                      className="text-blue-600 focus:ring-0"
-                    />
-                    <span>Particulier (B2C)</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="leadType"
-                      checked={newLeadType === "b2b"}
-                      onChange={() => setNewLeadType("b2b")}
-                      className="text-purple-600 focus:ring-0"
-                    />
-                    <span>Employeur / Entreprise (B2B)</span>
-                  </label>
-                </div>
+            {/* SECTION 1 : TYPE DE PROSPECT ET MOTIF DE CONTACT */}
+            <div className="flex flex-col gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <label className="text-xs font-extrabold text-slate-600 uppercase tracking-wider">
+                1. Motif de contact & Intention du client
+              </label>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleIntentChange("info")}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
+                    newLeadIntent === "info"
+                      ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                      : "bg-white text-slate-700 border-slate-200 hover:border-blue-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <Info className="w-4 h-4 shrink-0" />
+                    <span>Renseignements</span>
+                  </div>
+                  <span className={`text-[10px] ${newLeadIntent === "info" ? "text-blue-100" : "text-slate-500"}`}>
+                    S&apos;informe sur le cabinet et nos services (0 $)
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleIntentChange("consultation")}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
+                    newLeadIntent === "consultation"
+                      ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                      : "bg-white text-slate-700 border-slate-200 hover:border-purple-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <MessageSquare className="w-4 h-4 shrink-0" />
+                    <span>Consultation Initiale</span>
+                  </div>
+                  <span className={`text-[10px] ${newLeadIntent === "consultation" ? "text-purple-100" : "text-slate-500"}`}>
+                    Évaluation d&apos;orientation du dossier (150 $)
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleIntentChange("mandate")}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col gap-1 ${
+                    newLeadIntent === "mandate"
+                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                      : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <Briefcase className="w-4 h-4 shrink-0" />
+                    <span>Mandat Complet</span>
+                  </div>
+                  <span className={`text-[10px] ${newLeadIntent === "mandate" ? "text-emerald-100" : "text-slate-500"}`}>
+                    Procédure IRCC & mandat de représentation
+                  </span>
+                </button>
               </div>
 
-              {/* PRÉNOM ET NOM SÉPARÉS */}
+              <div className="flex items-center gap-4 pt-2 border-t border-slate-200/60">
+                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Catégorie :</span>
+                <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+                  <input
+                    type="radio"
+                    name="leadType"
+                    checked={newLeadType === "b2c"}
+                    onChange={() => setNewLeadType("b2c")}
+                    className="text-blue-600 focus:ring-0"
+                  />
+                  <span>Candidat / Particulier (B2C)</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+                  <input
+                    type="radio"
+                    name="leadType"
+                    checked={newLeadType === "b2b"}
+                    onChange={() => setNewLeadType("b2b")}
+                    className="text-purple-600 focus:ring-0"
+                  />
+                  <span>Employeur / Entreprise (B2B)</span>
+                </label>
+              </div>
+            </div>
+
+            {/* SECTION 2 : COORDONNÉES IDENTITÉ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Prénom</label>
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Prénom *</label>
                 <input
                   type="text"
                   required
@@ -764,7 +1124,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Nom de Famille</label>
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Nom de Famille *</label>
                 <input
                   type="text"
                   required
@@ -777,7 +1137,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
 
               {newLeadType === "b2b" && (
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
-                  <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Raison Sociale de l&apos;Entreprise</label>
+                  <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Raison Sociale de l&apos;Entreprise *</label>
                   <input
                     type="text"
                     required
@@ -790,10 +1150,11 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
               )}
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Courriel</label>
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Courriel *</label>
                 <input
                   type="email"
                   required
+                  placeholder="courriel@exemple.com"
                   value={newLeadEmail}
                   onChange={(e) => setNewLeadEmail(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
@@ -801,12 +1162,102 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Téléphone</label>
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Téléphone *</label>
                 <input
                   type="tel"
                   required
+                  placeholder="+1 (514) 000-0000"
                   value={newLeadPhone}
                   onChange={(e) => setNewLeadPhone(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                />
+              </div>
+
+              {/* SECTION 3 : PROGRAMME ET HONORAIRES ESTIMÉS ÉDITABLE */}
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Programme IRCC ou Service Souhaité</label>
+                <select
+                  value={newLeadVisa}
+                  onChange={(e) => handleVisaChange(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                >
+                  {PROGRAM_GROUPS.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.options.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              {/* CHAMP MONTANT ESTIMÉ 100% MODIFIABLE */}
+              <div className="flex flex-col gap-2 sm:col-span-2 bg-blue-50/50 p-4 rounded-2xl border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold text-blue-950 uppercase tracking-wider flex items-center gap-1">
+                    <DollarSign className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Valeur Estimée des Honoraires ($ CAD) — Saisissable & Éditable</span>
+                  </label>
+                  <span className="text-[11px] text-blue-700 font-semibold">Modifiez le montant librement</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    required
+                    value={newLeadValue}
+                    onChange={(e) => setNewLeadValue(e.target.value)}
+                    placeholder="Saisissez le montant en CAD"
+                    className="flex-1 px-4 py-2.5 text-sm font-mono font-black rounded-2xl bg-white border border-blue-300 focus:border-blue-600 focus:outline-none transition-all text-blue-900 shadow-xs"
+                  />
+                  <span className="font-mono font-black text-xs text-blue-900">CAD $</span>
+                </div>
+
+                {/* BOUTONS PRÉRÉGLAGES RAPIDES */}
+                <div className="flex items-center gap-2 flex-wrap pt-1">
+                  <span className="text-[10px] font-bold text-slate-500">Montants suggérés :</span>
+                  {["0", "150", "1800", "2500", "3800", "4500", "5000", "6500"].map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setNewLeadValue(val)}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                        newLeadValue === val
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "bg-white text-slate-700 border border-slate-200 hover:bg-blue-100"
+                      }`}
+                    >
+                      {val === "0" ? "0 $ (Info)" : val === "150" ? "150 $ (Consultation)" : `${val} $`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SECTION 4 : PRATICABILITÉ & NOTES */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Praticabilité Initiale CICC</label>
+                <select
+                  value={newLeadFeasibility}
+                  onChange={(e) => setNewLeadFeasibility(e.target.value as "high" | "med" | "low")}
+                  className="w-full px-4 py-2.5 text-xs font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                >
+                  <option value="high">Haute (90%) - Profil Très Favorable</option>
+                  <option value="med">Moyenne (72%) - Analyse Requise</option>
+                  <option value="low">Faible (55%) - Risque / Refus Antérieur</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Notes & Remarques Initiales</label>
+                <textarea
+                  rows={2}
+                  placeholder="Précisions sur la situation du prospect, questions posées ou objectifs..."
+                  value={newLeadNotes}
+                  onChange={(e) => setNewLeadNotes(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
                 />
               </div>
@@ -822,9 +1273,10 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
               </button>
               <button 
                 type="submit"
-                className="px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                className="px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer inline-flex items-center gap-2"
               >
-                Créer la Fiche Prospect
+                <Plus className="w-4 h-4" />
+                <span>Créer la Fiche Prospect</span>
               </button>
             </div>
           </form>
@@ -834,3 +1286,4 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     </div>
   )
 }
+

@@ -32,6 +32,7 @@ export interface Lead {
   notes: string
   lmiaPositions?: number
   source?: string
+  contactIntent?: "info" | "consultation" | "mandate"
 }
 
 export interface InvoiceRecord {

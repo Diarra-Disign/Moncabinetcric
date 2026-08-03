@@ -19,7 +19,44 @@ export function FirmProvider({
   firm: FirmIdentity
   children: React.ReactNode
 }) {
-  return <FirmContext.Provider value={firm}>{children}</FirmContext.Provider>
+  const [currentFirm, setCurrentFirm] = React.useState<FirmIdentity>(firm)
+  const [prevPropFirm, setPrevPropFirm] = React.useState<FirmIdentity>(firm)
+
+  if (firm !== prevPropFirm) {
+    setPrevPropFirm(firm)
+    setCurrentFirm(firm)
+  }
+
+  React.useEffect(() => {
+    const applySavedSettings = () => {
+      const saved = localStorage.getItem("cric_firm_settings")
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          setCurrentFirm(prev => ({
+            ...prev,
+            name: parsed.companyName || prev.name,
+            rcicNumber: parsed.rcicNumber || prev.rcicNumber,
+            rcicName: parsed.rcicName || prev.rcicName,
+            address: parsed.address || prev.address,
+            phone: parsed.phone || prev.phone,
+            email: parsed.email || prev.email,
+            logoUrl: parsed.logoUrl !== undefined ? parsed.logoUrl : prev.logoUrl,
+          }))
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    applySavedSettings()
+
+    const handleFirmUpdate = () => applySavedSettings()
+    window.addEventListener("cric-firm-updated", handleFirmUpdate)
+    return () => window.removeEventListener("cric-firm-updated", handleFirmUpdate)
+  }, [])
+
+  return <FirmContext.Provider value={currentFirm}>{children}</FirmContext.Provider>
 }
 
 export function useFirm(): FirmIdentity {

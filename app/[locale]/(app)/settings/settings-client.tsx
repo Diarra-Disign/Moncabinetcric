@@ -18,20 +18,23 @@ import {
   Globe, 
   Key, 
   Upload,
-  Check
+  Check,
+  AlertTriangle,
+  FileImage,
+  Loader2
 } from "lucide-react"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { useRouter } from "@/i18n/routing"
+import { updateFirmSettings } from "@/lib/data/actions"
 
 export function SettingsClient() {
   const firm = useFirm()
   const router = useRouter()
   const [activeTab, setActiveTab] = React.useState<"cabinet" | "taxes" | "stripe" | "zoom">("cabinet")
   const [notice, setNotice] = React.useState<string | null>(null)
+  const [isSaving, setIsSaving] = React.useState(false)
 
   // Cabinet state
-  // Initialisé depuis la table firms, jamais depuis des valeurs en dur :
-  // cet écran est censé montrer le cabinet réel, pas en suggérer un.
   const [companyName, setCompanyName] = React.useState(firm.name)
   const [rcicNumber, setRcicNumber] = React.useState(firm.rcicNumber)
   const [rcicName, setRcicName] = React.useState(firm.rcicName)
@@ -39,6 +42,47 @@ export function SettingsClient() {
   const [phone, setPhone] = React.useState(firm.phone)
   const [email, setEmail] = React.useState(firm.email)
   const [logoUrl, setLogoUrl] = React.useState(firm.logoUrl)
+
+  // Logo error & file upload state
+  const [imgError, setImgError] = React.useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  // Synchronise les états quand la prop firm change
+  const [prevFirm, setPrevFirm] = React.useState(firm)
+  if (firm !== prevFirm) {
+    setPrevFirm(firm)
+    setCompanyName(firm.name)
+    setRcicNumber(firm.rcicNumber)
+    setRcicName(firm.rcicName)
+    setAddress(firm.address)
+    setPhone(firm.phone)
+    setEmail(firm.email)
+    setLogoUrl(firm.logoUrl)
+  }
+
+  // Reset img error on logoUrl change
+  const handleLogoUrlChange = (newUrl: string) => {
+    setLogoUrl(newUrl)
+    setImgError(false)
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith("image/")) {
+      alert("Veuillez choisir un fichier image (PNG, JPG, SVG, WEBP).")
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setLogoUrl(reader.result)
+        setImgError(false)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
 
   // Taxes state
   const [tpsNumber, setTpsNumber] = React.useState("123456789 RT0001")
@@ -56,11 +100,57 @@ export function SettingsClient() {
   const [calendlyUrl, setCalendlyUrl] = React.useState("")  // À saisir par le cabinet : aucun lien par défaut.
   const [preferredPlatform, setPreferredPlatform] = React.useState<"calendly" | "zoom" | "google_meet">("calendly")
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault()
-    setNotice("Paramètres du cabinet et clés APIs mis à jour avec succès !")
+    setIsSaving(true)
+
+    const payload = {
+      name: companyName,
+      rcicNumber,
+      rcicName,
+      address,
+      phone,
+      email,
+      logoUrl,
+    }
+
+    // 1. Sauvegarde locale immédiate dans localStorage
+    try {
+      localStorage.setItem("cric_firm_settings", JSON.stringify({
+        companyName,
+        rcicNumber,
+        rcicName,
+        address,
+        phone,
+        email,
+        logoUrl,
+      }))
+      window.dispatchEvent(new Event("cric-firm-updated"))
+    } catch {
+      // Ignorer si localStorage désactivé
+    }
+
+    // 2. Sauvegarde backend / Supabase
+    try {
+      await updateFirmSettings(payload)
+    } catch (err) {
+      console.error("Erreur enregistrement paramètres cabinet :", err)
+    } finally {
+      setIsSaving(false)
+    }
+
+    setNotice("Paramètres du cabinet et logo enregistrés avec succès !")
     setTimeout(() => setNotice(null), 5000)
+    router.refresh()
   }
+
+  // Détection si l'URL saisie pointe vers un dossier au lieu d'un fichier image
+  const isDirectoryUrl = React.useMemo(() => {
+    const trimmed = logoUrl.trim()
+    if (!trimmed) return false
+    return trimmed.endsWith("/") || /\/public_html\/[^\.\/]+\/?$/i.test(trimmed)
+  }, [logoUrl])
+
 
   return (
     <div className="flex flex-col gap-8 pb-16">
@@ -260,31 +350,95 @@ export function SettingsClient() {
               </div>
 
               {/* GESTIONNAIRE DE LOGO DU CABINET */}
-              <div className="flex flex-col gap-2 sm:col-span-2 border-t border-slate-100 pt-4">
-                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                  Logo Personnel du Cabinet (Affiché sur Ententes, Factures et Reçus CICC)
-                </label>
-                <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <div className="w-16 h-16 rounded-2xl border border-slate-300 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-                    {logoUrl ? (
+              <div className="flex flex-col gap-3 sm:col-span-2 border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                    Logo Personnel du Cabinet (Affiché sur Ententes, Factures et Reçus CICC)
+                  </label>
+                  
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                    accept="image/*" 
+                    className="hidden" 
+                  />
+                  
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-xl transition-all cursor-pointer"
+                  >
+                    <FileImage className="w-3.5 h-3.5" />
+                    <span>Choisir une image sur mon ordinateur</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-col md:flex-row items-start gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <div className="w-20 h-20 rounded-2xl border border-slate-300 bg-white flex items-center justify-center overflow-hidden shrink-0 shadow-xs relative">
+                    {logoUrl && !imgError ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={logoUrl} alt="Logo Cabinet" className="w-full h-full object-contain p-1" />
+                      <img 
+                        src={logoUrl} 
+                        alt="Logo Cabinet" 
+                        onError={() => setImgError(true)}
+                        className="w-full h-full object-contain p-1" 
+                      />
                     ) : (
-                      <span className="font-black text-2xl text-slate-800 font-mono">M</span>
+                      <div className="flex flex-col items-center justify-center text-slate-400 p-1 text-center">
+                        <span className="font-black text-2xl text-slate-800 font-mono">M</span>
+                        <span className="text-[9px] text-slate-500 font-medium">Aperçu Logo</span>
+                      </div>
                     )}
                   </div>
-                  <div className="flex-1 flex flex-col gap-2 text-xs">
-                    <input 
-                      type="text" 
-                      value={logoUrl}
-                      onChange={(e) => setLogoUrl(e.target.value)}
-                      placeholder="URL de l'image de votre logo personnel (ou SVG/PNG)"
-                      className="w-full px-3.5 py-2 text-xs font-mono font-medium rounded-xl border border-slate-300 bg-white focus:outline-none focus:border-blue-600"
-                    />
+
+                  <div className="flex-1 flex flex-col gap-2 text-xs w-full">
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={logoUrl}
+                        onChange={(e) => handleLogoUrlChange(e.target.value)}
+                        placeholder="Ex: https://votredomaine.com/logo.png (ou téléversez une image ci-dessus)"
+                        className={`w-full px-3.5 py-2 text-xs font-mono font-medium rounded-xl border bg-white focus:outline-none transition-colors ${
+                          isDirectoryUrl || imgError
+                            ? "border-amber-400 focus:border-amber-600 bg-amber-50/30"
+                            : "border-slate-300 focus:border-blue-600"
+                        }`}
+                      />
+                    </div>
+
                     <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
-                      <Upload className="w-3.5 h-3.5 text-blue-600" />
+                      <Upload className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                       <span>Ce logo sera imprimé en en-tête de toutes vos ententes de services, factures et reçus fidéicommis.</span>
                     </div>
+
+                    {/* ALERTE DIAGNOSTIC SI L'URL POINTE VERS UN DOSSIER OU EST IMPOSSIBLE À CHARGER */}
+                    {(isDirectoryUrl || imgError) && (
+                      <div className="mt-1 p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex flex-col gap-1.5 animate-fadeIn">
+                        <div className="flex items-center gap-2 font-bold text-amber-950">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>Attention : Le lien du logo n&apos;est pas valide ou ne charge pas</span>
+                        </div>
+                        {isDirectoryUrl ? (
+                          <p className="text-[11px] leading-relaxed">
+                            L&apos;URL renseignée (<code>.../public_html/Images/</code>) pointe vers un <strong>dossier / répertoire web</strong> et non vers un fichier d&apos;image. Une image requiert le nom complet du fichier avec son extension (ex: <code>.../Images/logo.png</code>).
+                          </p>
+                        ) : (
+                          <p className="text-[11px] leading-relaxed">
+                            Le navigateur n&apos;a pas pu charger l&apos;image à cette adresse. Assurez-vous qu&apos;il s&apos;agit d&apos;un lien direct vers un fichier image (PNG, JPG, SVG).
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 underline hover:text-blue-900 cursor-pointer"
+                          >
+                            👉 Cliquez ici pour importer directement le fichier image depuis votre ordinateur
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -440,10 +594,15 @@ export function SettingsClient() {
         <div className="flex items-center justify-end pt-4 border-t border-slate-100">
           <button
             type="submit"
-            className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-xs font-bold shadow-md transition-all cursor-pointer"
+            disabled={isSaving}
+            className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-3 text-xs font-bold shadow-md transition-all cursor-pointer"
           >
-            <Save className="w-4 h-4" />
-            <span>Enregistrer les Paramètres</span>
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            <span>{isSaving ? "Enregistrement en cours..." : "Enregistrer les Paramètres"}</span>
           </button>
         </div>
 

@@ -21,6 +21,36 @@ function fail(entity: string, message: string): never {
   throw new Error(`Écriture Supabase « ${entity} » en échec : ${message}`)
 }
 
+/**
+ * Normalise une valeur destinée à une colonne `date`.
+ *
+ * Plusieurs champs héritent du modèle mock, où ils portaient un libellé
+ * lisible — « Appel - il y a 1j », « Nouveau prospect - À l'instant » —
+ * alors que la colonne attend une date. Envoyer ce texte à Postgres fait
+ * échouer l'écriture entière avec un message que l'utilisateur ne peut pas
+ * interpréter.
+ *
+ * On accepte une date ISO ou tout ce que Date sait lire ; le reste est
+ * remplacé par la valeur de repli plutôt que de faire échouer
+ * l'enregistrement pour un champ d'affichage.
+ */
+export function toDateOnly(value: unknown, fallback: string | null = null): string | null {
+  if (value === null || value === undefined || value === "") return fallback
+  const raw = String(value).trim()
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+
+  const parsed = new Date(raw)
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10)
+
+  return fallback
+}
+
+/** Date du jour, au format attendu par une colonne `date`. */
+export function today(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export async function createMatter(data: Omit<Matter, "id"> & { id?: string }): Promise<Matter> {
   const firmId = await currentFirmId()
   const reference = data.id || `#DOS-${Math.floor(10000 + Math.random() * 90000)}`
@@ -32,8 +62,8 @@ export async function createMatter(data: Omit<Matter, "id"> & { id?: string }): 
     client_type: data.clientType || 'b2c',
     program: data.program,
     category: data.category || 'pr',
-    opened_date: data.openedDate || new Date().toISOString().split('T')[0],
-    deadline: data.deadline,
+    opened_date: toDateOnly(data.openedDate, today()),
+    deadline: toDateOnly(data.deadline),
     rcic: data.rcic || 'Adama Diarra',
     status: data.status || 'valid',
     urgency_days: data.urgencyDays || 0,
@@ -85,7 +115,7 @@ export async function createLead(data: Omit<Lead, "id"> & { id?: string }): Prom
     score: data.score || 50,
     score_label: data.scoreLabel || 'med',
     stage: data.stage || 'newLead',
-    last_contact: data.lastContact || new Date().toISOString().split('T')[0],
+    last_contact: toDateOnly(data.lastContact, today()),
     email: data.email,
     phone: data.phone || '',
     notes: data.notes || '',
@@ -118,6 +148,35 @@ export async function moveLeadStage(id: string, stage: Lead["stage"]): Promise<L
   return data ? toLead(data) : undefined
 }
 
+export async function updateLead(id: string, updates: Partial<Lead>): Promise<Lead | undefined> {
+  const firmId = await currentFirmId()
+  const payload: Record<string, unknown> = {}
+  if (updates.name !== undefined) payload.name = updates.name
+  if (updates.firstName !== undefined) payload.first_name = updates.firstName
+  if (updates.lastName !== undefined) payload.last_name = updates.lastName
+  if (updates.company !== undefined) payload.company = updates.company
+  if (updates.visaType !== undefined) payload.visa_type = updates.visaType
+  if (updates.estimatedValue !== undefined) payload.estimated_value = updates.estimatedValue
+  if (updates.score !== undefined) payload.score = updates.score
+  if (updates.scoreLabel !== undefined) payload.score_label = updates.scoreLabel
+  if (updates.stage !== undefined) payload.stage = updates.stage
+  if (updates.email !== undefined) payload.email = updates.email
+  if (updates.phone !== undefined) payload.phone = updates.phone
+  if (updates.notes !== undefined) payload.notes = updates.notes
+
+  const { data, error } = await (await db())
+    .from("leads")
+    .update(payload)
+    .eq("firm_id", firmId)
+    .or(`id.eq.${id},legacy_id.eq.${id}`)
+    .select("*")
+    .maybeSingle()
+
+  if (error) fail("updateLead", error.message)
+  return data ? toLead(data) : undefined
+}
+
+
 export async function createInvoice(data: Omit<InvoiceRecord, "id"> & { id?: string }): Promise<InvoiceRecord> {
   const firmId = await currentFirmId()
   const legacyId = data.id || `inv-${Date.now()}`
@@ -129,7 +188,7 @@ export async function createInvoice(data: Omit<InvoiceRecord, "id"> & { id?: str
     client_name: data.clientName,
     service_description: data.serviceDescription,
     amount: data.amount,
-    date: data.date || new Date().toISOString().split('T')[0],
+    date: toDateOnly(data.date, today()),
     status: data.status,
     is_trust_account: data.isTrustAccount || false,
     tax_exempt: data.taxExempt || false,
@@ -189,8 +248,8 @@ export async function createDocument(data: Omit<DocumentRecord, "id"> & { id?: s
     type: data.type,
     category: data.category,
     uploaded_by: data.uploadedBy,
-    date: data.date || new Date().toISOString().split('T')[0],
-    expiration: data.expiration,
+    date: toDateOnly(data.date, today()),
+    expiration: toDateOnly(data.expiration),
     source: data.source,
     status: data.status || 'valid',
     client_name: data.clientName,
@@ -252,3 +311,34 @@ export async function restoreDocumentRecord(id: string): Promise<DocumentRecord 
   if (error) fail("restoreDocumentRecord", error.message)
   return data ? toDocument(data) : undefined
 }
+
+export async function updateFirmSettings(data: {
+  name?: string
+  rcicNumber?: string
+  rcicName?: string
+  address?: string
+  phone?: string
+  email?: string
+  logoUrl?: string
+}): Promise<boolean> {
+  const firmId = await currentFirmId()
+  const payload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  }
+  if (data.name !== undefined) payload.name = data.name
+  if (data.rcicNumber !== undefined) payload.rcic_license_number = data.rcicNumber
+  if (data.rcicName !== undefined) payload.owner_name = data.rcicName
+  if (data.address !== undefined) payload.address = data.address
+  if (data.phone !== undefined) payload.phone = data.phone
+  if (data.email !== undefined) payload.email = data.email
+  if (data.logoUrl !== undefined) payload.logo_url = data.logoUrl
+
+  const { error } = await (await db())
+    .from("firms")
+    .update(payload)
+    .eq("id", firmId)
+
+  if (error) fail("updateFirmSettings", error.message)
+  return true
+}
+
