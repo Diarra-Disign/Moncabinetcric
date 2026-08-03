@@ -45,7 +45,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useTranslations } from "next-intl"
-import { CalendarEvent, ClientRecord, Matter } from "@/lib/data/types"
+import { CalendarEvent, ClientRecord, Matter, Lead } from "@/lib/data/types"
 import { PageHeader } from "@/components/app-shell/page-header"
 
 export type { CalendarEvent }
@@ -111,6 +111,8 @@ interface CalendarClientProps {
   clients?: ClientRecord[]
   /** Dossiers réels, pour rattacher le rendez-vous au bon mandat. */
   matters?: Matter[]
+  /** Prospects : on les rencontre avant de les convertir en clients. */
+  leads?: Lead[]
 }
 
 /**
@@ -154,7 +156,7 @@ function formatMeetingTimeRange(startTime: string, durationMinutes: number): str
   return `${formatH(startH)} h ${formatM(startM)} – ${formatH(endH)} h ${formatM(endM)} (${durationLabel})`
 }
 
-export function CalendarClient({ initialEvents, clients = [], matters = [] }: CalendarClientProps = {}) {
+export function CalendarClient({ initialEvents, clients = [], matters = [], leads = [] }: CalendarClientProps = {}) {
   const t = useTranslations("Calendar")
   const [currentDate, setCurrentDate] = React.useState<Date>(() => new Date())
   // viewMode options: "workweek" (Lun-Ven), "week" (Lun-Dim), "month" (31J), "day" (Jour)
@@ -1296,10 +1298,13 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
 
       {/* MODAL D'INVITATION RENCONTRE & CALENDLY */}
       {isInviteModalOpen && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-xl overflow-hidden animate-scaleUp">
-            
-            <div className="p-6 sm:p-7 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <div className="fixed inset-0 z-[250] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-xs animate-fadeIn sm:items-center">
+          {/* La fiche dépassait de l'écran en haut comme en bas : elle est
+              désormais bornée en hauteur, et c'est son corps qui défile —
+              l'en-tête et les boutons restent atteignables. */}
+          <div className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-scaleUp">
+
+            <div className="shrink-0 p-6 sm:p-7 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
               <div className="flex items-center gap-3.5">
                 <div className="h-11 w-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold">
                   <CalendarDays className="w-6 h-6" />
@@ -1318,7 +1323,8 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
               </button>
             </div>
 
-            <form onSubmit={handleCreateInviteSubmit} className="p-6 sm:p-7 space-y-5">
+            <form onSubmit={handleCreateInviteSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 sm:p-7">
               <div className="flex flex-col gap-2">
                 <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">Candidat / Client Destinataire</label>
                 <select
@@ -1326,6 +1332,8 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
                   onChange={e => {
                     // Le dossier suit le client : sans ce rattachement, le
                     // rendez-vous n'appartiendrait à aucun mandat.
+                    // Un prospect n'a pas encore de dossier : le champ reste
+                    // vide, sans quoi le rendez-vous serait rattaché à tort.
                     const choisi = clients.find(c => c.name === e.target.value)
                     const dossier = choisi ? matters.find(m => m.clientId === choisi.id) : undefined
                     setInviteForm({
@@ -1337,19 +1345,39 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
                   className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
                 >
                   <option value="">
-                    {clients.length === 0
-                      ? "Aucun client — créez-en un depuis Clients"
-                      : "Choisir un client…"}
+                    {clients.length === 0 && leads.length === 0
+                      ? "Aucun client ni prospect — créez-en un d'abord"
+                      : "Choisir un destinataire…"}
                   </option>
-                  {clients.map(c => {
-                    const dossier = matters.find(m => m.clientId === c.id)
-                    return (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
-                        {dossier ? ` (${dossier.id} — ${dossier.program})` : c.program ? ` — ${c.program}` : ""}
-                      </option>
-                    )
-                  })}
+
+                  {clients.length > 0 && (
+                    <optgroup label="Clients">
+                      {clients.map(c => {
+                        const dossier = matters.find(m => m.clientId === c.id)
+                        return (
+                          <option key={c.id} value={c.name}>
+                            {c.name}
+                            {dossier ? ` — ${dossier.program}` : c.program ? ` — ${c.program}` : ""}
+                          </option>
+                        )
+                      })}
+                    </optgroup>
+                  )}
+
+                  {/* Les prospects déjà convertis ne sont pas répétés ici :
+                      ils figurent au groupe « Clients ». */}
+                  {leads.filter(l => !clients.some(c => c.email === l.email)).length > 0 && (
+                    <optgroup label="Prospects">
+                      {leads
+                        .filter(l => !clients.some(c => c.email === l.email))
+                        .map(l => (
+                          <option key={l.id} value={l.name}>
+                            {l.company || l.name}
+                            {l.visaType ? ` — ${l.visaType}` : ""}
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
 
@@ -1515,7 +1543,9 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
                 <p className="text-xs text-purple-700">Le lien sera transmis au candidat par notification et affiché sur son Portail Client sans nécessiter Calendly.</p>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+              </div>
+
+              <div className="shrink-0 flex items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4 sm:px-7">
                 <button
                   type="button"
                   onClick={() => setIsInviteModalOpen(false)}
