@@ -80,18 +80,30 @@ function getEventPastelStyle(type?: string, index: number = 0) {
   return styles[index % styles.length]
 }
 
-const HOURLY_ROW_TIMES = [
-  { hour: 8, label: "08 h 00" },
-  { hour: 9, label: "09 h 00" },
-  { hour: 10, label: "10 h 00" },
-  { hour: 11, label: "11 h 00" },
-  { hour: 12, label: "12 h 00" },
-  { hour: 13, label: "13 h 00" },
-  { hour: 14, label: "14 h 00" },
-  { hour: 15, label: "15 h 00" },
-  { hour: 16, label: "16 h 00" },
-  { hour: 17, label: "17 h 00" }
-]
+/**
+ * Lignes horaires de la grille.
+ *
+ * La journée s'arrêtait à 17 h : impossible d'inscrire une rencontre en
+ * soirée, ce qui exclut les clients à l'étranger — un rendez-vous à 20 h
+ * à Montréal correspond au matin en Afrique de l'Ouest ou en Asie.
+ *
+ * La grille descend désormais jusqu'à minuit. Comme seize lignes
+ * affichées en permanence rendraient la page très haute, deux amplitudes
+ * cohabitent : les heures ouvrées par défaut, la journée entière à la
+ * demande.
+ */
+function buildHourRows(from: number, to: number) {
+  return Array.from({ length: to - from + 1 }, (_, i) => {
+    const hour = from + i
+    return { hour, label: `${String(hour).padStart(2, "0")} h 00` }
+  })
+}
+
+/** Amplitude réduite : ce qu'un cabinet consulte au quotidien. */
+const BUSINESS_HOURS = buildHourRows(8, 17)
+
+/** Amplitude complète, jusqu'à la dernière heure avant minuit. */
+const FULL_DAY_HOURS = buildHourRows(8, 23)
 
 interface CalendarClientProps {
   initialEvents?: CalendarEvent[]
@@ -161,6 +173,10 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
   const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false)
 
   // DRAG AND DROP STATE
+  // Amplitude horaire : réduite par défaut, étendue à la demande.
+  const [fullDay, setFullDay] = React.useState(false)
+  const HOURLY_ROW_TIMES = fullDay ? FULL_DAY_HOURS : BUSINESS_HOURS
+
   const [draggedEventId, setDraggedEventId] = React.useState<string | null>(null)
   const [dragOverTarget, setDragOverTarget] = React.useState<string | null>(null)
 
@@ -681,6 +697,32 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
             </div>
 
             {/* Primary Action Button */}
+            {/* Amplitude horaire : la grille couvre la journée entière,
+                mais seize lignes en permanence rendraient la page très
+                haute. On bascule donc à la demande. */}
+            <div className="inline-flex items-center gap-1 rounded-xl bg-muted p-1" role="group" aria-label="Amplitude horaire">
+              <button
+                type="button"
+                onClick={() => setFullDay(false)}
+                aria-pressed={!fullDay}
+                className={`min-h-8 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                  !fullDay ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                8 h – 18 h
+              </button>
+              <button
+                type="button"
+                onClick={() => setFullDay(true)}
+                aria-pressed={fullDay}
+                className={`min-h-8 rounded-lg px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                  fullDay ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                8 h – 00 h
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => setIsInviteModalOpen(true)}
@@ -698,7 +740,9 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
           <div className="space-y-3 animate-fadeIn overflow-x-auto">
             
             {/* DAYS COLUMN HEADERS */}
-            <div className={`grid gap-2 border-b border-border/80 pb-3 text-center ${viewMode === "workweek" ? "grid-cols-[70px_repeat(5,1fr)]" : "grid-cols-[70px_repeat(7,1fr)]"}`}>
+            {/* Collant : avec seize lignes horaires, on perdait de vue le
+                jour auquel appartenait la case survolée. */}
+            <div className={`sticky top-0 z-30 grid gap-2 border-b border-border/80 bg-card/95 pb-3 pt-1 text-center backdrop-blur ${viewMode === "workweek" ? "grid-cols-[70px_repeat(5,1fr)]" : "grid-cols-[70px_repeat(7,1fr)]"}`}>
               <div className="flex items-center justify-center font-mono text-[11px] font-bold text-muted-foreground bg-muted/60 rounded-xl p-2">
                 HE (EST)
               </div>
@@ -753,7 +797,15 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
                     }`}
                   >
                     {/* TIME LABEL */}
-                    <div className="font-mono text-xs font-bold text-muted-foreground flex items-center justify-center bg-muted/40 rounded-xl border border-border/40 shrink-0 py-2">
+                    <div
+                      className={`flex shrink-0 items-center justify-center rounded-xl border py-2 font-mono text-xs font-bold ${
+                        hRow.hour === currentHour
+                          ? "border-error/40 bg-error/10 text-error"
+                          : hRow.hour >= 18
+                            ? "border-border/40 bg-muted/20 text-muted-foreground/70"
+                            : "border-border/40 bg-muted/40 text-muted-foreground"
+                      }`}
+                    >
                       <span>{hRow.label}</span>
                     </div>
 
@@ -1335,23 +1387,20 @@ export function CalendarClient({ initialEvents, clients = [], matters = [] }: Ca
                     onChange={e => setInviteForm({ ...inviteForm, startTime: e.target.value })}
                     className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all font-mono"
                   >
-                    <option value="08:00">08 h 00 (Matin / HE)</option>
-                    <option value="08:30">08 h 30 (Matin / HE)</option>
-                    <option value="09:00">09 h 00 (Matin / HE)</option>
-                    <option value="09:30">09 h 30 (Matin / HE)</option>
-                    <option value="10:00">10 h 00 (Matin / HE)</option>
-                    <option value="10:30">10 h 30 (Matin / HE)</option>
-                    <option value="11:00">11 h 00 (Matin / HE)</option>
-                    <option value="11:30">11 h 30 (Matin / HE)</option>
-                    <option value="12:00">12 h 00 (Midi / HE)</option>
-                    <option value="13:00">13 h 00 (Après-midi / HE)</option>
-                    <option value="14:00">14 h 00 (Après-midi / HE)</option>
-                    <option value="14:30">14 h 30 (Après-midi / HE)</option>
-                    <option value="15:00">15 h 00 (Après-midi / HE)</option>
-                    <option value="15:30">15 h 30 (Après-midi / HE)</option>
-                    <option value="16:00">16 h 00 (Après-midi / HE)</option>
-                    <option value="16:30">16 h 30 (Après-midi / HE)</option>
-                    <option value="17:00">17 h 00 (Après-midi / HE)</option>
+                    {/* Créneaux générés de 8 h à 23 h 30 : la liste
+                        s'arrêtait à 17 h, sans rendez-vous possible en
+                        soirée. */}
+                    {Array.from({ length: (24 - 8) * 2 }, (_, i) => {
+                      const h = 8 + Math.floor(i / 2)
+                      const m = i % 2 === 0 ? "00" : "30"
+                      const valeur = `${String(h).padStart(2, "0")}:${m}`
+                      const moment = h < 12 ? "Matin" : h < 13 ? "Midi" : h < 18 ? "Après-midi" : "Soirée"
+                      return (
+                        <option key={valeur} value={valeur}>
+                          {String(h).padStart(2, "0")} h {m} ({moment} / HE)
+                        </option>
+                      )
+                    })}
                   </select>
                 </div>
               </div>
