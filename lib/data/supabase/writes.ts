@@ -8,6 +8,7 @@ import type {
   ClientRecord,
   DocumentRecord,
   AuditLogRecord,
+  CalendarEvent,
 } from "../types"
 import {
   toMatter,
@@ -15,6 +16,7 @@ import {
   toLead,
   toInvoice,
   toDocument,
+  toCalendarEvent,
 } from "./mappers"
 
 function fail(entity: string, message: string): never {
@@ -433,4 +435,84 @@ export async function convertLeadToClient(
   }
 
   return { client: toClient(created), alreadyConverted: false }
+}
+
+/**
+ * Enregistre un rendez-vous.
+ *
+ * Cette écriture n'existait pas : le formulaire d'invitation ajoutait
+ * l'événement à l'état React et rien de plus. Il disparaissait au
+ * rechargement, alors que l'interface annonçait une invitation envoyée et
+ * publiée sur le portail du client.
+ */
+export async function createEvent(
+  data: Omit<CalendarEvent, "id"> & { id?: string; clientId?: string }
+): Promise<CalendarEvent> {
+  const firmId = await currentFirmId()
+  const supabase = await db()
+
+  // Le dossier est référencé par son numéro lisible côté interface ; la
+  // table attend une clé étrangère.
+  let matterUuid: string | null = null
+  if (data.matterId) {
+    const bare = decodeURIComponent(data.matterId).replace("#", "")
+    const { data: m } = await supabase
+      .from("matters")
+      .select("id, client_id")
+      .eq("firm_id", firmId)
+      .in("reference", [data.matterId, `#${bare}`, bare])
+      .maybeSingle()
+    if (m) matterUuid = m.id as string
+  }
+
+  // start_time et end_time sont obligatoires et de type texte. Ils se
+  // déduisent de l'heure de début et de la durée : les omettre faisait
+  // échouer l'insertion entière.
+  const debut = String(data.hour ?? 9).padStart(2, "0") + ":00"
+  const dureeMin = data.durationMinutes ?? 60
+  const finMinutes = (data.hour ?? 9) * 60 + dureeMin
+  const fin =
+    String(Math.min(23, Math.floor(finMinutes / 60))).padStart(2, "0") +
+    ":" +
+    String(finMinutes % 60).padStart(2, "0")
+
+  // L'interface et le schéma ont des vocabulaires distincts : elle parle
+  // de « visio » et de « ready », la base n'accepte que consultation /
+  // deadline / hearing / followup et confirmed / pending / cancelled.
+  // La traduction se fait ici, à la frontière, plutôt que d'imposer le
+  // vocabulaire de la base à l'affichage.
+  const TYPES = ["consultation", "deadline", "hearing", "followup"]
+  const STATUTS = ["confirmed", "pending", "cancelled"]
+  const type = TYPES.includes(String(data.type)) ? String(data.type) : "consultation"
+  const status = STATUTS.includes(String(data.status)) ? String(data.status) : "confirmed"
+
+  const payload = {
+    firm_id: firmId,
+    matter_id: matterUuid,
+    client_id: data.clientId ?? null,
+    title: data.title,
+    client_name: data.clientName ?? "",
+    type,
+    start_time: debut,
+    end_time: fin,
+    location: data.platform ?? "",
+    platform: data.platform ?? null,
+    link: data.link ?? null,
+    date: toDateOnly(data.date, today()),
+    day_name: data.dayName ?? null,
+    time: data.time ?? null,
+    hour: data.hour ?? null,
+    status,
+    program: data.program ?? null,
+    notes: data.notes ?? null,
+  }
+
+  const { data: inserted, error } = await supabase
+    .from("calendar_events")
+    .insert(payload)
+    .select("*, matters(reference)")
+    .single()
+
+  if (error) fail("createEvent", error.message)
+  return toCalendarEvent(inserted)
 }

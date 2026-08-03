@@ -46,6 +46,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useTranslations } from "next-intl"
 import { CalendarEvent, ClientRecord, Matter, Lead } from "@/lib/data/types"
+import { createEvent } from "@/lib/data/actions"
 import { PageHeader } from "@/components/app-shell/page-header"
 
 export type { CalendarEvent }
@@ -441,8 +442,11 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
     setIsSlideOverOpen(true)
   }
 
-  const handleCreateInviteSubmit = (e: React.FormEvent) => {
+  const [isSaving, setIsSaving] = React.useState(false)
+
+  const handleCreateInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSaving) return
     
     const parts = inviteForm.clientName.trim().split(" ")
     const initials = parts.length >= 2 ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase() : "CL"
@@ -470,24 +474,55 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
       time: calculatedTimeRange,
       hour: calculatedHour,
       status: "ready",
-      trustBalance: "$2,500 CAD",
+      durationMinutes: inviteForm.durationMinutes,
       notes: inviteForm.customNotes
     }
 
-    setEvents([newEvent, ...events])
-    
-    if (inviteForm.date) {
-      setCurrentDate(new Date(inviteForm.date + "T12:00:00"))
-    }
+    // L'événement était seulement ajouté à l'état React : il disparaissait
+    // au rechargement, alors que l'interface annonçait une invitation
+    // envoyée et publiée sur le portail du client.
+    setIsSaving(true)
+    try {
+      const clientChoisi = clients.find(c => c.name === inviteForm.clientName)
+      const enregistre = await createEvent({ ...newEvent, clientId: clientChoisi?.id })
+      setEvents([enregistre, ...events])
 
-    setIsInviteModalOpen(false)
-    setToastNotice(`Invitation Calendly (${inviteForm.reason}) envoyée à ${inviteForm.clientName} et publiée sur son Portail !`)
-    setTimeout(() => setToastNotice(null), 5000)
+      if (inviteForm.date) {
+        setCurrentDate(new Date(inviteForm.date + "T12:00:00"))
+      }
+
+      setIsInviteModalOpen(false)
+      setToastNotice(
+        `Rendez-vous du ${formattedDayName} enregistré pour ${inviteForm.clientName}. ` +
+          `Transmettez-lui le lien vous-même : aucun courriel n'est envoyé.`
+      )
+    } catch (err) {
+      setToastNotice(
+        `Enregistrement impossible : ${err instanceof Error ? err.message : "erreur inattendue"}`
+      )
+    } finally {
+      setIsSaving(false)
+      setTimeout(() => setToastNotice(null), 7000)
+    }
   }
 
-  const handleSendBriefToPortal = () => {
+  // Cette action annonçait une transmission au portail du client. Rien
+  // n'était transmis : ni notification, ni publication. On copie le lien,
+  // ce qui est utile et exact.
+  const handleSendBriefToPortal = async () => {
     if (!selectedEvent) return
-    setToastNotice(`Plan de rencontre transmis sur le Portail Client de ${selectedEvent.clientName} !`)
+    const lien = selectedEvent.link
+    if (!lien) {
+      setToastNotice("Aucun lien de réunion enregistré pour ce rendez-vous.")
+      setTimeout(() => setToastNotice(null), 4500)
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(lien)
+      setToastNotice(`Lien copié. À transmettre à ${selectedEvent.clientName}.`)
+    } catch {
+      setToastNotice("Copie impossible : votre navigateur a refusé l'accès au presse-papiers.")
+    }
     setTimeout(() => setToastNotice(null), 4500)
   }
 
@@ -1310,8 +1345,8 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                   <CalendarDays className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">Inviter un Client (Calendly & Visio)</h3>
-                  <p className="text-xs sm:text-sm text-slate-500 font-medium">Planifiez une consultation et synchronisez le créneau sur le Portail Client.</p>
+                  <h3 className="text-xl font-black text-slate-900">Planifier un rendez-vous</h3>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium">Le rendez-vous est inscrit à votre agenda. Le lien de réunion est à transmettre vous-même.</p>
                 </div>
               </div>
               <button 
@@ -1540,7 +1575,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                   onChange={e => setInviteForm({ ...inviteForm, calendlyLink: e.target.value })}
                   className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold bg-white border border-purple-300 rounded-xl text-purple-900 focus:outline-none"
                 />
-                <p className="text-xs text-purple-700">Le lien sera transmis au candidat par notification et affiché sur son Portail Client sans nécessiter Calendly.</p>
+                <p className="text-xs text-purple-700">Le lien est conservé avec le rendez-vous. Sa transmission au client reste manuelle.</p>
               </div>
 
               </div>
@@ -1553,12 +1588,16 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                 >
                   Annuler
                 </button>
+                {/* Le libellé promettait un envoi qui n'a jamais lieu :
+                    aucun courriel n'est expédié, rien n'est publié sur un
+                    portail. Le bouton enregistre le rendez-vous, et le dit. */}
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-7 py-3.5 text-xs sm:text-sm font-black shadow-md transition-all cursor-pointer"
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-7 py-3.5 text-xs sm:text-sm font-black shadow-md transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Envoyer l&apos;invitation Calendly</span>
+                  <CalendarDays className="w-4 h-4" />
+                  <span>{isSaving ? "Enregistrement…" : "Enregistrer le rendez-vous"}</span>
                 </button>
               </div>
             </form>
@@ -1663,7 +1702,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-xs sm:text-sm font-bold shadow-md transition-all cursor-pointer"
               >
                 <Send className="w-4 h-4" />
-                <span>Transmettre au Portail Client</span>
+                <span>Copier le lien de réunion</span>
               </button>
             </div>
 

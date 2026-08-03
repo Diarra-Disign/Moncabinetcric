@@ -120,6 +120,8 @@ export interface AuditLogEntry {
 }
 
 export interface CalendarEvent {
+  /** Durée en minutes, pour calculer l'heure de fin. */
+  durationMinutes?: number
   id: string
   title: string
   clientName: string

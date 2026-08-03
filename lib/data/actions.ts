@@ -1,7 +1,7 @@
 "use server"
 
 import { isSupabaseSource } from "./source"
-import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, ResearchWorkspace, ResearchSource, LegislationProvision } from "./types"
+import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, CalendarEvent, ResearchWorkspace, ResearchSource, LegislationProvision } from "./types"
 // Import depuis ./stores et non ./queries : ce module est "use server" mais
 // des composants clients l'importent, et passer par queries.ts entraînerait
 // supabase/reads.ts (server-only) dans le bundle navigateur.
@@ -113,6 +113,17 @@ export async function convertLeadToClient(
     stores.leadsStore.map(l => (l.id === leadId ? { ...l, stage: "signed" as const } : l))
   )
   return { client, alreadyConverted: false }
+}
+
+/** Enregistre un rendez-vous. En mode mock, il reste en mémoire. */
+export async function createEvent(
+  data: Omit<CalendarEvent, "id"> & { id?: string; clientId?: string }
+): Promise<CalendarEvent> {
+  if (isSupabaseSource()) return (await sbWrites()).createEvent(data)
+  // Aucun magasin d'événements en mode mock : on rend l'objet créé, que
+  // l'appelant ajoute à son état local. Le mode mock ne sert qu'à
+  // éprouver l'interface.
+  return { ...data, id: data.id || `evt-${Date.now()}` }
 }
 
 export async function createInvoice(data: Omit<InvoiceRecord, "id"> & { id?: string }): Promise<InvoiceRecord> {
