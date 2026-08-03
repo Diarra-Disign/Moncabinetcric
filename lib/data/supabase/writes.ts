@@ -342,3 +342,95 @@ export async function updateFirmSettings(data: {
   return true
 }
 
+
+/**
+ * Convertit un prospect en client.
+ *
+ * Le moment de la conversion n'est pas anodin dans une pratique CICC :
+ * c'est là que naissent le mandat, le compte en fidéicommis et
+ * l'obligation de tenue de dossier. L'action est donc explicite, et
+ * l'interface ne la propose qu'à l'étape « entente signée ».
+ *
+ * Le prospect n'est pas supprimé : il est marqué converti et lié au
+ * client créé, pour conserver l'historique du pipeline — origine du
+ * contact, durée du cycle, valeur estimée face au réel.
+ *
+ * Idempotente : un prospect déjà converti renvoie son client, sans en
+ * créer un second. Un double clic ne peut donc pas dédoubler un dossier.
+ */
+export async function convertLeadToClient(
+  leadId: string
+): Promise<{ client: ClientRecord; alreadyConverted: boolean }> {
+  const firmId = await currentFirmId()
+  const supabase = await db()
+
+  const { data: lead, error: readErr } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("firm_id", firmId)
+    .or(`id.eq.${leadId},legacy_id.eq.${leadId}`)
+    .maybeSingle()
+
+  if (readErr) fail("convertLeadToClient", readErr.message)
+  if (!lead) fail("convertLeadToClient", `Prospect « ${leadId} » introuvable.`)
+
+  // Déjà converti : on rend le client existant plutôt que d'en créer un
+  // doublon. C'est ce qui rend un second clic sans conséquence.
+  if (lead.converted_client_id) {
+    const { data: existant } = await supabase
+      .from("clients")
+      .select("*")
+      .eq("id", lead.converted_client_id)
+      .maybeSingle()
+    if (existant) return { client: toClient(existant), alreadyConverted: true }
+  }
+
+  // Le numéro est calculé en base : deux conversions simultanées y
+  // produiraient sinon le même.
+  const { data: fileNumber, error: numErr } = await supabase.rpc("next_client_file_number", {
+    p_firm_id: firmId,
+  })
+  if (numErr) fail("convertLeadToClient", `numérotation : ${numErr.message}`)
+
+  const { data: created, error: insErr } = await supabase
+    .from("clients")
+    .insert({
+      firm_id: firmId,
+      file_number: fileNumber,
+      name: lead.name,
+      first_name: lead.first_name,
+      last_name: lead.last_name,
+      email: lead.email,
+      phone: lead.phone ?? "",
+      program: lead.visa_type ?? "",
+      status: "active",
+      // On conserve la trace de l'origine : d'où venait ce client, et ce
+      // qui avait été noté pendant la prospection.
+      intake_motif: [lead.source ? `Origine : ${lead.source}` : null, lead.notes || null]
+        .filter(Boolean)
+        .join(" — "),
+      client_type: lead.type === "b2b" ? "employer" : "individual",
+      neq_number: lead.type === "b2b" ? null : null,
+    })
+    .select("*")
+    .single()
+
+  if (insErr) fail("convertLeadToClient", insErr.message)
+
+  const { error: markErr } = await supabase
+    .from("leads")
+    .update({
+      converted_client_id: created.id,
+      converted_at: new Date().toISOString(),
+      stage: "signed",
+    })
+    .eq("id", lead.id)
+
+  // Le client existe déjà à ce stade : on ne fait pas échouer la
+  // conversion pour un marquage manqué, mais on ne le tait pas non plus.
+  if (markErr) {
+    console.error("convertLeadToClient : client créé mais prospect non marqué —", markErr.message)
+  }
+
+  return { client: toClient(created), alreadyConverted: false }
+}

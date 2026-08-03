@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import { Link, useRouter } from "@/i18n/routing"
 import { ClientRecord } from "@/lib/data/types"
+import { matchesPerson } from "@/lib/utils/search"
 
 export type { ClientRecord }
 
@@ -84,11 +85,12 @@ export function ClientsClient({ t, initialClients }: ClientsClientProps) {
     else if (statusFilter === "consultation") matchesStatus = c.status === "consultation"
     else if (statusFilter === "employer") matchesStatus = c.clientType === "employer"
 
-    const matchesSearch = searchQuery === "" ||
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.fileNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.program.toLowerCase().includes(searchQuery.toLowerCase())
+    // Recherche sur l'ensemble des informations personnelles, insensible
+    // aux accents et tolérante aux formats de numéro.
+    const matchesSearch = matchesPerson(searchQuery, [
+      c.name, c.firstName, c.lastName, c.fileNumber, c.email, c.phone,
+      c.program, c.citizenship, c.residence, c.province, c.neqNumber, c.intakeMotif,
+    ])
     return matchesStatus && matchesSearch
   })
 

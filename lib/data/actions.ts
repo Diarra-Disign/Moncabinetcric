@@ -71,6 +71,50 @@ export async function updateLead(id: string, updates: Partial<Lead>): Promise<Le
   return updated
 }
 
+/**
+ * Convertit un prospect en client, et le marque converti.
+ *
+ * En mode mock, la conversion reste en mémoire : elle sert à éprouver
+ * l'interface sans base.
+ */
+export async function convertLeadToClient(
+  leadId: string
+): Promise<{ client: ClientRecord; alreadyConverted: boolean }> {
+  if (isSupabaseSource()) return (await sbWrites()).convertLeadToClient(leadId)
+
+  const stores = _getStores()
+  const lead = stores.leadsStore.find(l => l.id === leadId)
+  if (!lead) throw new Error(`Prospect « ${leadId} » introuvable.`)
+
+  const existant = stores.clientsStore.find(c => c.email === lead.email)
+  if (existant) return { client: existant, alreadyConverted: true }
+
+  const annee = new Date().getFullYear()
+  const rang = String(stores.clientsStore.length + 1).padStart(4, "0")
+  const client: ClientRecord = {
+    id: `c-${Date.now()}`,
+    fileNumber: `CRIC-${annee}-${rang}`,
+    name: lead.name,
+    firstName: lead.firstName,
+    lastName: lead.lastName,
+    email: lead.email,
+    phone: lead.phone ?? "",
+    citizenship: "",
+    residence: "",
+    program: lead.visaType ?? "",
+    status: "active",
+    intakeMotif: [lead.source ? `Origine : ${lead.source}` : null, lead.notes || null]
+      .filter(Boolean)
+      .join(" — "),
+    clientType: lead.type === "b2b" ? "employer" : "individual",
+  }
+  stores.setClientsStore([client, ...stores.clientsStore])
+  stores.setLeadsStore(
+    stores.leadsStore.map(l => (l.id === leadId ? { ...l, stage: "signed" as const } : l))
+  )
+  return { client, alreadyConverted: false }
+}
+
 export async function createInvoice(data: Omit<InvoiceRecord, "id"> & { id?: string }): Promise<InvoiceRecord> {
   if (isSupabaseSource()) return (await sbWrites()).createInvoice(data)
   const stores = _getStores()

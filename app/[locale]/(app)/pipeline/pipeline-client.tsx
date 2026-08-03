@@ -41,7 +41,8 @@ import {
 import { Link } from "@/i18n/routing"
 import { Lead } from "@/lib/data/types"
 import { PageHeader } from "@/components/app-shell/page-header"
-import { createLead, updateLead } from "@/lib/data/actions"
+import { matchesPerson } from "@/lib/utils/search"
+import { createLead, updateLead, convertLeadToClient } from "@/lib/data/actions"
 
 export type { Lead }
 
@@ -306,10 +307,10 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     else if (filterType === "b2c") matchesType = lead.type === "b2c"
     else if (filterType === "high") matchesType = lead.scoreLabel === "high"
 
-    const matchesSearch = searchQuery === "" || 
-      lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (lead.company && lead.company.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      lead.visaType.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = matchesPerson(searchQuery, [
+      lead.name, lead.firstName, lead.lastName, lead.company,
+      lead.email, lead.phone, lead.visaType, lead.notes, lead.source,
+    ])
     return matchesType && matchesSearch
   })
 
@@ -375,12 +376,36 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     setTimeout(() => setConversionSuccess(null), 5000)
   }
 
-  // Convert to CICC Matter handler
-  const handleConvertToMatter = (lead: Lead) => {
-    setConversionSuccess(`Mandat CICC "${lead.company || lead.name}" ouvert avec succès ! Référence horodatée générée dans le journal réglementaire.`)
-    setTimeout(() => setConversionSuccess(null), 6000)
-    setSelectedLead(null)
-    setIsEditingSelectedLead(false)
+  // Conversion du prospect en client.
+  //
+  // Cette action annonçait auparavant « Mandat CICC ouvert avec succès »
+  // sans rien créer : aucun client, aucune référence, aucune écriture. Elle
+  // crée désormais réellement le client et marque le prospect converti.
+  const [isConverting, setIsConverting] = React.useState(false)
+
+  const handleConvertToMatter = async (lead: Lead) => {
+    if (isConverting) return
+    setIsConverting(true)
+    try {
+      const { client, alreadyConverted } = await convertLeadToClient(lead.id)
+      setConversionSuccess(
+        alreadyConverted
+          ? `« ${lead.company || lead.name} » était déjà converti — dossier ${client.fileNumber}.`
+          : `Client « ${client.name} » créé sous le dossier ${client.fileNumber}. Le prospect est conservé et marqué converti.`
+      )
+      // Le prospect reste dans le pipeline, à l'étape signée : on perdrait
+      // sinon l'historique du cycle de vente.
+      persistLeads(leads.map(l => (l.id === lead.id ? { ...l, stage: "signed" as const } : l)))
+      setSelectedLead(null)
+      setIsEditingSelectedLead(false)
+    } catch (err) {
+      setConversionSuccess(
+        `Conversion impossible : ${err instanceof Error ? err.message : "erreur inattendue"}`
+      )
+    } finally {
+      setIsConverting(false)
+      setTimeout(() => setConversionSuccess(null), 8000)
+    }
   }
 
   // Create new lead handler
@@ -983,13 +1008,22 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                     </button>
                   </div>
 
+                  {/* La conversion n'est proposée qu'à l'étape « entente
+                      signée » : c'est le moment où naissent le mandat, le
+                      fidéicommis et l'obligation de tenue de dossier. */}
                   <button
                     type="button"
                     onClick={() => handleConvertToMatter(selectedLead)}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                    disabled={isConverting || selectedLead.stage !== "signed"}
+                    title={
+                      selectedLead.stage !== "signed"
+                        ? "Disponible une fois l'entente de services signée"
+                        : undefined
+                    }
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Convertir en Mandat CICC</span>
+                    <span>{isConverting ? "Conversion…" : "Convertir en client"}</span>
                   </button>
                 </div>
               </>
