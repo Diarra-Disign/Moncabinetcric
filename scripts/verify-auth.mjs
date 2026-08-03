@@ -169,6 +169,50 @@ async function main() {
     }
   }
 
+  // ---------------------------------------------------------------- 2b
+  console.log("\n2b. Réglages d'authentification du projet")
+
+  // Ces réglages vivent dans le tableau de bord, hors du dépôt : rien
+  // n'empêche qu'ils soient rouverts par inadvertance. Le diagnostic les
+  // relit à chaque passage plutôt que de supposer qu'ils n'ont pas bougé.
+  try {
+    const cfg = JSON.parse(
+      await readFile(join(process.env.HOME ?? "", ".gemini/config/mcp_config.json"), "utf8")
+    )
+    const mcp = (cfg.mcpServers ?? cfg.servers ?? {}).supabase
+    const token = mcp?.headers?.Authorization?.replace(/^Bearer\s+/i, "")
+    const ref = mcp?.serverUrl?.match(/project_ref=([a-z0-9]+)/)?.[1]
+
+    if (!token || !ref) {
+      warn("Jeton d'API de gestion absent : réglages non vérifiés.")
+    } else {
+      const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const c = await res.json()
+
+      c.disable_signup === true
+        ? pass("Inscription publique fermée.")
+        : fail(
+            "INSCRIPTION PUBLIQUE OUVERTE — n'importe qui peut créer un compte avec la clé " +
+              "publique et faire envoyer des courriels de confirmation à des tiers."
+          )
+
+      ;(c.password_min_length ?? 0) >= 12
+        ? pass(`Longueur minimale du mot de passe : ${c.password_min_length}.`)
+        : fail(`Mot de passe minimal à ${c.password_min_length} caractères — porter à 12.`)
+
+      c.mailer_autoconfirm === false
+        ? pass("Confirmation du courriel exigée.")
+        : fail(
+            "CONFIRMATION DU COURRIEL DÉSACTIVÉE — un compte serait utilisable sans que " +
+              "personne ne prouve contrôler l'adresse."
+          )
+    }
+  } catch (e) {
+    warn(`Réglages du projet non vérifiés : ${e.message}`)
+  }
+
   // ---------------------------------------------------------------- 3
   console.log("\n3. Politiques ouvertes restantes")
 
