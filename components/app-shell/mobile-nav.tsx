@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Menu, X } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { Link, usePathname } from "@/i18n/routing"
+import { Link, usePathname } from "@/lib/i18n/routing"
 import { cn } from "@/lib/utils"
 import { MAIN_NAV, OTHER_NAV } from "./nav-items"
 

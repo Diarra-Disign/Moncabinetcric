@@ -1,5 +1,5 @@
 import { ShieldCheck, AlertTriangle } from "lucide-react"
-import { Link } from "@/i18n/routing"
+import { Link } from "@/lib/i18n/routing"
 
 export interface LegalSection {
   heading: string

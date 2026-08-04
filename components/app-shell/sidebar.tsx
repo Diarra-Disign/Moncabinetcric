@@ -1,6 +1,6 @@
 "use client"
 
-import { Link, usePathname } from "@/i18n/routing"
+import { Link, usePathname } from "@/lib/i18n/routing"
 import { useTranslations } from "next-intl"
 import { cn } from "@/lib/utils"
 import { MAIN_NAV, OTHER_NAV } from "./nav-items"

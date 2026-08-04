@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { getTranslations } from "next-intl/server"
+import { getTranslations, setRequestLocale } from "next-intl/server"
 import { LegalDocument, type LegalSection } from "@/components/legal/legal-document"
 import { getPlatformOperatorFirm, shortLocation } from "@/lib/data/platform-firm"
 
@@ -13,7 +13,16 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title"), description: t("subtitle") }
 }
 
-export default async function PrivacyPolicyPage() {
+export default async function PrivacyPolicyPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  // Requis dès qu'une page est rendue statiquement : sans cette
+  // déclaration, next-intl n'a aucun contexte et lève « No intl context found ».
+  const { locale } = await params
+  setRequestLocale(locale)
+
   const t = await getTranslations("Legal.privacy")
   const c = await getTranslations("Legal.common")
   // L'identité vient de la base, jamais des catalogues : une mention

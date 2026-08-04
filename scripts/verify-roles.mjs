@@ -287,8 +287,8 @@ async function main() {
     create temp table _probe_results(allowed boolean);
     insert into public.clients(firm_id, file_number, name, email)
       values ('${owner.firm_id}', 'PROBE-SEED', 'Témoin', 'seed@example.invalid');
-    insert into public.audit_logs(firm_id, actor, action, target, details, status, row_hash)
-      values ('${owner.firm_id}', 'sonde', 'create', 'probe', 'témoin', 'success', 'probe');
+    insert into public.audit_logs(firm_id, actor_email, actor_role, action, entity_type, summary, row_hash)
+      values ('${owner.firm_id}', 'sonde@example.invalid', 'rcic', 'create', 'client', 'Entrée témoin', 'probe');
   `
 
   const all = [
