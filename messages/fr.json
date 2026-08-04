@@ -24,7 +24,8 @@
     "research": "Recherche juridique",
     "menu": "Menu de navigation",
     "openMenu": "Ouvrir le menu",
-    "closeMenu": "Fermer le menu"
+    "closeMenu": "Fermer le menu",
+    "signatures": "Signatures"
   },
   "Documents": {
     "title": "Documents",
@@ -387,7 +388,10 @@
     "docsHeading": "Vos pièces",
     "docsEmpty": "Aucune pièce n'est encore rattachée à votre dossier.",
     "docsCount": "{count, plural, =0 {Aucune pièce} one {# pièce} other {# pièces}} au dossier",
-    "uploadDisabled": "Le dépôt de fichiers n'est pas encore en service. Transmettez vos pièces à votre consultant par les moyens convenus avec lui."
+    "uploadDisabled": "Le dépôt de fichiers n'est pas encore en service. Transmettez vos pièces à votre consultant par les moyens convenus avec lui.",
+    "signaturePendingOne": "Votre consultant attend votre signature sur un document.",
+    "signaturePendingMany": "Votre consultant attend votre signature sur {count} documents.",
+    "signaturePendingCta": "Voir les documents à signer"
   },
   "MatterDetail": {
     "headerTitle": "Dossier d'immigration CICC",
@@ -571,5 +575,21 @@
     "successTitle": "Accès créé",
     "successBody": "Votre compte est prêt. Vous pouvez maintenant vous connecter.",
     "goToSignIn": "Aller à la connexion"
+  },
+  "Signatures": {
+    "title": "Signatures électroniques",
+    "subtitle": "Documents en attente de signature, signés, et prêts à envoyer.",
+    "badge": "Preuve d'intégrité",
+    "toSign": "À signer par vous",
+    "waiting": "En attente d'autrui",
+    "signed": "Signés",
+    "ready": "Prêts à envoyer",
+    "emptyAll": "Aucun document ne porte de fichier : la signature porte sur un contenu, il faut d'abord en déposer un.",
+    "emptySection": "Rien ici.",
+    "openFile": "Ouvrir le coffre-fort",
+    "requestedOn": "Demandé le",
+    "expiresOn": "à signer avant le",
+    "divergenceWarning": "Le fichier a changé depuis la signature.",
+    "explain": "Ce qui fait preuve n'est pas le tracé manuscrit mais l'empreinte du fichier, figée au moment de la signature. Une divergence signalée ici ne dit pas que la signature était invalide : elle dit que le fichier a changé depuis."
   }
 }

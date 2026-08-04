@@ -237,3 +237,105 @@ export async function etatSignature(documentId: string): Promise<EtatSignature> 
     signatures: lignes,
   }
 }
+
+export interface LigneTableau {
+  documentId: string
+  documentName: string
+  clientName: string | null
+  matterId: string | null
+  requestId: string | null
+  requestedAt: string | null
+  expiresAt: string | null
+  signatures: LigneCertificat[]
+  /** L'appelant a-t-il déjà signé la demande en cours ? */
+  dejaSigne: boolean
+  divergence: boolean
+}
+
+export interface TableauSignatures {
+  aSigner: LigneTableau[]
+  enAttenteDAutrui: LigneTableau[]
+  signes: LigneTableau[]
+  pretsAEnvoyer: LigneTableau[]
+}
+
+/**
+ * Vue d'ensemble des signatures du cabinet, ou du client.
+ *
+ * Répartit les documents selon ce qu'ils appellent comme action, plutôt
+ * que de laisser l'utilisateur ouvrir chaque fiche pour découvrir son état.
+ * C'est l'absence de cette vue qui rendait la fonction introuvable.
+ */
+export async function tableauSignatures(): Promise<TableauSignatures> {
+  const membre = await getCurrentMember()
+  const client = membre ? null : await getCurrentPortalClient()
+  const monCourriel = membre?.email ?? client?.email ?? ""
+
+  const vide: TableauSignatures = { aSigner: [], enAttenteDAutrui: [], signes: [], pretsAEnvoyer: [] }
+  if (!membre && !client) return vide
+
+  const supabase = await getSessionSupabase()
+
+  // Seuls les documents porteurs d'un fichier peuvent être signés : les
+  // autres n'ont rien à quoi rattacher une signature.
+  const { data: docs } = await supabase
+    .from("documents")
+    .select("id, name, client_name, matter_id, storage_path, sha256")
+    .not("storage_path", "is", null)
+
+  if (!docs || docs.length === 0) return vide
+
+  const ids = docs.map((d) => d.id as string)
+
+  const [{ data: demandes }, { data: sigs }] = await Promise.all([
+    supabase
+      .from("signature_requests")
+      .select("id, document_id, requested_at, expires_at, status")
+      .in("document_id", ids)
+      .eq("status", "pending"),
+    supabase
+      .from("signatures")
+      .select("document_id, signer_name, signer_email, signer_kind, signer_role, rcic_number, signed_at, ip_address, document_sha256")
+      .in("document_id", ids),
+  ])
+
+  const resultat: TableauSignatures = { aSigner: [], enAttenteDAutrui: [], signes: [], pretsAEnvoyer: [] }
+
+  for (const d of docs) {
+    const demande = (demandes ?? []).find((r) => r.document_id === d.id)
+    const propres = (sigs ?? [])
+      .filter((x) => x.document_id === d.id)
+      .map((x) => ({
+        signerName: (x.signer_name as string) ?? "",
+        signerEmail: (x.signer_email as string) ?? "",
+        signerKind: (x.signer_kind as string) ?? "",
+        signerRole: (x.signer_role as string) ?? null,
+        rcicNumber: (x.rcic_number as string) ?? null,
+        signedAt: (x.signed_at as string) ?? "",
+        ipAddress: (x.ip_address as string) ?? null,
+        signedSha256: (x.document_sha256 as string) ?? "",
+        currentSha256: (d.sha256 as string) ?? null,
+        stillMatching: x.document_sha256 === d.sha256,
+      }))
+
+    const ligne: LigneTableau = {
+      documentId: d.id as string,
+      documentName: (d.name as string) ?? "",
+      clientName: (d.client_name as string) ?? null,
+      matterId: (d.matter_id as string) ?? null,
+      requestId: (demande?.id as string) ?? null,
+      requestedAt: (demande?.requested_at as string) ?? null,
+      expiresAt: (demande?.expires_at as string) ?? null,
+      signatures: propres,
+      dejaSigne: propres.some((s) => s.signerEmail === monCourriel),
+      divergence: propres.some((s) => !s.stillMatching),
+    }
+
+    if (demande && !ligne.dejaSigne) resultat.aSigner.push(ligne)
+    else if (demande) resultat.enAttenteDAutrui.push(ligne)
+    else if (propres.length > 0) resultat.signes.push(ligne)
+    else if (membre) resultat.pretsAEnvoyer.push(ligne)
+  }
+
+  return resultat
+}

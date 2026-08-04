@@ -24,7 +24,8 @@
     "research": "Legal Research",
     "menu": "Navigation menu",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "signatures": "Signatures"
   },
   "Documents": {
     "title": "Documents",
@@ -387,7 +388,10 @@
     "docsHeading": "Your documents",
     "docsEmpty": "No document is attached to your file yet.",
     "docsCount": "{count, plural, =0 {No document} one {# document} other {# documents}} on file",
-    "uploadDisabled": "File upload is not yet in service. Send your documents to your consultant by the means agreed with them."
+    "uploadDisabled": "File upload is not yet in service. Send your documents to your consultant by the means agreed with them.",
+    "signaturePendingOne": "Your consultant is waiting for your signature on one document.",
+    "signaturePendingMany": "Your consultant is waiting for your signature on {count} documents.",
+    "signaturePendingCta": "See documents to sign"
   },
   "MatterDetail": {
     "headerTitle": "CICC Immigration Matter",
@@ -571,5 +575,21 @@
     "successTitle": "Access created",
     "successBody": "Your account is ready. You can now sign in.",
     "goToSignIn": "Go to sign-in"
+  },
+  "Signatures": {
+    "title": "Electronic signatures",
+    "subtitle": "Documents awaiting signature, signed, and ready to send.",
+    "badge": "Integrity proof",
+    "toSign": "For you to sign",
+    "waiting": "Awaiting others",
+    "signed": "Signed",
+    "ready": "Ready to send",
+    "emptyAll": "No document carries a file: a signature applies to content, so one must be uploaded first.",
+    "emptySection": "Nothing here.",
+    "openFile": "Open the vault",
+    "requestedOn": "Requested on",
+    "expiresOn": "sign before",
+    "divergenceWarning": "The file has changed since signing.",
+    "explain": "What constitutes proof is not the handwritten stroke but the file's fingerprint, frozen at the moment of signing. A discrepancy reported here does not mean the signature was invalid: it means the file has changed since."
   }
 }

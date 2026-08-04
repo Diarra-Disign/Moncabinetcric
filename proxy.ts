@@ -11,6 +11,7 @@ const PROTECTED_SEGMENTS = [
   'clients',
   'matters',
   'documents',
+  'signatures',
   'billing',
   'calendar',
   'deadlines',

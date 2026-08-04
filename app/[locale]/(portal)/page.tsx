@@ -1,10 +1,11 @@
 import { getTranslations, setRequestLocale } from "next-intl/server"
 import { Card, CardContent } from "@/components/ui/card"
-import { FileText, Info } from "lucide-react"
+import { FileText, Info, PenLine } from "lucide-react"
 import { getCurrentPortalClient, getSessionSupabase } from "@/lib/supabase/session"
 import { VirtualMeetingCard } from "./virtual-meeting-card"
 import { ActionsFichier } from "@/components/documents/file-actions"
 import { SignatureBloc } from "@/components/documents/signature-bloc"
+import { tableauSignatures } from "@/lib/data/signatures"
 
 /**
  * Portail client.
@@ -42,6 +43,11 @@ export default async function PortalPage({
     supabase.from("documents").select("id, name, category, date, status, storage_path, sha256"),
   ])
 
+  // Aucune notification n'existe : sans ce bandeau, le client n'a aucun
+  // moyen d'apprendre qu'on attend sa signature.
+  const signatures = await tableauSignatures()
+  const aSigner = signatures.aSigner.length
+
   const nbPieces = pieces?.length ?? 0
 
   // Les libellés traversent la frontière serveur/client : un composant
@@ -76,6 +82,23 @@ export default async function PortalPage({
         </p>
       </header>
 
+      {aSigner > 0 && (
+        <a
+          href="#pieces"
+          className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4 transition-colors hover:bg-warning/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning"
+        >
+          <PenLine aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+          <div>
+            <p className="text-sm font-black text-foreground">
+              {aSigner === 1
+                ? t("signaturePendingOne")
+                : t("signaturePendingMany", { count: aSigner })}
+            </p>
+            <p className="mt-0.5 text-xs font-bold text-warning">{t("signaturePendingCta")} →</p>
+          </div>
+        </a>
+      )}
+
       <VirtualMeetingCard />
 
       {/* Avancement : affiché seulement si un dossier existe. Une barre
@@ -109,7 +132,7 @@ export default async function PortalPage({
         </CardContent>
       </Card>
 
-      <section>
+      <section id="pieces">
         <h2 className="mb-3 text-base font-black tracking-tight text-foreground">
           {t("docsHeading")}
         </h2>
