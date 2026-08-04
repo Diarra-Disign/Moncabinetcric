@@ -43,6 +43,7 @@ import { useRouter } from "@/i18n/routing"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { DocumentRecord, AuditLogRecord } from "@/lib/data/types"
 import { VaultAuditLog } from "@/components/documents/vault-audit-log"
+import { ActionsFichier } from "@/components/documents/file-actions"
 import { triggerFileDownload } from "@/lib/utils/download-helper"
 import { archiveDocumentRecord, deleteDocumentRecord, restoreDocumentRecord } from "@/lib/data/actions"
 
@@ -61,6 +62,20 @@ interface DocumentsClientProps {
 }
 
 export function DocumentsClient({ t, initialFolders, initialDocuments, initialAuditLogs = [] }: DocumentsClientProps) {
+  // Ce composant n'utilise pas encore next-intl : les libellés du bloc
+  // fichier sont posés ici en attendant son internationalisation.
+  const etiquettesFichier = {
+    upload: "Déposer un fichier",
+    uploadRunning: "Dépôt en cours…",
+    uploadDone: "Fichier déposé",
+    uploadHint: "PDF, image ou Word. 20 Mo max.",
+    download: "Télécharger",
+    verify: "Vérifier l'intégrité",
+    verifyRunning: "Vérification…",
+    noFile: "Aucun fichier déposé",
+    fingerprint: "Empreinte SHA-256",
+  }
+
   const firm = useFirm()
   const router = useRouter()
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -663,20 +678,19 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                 <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-4">Intégrité & Stockage</h4>
 
                 <div className="space-y-4">
+                  {/* Dépôt, téléchargement et vérification. Ce bloc remplace
+                      l'affichage d'un chemin et d'une empreinte figés, qui
+                      décrivaient un fichier inexistant. */}
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Chemin S3 sécurisé</label>
-                    <p className="p-2.5 bg-slate-900 text-indigo-300 rounded-lg font-mono text-[9px] break-all leading-relaxed">
-                      {selectedDoc.storagePath || "Aucun fichier déposé"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Empreinte du fichier</label>
-                    <p className="p-2.5 bg-slate-100 rounded-lg font-mono text-[9px] text-slate-600 break-all leading-relaxed">
-                      {/* Aucune empreinte n'est calculée tant que le fichier lui-même
-                          n'est pas conservé. */}
-                      {selectedDoc.sha256 || "Non calculée — aucun fichier déposé"}
-                    </p>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-2">Fichier</label>
+                    <ActionsFichier
+                      documentId={selectedDoc.id}
+                      clientId={selectedDoc.clientId ?? ""}
+                      storagePath={selectedDoc.storagePath ?? null}
+                      sha256={selectedDoc.sha256 ?? null}
+                      labels={etiquettesFichier}
+                      onChange={() => router.refresh()}
+                    />
                   </div>
 
                   <div>

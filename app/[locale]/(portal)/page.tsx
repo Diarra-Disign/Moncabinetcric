@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { FileText, Info } from "lucide-react"
 import { getCurrentPortalClient, getSessionSupabase } from "@/lib/supabase/session"
 import { VirtualMeetingCard } from "./virtual-meeting-card"
+import { ActionsFichier } from "@/components/documents/file-actions"
 
 /**
  * Portail client.
@@ -37,10 +38,25 @@ export default async function PortalPage({
       .from("matters")
       .select("id, reference, program, status, opened_date, deadline")
       .order("opened_date", { ascending: false }),
-    supabase.from("documents").select("id, name, category, date, status"),
+    supabase.from("documents").select("id, name, category, date, status, storage_path, sha256"),
   ])
 
   const nbPieces = pieces?.length ?? 0
+
+  // Les libellés traversent la frontière serveur/client : un composant
+  // client ne peut pas appeler getTranslations lui-même.
+  const tDoc = await getTranslations("Documents")
+  const etiquettes = {
+    upload: tDoc("uploadLabel"),
+    uploadRunning: tDoc("uploadRunning"),
+    uploadDone: tDoc("uploadDone"),
+    uploadHint: tDoc("uploadHint"),
+    download: tDoc("downloadLabel"),
+    verify: tDoc("verifyLabel"),
+    verifyRunning: tDoc("verifyRunning"),
+    noFile: tDoc("noFile"),
+    fingerprint: tDoc("fingerprintLabel"),
+  }
 
   return (
     <div className="space-y-8">
@@ -104,22 +120,34 @@ export default async function PortalPage({
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
             {pieces!.map((p) => (
-              <li key={p.id as string} className="flex items-center gap-3 px-4 py-3">
-                <FileText aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="flex-1 truncate text-sm font-medium text-foreground">
-                  {p.name as string}
-                </span>
-                <span className="font-mono text-xs text-muted-foreground">{p.date as string}</span>
+              <li key={p.id as string} className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <FileText aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="flex-1 truncate text-sm font-medium text-foreground">
+                    {p.name as string}
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {p.date as string}
+                  </span>
+                </div>
+                {/* Le client télécharge sa pièce, la signe à la main, puis
+                    dépose la version signée. Il ne peut pas la supprimer :
+                    la base le refuse, quel que soit ce composant. */}
+                <div className="mt-2 pl-7">
+                  <ActionsFichier
+                    documentId={p.id as string}
+                    clientId={client.clientId}
+                    storagePath={(p.storage_path as string) ?? null}
+                    sha256={(p.sha256 as string) ?? null}
+                    peutVerifier={false}
+                    labels={etiquettes}
+                  />
+                </div>
               </li>
             ))}
           </ul>
         )}
 
-        {/* Le téléverseur promettait un dépôt qui n'existe pas encore. */}
-        <p className="mt-3 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs leading-relaxed text-foreground">
-          <Info aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-          {t("uploadDisabled")}
-        </p>
       </section>
     </div>
   )

@@ -102,6 +102,9 @@ export async function deposerFichier(
 
   const { error } = await supabase.storage.from(BUCKET).upload(chemin, octets, {
     contentType: fichier.type,
+    // Sans cette consigne, une vérification d'intégrité ultérieure pourrait
+    // lire une copie en cache et conclure à tort que le fichier est intact.
+    cacheControl: "no-store",
     // Pas d'écrasement : une pièce remplacée doit laisser une trace, et le
     // client n'a de toute façon pas le droit de mettre à jour.
     upsert: false,
@@ -176,13 +179,25 @@ export async function verifierEmpreinte(
   if (!fiche?.storage_path) return { ok: false, message: "Aucun fichier déposé pour cette pièce." }
   if (!fiche.sha256) return { ok: false, message: "Aucune empreinte enregistrée." }
 
-  const { data: blob, error } = await supabase.storage
+  // Lecture forcée à la source. download() peut servir une copie mise en
+  // cache : une vérification qui lit un cache ne détecte aucune
+  // substitution, ce qui la rendrait pire qu'inutile — elle rassurerait à
+  // tort. Constaté à l'essai, un fichier remplacé passait pour intact.
+  const { data: signe, error: erreurLien } = await supabase.storage
     .from(BUCKET)
-    .download(fiche.storage_path as string)
-  if (error || !blob) return { ok: false, message: `Fichier illisible : ${error?.message ?? ""}` }
+    .createSignedUrl(fiche.storage_path as string, 60)
+
+  if (erreurLien || !signe?.signedUrl) {
+    return { ok: false, message: `Fichier illisible : ${erreurLien?.message ?? ""}` }
+  }
+
+  const reponse = await fetch(signe.signedUrl, { cache: "no-store" })
+  if (!reponse.ok) {
+    return { ok: false, message: `Fichier illisible : HTTP ${reponse.status}` }
+  }
 
   const recalcule = createHash("sha256")
-    .update(Buffer.from(await blob.arrayBuffer()))
+    .update(Buffer.from(await reponse.arrayBuffer()))
     .digest("hex")
 
   return recalcule === fiche.sha256

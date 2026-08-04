@@ -69,7 +69,17 @@
       "policyFiles": "Fichiers de dossiers",
       "registrations": "Preuves & Identité",
       "reports": "Rapports & Contrats"
-    }
+    },
+    "uploadLabel": "Déposer un fichier",
+    "uploadRunning": "Dépôt en cours…",
+    "uploadDone": "Fichier déposé",
+    "uploadHint": "PDF, image ou document Word. 20 Mo maximum.",
+    "downloadLabel": "Télécharger",
+    "verifyLabel": "Vérifier l'intégrité",
+    "verifyRunning": "Vérification…",
+    "noFile": "Aucun fichier déposé",
+    "fingerprintLabel": "Empreinte SHA-256 du fichier",
+    "fileAttached": "Fichier attaché"
   },
   "Landing": {
     "nav": {

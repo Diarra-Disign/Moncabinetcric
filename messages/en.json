@@ -69,7 +69,17 @@
       "policyFiles": "Matter Files",
       "registrations": "ID Proofs",
       "reports": "Reports & Contracts"
-    }
+    },
+    "uploadLabel": "Upload a file",
+    "uploadRunning": "Uploading…",
+    "uploadDone": "File uploaded",
+    "uploadHint": "PDF, image or Word document. 20 MB maximum.",
+    "downloadLabel": "Download",
+    "verifyLabel": "Verify integrity",
+    "verifyRunning": "Verifying…",
+    "noFile": "No file uploaded",
+    "fingerprintLabel": "File SHA-256 fingerprint",
+    "fileAttached": "File attached"
   },
   "Landing": {
     "nav": {

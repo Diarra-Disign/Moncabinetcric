@@ -53,7 +53,10 @@ set public = false,
 
 alter table public.documents add column if not exists mime_type    text;
 alter table public.documents add column if not exists size_bytes   bigint;
-alter table public.documents add column if not exists uploaded_by  uuid references auth.users(id) on delete set null;
+-- Nom distinct de la colonne uploaded_by déjà présente (TEXT NOT NULL,
+-- qui porte le nom lisible du déposant) : « add column if not exists »
+-- n'aurait rien fait, silencieusement.
+alter table public.documents add column if not exists uploaded_by_user_id uuid references auth.users(id) on delete set null;
 alter table public.documents add column if not exists archived_at  timestamptz;
 
 comment on column public.documents.sha256 is
