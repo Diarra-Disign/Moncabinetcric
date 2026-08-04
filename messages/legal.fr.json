@@ -12,7 +12,7 @@
     "privacy": {
       "title": "Politique de confidentialité",
       "subtitle": "Protection des renseignements personnels — LPRPDE, Loi 25 du Québec et lois provinciales équivalentes",
-      "effectiveDate": "2026-08-02",
+      "effectiveDate": "2026-08-04",
       "intro": "La présente politique décrit la manière dont {firmName} recueille, utilise, communique et conserve les renseignements personnels des personnes qui utilisent sa plateforme de gestion de cabinet et des clients dont les dossiers y sont traités. Elle s'ajoute — sans le remplacer — au secret professionnel auquel est tenu tout consultant réglementé en immigration canadienne membre du Collège des consultants en immigration et en citoyenneté.",
       "s1": {
         "heading": "1. Responsable de la protection des renseignements personnels",
@@ -65,10 +65,10 @@
         "l4Body": "Avocats, comptables ou vérificateurs, lorsque requis et sous obligation de confidentialité."
       },
       "s6": {
-        "heading": "6. Hébergement et transferts hors Québec",
-        "p1": "Les renseignements sont hébergés chez un fournisseur infonuagique tiers. La région d'hébergement effective doit être confirmée et documentée avant toute mise en production avec des dossiers réels.",
-        "p2": "Lorsque des renseignements personnels sont communiqués à l'extérieur du Québec, la Loi 25 impose la réalisation préalable d'une évaluation des facteurs relatifs à la vie privée tenant compte du régime de protection applicable dans l'État destinataire, ainsi qu'un encadrement contractuel du destinataire. Cette évaluation est en cours et constitue un préalable au traitement de dossiers réels.",
-        "p3": "Tant que cette évaluation n'est pas complétée et que la région d'hébergement n'est pas confirmée par écrit, aucune garantie de résidence canadienne des données n'est formulée dans la présente politique."
+        "heading": "6. Hébergement des renseignements",
+        "p1": "Les renseignements sont hébergés au Canada, dans la région Canada (Centre) de notre fournisseur infonuagique. Ils ne sont pas transférés hors du Canada dans le cadre de l'exploitation courante de la plateforme.",
+        "p2": "L'hébergement étant situé au Québec ou ailleurs au Canada, la communication de renseignements personnels hors Québec au sens de l'article 17 de la Loi 25 ne trouve pas application pour l'hébergement lui-même. Elle demeure pertinente pour les communications décrites à la section 5, notamment lorsque le connecteur d'intelligence artificielle est activé.",
+        "p3": "Toute modification de la région d'hébergement ferait l'objet d'une évaluation des facteurs relatifs à la vie privée préalable et d'une mise à jour de la présente politique avant sa prise d'effet."
       },
       "s7": {
         "heading": "7. Conservation et destruction",
@@ -130,7 +130,7 @@
     "terms": {
       "title": "Conditions d'utilisation",
       "subtitle": "Conditions régissant l'accès à la plateforme et son utilisation",
-      "effectiveDate": "2026-08-02",
+      "effectiveDate": "2026-08-04",
       "intro": "Les présentes conditions régissent l'accès à la plateforme de gestion de cabinet exploitée par {firmName} et son utilisation. En accédant à la plateforme, vous acceptez d'être lié par ces conditions.",
       "s1": {
         "heading": "1. Objet et acceptation",

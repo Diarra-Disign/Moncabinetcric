@@ -12,7 +12,7 @@
     "privacy": {
       "title": "Privacy Policy",
       "subtitle": "Protection of personal information — PIPEDA, Quebec's Law 25 and equivalent provincial statutes",
-      "effectiveDate": "2026-08-02",
+      "effectiveDate": "2026-08-04",
       "intro": "This policy describes how {firmName} collects, uses, discloses and retains the personal information of people who use its practice management platform and of the clients whose files are handled through it. It supplements — and does not replace — the professional secrecy owed by every Regulated Canadian Immigration Consultant who is a member of the College of Immigration and Citizenship Consultants.",
       "s1": {
         "heading": "1. Person responsible for the protection of personal information",
@@ -65,10 +65,10 @@
         "l4Body": "Lawyers, accountants or auditors, where required and under a duty of confidentiality."
       },
       "s6": {
-        "heading": "6. Hosting and transfers outside Quebec",
-        "p1": "Information is hosted with a third-party cloud provider. The effective hosting region must be confirmed and documented before any production use with real files.",
-        "p2": "Where personal information is disclosed outside Quebec, Law 25 requires a prior privacy impact assessment taking into account the protection regime applicable in the receiving jurisdiction, together with a contractual framework binding the recipient. This assessment is under way and is a prerequisite to handling real files.",
-        "p3": "Until that assessment is complete and the hosting region is confirmed in writing, this policy makes no representation that data resides in Canada."
+        "heading": "6. Where information is hosted",
+        "p1": "Information is hosted in Canada, in our cloud provider's Canada (Central) region. It is not transferred outside Canada in the ordinary operation of the platform.",
+        "p2": "Because hosting is located in Canada, the disclosure of personal information outside Quebec within the meaning of section 17 of Law 25 does not apply to hosting itself. It remains relevant to the disclosures described in section 5, in particular when the artificial intelligence connector is enabled.",
+        "p3": "Any change to the hosting region would be subject to a prior privacy impact assessment and to an update of this policy before taking effect."
       },
       "s7": {
         "heading": "7. Retention and destruction",
@@ -130,7 +130,7 @@
     "terms": {
       "title": "Terms of Use",
       "subtitle": "Terms governing access to and use of the platform",
-      "effectiveDate": "2026-08-02",
+      "effectiveDate": "2026-08-04",
       "intro": "These terms govern access to and use of the practice management platform operated by {firmName} By accessing the platform, you agree to be bound by these terms.",
       "s1": {
         "heading": "1. Purpose and acceptance",

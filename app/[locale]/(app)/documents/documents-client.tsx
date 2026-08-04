@@ -86,8 +86,8 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
       id: `daud-session-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       occurredAt: new Date().toISOString(),
       actorMemberId: "mem-01",
-      actorEmail: "adama.diarra@boreale-immigration.ca",
-      actorName: "Me Adama Diarra",
+      actorEmail: firm.email,
+      actorName: firm.rcicName,
       actorRole: "rcic",
       action,
       entityType: "document",
@@ -132,7 +132,15 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
   // Action 1: Télécharger un document individuel
   const handleDownloadDocument = (doc: DocumentRecord, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
-    const sampleContent = doc.content || `DOCUMENT OFFICIEL CICC — ${doc.name}\nEmpreinte SHA-256: ${doc.sha256 || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}\nClient: ${doc.clientName || "M. Adama Diarra"}\nChemin Sécurisé: ${doc.storagePath || "firms/firm-boreale/matters/"}`
+    const sampleContent =
+      doc.content ||
+      // Le fichier d'origine n'est pas conservé : ce contenu de repli le
+      // dit, au lieu d'annoncer une empreinte et un chemin inexistants.
+      `FICHE DOCUMENTAIRE — ${doc.name}\n` +
+        `Cabinet : ${firm.name} (CICC #${firm.rcicNumber})\n` +
+        `Client : ${doc.clientName ?? "—"}\n` +
+        `Dossier : ${doc.matterId ?? "—"}\n\n` +
+        "Le fichier d'origine n'est pas conservé : seule cette fiche l'est."
     triggerFileDownload(doc.name, sampleContent, "text/plain;charset=utf-8")
     addAuditLog("download", `Téléchargement sécurisé — ${doc.name} par ${firm.rcicName} (CICC #${firm.rcicNumber})`, doc.id)
     setNotice(`⬇️ Téléchargement de "${doc.name}" sur votre ordinateur effectué.`)
@@ -186,11 +194,15 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
     manifestContent += `FICHIERS COMPRIS DANS CET EXPORT :\n`
 
     documents.forEach((d, i) => {
-      manifestContent += `${i + 1}. [${d.category.toUpperCase()}] ${d.name} (${d.fileSize || "1.5 MB"}) — Hash SHA-256: ${d.sha256 || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}\n   Chemin S3: ${d.storagePath || "firms/firm-boreale/matters/"}\n\n`
+      // Ni empreinte ni chemin de stockage : le manifeste ne liste que ce
+      // qui existe réellement, à savoir les fiches documentaires.
+      manifestContent +=
+        `${i + 1}. [${d.category.toUpperCase()}] ${d.name} (${d.fileSize || "—"})\n` +
+        `   Client : ${d.clientName ?? "—"}   Dossier : ${d.matterId ?? "—"}\n\n`
     })
 
     triggerFileDownload("Coffre_Fort_Client_Export_Complet_CICC.txt", manifestContent, "text/plain;charset=utf-8")
-    addAuditLog("export", `Export Audit CICC 1-Clic — Manifeste SHA-256 généré pour ${documents.length} documents`, "export-batch-session")
+    addAuditLog("export", `Export Audit CICC 1-Clic — Manifeste d'export généré pour ${documents.length} documents`, "export-batch-session")
     setNotice("📦 Pack d'exportation du Coffre-Fort Client (Manifeste & Fichiers) généré avec succès.")
     setTimeout(() => setNotice(null), 6000)
   }
@@ -221,14 +233,14 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
       clientName: docClient,
       fileSize: selectedFileSize,
       sha256: `sha256-${Date.now().toString(16)}`,
-      storagePath: `firms/firm-boreale/matters/DOS-35695/${docName}`
+      storagePath: undefined
     }
 
     setDocuments(prev => [created, ...prev])
     setShowNewModal(false)
     setDocName("")
-    addAuditLog("create", `Téléversement sécurisé — ${created.name} (${created.fileSize}) dans le coffre-fort chiffré AES-256`, created.id)
-    setNotice(`✅ Document "${created.name}" téléversé avec succès dans le coffre-fort chiffré !`)
+    addAuditLog("create", `Fiche documentaire créée — ${created.name} (${created.fileSize})`, created.id)
+    setNotice(`✅ Fiche "${created.name}" ajoutée au registre.`)
     setTimeout(() => setNotice(null), 5000)
   }
 
@@ -237,9 +249,9 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
       
       {/* HEADER PAGEHEADER */}
       <PageHeader
-        title="Coffre-Fort Documentaire & Pièces Clients"
-        subtitle="Espace centralisé de stockage chiffré AES-256 pour les pièces clients, contrats CICC et factures."
-        badgeText="STOCKAGE SÉCURISÉ CANADIEN"
+        title="Registre documentaire & Pièces clients"
+        subtitle="Registre des pièces clients, contrats CICC et factures. Hébergement canadien."
+        badgeText="HÉBERGÉ AU CANADA"
         badgeVariant="emerald"
         actions={
           <div className="flex items-center gap-3">
@@ -282,14 +294,24 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             <Lock className="w-7 h-7 text-indigo-400" />
           </div>
           <div>
+            {/* Ce bandeau annonçait un chiffrement AES-256, une empreinte
+                SHA-256 et un rangement « firms/firm-boreale/matters/… ».
+                Aucun fichier n'est stocké à ce jour — seules les métadonnées
+                le sont — et le chemin nommait un cabinet fictif. Il ne
+                subsiste que ce qui est vérifiable : la région d'hébergement. */}
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black tracking-tight text-white">Stockage Sécurisé & Traçabilité SHA-256 (Loi 25)</h2>
+              <h2 className="text-lg font-black tracking-tight text-white">Registre documentaire</h2>
               <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono">
-                Région ca-central-1 (Canada)
+                Hébergé au Canada
               </span>
             </div>
             <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-              Les documents sont chiffrés au repos (AES-256) et organisés par dossier client (<code className="font-mono text-indigo-300">firms/firm-boreale/matters/&#123;matter_id&#125;/</code>). Chaque fichier est modifiable, téléchargeable ou archivable avec traçabilité d&apos;audit.
+              Les fiches documentaires — nom, catégorie, dossier client, dates — sont
+              conservées dans une base hébergée au Canada.{" "}
+              <strong className="text-amber-300 font-bold">
+                Le dépôt des fichiers eux-mêmes n&apos;est pas encore en service :
+              </strong>{" "}
+              seules les métadonnées sont enregistrées.
             </p>
           </div>
         </div>
@@ -377,7 +399,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             }`}
           >
             <Shield className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Journal d&apos;Audit SHA-256</span>
+            <span>Journal d&apos;audit</span>
           </button>
         </div>
       </div>
@@ -644,14 +666,16 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Chemin S3 sécurisé</label>
                     <p className="p-2.5 bg-slate-900 text-indigo-300 rounded-lg font-mono text-[9px] break-all leading-relaxed">
-                      {selectedDoc.storagePath || `firms/firm-boreale/matters/DOS-35695/${selectedDoc.name}`}
+                      {selectedDoc.storagePath || "Aucun fichier déposé"}
                     </p>
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Empreinte SHA-256</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Empreinte du fichier</label>
                     <p className="p-2.5 bg-slate-100 rounded-lg font-mono text-[9px] text-slate-600 break-all leading-relaxed">
-                      {selectedDoc.sha256 || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+                      {/* Aucune empreinte n'est calculée tant que le fichier lui-même
+                          n'est pas conservé. */}
+                      {selectedDoc.sha256 || "Non calculée — aucun fichier déposé"}
                     </p>
                   </div>
 
@@ -659,7 +683,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                     <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Chiffrement</label>
                     <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
                       <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span className="text-[10px] font-bold text-emerald-900">AES-256 au repos (ca-central-1)</span>
+                      <span className="text-[10px] font-bold text-emerald-900">Base hébergée au Canada</span>
                     </div>
                   </div>
 
@@ -771,7 +795,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                 Voulez-vous vraiment supprimer définitivement le document <strong className="text-slate-900 font-bold">« {deleteTargetDoc.name} »</strong> ?
               </p>
               <p className="text-[11px] text-slate-500">
-                Le fichier sera supprimé du coffre-fort chiffré et cette action sera automatiquement inscrite avec empreinte SHA-256 dans le journal d&apos;audit réglementaire.
+                La fiche sera retirée du registre et l&apos;opération inscrite au journal d&apos;audit.
               </p>
             </div>
 
