@@ -54,13 +54,66 @@ export interface DashboardCounts {
   totalDocuments: number
 }
 
+/**
+ * Libellés traduits, résolus côté serveur.
+ *
+ * Ils étaient typés `Record<string, unknown>`, ce qui rendait chaque
+ * `{t.title}` non assignable à un nœud React et cassait la compilation de
+ * production. Les nommer dit aussi ce que la page doit fournir : en
+ * oublier un devient une erreur de compilation, pas un trou dans l'écran.
+ */
+export interface DashboardLabels {
+  title: string
+  activeMattersSub: string
+  expiredDocsSub: string
+  validatedDocsSub: string
+  recentDocsTitle: string
+  recentDocsDesc: string
+  storageTitle: string
+}
+
+/** Blocs du tableau de bord que l'utilisateur peut afficher ou masquer. */
+interface EtatWidgets {
+  deadlinesBanner: boolean
+  trustFinance: boolean
+  kpis: boolean
+  todayAgenda: boolean
+  mattersList: boolean
+}
+
+const WIDGETS_PAR_DEFAUT: EtatWidgets = {
+  deadlinesBanner: true,
+  trustFinance: true,
+  kpis: true,
+  todayAgenda: true,
+  mattersList: true,
+}
+
+/**
+ * Remet une préférence relue de localStorage dans une forme sûre.
+ *
+ * Le contenu vient du navigateur : il peut dater d'une version où les
+ * clés différaient, ou avoir été modifié à la main. Toute clé absente ou
+ * non booléenne reprend sa valeur par défaut, plutôt que de masquer un
+ * bloc du tableau de bord sans que rien ne l'explique.
+ */
+function normaliserWidgets(brut: unknown): EtatWidgets {
+  if (typeof brut !== "object" || brut === null) return { ...WIDGETS_PAR_DEFAUT }
+  const source = brut as Record<string, unknown>
+  const resultat = { ...WIDGETS_PAR_DEFAUT }
+  for (const cle of Object.keys(WIDGETS_PAR_DEFAUT) as (keyof EtatWidgets)[]) {
+    if (typeof source[cle] === "boolean") resultat[cle] = source[cle] as boolean
+  }
+  return resultat
+}
+
 export function DashboardClient({ 
   t, 
   deadlines = [], 
   complianceScore,
   counts = { activeMatters: 0, verifiedDocuments: 0, totalDocuments: 0 }
 }: { 
-  t: Record<string, unknown>
+  t: DashboardLabels
   deadlines?: DeadlineRecord[]
   complianceScore?: CiccComplianceScore
   counts?: DashboardCounts
@@ -76,22 +129,22 @@ export function DashboardClient({
   // DASHBOARD PERSONALIZATION STATE & PRESETS (AVEC INITIALISATION LAZY LOCALSTORAGE)
   const [showCustomizeModal, setShowCustomizeModal] = React.useState(false)
   const [presetView, setPresetView] = React.useState<"global" | "finance" | "compliance">("global")
-  const [widgetsState, setWidgetsState] = React.useState(() => {
+  // L'état était inféré depuis JSON.parse, donc `any` : le compilateur ne
+  // voyait plus le type des widgets, et la compilation de production
+  // échouait sur le `prev` implicitement any de updateWidgetsState.
+  const [widgetsState, setWidgetsState] = React.useState<EtatWidgets>(() => {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("moncabinetcric_dashboard_widgets")
-        if (saved) return JSON.parse(saved)
+        // On ne fait pas confiance au contenu relu : c'est une valeur que
+        // l'utilisateur peut modifier, et une clé manquante masquerait un
+        // widget sans que rien ne l'explique.
+        if (saved) return normaliserWidgets(JSON.parse(saved))
       } catch {
         // Ignorer
       }
     }
-    return {
-      deadlinesBanner: true,
-      trustFinance: true,
-      kpis: true,
-      todayAgenda: true,
-      mattersList: true
-    }
+    return { ...WIDGETS_PAR_DEFAUT }
   })
 
   const updateWidgetsState = (updater: (prev: typeof widgetsState) => typeof widgetsState) => {
