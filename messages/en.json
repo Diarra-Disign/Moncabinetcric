@@ -73,7 +73,7 @@
     "uploadLabel": "Upload a file",
     "uploadRunning": "Uploading…",
     "uploadDone": "File uploaded",
-    "uploadHint": "PDF, image or Word document. 20 MB maximum.",
+    "uploadHint": "PDF, JPEG or PNG. 20 MB maximum.",
     "downloadLabel": "Download",
     "verifyLabel": "Verify integrity",
     "verifyRunning": "Verifying…",

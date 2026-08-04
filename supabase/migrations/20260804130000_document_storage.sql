@@ -35,12 +35,9 @@ values (
   'documents',
   false,
   20971520, -- 20 Mo : au-delà, c'est un envoi hors plateforme
-  array[
-    'application/pdf',
-    'image/jpeg', 'image/png', 'image/heic', 'image/webp',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ]
+  -- Trois types seulement. Chaque type accepté est une surface d'attaque
+  -- supplémentaire, et aucun antivirus n'analyse les fichiers reçus.
+  array['application/pdf', 'image/jpeg', 'image/png']
 )
 on conflict (id) do update
 set public = false,

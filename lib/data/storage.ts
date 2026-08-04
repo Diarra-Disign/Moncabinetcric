@@ -21,16 +21,14 @@ import { getSessionSupabase, getCurrentMember, getCurrentPortalClient } from "@/
 
 const BUCKET = "documents"
 
-/** Extensions acceptées, alignées sur les types du compartiment. */
-const TYPES_ACCEPTES = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/heic",
-  "image/webp",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-])
+/**
+ * Types acceptés, alignés sur la contrainte du compartiment.
+ *
+ * Ce contrôle-ci ne fait que donner un message clair : le verrou réel est
+ * en base, sur le compartiment, et s'applique même à un appel direct de
+ * l'API qui contournerait cette application.
+ */
+const TYPES_ACCEPTES = new Set(["application/pdf", "image/jpeg", "image/png"])
 
 const TAILLE_MAX = 20 * 1024 * 1024
 
