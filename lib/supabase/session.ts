@@ -69,6 +69,67 @@ export async function getCurrentFirm(): Promise<FirmIdentity> {
   return mapFirmRow(data as FirmRow)
 }
 
+export interface PortalClient {
+  userId: string
+  clientId: string
+  email: string
+  name: string
+  fileNumber: string
+  program: string
+  firmName: string
+}
+
+/**
+ * Client connecté au portail, ou null.
+ *
+ * La lecture s'appuie sur les politiques posées par la migration
+ * client_portal : un compte client ne voit que sa propre fiche. Aucun
+ * filtre applicatif n'intervient — si la base refuse, le portail est vide.
+ *
+ * Renvoie également null pour un membre de cabinet : is_portal_client()
+ * exclut délibérément quiconque possède un profil, afin que les deux jeux
+ * de politiques ne se cumulent jamais.
+ */
+export async function getCurrentPortalClient(): Promise<PortalClient | null> {
+  const supabase = await getSessionSupabase()
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+  if (error || !user) return null
+
+  const { data: lien } = await supabase
+    .from("client_users")
+    .select("client_id, email")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  if (!lien) return null
+
+  const { data: client } = await supabase
+    .from("clients")
+    .select("id, name, file_number, program, firms(name)")
+    .eq("id", lien.client_id)
+    .maybeSingle()
+
+  // Le rattachement existe mais la fiche est invisible : cabinet suspendu.
+  // current_client_id() renvoie alors NULL et toutes les politiques refusent.
+  if (!client) return null
+
+  const firm = client.firms as unknown as { name?: string } | null
+
+  return {
+    userId: user.id,
+    clientId: client.id as string,
+    email: (lien.email as string) ?? user.email ?? "",
+    name: (client.name as string) ?? "",
+    fileNumber: (client.file_number as string) ?? "",
+    program: (client.program as string) ?? "",
+    firmName: firm?.name ?? "",
+  }
+}
+
 export interface PlatformAdmin {
   userId: string
   email: string

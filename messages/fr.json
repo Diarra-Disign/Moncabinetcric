@@ -368,7 +368,16 @@
     "validatedDesc": "Aucune action nécessaire.",
     "tefTitle": "Test de langue (TEF)",
     "tefDate": "Validé le 12/10/2025",
-    "acceptedBadge": "Accepté"
+    "acceptedBadge": "Accepté",
+    "welcome": "Bonjour {name}",
+    "fileLabel": "Dossier",
+    "programLabel": "Programme",
+    "noProgram": "Programme à déterminer",
+    "progressUnknown": "L'avancement de votre dossier sera affiché ici dès que votre consultant l'aura mis à jour.",
+    "docsHeading": "Vos pièces",
+    "docsEmpty": "Aucune pièce n'est encore rattachée à votre dossier.",
+    "docsCount": "{count, plural, =0 {Aucune pièce} one {# pièce} other {# pièces}} au dossier",
+    "uploadDisabled": "Le dépôt de fichiers n'est pas encore en service. Transmettez vos pièces à votre consultant par les moyens convenus avec lui."
   },
   "MatterDetail": {
     "headerTitle": "Dossier d'immigration CICC",

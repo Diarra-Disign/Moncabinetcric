@@ -1,7 +1,12 @@
 import { Sidebar } from "@/components/app-shell/sidebar"
 import { Topbar, SearchItem } from "@/components/app-shell/topbar"
 import { getClients, getMatters, getDocuments, getInvoices } from "@/lib/data"
-import { getCurrentMember, getCurrentFirm, getCurrentPlatformAdmin } from "@/lib/supabase/session"
+import {
+  getCurrentMember,
+  getCurrentFirm,
+  getCurrentPlatformAdmin,
+  getCurrentPortalClient,
+} from "@/lib/supabase/session"
 import { FirmProvider } from "@/components/app-shell/firm-provider"
 import { AccessClosed } from "@/components/app-shell/access-closed"
 import { getTranslations } from "next-intl/server"
@@ -22,6 +27,12 @@ export default async function AppLayout({
     // proxy.ts voyait une session valide et le retournait aussitôt ici.
     const admin = await getCurrentPlatformAdmin()
     if (admin) redirect("/fr/admin")
+
+    // Un client du portail n'a pas de profil de cabinet, et c'est normal.
+    // Sans ce cas, il rebondissait vers la connexion avec « probleme=profil »
+    // juste après s'être authentifié avec succès.
+    const client = await getCurrentPortalClient()
+    if (client) redirect("/fr")
 
     // Ni membre, ni administrateur : le paramètre rend la page de connexion
     // terminale, sinon la même boucle se reformerait.

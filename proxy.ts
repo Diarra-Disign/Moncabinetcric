@@ -21,6 +21,10 @@ const PROTECTED_SEGMENTS = [
   // La console d'exploitation exige en outre d'être administrateur ; ce
   // second contrôle appartient au layout, qui peut interroger la base.
   'admin',
+  // Le portail client : il vit sous /<locale>/portal, mais aussi à la
+  // racine /<locale>. La racine est traitée séparément ci-dessous, le
+  // segment après la locale y étant vide.
+  'portal',
 ]
 
 const LOGIN_PATH = 'connexion'
@@ -34,10 +38,15 @@ function localeOf(pathname: string): string {
 
 function isProtected(pathname: string): boolean {
   const parts = pathname.split('/').filter(Boolean)
-  const afterLocale = routing.locales.includes(parts[0] as (typeof routing.locales)[number])
-    ? parts[1]
-    : parts[0]
-  return PROTECTED_SEGMENTS.includes(afterLocale ?? '')
+  const aLocale = routing.locales.includes(parts[0] as (typeof routing.locales)[number])
+  const afterLocale = aLocale ? parts[1] : parts[0]
+
+  // La racine « / » et « /fr » servent le portail client, qui affiche un
+  // dossier d'immigration. Sans ce cas particulier, elles échappaient à
+  // toute protection : le segment après la locale y est vide.
+  if (!afterLocale) return true
+
+  return PROTECTED_SEGMENTS.includes(afterLocale)
 }
 
 export default async function proxy(request: NextRequest) {

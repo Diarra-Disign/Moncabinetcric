@@ -368,7 +368,16 @@
     "validatedDesc": "No action required.",
     "tefTitle": "Language Test (TEF)",
     "tefDate": "Validated on 10/12/2025",
-    "acceptedBadge": "Accepted"
+    "acceptedBadge": "Accepted",
+    "welcome": "Hello {name}",
+    "fileLabel": "File",
+    "programLabel": "Program",
+    "noProgram": "Program to be determined",
+    "progressUnknown": "Your file's progress will appear here once your consultant has updated it.",
+    "docsHeading": "Your documents",
+    "docsEmpty": "No document is attached to your file yet.",
+    "docsCount": "{count, plural, =0 {No document} one {# document} other {# documents}} on file",
+    "uploadDisabled": "File upload is not yet in service. Send your documents to your consultant by the means agreed with them."
   },
   "MatterDetail": {
     "headerTitle": "CICC Immigration Matter",
