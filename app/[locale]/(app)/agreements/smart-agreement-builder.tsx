@@ -4,6 +4,16 @@ import React, { useState } from "react"
 import { X, CheckCircle2, ShieldCheck, Lock, Plus, Trash2, ArrowRight, ArrowLeft, DollarSign, Users, FileSignature, Sparkles, Building } from "lucide-react"
 import { AgreementRecord, ClauseDefinition, GovernmentFee } from "@/lib/data/types"
 import { useFirm } from "@/components/app-shell/firm-provider"
+import { ConformiteContrat } from "@/components/agreements/conformite-contrat"
+import { EXIGENCES_CONTRATS, type TypeContratCicc } from "@/lib/legal/cicc-contrats"
+
+const LIBELLES_ETAPES: Record<1 | 2 | 3 | 4 | 5, string> = {
+  1: "Personnes",
+  2: "Services",
+  3: "Débours IRCC",
+  4: "Clauses",
+  5: "Finances",
+}
 
 interface SmartAgreementBuilderProps {
   isOpen: boolean
@@ -23,6 +33,36 @@ export function SmartAgreementBuilder({
   const firm = useFirm()
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
 
+  // Le Code prévoit deux contrats distincts, à deux moments distincts : le
+  // contrat de consultation avant la consultation initiale (art. 23), le
+  // contrat de services avant toute prestation (art. 24). Tant que ce choix
+  // n'est pas fait, on ne sait pas quel contenu le contrat doit couvrir, et
+  // ouvrir l'assistant sur le formulaire d'honoraires n'aurait pas de sens.
+  const [typeContrat, setTypeContrat] = useState<TypeContratCicc | null>(null)
+
+  // Objet, portée et honoraires de la consultation — art. 23(2)c) et e). Les
+  // honoraires ont leur propre champ : ceux du contrat de services sont portés
+  // par la liste des services, que le contrat de consultation n'a pas.
+  const [objetConsultation, setObjetConsultation] = useState("")
+  const [honorairesConsultationCents, setHonorairesConsultationCents] = useState(0)
+  const [consultationProBono, setConsultationProBono] = useState(false)
+
+  // Mentions que l'article 24 exige et qu'aucun autre champ ne recueillait.
+  const [conseilsPreliminaires, setConseilsPreliminaires] = useState("")
+  const [instructionsClient, setInstructionsClient] = useState("")
+  const [delaisEstimes, setDelaisEstimes] = useState("")
+  const [personnesAssistantes, setPersonnesAssistantes] = useState("")
+  const [langueService, setLangueService] = useState<"français" | "anglais">("français")
+  // Éléments de rédaction attestés par le titulaire (voir ConformiteContrat).
+  const [attestes, setAttestes] = useState<Set<string>>(new Set())
+  const basculerAttestation = (ref: string) =>
+    setAttestes(prev => {
+      const suivant = new Set(prev)
+      if (suivant.has(ref)) suivant.delete(ref)
+      else suivant.add(ref)
+      return suivant
+    })
+
   // Step 1: Persons
   const [clientName, setClientName] = useState("")
   // Aucune partie par défaut : l'entente s'ouvrait pré-remplie de deux
@@ -34,46 +74,36 @@ export function SmartAgreementBuilder({
 
   // Client Contact Details (CICC Regulation)
   const [clientAddress, setClientAddress] = useState("")
-  const [clientCountry, setClientCountry] = useState("Canada (Québec)")
+  const [clientCountry, setClientCountry] = useState("")
   const [clientPhone, setClientPhone] = useState("")
-  const [clientEmail, setClientEmail] = useState("jf.tremblay@email.ca")
+  const [clientEmail, setClientEmail] = useState("")
 
-  // Step 2: Services
-  const [services, setServices] = useState([
+  // Step 2 : Services. Aucun service par défaut — l'assistant s'ouvrait sur un
+  // mandat PEQ à 3 500 $ et un permis de travail à 1 200 $ pour un client qui
+  // n'existe pas. Des honoraires pré-inscrits dans un contrat réglementé se
+  // signent sans être relus.
+  const [services, setServices] = useState<
     {
-      id: "s-1",
-      personId: "p-1",
-      personName: "",
-      programName: "Programme de l'Expérience Québécoise (PEQ)",
-      scopeIncluded: "Constitution complète du dossier CSQ + Demande de RP fédérale IRCC",
-      scopeExcluded: "Traduction certifiée de documents non fournis en français/anglais",
-      feeCents: 350000
-    },
-    {
-      id: "s-2",
-      personId: "p-2",
-      personName: "",
-      programName: "Permis de travail ouvert conjoint",
-      scopeIncluded: "Dépôt conjoint et suivi permis de travail rattaché",
-      scopeExcluded: "Frais de renouvellement ultérieur",
-      feeCents: 120000
-    }
-  ])
+      id: string
+      personId: string
+      personName: string
+      programName: string
+      scopeIncluded: string
+      scopeExcluded: string
+      feeCents: number
+    }[]
+  >([])
 
-  // Step 3: Government Fees (Débours)
-  const [selectedFees, setSelectedFees] = useState<{ feeId: string; quantity: number }[]>([
-    { feeId: "fee-01", quantity: 1 },
-    { feeId: "fee-02", quantity: 1 },
-    { feeId: "fee-04", quantity: 1 },
-    { feeId: "fee-03", quantity: 2 }
-  ])
+  // Step 3 : débours. Rien de coché : les frais gouvernementaux dépendent du
+  // programme et du nombre de personnes, pas d'un choix par défaut.
+  const [selectedFees, setSelectedFees] = useState<{ feeId: string; quantity: number }[]>([])
 
   // Step 4: Clauses selection
   const [selectedClauseIds, setSelectedClauseIds] = useState<string[]>(clauses.map(c => c.id))
 
   // Step 5: Financials & Discount & Tax Exemption
-  const [discountCents, setDiscountCents] = useState(20000) // $200.00
-  const [discountLabel, setDiscountLabel] = useState("Remise Client Privilégié")
+  const [discountCents, setDiscountCents] = useState(0)
+  const [discountLabel, setDiscountLabel] = useState("")
   const [isTaxExempt, setIsTaxExempt] = useState(false) // Checkbox client hors-Canada
 
   if (!isOpen) return null
@@ -97,11 +127,11 @@ export function SmartAgreementBuilder({
       {
         id: `s-${Date.now()}`,
         personId: defaultPerson ? defaultPerson.id : "p-1",
-        personName: defaultPerson ? defaultPerson.name : "Client",
-        programName: "Entrée Express Fédéral",
-        scopeIncluded: "Accompagnement et dépôt du profil MonCIC",
-        scopeExcluded: "Frais d'évaluation EDE",
-        feeCents: 250000
+        personName: defaultPerson ? defaultPerson.name : "",
+        programName: "",
+        scopeIncluded: "",
+        scopeExcluded: "",
+        feeCents: 0
       }
     ])
   }
@@ -122,7 +152,10 @@ export function SmartAgreementBuilder({
   }
 
   // Financial Calculations
-  const grossProfFeesCents = services.reduce((acc, s) => acc + s.feeCents, 0)
+  const grossProfFeesCents =
+    typeContrat === "consultation"
+      ? honorairesConsultationCents
+      : services.reduce((acc, s) => acc + s.feeCents, 0)
   const netProfFeesCents = Math.max(0, grossProfFeesCents - discountCents)
   const tpsCents = isTaxExempt ? 0 : Math.round(netProfFeesCents * 0.05)
   const tvqCents = isTaxExempt ? 0 : Math.round(netProfFeesCents * 0.09975)
@@ -133,6 +166,68 @@ export function SmartAgreementBuilder({
   }, 0)
 
   const grandTotalCents = netProfFeesCents + tpsCents + tvqCents + totalGovFeesCents
+
+  /**
+   * Éléments du Code que les données saisies couvrent effectivement.
+   *
+   * Un élément n'est coché que si la donnée correspondante existe. On ne
+   * suppose rien : un champ vide reste un manque, y compris quand le contexte
+   * rend l'oubli improbable.
+   */
+  // Pas de useMemo ici : ce composant retourne null quand il est fermé, et un
+  // hook placé après ce retour ne serait pas appelé à chaque rendu. Le calcul
+  // parcourt quelques dizaines d'éléments, il ne coûte rien.
+  const couvertsParLesDonnees = ((): Set<string> => {
+    const c = new Set<string>()
+    const nomClient = (persons.find(p => p.role === "principal") ?? persons[0])?.name || clientName
+    const cabinetComplet = Boolean(
+      firm.rcicName && firm.rcicNumber && firm.address && firm.phone && firm.email
+    )
+
+    if (typeContrat === "consultation") {
+      if (cabinetComplet) c.add("23(2)a)")
+      if (nomClient.trim() && (clientAddress.trim() || clientPhone.trim() || clientEmail.trim())) {
+        c.add("23(2)b)")
+      }
+      // Le Code accepte l'un ou l'autre : un montant, ou l'énoncé pro bono.
+      if (grossProfFeesCents > 0 || consultationProBono) c.add("23(2)c)")
+      if (objetConsultation.trim()) c.add("23(2)e)")
+      return c
+    }
+
+    if (cabinetComplet) c.add("24(3)a)")
+    if (nomClient.trim() && clientAddress.trim() && clientPhone.trim() && clientEmail.trim()) {
+      c.add("24(3)b)")
+    }
+    if (conseilsPreliminaires.trim()) c.add("24(3)c)")
+    if (personnesAssistantes.trim()) c.add("24(3)e)")
+    if (instructionsClient.trim()) c.add("24(3)f)")
+    if (services.length > 0 && services.every(s => s.programName.trim() && s.scopeIncluded.trim())) {
+      c.add("24(3)g)")
+    }
+    if (delaisEstimes.trim()) c.add("24(3)h)")
+    if (grossProfFeesCents > 0) c.add("24(3)i)")
+    if (selectedFees.length > 0) c.add("24(3)j)")
+    // Les taxes figurent au récapitulatif dans les deux cas : soit calculées,
+    // soit indiquées comme exonérées avec le motif.
+    c.add("24(3)k)")
+    if (langueService) c.add("24(3)s)")
+    return c
+  })()
+
+  const exigences = typeContrat ? EXIGENCES_CONTRATS[typeContrat] : null
+  const manquants = exigences
+    ? exigences.elements.filter(e =>
+        e.origine === "redaction" ? !attestes.has(e.ref) : !couvertsParLesDonnees.has(e.ref)
+      )
+    : []
+
+  /** Le contrat de consultation n'a ni services multiples, ni débours, ni clauses. */
+  const etapesUtiles: (1 | 2 | 3 | 4 | 5)[] =
+    typeContrat === "consultation" ? [1, 5] : [1, 2, 3, 4, 5]
+  const indexEtape = Math.max(0, etapesUtiles.indexOf(step))
+  const etapeSuivante = etapesUtiles[indexEtape + 1]
+  const etapePrecedente = etapesUtiles[indexEtape - 1]
 
   const formatMoney = (cents: number) => {
     return (cents / 100).toLocaleString("fr-CA", { style: "currency", currency: "CAD" })
@@ -187,8 +282,11 @@ export function SmartAgreementBuilder({
       tvqCents,
       isTaxExempt,
       grandTotalCents,
-      rcicName: "Adama Diarra",
-      rcicLicenceNo: firm.rcicNumber
+      rcicName: firm.rcicName,
+      rcicLicenceNo: firm.rcicNumber,
+      contractType: typeContrat ?? undefined,
+      consultationScope: objetConsultation || undefined,
+      attestedElements: [...attestes]
     }
 
     onCreated(created)
@@ -205,13 +303,18 @@ export function SmartAgreementBuilder({
               <FileSignature className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <h2 className="font-extrabold text-base tracking-tight text-white flex items-center gap-2">
-                Assistant d&apos;Élaboration d&apos;Entente de Service CICC
-                <span className="text-[10px] uppercase tracking-wider font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30 px-2 py-0.5 rounded">
-                  PILIER A
-                </span>
+              <h2 className="font-extrabold text-base tracking-tight text-white">
+                {exigences ? `Ébauche — ${exigences.titreFr}` : "Nouveau contrat"}
               </h2>
-              <p className="text-xs text-slate-400">Générateur conforme au Règlement du CICC & Art. 13 Fidéicommis</p>
+              {/* Le sous-titre annonçait un « générateur conforme au Règlement
+                  du CICC ». Un gabarit ne rend pas un contrat conforme, et
+                  l'affirmer déchargeait le titulaire d'une vérification qui
+                  lui revient. */}
+              <p className="text-xs text-slate-400">
+                {exigences
+                  ? `Contenu énuméré à l’article ${exigences.article} du Code de déontologie (DORS/2022-128)`
+                  : "Code de déontologie (DORS/2022-128), articles 23 et 24"}
+              </p>
             </div>
           </div>
           <button 
@@ -222,35 +325,71 @@ export function SmartAgreementBuilder({
           </button>
         </div>
 
+        {/* CHOIX DU CONTRAT — préalable à tout le reste */}
+        {!typeContrat && (
+          <div className="p-6 overflow-y-auto flex-1 text-slate-800">
+            <p className="text-xs leading-relaxed text-slate-600 mb-5">
+              Le Code de déontologie (DORS/2022-128) prévoit deux contrats distincts, à deux
+              moments distincts de la relation. Ce ne sont pas deux formules au choix : le contenu
+              exigé n’est pas le même, et l’un ne dispense pas de l’autre.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(["consultation", "services"] as const).map((t) => {
+                const ex = EXIGENCES_CONTRATS[t]
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => { setTypeContrat(t); setStep(1) }}
+                    className="text-left rounded-2xl border-2 border-slate-200 bg-white p-5 transition-colors hover:border-blue-500 hover:bg-blue-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+                  >
+                    <span className="inline-block rounded-full bg-slate-900 px-2.5 py-0.5 font-mono text-[10px] font-bold text-white">
+                      art. {ex.article}
+                    </span>
+                    <h3 className="mt-2.5 text-sm font-black text-slate-900">{ex.titreFr}</h3>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600">
+                      {ex.declencheurFr}
+                    </p>
+                    <p className="mt-3 border-t border-slate-100 pt-2.5 text-[10px] font-bold text-slate-500">
+                      {ex.elements.length} éléments de contenu exigés
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+
+            <p className="mt-5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-[11px] leading-relaxed text-amber-900">
+              Les articles 23 et 24 ne s’appliquent pas dans les cas prévus à l’article 25, et le
+              Collège peut accorder une exemption dans ceux de l’article 26. Cet assistant produit
+              une ébauche : le contrat que vous ferez signer relève de votre responsabilité
+              professionnelle et devrait être revu par un conseiller juridique.
+            </p>
+          </div>
+        )}
+
         {/* STEP PROGRESS BAR */}
+        {typeContrat && (
         <div className="bg-slate-100 border-b border-slate-200 px-6 py-3 flex items-center justify-between text-xs font-semibold text-slate-600">
-          <div className={`flex items-center gap-2 ${step >= 1 ? "text-blue-700 font-bold" : ""}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${step >= 1 ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>1</span>
-            <span>Personnes</span>
-          </div>
-          <div className="h-0.5 w-8 bg-slate-300"></div>
-          <div className={`flex items-center gap-2 ${step >= 2 ? "text-blue-700 font-bold" : ""}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${step >= 2 ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>2</span>
-            <span>Services</span>
-          </div>
-          <div className="h-0.5 w-8 bg-slate-300"></div>
-          <div className={`flex items-center gap-2 ${step >= 3 ? "text-blue-700 font-bold" : ""}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${step >= 3 ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>3</span>
-            <span>Débours IRCC</span>
-          </div>
-          <div className="h-0.5 w-8 bg-slate-300"></div>
-          <div className={`flex items-center gap-2 ${step >= 4 ? "text-blue-700 font-bold" : ""}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${step >= 4 ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>4</span>
-            <span>Clauses</span>
-          </div>
-          <div className="h-0.5 w-8 bg-slate-300"></div>
-          <div className={`flex items-center gap-2 ${step >= 5 ? "text-blue-700 font-bold" : ""}`}>
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${step >= 5 ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>5</span>
-            <span>Finances</span>
-          </div>
+          {/* Le contrat de consultation n'a ni services multiples, ni débours,
+              ni clauses : afficher ces étapes reviendrait à annoncer un
+              parcours qu'on ne lui fera pas suivre. */}
+          {etapesUtiles.map((e, i) => (
+            <React.Fragment key={e}>
+              {i > 0 && <div className="h-0.5 w-8 bg-slate-300" />}
+              <div className={`flex items-center gap-2 ${step >= e ? "text-blue-700 font-bold" : ""}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${step >= e ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"}`}>
+                  {i + 1}
+                </span>
+                <span>{LIBELLES_ETAPES[e]}</span>
+              </div>
+            </React.Fragment>
+          ))}
         </div>
+        )}
 
         {/* BODY STEP CONTENT */}
+        {typeContrat && (
         <div className="p-6 overflow-y-auto flex-1 text-slate-800 text-sm">
           
           {/* STEP 1 : PERSONNES */}
@@ -632,8 +771,141 @@ export function SmartAgreementBuilder({
           {/* STEP 5 : FINANCES & VENTILATION */}
           {step === 5 && (
             <div className="flex flex-col gap-5">
-              
-              {/* MODIFICATION DIRECTE DES FRAIS DE SERVICE */}
+
+              {/* OBJET ET PORTÉE — exigé au contrat de consultation, 23(2)e) */}
+              {typeContrat === "consultation" && (
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col gap-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                    Objet et portée de la consultation
+                    <span className="ml-2 font-mono text-[10px] font-normal text-slate-400">23(2)e)</span>
+                  </h4>
+                  <textarea
+                    value={objetConsultation}
+                    onChange={(e) => setObjetConsultation(e.target.value)}
+                    rows={3}
+                    placeholder="Ce sur quoi portera la consultation, et ce qu'elle ne couvre pas."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 pt-3">
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="font-semibold text-slate-600">
+                        Honoraires de la consultation ($)
+                        <span className="ml-1.5 font-mono text-[10px] font-normal text-slate-400">23(2)c)</span>
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        disabled={consultationProBono}
+                        value={honorairesConsultationCents / 100}
+                        onChange={(e) =>
+                          setHonorairesConsultationCents(Math.round(parseFloat(e.target.value || "0") * 100))
+                        }
+                        className="w-28 px-3 py-1.5 font-mono font-bold text-right rounded-xl border border-slate-300 bg-white disabled:bg-slate-100 disabled:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={consultationProBono}
+                        onChange={(e) => {
+                          setConsultationProBono(e.target.checked)
+                          if (e.target.checked) setHonorairesConsultationCents(0)
+                        }}
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="font-semibold text-slate-600">
+                        Consultation offerte pro bono
+                      </span>
+                    </label>
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    L’alinéa c) exige soit le montant des honoraires, soit un énoncé indiquant que
+                    la consultation est offerte pro bono. Des honoraires laissés à zéro sans cette
+                    mention ne couvrent ni l’un ni l’autre.
+                  </p>
+                </div>
+              )}
+
+              {/* MENTIONS EXIGÉES QU'AUCUN AUTRE CHAMP NE RECUEILLAIT */}
+              {typeContrat === "services" && (
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col gap-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                    Mentions exigées par l’article 24
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <label className="flex flex-col gap-1 md:col-span-2">
+                      <span className="font-semibold text-slate-600">
+                        Résumé des conseils préliminaires donnés
+                        <span className="ml-1.5 font-mono text-[10px] font-normal text-slate-400">24(3)c)</span>
+                      </span>
+                      <textarea
+                        value={conseilsPreliminaires}
+                        onChange={(e) => setConseilsPreliminaires(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 md:col-span-2">
+                      <span className="font-semibold text-slate-600">
+                        Instructions du client
+                        <span className="ml-1.5 font-mono text-[10px] font-normal text-slate-400">24(3)f)</span>
+                      </span>
+                      <textarea
+                        value={instructionsClient}
+                        onChange={(e) => setInstructionsClient(e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="font-semibold text-slate-600">
+                        Délais estimés de prestation
+                        <span className="ml-1.5 font-mono text-[10px] font-normal text-slate-400">24(3)h)</span>
+                      </span>
+                      <input
+                        type="text"
+                        value={delaisEstimes}
+                        onChange={(e) => setDelaisEstimes(e.target.value)}
+                        placeholder="ex. dépôt sous 8 semaines à compter des pièces complètes"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="font-semibold text-slate-600">
+                        Personnes susceptibles de vous assister
+                        <span className="ml-1.5 font-mono text-[10px] font-normal text-slate-400">24(3)e)</span>
+                      </span>
+                      <input
+                        type="text"
+                        value={personnesAssistantes}
+                        onChange={(e) => setPersonnesAssistantes(e.target.value)}
+                        placeholder="Noms, ou « aucune » s’il n’y en a pas"
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span className="font-semibold text-slate-600">
+                        Langue officielle de prestation
+                        <span className="ml-1.5 font-mono text-[10px] font-normal text-slate-400">24(3)s)</span>
+                      </span>
+                      <select
+                        value={langueService}
+                        onChange={(e) => setLangueService(e.target.value as "français" | "anglais")}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="français">Français</option>
+                        <option value="anglais">Anglais</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* MODIFICATION DIRECTE DES FRAIS DE SERVICE.
+                  Masqué pour la consultation : elle n'a pas de liste de
+                  services, et laisser un éditeur vide qu'aucune étape ne
+                  remplit ne mène nulle part. */}
+              {typeContrat === "services" && (
               <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col gap-3">
                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center justify-between">
                   <span className="flex items-center gap-2">
@@ -665,6 +937,7 @@ export function SmartAgreementBuilder({
                   ))}
                 </div>
               </div>
+              )}
 
               {/* CASE À COCHER EXONÉRATION DE TAXES (CLIENT HORS CANADA) */}
               <div className="p-4 bg-amber-50/80 border border-amber-300 rounded-2xl flex items-center justify-between gap-4">
@@ -692,8 +965,10 @@ export function SmartAgreementBuilder({
               <div className="bg-emerald-900 text-white p-5 rounded-3xl shadow-lg flex flex-col gap-4">
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
                   <div>
-                    <h3 className="font-extrabold text-base text-white tracking-tight">Récapitulatif Financier Opposable CICC</h3>
-                    <p className="text-xs text-emerald-200">Ventilation stricte des honoraires, remises, taxes et débours</p>
+                    <h3 className="font-extrabold text-base text-white tracking-tight">Récapitulatif financier</h3>
+                    <p className="text-xs text-emerald-200">
+                      Honoraires, remises, taxes et débours — alinéas i) à l) de l’article 24
+                    </p>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] uppercase font-mono font-bold bg-white/20 text-white px-3 py-1 rounded">
@@ -744,10 +1019,14 @@ export function SmartAgreementBuilder({
                         {isTaxExempt ? "0,00 $ (Exonéré)" : formatMoney(tvqCents)}
                       </span>
                     </div>
-                    <div className="flex justify-between text-amber-200 pt-1 border-t border-emerald-800">
-                      <span>Débours IRCC / MIFI (Exonérés) :</span>
-                      <span className="font-mono font-bold text-amber-300">{formatMoney(totalGovFeesCents)}</span>
-                    </div>
+                    {/* L'étape « Débours » n'existe pas pour la consultation :
+                        afficher une ligne que rien ne peut remplir. */}
+                    {typeContrat === "services" && (
+                      <div className="flex justify-between text-amber-200 pt-1 border-t border-emerald-800">
+                        <span>Débours IRCC / MIFI (Exonérés) :</span>
+                        <span className="font-mono font-bold text-amber-300">{formatMoney(totalGovFeesCents)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -757,50 +1036,75 @@ export function SmartAgreementBuilder({
                 </div>
               </div>
 
+              {typeContrat && (
+                <ConformiteContrat
+                  type={typeContrat}
+                  couvertsParLesDonnees={couvertsParLesDonnees}
+                  attestes={attestes}
+                  onBasculer={basculerAttestation}
+                />
+              )}
+
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs flex items-center justify-between">
                 <div>
                   <strong className="block text-slate-900 font-bold">Consultant Titulaire Responsable</strong>
-                  <span className="text-slate-500 font-mono">{firm.rcicName} (Permis CICC #{firm.rcicNumber})</span>
-                </div>
-                <div className="flex items-center gap-2 text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Contresignature électronique prête</span>
+                  <span className="text-slate-500 font-mono">
+                    {firm.rcicName || "—"}
+                    {firm.rcicNumber && ` (permis CICC #${firm.rcicNumber})`}
+                  </span>
                 </div>
               </div>
             </div>
           )}
 
         </div>
+        )}
 
         {/* MODAL FOOTER */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        {typeContrat && (
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-4">
           <button
-            disabled={step === 1}
-            onClick={() => setStep(prev => Math.max(1, prev - 1) as 1 | 2 | 3 | 4 | 5)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+            onClick={() => {
+              if (etapePrecedente) setStep(etapePrecedente)
+              else setTypeContrat(null)
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Précédent</span>
+            <span>{etapePrecedente ? "Précédent" : "Changer de contrat"}</span>
           </button>
 
-          {step < 5 ? (
+          {etapeSuivante ? (
             <button
-              onClick={() => setStep(prev => Math.min(5, prev + 1) as 1 | 2 | 3 | 4 | 5)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm font-semibold"
+              onClick={() => setStep(etapeSuivante)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
             >
               <span>Étape suivante</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
-            <button
-              onClick={handleFinalize}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-md animate-pulse"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Émettre & Transmettre l&apos;Entente CICC</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Le bouton reste actif : refuser l'émission reviendrait à
+                  décider à la place du titulaire, alors que l'assistant ne
+                  peut constater qu'un manque parmi les éléments qu'il connaît.
+                  Il le dit, il ne bloque pas. */}
+              {manquants.length > 0 && (
+                <span className="text-[11px] font-bold text-amber-800">
+                  {manquants.length} élément{manquants.length > 1 ? "s" : ""} de l’article{" "}
+                  {exigences?.article} non couvert{manquants.length > 1 ? "s" : ""}
+                </span>
+              )}
+              <button
+                onClick={handleFinalize}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-md"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Émettre l’ébauche du {exigences?.titreFr.toLowerCase()}</span>
+              </button>
+            </div>
           )}
         </div>
+        )}
 
       </div>
     </div>

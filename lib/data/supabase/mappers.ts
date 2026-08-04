@@ -116,6 +116,7 @@ export function toDocument(r: Row): DocumentRecord {
     name: str(r.name),
     type: str(r.type),
     category: r.category as DocumentRecord["category"],
+    docType: optStr(r.doc_type),
     uploadedBy: str(r.uploaded_by),
     date: dateStr(r.date),
     expiration: str(r.expiration),

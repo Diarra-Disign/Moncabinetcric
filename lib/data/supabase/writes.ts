@@ -249,6 +249,7 @@ export async function createDocument(data: Omit<DocumentRecord, "id"> & { id?: s
     name: data.name,
     type: data.type,
     category: data.category,
+    doc_type: data.docType ?? null,
     uploaded_by: data.uploadedBy,
     date: toDateOnly(data.date, today()),
     expiration: toDateOnly(data.expiration),

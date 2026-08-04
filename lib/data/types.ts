@@ -72,6 +72,8 @@ export interface DocumentRecord {
   name: string
   type: string
   category: "client_upload" | "consultant_upload" | "contract" | "invoice" | "ircc_form"
+  /** Nature détaillée — identifiant de lib/data/document-types.ts. */
+  docType?: string
   uploadedBy: string
   date: string
   expiration: string
@@ -194,6 +196,17 @@ export interface AgreementService {
 export interface AgreementRecord {
   id: string
   reference: string // format : SA-AAAA-######
+  /**
+   * Contrat de consultation (art. 23) ou contrat de services (art. 24) du
+   * Code de déontologie. Ce ne sont pas deux formules concurrentes : le
+   * premier précède la consultation initiale, le second toute prestation.
+   * Absent sur les ententes créées avant l'introduction de la distinction.
+   */
+  contractType?: "consultation" | "services"
+  /** Objet et portée — exigé au contrat de consultation, art. 23(2)e). */
+  consultationScope?: string
+  /** Éléments de rédaction attestés par le titulaire, par renvoi au Code. */
+  attestedElements?: string[]
   clientName: string
   clientAddress?: string
   clientCountryOfResidence?: string

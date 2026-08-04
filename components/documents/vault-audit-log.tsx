@@ -112,7 +112,13 @@ export function VaultAuditLog({ initialAuditEntries, sessionAuditEntries }: Vaul
                 : `⚠️ Rupture détectée dans la chaîne d'intégrité à l'entrée #${chainStatus.brokenAt}`}
             </h3>
             <p className={`text-[10px] mt-0.5 ${chainStatus.isValid ? "text-emerald-700" : "text-rose-700"}`}>
-              {allEntries.length} entrées d&apos;audit vérifiées · Algorithme : SHA-256 · Chaînage : prevHash → rowHash
+              {/* On compte les entrées réellement vérifiées, pas toutes celles
+                  affichées : les entrées de la session en cours n'ont pas
+                  encore été scellées par la base. */}
+              {initialAuditEntries.length} entrées scellées et vérifiées · SHA-256 · chaînage prevHash → rowHash
+              {sessionAuditEntries.length > 0 && (
+                <> · {sessionAuditEntries.length} en attente de scellement</>
+              )}
             </p>
           </div>
         </div>
@@ -213,15 +219,19 @@ export function VaultAuditLog({ initialAuditEntries, sessionAuditEntries }: Vaul
                       {/* Chaîne SHA-256 */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-1.5">
-                          <Link2 className="w-3 h-3 text-indigo-500 shrink-0" />
-                          <span className="font-mono text-[9px] text-indigo-700">{truncateHash(entry.rowHash)}</span>
+                          <Link2 className={`w-3 h-3 shrink-0 ${entry.rowHash ? "text-indigo-500" : "text-slate-300"}`} />
+                          {entry.rowHash ? (
+                            <span className="font-mono text-[9px] text-indigo-700">{truncateHash(entry.rowHash)}</span>
+                          ) : (
+                            <span className="text-[9px] italic text-slate-400">en attente de scellement</span>
+                          )}
                         </div>
                       </td>
 
                       {/* IP Source */}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <span className="font-mono text-[10px] text-slate-500">{entry.ipAddress}</span>
+                          <span className="font-mono text-[10px] text-slate-500">{entry.ipAddress || "—"}</span>
                           {isExpanded ? (
                             <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
                           ) : (
@@ -239,13 +249,13 @@ export function VaultAuditLog({ initialAuditEntries, sessionAuditEntries }: Vaul
                             <div>
                               <label className="font-black text-slate-500 uppercase block mb-1">Empreinte SHA-256 (rowHash)</label>
                               <p className="p-2 bg-slate-900 text-indigo-300 rounded-lg font-mono break-all leading-relaxed">
-                                {entry.rowHash}
+                                {entry.rowHash || "— pas encore scellée par la base"}
                               </p>
                             </div>
                             <div>
                               <label className="font-black text-slate-500 uppercase block mb-1">Empreinte Précédente (prevHash)</label>
                               <p className="p-2 bg-slate-900 text-slate-400 rounded-lg font-mono break-all leading-relaxed">
-                                {entry.prevHash}
+                                {entry.prevHash || "—"}
                               </p>
                             </div>
                             <div className="space-y-2">

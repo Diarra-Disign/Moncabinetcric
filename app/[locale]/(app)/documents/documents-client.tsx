@@ -47,6 +47,21 @@ import { ActionsFichier } from "@/components/documents/file-actions"
 import { SignatureBloc } from "@/components/documents/signature-bloc"
 import { triggerFileDownload } from "@/lib/utils/download-helper"
 import { archiveDocumentRecord, deleteDocumentRecord, restoreDocumentRecord } from "@/lib/data/actions"
+import {
+  GROUPES_TYPES_DOCUMENT,
+  TYPES_DOCUMENT,
+  categoriePourType,
+  libelleType,
+} from "@/lib/data/document-types"
+
+/** Libellé lisible des cinq origines de fichier déjà stockées en base. */
+const LIBELLE_ORIGINE: Record<DocumentRecord["category"], string> = {
+  client_upload: "fournie par le client",
+  consultant_upload: "produite par le cabinet",
+  contract: "contrat ou entente",
+  invoice: "facturation ou fidéicommis",
+  ircc_form: "formulaire officiel",
+}
 
 export interface FolderItem {
   id: string
@@ -93,10 +108,15 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
   const [sessionAuditEntries, setSessionAuditEntries] = React.useState<AuditLogRecord[]>([])
 
+  // Trace affichée pendant la session, avant que le serveur ne scelle
+  // l'entrée. Ni empreinte ni adresse IP ne sont produites ici : le condensé
+  // était tiré de Math.random() et l'adresse était une constante, tous deux
+  // présentés comme des éléments de preuve. Le scellement appartient à la
+  // base, qui seule peut le rendre opposable ; ici on laisse le champ vide et
+  // le journal l'affiche comme « en attente de scellement ».
   const addAuditLog = React.useCallback((action: AuditLogRecord["action"], summary: string, entityId?: string) => {
-    const lastEntry = sessionAuditEntries[0] || (initialAuditLogs && initialAuditLogs[0])
-    const prevHash = lastEntry ? lastEntry.rowHash : "0000000000000000000000000000000000000000000000000000000000000000"
-    const rowHash = `${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`.padEnd(64, "0").slice(0, 64)
+    const prevHash = ""
+    const rowHash = ""
 
     const newEntry: AuditLogRecord = {
       id: `daud-session-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -109,8 +129,8 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
       entityType: "document",
       entityId: entityId || "doc-session",
       summary,
-      ipAddress: "192.168.1.42",
-      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      ipAddress: "",
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
       prevHash,
       rowHash
     }
@@ -120,7 +140,11 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
   // Form State pour le nouveau document
   const [docName, setDocName] = React.useState("")
-  const [docCategory, setDocCategory] = React.useState<DocumentRecord["category"]>("client_upload")
+  // On saisit la nature exacte du document ; l'origine s'en déduit. L'inverse
+  // obligeait à choisir entre cinq cases trop larges pour dire quoi que ce
+  // soit d'utile sur le contenu de la pièce.
+  const [docType, setDocType] = React.useState<string>("passeport")
+  const docCategory = categoriePourType(docType)
   const [docClient, setDocClient] = React.useState("")
   const [docExpiration, setDocExpiration] = React.useState("2031-12-31")
   const [selectedFileSize, setSelectedFileSize] = React.useState<string>("2.4 MB")
@@ -239,16 +263,21 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
     const created: DocumentRecord = {
       id: `doc-${Date.now()}`,
       name: docName.endsWith(".pdf") ? docName : `${docName}.pdf`,
-      type: docCategory === "client_upload" ? "Pièce Fournie par Client" : docCategory === "contract" ? "Contrat CICC" : "Note Consultant",
+      type: TYPES_DOCUMENT[docType]?.labelFr ?? "Document",
       category: docCategory,
-      uploadedBy: docCategory === "client_upload" ? docClient : "Me Adama Diarra (RCIC)",
+      docType,
+      uploadedBy: docCategory === "client_upload" ? docClient : firm.rcicName,
       date: new Date().toISOString().split("T")[0],
       expiration: docExpiration || "2031-12-31",
       source: docCategory === "client_upload" ? "Portail Client" : "Poste Consultant",
       status: "valid",
       clientName: docClient,
       fileSize: selectedFileSize,
-      sha256: `sha256-${Date.now().toString(16)}`,
+      // Pas d'empreinte tant qu'aucun fichier n'est déposé. Elle était
+      // fabriquée à partir de l'horodatage puis affichée comme « Empreinte
+      // SHA-256 » : une empreinte inventée ne prouve rien et laisse croire
+      // le contraire. Le vrai condensé est calculé au dépôt du fichier.
+      sha256: undefined,
       storagePath: undefined
     }
 
@@ -612,11 +641,12 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
                   <h2 className="text-base font-black text-slate-900 mb-1">{selectedDoc.name}</h2>
                   <p className="text-xs text-slate-500 mb-6">
-                    {selectedDoc.category === "client_upload" ? "Pièce justificative fournie par le client" :
-                     selectedDoc.category === "consultant_upload" ? "Document interne téléversé par le consultant" :
-                     selectedDoc.category === "contract" ? "Contrat de Services — Entente CICC" :
-                     selectedDoc.category === "invoice" ? "Facture officielle ou Reçu Fidéicommis" :
-                     "Formulaire officiel IRCC / MIFI"}
+                    {libelleType(selectedDoc.docType, "fr") ??
+                     (selectedDoc.category === "client_upload" ? "Pièce justificative fournie par le client" :
+                      selectedDoc.category === "consultant_upload" ? "Document interne téléversé par le consultant" :
+                      selectedDoc.category === "contract" ? "Contrat ou entente" :
+                      selectedDoc.category === "invoice" ? "Facture ou reçu de fidéicommis" :
+                      "Formulaire officiel IRCC / MIFI")}
                   </p>
 
                   {selectedDoc.content ? (
@@ -703,19 +733,21 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                     />
                   </div>
 
+                  {/* Ce panneau affichait « Chiffrement : base hébergée au
+                      Canada » et « Souveraineté des données Canada (Loi 25) ».
+                      Ni l'un ni l'autre n'était vérifié ici : le premier
+                      annonçait un chiffrement en montrant un lieu, le second
+                      énonçait une conclusion juridique. On n'affiche plus que
+                      ce que cette fiche peut établir. */}
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Chiffrement</label>
-                    <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span className="text-[10px] font-bold text-emerald-900">Base hébergée au Canada</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Région de stockage</label>
-                    <div className="flex items-center gap-2 p-2.5 bg-sky-50 border border-sky-200 rounded-lg">
-                      <Lock className="w-4 h-4 text-sky-600 shrink-0" />
-                      <span className="text-[10px] font-bold text-sky-900">Souveraineté des données Canada (Loi 25)</span>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Conservation</label>
+                    <div className="flex items-start gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                      <Lock className="w-4 h-4 text-slate-500 shrink-0 mt-px" />
+                      <span className="text-[10px] font-medium text-slate-700 leading-relaxed">
+                        {selectedDoc.storagePath
+                          ? "Fichier conservé dans le coffre du cabinet, accès restreint par les politiques de la base. L’empreinte ci-dessus permet de vérifier qu’il n’a pas été modifié."
+                          : "Aucun fichier n’est encore déposé sur cette fiche."}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -759,17 +791,31 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
             <form onSubmit={handleCreateDocument} className="space-y-4 text-xs font-medium">
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Origine / Catégorie du Fichier</label>
+                <label htmlFor="doc-type" className="block text-slate-700 font-bold mb-1">Nature du document</label>
                 <select
-                  value={docCategory}
-                  onChange={(e) => setDocCategory(e.target.value as DocumentRecord["category"])}
+                  id="doc-type"
+                  value={docType}
+                  onChange={(e) => setDocType(e.target.value)}
                   className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-indigo-600 focus:outline-none"
                 >
-                  <option value="client_upload">Fourni par le Client (Passeport, TEF, Diplôme)</option>
-                  <option value="consultant_upload">Téléchargé par le Consultant (Note, Analyse)</option>
-                  <option value="contract">Contrat de Services CICC</option>
-                  <option value="invoice">Facture ou Reçu Fidéicommis</option>
+                  {GROUPES_TYPES_DOCUMENT.map((groupe) => (
+                    <optgroup key={groupe.id} label={groupe.labelFr}>
+                      {groupe.types.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.labelFr}
+                          {type.refCode ? ` — art. ${type.refCode}` : ""}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Origine déduite :{" "}
+                  <span className="font-bold text-slate-700">{LIBELLE_ORIGINE[docCategory]}</span>
+                  {TYPES_DOCUMENT[docType]?.refCode && (
+                    <> — encadré par l’article {TYPES_DOCUMENT[docType].refCode} du Code de déontologie.</>
+                  )}
+                </p>
               </div>
 
               <div>
