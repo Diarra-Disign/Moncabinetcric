@@ -28,7 +28,13 @@ const BUCKET = "documents"
  * en base, sur le compartiment, et s'applique même à un appel direct de
  * l'API qui contournerait cette application.
  */
-const TYPES_ACCEPTES = new Set(["application/pdf", "image/jpeg", "image/png"])
+const TYPES_ACCEPTES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  // Format par défaut des iPhone.
+  "image/heic",
+])
 
 const TAILLE_MAX = 20 * 1024 * 1024
 

@@ -69,7 +69,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
     upload: "Déposer un fichier",
     uploadRunning: "Dépôt en cours…",
     uploadDone: "Fichier déposé",
-    uploadHint: "PDF, JPEG ou PNG. 20 Mo max.",
+    uploadHint: "PDF, JPEG, PNG ou HEIC. 20 Mo max.",
     download: "Télécharger",
     verify: "Vérifier l'intégrité",
     verifyRunning: "Vérification…",

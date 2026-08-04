@@ -103,7 +103,7 @@ export function ActionsFichier({
               ref={inputRef}
               type="file"
               className="hidden"
-              accept=".pdf,.jpg,.jpeg,.png"
+              accept=".pdf,.jpg,.jpeg,.png,.heic"
               onChange={deposer}
             />
             <span className="text-[11px] text-muted-foreground">{labels.uploadHint}</span>

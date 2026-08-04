@@ -35,9 +35,11 @@ values (
   'documents',
   false,
   20971520, -- 20 Mo : au-delà, c'est un envoi hors plateforme
-  -- Trois types seulement. Chaque type accepté est une surface d'attaque
-  -- supplémentaire, et aucun antivirus n'analyse les fichiers reçus.
-  array['application/pdf', 'image/jpeg', 'image/png']
+  -- Liste courte : chaque type accepté est une surface d'attaque de plus,
+  -- et aucun antivirus n'analyse les fichiers reçus. HEIC y figure parce
+  -- que c'est le format produit par défaut par les iPhone — sans lui, un
+  -- client photographiant son passeport se voit refuser son dépôt.
+  array['application/pdf', 'image/jpeg', 'image/png', 'image/heic']
 )
 on conflict (id) do update
 set public = false,
