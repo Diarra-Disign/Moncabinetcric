@@ -1,0 +1,21 @@
+-- ============================================================================
+-- Droit de lecture du rôle anon sur firms
+-- ============================================================================
+--
+-- Ce correctif avait d'abord été appliqué à la main, hors migration : sur un
+-- projet neuf, les pages légales publiques seraient restées vides sans que
+-- rien n'indique pourquoi.
+--
+-- En Postgres, RLS et GRANT sont deux verrous successifs. La politique
+-- firms_public_operator autorise la lecture du seul cabinet exploitant,
+-- mais le verrouillage précédent avait révoqué tous les droits de table du
+-- rôle anon — la politique ne pouvait donc jamais s'appliquer.
+--
+-- Le droit porte sur la seule table firms ; la politique restreint ensuite
+-- aux coordonnées qui figurent de toute façon dans des mentions légales
+-- publiques.
+--
+-- Idempotente.
+-- ============================================================================
+
+grant select on public.firms to anon;

@@ -33,6 +33,7 @@ case "$commande" in
   verifier)     exec node scripts/verify-auth.mjs "$@" ;;
   roles)        exec node scripts/verify-roles.mjs "$@" ;;
   migration)    exec node scripts/apply-migration.mjs "$@" ;;
+  provisionner) exec node scripts/provision-project.mjs "$@" ;;
   motdepasse)   exec node scripts/set-password.mjs "$@" ;;
   cle)          exec node scripts/set-service-key.mjs "$@" ;;
   legislation)  exec node scripts/import-legislation.mjs "$@" ;;
@@ -59,6 +60,10 @@ Usage : ./cric <commande> [options]
   motdepasse   Poser ou changer le mot de passe d'un compte
                  ./cric motdepasse
                  ./cric motdepasse --email=infos@dgvimmigration.com
+
+  provisionner Remonte toute la plateforme sur un projet Supabase neuf
+                 ./cric provisionner            (simulation)
+                 ./cric provisionner --apply
 
   migration    Applique un fichier SQL et échoue si Postgres refuse
                  ./cric migration supabase/migrations/2026....sql
