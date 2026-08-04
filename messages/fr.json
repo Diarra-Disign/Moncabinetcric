@@ -515,7 +515,21 @@
     "statClosed": "Accès fermés",
     "accessOpen": "Accès ouvert",
     "accessClosed": "Accès fermé",
-    "trialUntil": "jusqu'au"
+    "trialUntil": "jusqu'au",
+    "newFirm": "Nouveau cabinet",
+    "firmName": "Raison sociale",
+    "license": "Permis CICC",
+    "consultant": "Consultant réglementé",
+    "email": "Courriel",
+    "plan": "Plan",
+    "trialDays": "Durée de l'essai (jours)",
+    "cancel": "Annuler",
+    "create": "Créer le cabinet",
+    "saving": "Enregistrement…",
+    "apply": "Appliquer",
+    "suspend": "Suspendre",
+    "activate": "Réactiver",
+    "actionsCol": "Actions"
   },
   "Invite": {
     "title": "Bienvenue",

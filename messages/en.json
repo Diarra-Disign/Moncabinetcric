@@ -515,7 +515,21 @@
     "statClosed": "Closed access",
     "accessOpen": "Access open",
     "accessClosed": "Access closed",
-    "trialUntil": "until"
+    "trialUntil": "until",
+    "newFirm": "New firm",
+    "firmName": "Legal name",
+    "license": "CICC licence",
+    "consultant": "Regulated consultant",
+    "email": "Email",
+    "plan": "Plan",
+    "trialDays": "Trial length (days)",
+    "cancel": "Cancel",
+    "create": "Create firm",
+    "saving": "Saving…",
+    "apply": "Apply",
+    "suspend": "Suspend",
+    "activate": "Reactivate",
+    "actionsCol": "Actions"
   },
   "Invite": {
     "title": "Welcome",

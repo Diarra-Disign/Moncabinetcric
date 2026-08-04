@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { getTranslations } from "next-intl/server"
 import { Building2, Users, AlertTriangle, Terminal, Lock, Ban } from "lucide-react"
 import { getAdminFirms, summarise, type AdminMemberRow } from "@/lib/data/admin"
+import { CreerCabinet, ActionsCabinet } from "./firm-actions"
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Admin")
@@ -53,6 +54,13 @@ export default async function AdminPage() {
   const t = await getTranslations("Admin")
   const firms = await getAdminFirms()
   const stats = summarise(firms)
+
+  // Les libellés traversent la frontière serveur/client : un composant
+  // client ne peut pas appeler getTranslations lui-même.
+  const etiquettes = Object.fromEntries(
+    ["newFirm","firmName","license","consultant","email","plan","trialDays",
+     "cancel","create","saving","apply","suspend","activate"].map(k => [k, t(k)])
+  )
 
   const tiles = [
     { icon: Building2, label: t("statFirms"), value: stats.firmCount, warn: false },
@@ -113,9 +121,12 @@ export default async function AdminPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-base font-black tracking-tight text-foreground">
-          {t("firmsHeading")}
-        </h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-black tracking-tight text-foreground">
+            {t("firmsHeading")}
+          </h2>
+          <CreerCabinet labels={etiquettes} />
+        </div>
 
         {firms.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
@@ -132,6 +143,7 @@ export default async function AdminPage() {
                   <th className="px-4 py-3 font-bold">{t("colContact")}</th>
                   <th className="px-4 py-3 font-bold">{t("colMembers")}</th>
                   <th className="px-4 py-3 font-bold whitespace-nowrap">{t("colCreated")}</th>
+                  <th className="px-4 py-3 font-bold">{t("actionsCol")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -181,6 +193,14 @@ export default async function AdminPage() {
                       </td>
                       <td className="px-4 py-4 font-mono text-xs whitespace-nowrap text-muted-foreground">
                         {f.createdAt}
+                      </td>
+                      <td className="px-4 py-4">
+                        <ActionsCabinet
+                          firmId={f.id}
+                          plan={f.plan}
+                          accessOpen={f.accessOpen}
+                          labels={etiquettes}
+                        />
                       </td>
                     </tr>
                   )
