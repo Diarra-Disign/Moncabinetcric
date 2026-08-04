@@ -72,6 +72,7 @@ export async function getCurrentFirm(): Promise<FirmIdentity> {
 export interface PortalClient {
   userId: string
   clientId: string
+  firmId: string
   email: string
   name: string
   fileNumber: string
@@ -101,7 +102,7 @@ export async function getCurrentPortalClient(): Promise<PortalClient | null> {
 
   const { data: lien } = await supabase
     .from("client_users")
-    .select("client_id, email")
+    .select("client_id, firm_id, email")
     .eq("user_id", user.id)
     .maybeSingle()
 
@@ -122,6 +123,7 @@ export async function getCurrentPortalClient(): Promise<PortalClient | null> {
   return {
     userId: user.id,
     clientId: client.id as string,
+    firmId: lien.firm_id as string,
     email: (lien.email as string) ?? user.email ?? "",
     name: (client.name as string) ?? "",
     fileNumber: (client.file_number as string) ?? "",
