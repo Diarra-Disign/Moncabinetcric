@@ -184,3 +184,56 @@ export async function certificat(documentId: string): Promise<LigneCertificat[]>
     stillMatching: Boolean(r.still_matching),
   }))
 }
+
+export interface EtatSignature {
+  /** Demande en attente, s'il en existe une. */
+  requestId: string | null
+  expiresAt: string | null
+  /** L'utilisateur courant a-t-il déjà signé cette demande ? */
+  dejaSigne: boolean
+  /** Peut-il ouvrir une demande ? Réservé aux membres pouvant écrire. */
+  peutDemander: boolean
+  /** Le document porte-t-il un fichier ? Sans fichier, rien à signer. */
+  fichierPresent: boolean
+  signatures: LigneCertificat[]
+}
+
+/**
+ * État de signature d'un document, du point de vue de l'appelant.
+ *
+ * Les politiques décident de ce qui est visible : un client ne voit que les
+ * demandes qui le concernent. Cette fonction ne filtre rien elle-même.
+ */
+export async function etatSignature(documentId: string): Promise<EtatSignature> {
+  const membre = await getCurrentMember()
+  const client = membre ? null : await getCurrentPortalClient()
+  const supabase = await getSessionSupabase()
+
+  const [{ data: doc }, { data: demandes }, lignes] = await Promise.all([
+    supabase.from("documents").select("sha256, storage_path").eq("id", documentId).maybeSingle(),
+    supabase
+      .from("signature_requests")
+      .select("id, expires_at, status")
+      .eq("document_id", documentId)
+      .eq("status", "pending")
+      .order("requested_at", { ascending: false })
+      .limit(1),
+    certificat(documentId),
+  ])
+
+  const demande = demandes?.[0] ?? null
+  const moi = membre?.userId ?? client?.userId ?? ""
+
+  // On compare sur le courriel : le certificat n'expose pas les
+  // identifiants de compte, et n'a pas à le faire.
+  const monCourriel = membre?.email ?? client?.email ?? ""
+
+  return {
+    requestId: (demande?.id as string) ?? null,
+    expiresAt: (demande?.expires_at as string) ?? null,
+    dejaSigne: lignes.some((l) => l.signerEmail === monCourriel),
+    peutDemander: Boolean(membre) && ["owner", "rcic", "risia", "staff"].includes(membre!.ciccRole),
+    fichierPresent: Boolean(doc?.storage_path && doc?.sha256),
+    signatures: lignes,
+  }
+}

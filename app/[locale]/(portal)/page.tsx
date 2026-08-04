@@ -4,6 +4,7 @@ import { FileText, Info } from "lucide-react"
 import { getCurrentPortalClient, getSessionSupabase } from "@/lib/supabase/session"
 import { VirtualMeetingCard } from "./virtual-meeting-card"
 import { ActionsFichier } from "@/components/documents/file-actions"
+import { SignatureBloc } from "@/components/documents/signature-bloc"
 
 /**
  * Portail client.
@@ -142,6 +143,13 @@ export default async function PortalPage({
                     peutVerifier={false}
                     labels={etiquettes}
                   />
+                  <div className="mt-3">
+                    <SignatureBloc
+                      documentId={p.id as string}
+                      documentName={p.name as string}
+                      signataire={client.name}
+                    />
+                  </div>
                 </div>
               </li>
             ))}

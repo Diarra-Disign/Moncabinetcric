@@ -44,6 +44,7 @@ import { PageHeader } from "@/components/app-shell/page-header"
 import { DocumentRecord, AuditLogRecord } from "@/lib/data/types"
 import { VaultAuditLog } from "@/components/documents/vault-audit-log"
 import { ActionsFichier } from "@/components/documents/file-actions"
+import { SignatureBloc } from "@/components/documents/signature-bloc"
 import { triggerFileDownload } from "@/lib/utils/download-helper"
 import { archiveDocumentRecord, deleteDocumentRecord, restoreDocumentRecord } from "@/lib/data/actions"
 
@@ -690,6 +691,15 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                       sha256={selectedDoc.sha256 ?? null}
                       labels={etiquettesFichier}
                       onChange={() => router.refresh()}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-2">Signature</label>
+                    <SignatureBloc
+                      documentId={selectedDoc.id}
+                      documentName={selectedDoc.name}
+                      signataire={firm.rcicName}
                     />
                   </div>
 
