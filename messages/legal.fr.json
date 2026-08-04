@@ -7,24 +7,18 @@
       "tableOfContents": "Sommaire",
       "draftNotice": "Ce document est un premier jet préparé conformément aux principes de la LPRPDE, de la Loi 25 du Québec et de la LCAP. Il doit être révisé par un avocat spécialisé en protection des renseignements personnels avant toute publication ou mise en production.",
       "contactHeading": "Nous joindre",
-      "firmName": "Cabinet Immigration Boréale Inc.",
-      "firmRcic": "Consultant réglementé en immigration canadienne — CICC n° R-514982",
-      "firmEmail": "adama.diarra@boreale-immigration.ca",
-      "firmCity": "Montréal, Québec, Canada"
+      "rcicPrefix": "Consultant réglementé en immigration canadienne — CICC n°"
     },
-
     "privacy": {
       "title": "Politique de confidentialité",
       "subtitle": "Protection des renseignements personnels — LPRPDE, Loi 25 du Québec et lois provinciales équivalentes",
       "effectiveDate": "2026-08-02",
-      "intro": "La présente politique décrit la manière dont Cabinet Immigration Boréale Inc. recueille, utilise, communique et conserve les renseignements personnels des personnes qui utilisent sa plateforme de gestion de cabinet et des clients dont les dossiers y sont traités. Elle s'ajoute — sans le remplacer — au secret professionnel auquel est tenu tout consultant réglementé en immigration canadienne membre du Collège des consultants en immigration et en citoyenneté.",
-
+      "intro": "La présente politique décrit la manière dont {firmName} recueille, utilise, communique et conserve les renseignements personnels des personnes qui utilisent sa plateforme de gestion de cabinet et des clients dont les dossiers y sont traités. Elle s'ajoute — sans le remplacer — au secret professionnel auquel est tenu tout consultant réglementé en immigration canadienne membre du Collège des consultants en immigration et en citoyenneté.",
       "s1": {
         "heading": "1. Responsable de la protection des renseignements personnels",
-        "p1": "Conformément à la Loi 25, la personne ayant la plus haute autorité au sein de l'entreprise est responsable de la protection des renseignements personnels. Cette fonction est exercée par Me Adama Diarra, consultant réglementé en immigration canadienne (CICC n° R-514982).",
-        "p2": "Toute question, demande d'accès, de rectification ou de retrait de consentement, ainsi que toute plainte, peut lui être adressée par courriel à adama.diarra@boreale-immigration.ca. Une réponse est fournie dans un délai de trente jours."
+        "p1": "Conformément à la Loi 25, la personne ayant la plus haute autorité au sein de l'entreprise est responsable de la protection des renseignements personnels. Cette fonction est exercée par {ownerName}, consultant réglementé en immigration canadienne (CICC n° {rcicNumber}).",
+        "p2": "Toute question, demande d'accès, de rectification ou de retrait de consentement, ainsi que toute plainte, peut lui être adressée par courriel à {email}. Une réponse est fournie dans un délai de trente jours."
       },
-
       "s2": {
         "heading": "2. Renseignements que nous recueillons",
         "p1": "Nous recueillons les catégories de renseignements suivantes, selon le rôle de la personne concernée.",
@@ -41,7 +35,6 @@
         "cat6Title": "Journaux techniques",
         "cat6Body": "Adresse IP, identifiant de navigateur, horodatage et description des opérations effectuées, consignés dans un journal d'audit interne."
       },
-
       "s3": {
         "heading": "3. Fins de la collecte",
         "p1": "Chaque catégorie de renseignements n'est recueillie qu'aux fins suivantes, déterminées avant la collecte.",
@@ -53,14 +46,12 @@
         "l6": "Communiquer avec la personne concernée au sujet de son dossier.",
         "p2": "Aucun renseignement n'est utilisé à une fin secondaire non énoncée ci-dessus sans obtenir un nouveau consentement."
       },
-
       "s4": {
         "heading": "4. Consentement et retrait",
         "p1": "Le consentement est demandé de manière distincte de toute autre information, en termes simples, et porte sur des fins précises. Compte tenu de la sensibilité des renseignements liés au statut migratoire, le consentement recueilli est un consentement exprès.",
         "p2": "Une personne peut retirer son consentement en tout temps en écrivant au responsable de la protection des renseignements personnels. Le retrait met fin aux traitements qui en dépendent, sous réserve des renseignements que nous devons conserver pour satisfaire à une obligation légale, déontologique ou de conservation décrite à la section 7.",
         "p3": "Lorsqu'un mandat concerne une personne mineure, le consentement du titulaire de l'autorité parentale est requis pour les personnes de moins de quatorze ans."
       },
-
       "s5": {
         "heading": "5. Communication à des tiers",
         "p1": "Nous ne vendons aucun renseignement personnel. Les renseignements ne sont communiqués qu'aux catégories de destinataires suivantes.",
@@ -73,28 +64,24 @@
         "l4Title": "Conseillers professionnels",
         "l4Body": "Avocats, comptables ou vérificateurs, lorsque requis et sous obligation de confidentialité."
       },
-
       "s6": {
         "heading": "6. Hébergement et transferts hors Québec",
         "p1": "Les renseignements sont hébergés chez un fournisseur infonuagique tiers. La région d'hébergement effective doit être confirmée et documentée avant toute mise en production avec des dossiers réels.",
         "p2": "Lorsque des renseignements personnels sont communiqués à l'extérieur du Québec, la Loi 25 impose la réalisation préalable d'une évaluation des facteurs relatifs à la vie privée tenant compte du régime de protection applicable dans l'État destinataire, ainsi qu'un encadrement contractuel du destinataire. Cette évaluation est en cours et constitue un préalable au traitement de dossiers réels.",
         "p3": "Tant que cette évaluation n'est pas complétée et que la région d'hébergement n'est pas confirmée par écrit, aucune garantie de résidence canadienne des données n'est formulée dans la présente politique."
       },
-
       "s7": {
         "heading": "7. Conservation et destruction",
         "p1": "Les dossiers clients et les documents afférents sont conservés pour la durée requise par les obligations de tenue de dossiers applicables au consultant réglementé, puis détruits de manière sécurisée.",
         "p2": "Les renseignements de prospection concernant une personne qui ne devient pas cliente sont détruits lorsqu'ils ne sont plus nécessaires aux fins pour lesquelles ils ont été recueillis.",
         "p3": "Les journaux d'audit sont conservés en mode ajout seul, sans possibilité de modification ni de suppression, aux fins de traçabilité réglementaire."
       },
-
       "s8": {
         "heading": "8. Mesures de sécurité",
         "p1": "L'accès aux renseignements est restreint aux membres du cabinet qui en ont besoin dans l'exercice de leurs fonctions. Les données de chaque cabinet sont cloisonnées logiquement et chaque requête est filtrée par cabinet.",
         "p2": "Les échanges entre le navigateur et la plateforme sont protégés par le protocole de transport chiffré standard. Les données au repos bénéficient des mesures de chiffrement offertes par le fournisseur d'hébergement.",
         "p3": "Aucune mesure de sécurité n'est décrite dans la présente politique sans avoir été confirmée comme réellement mise en œuvre. Les mesures complémentaires prévues mais non encore déployées sont documentées dans notre plan de mise en conformité interne et ne sont pas présentées ici comme existantes."
       },
-
       "s9": {
         "heading": "9. Vos droits",
         "p1": "Vous disposez des droits suivants, que vous pouvez exercer en écrivant au responsable de la protection des renseignements personnels.",
@@ -106,32 +93,27 @@
         "l6": "Être informé lorsqu'une décision vous concernant est fondée exclusivement sur un traitement automatisé, et présenter vos observations.",
         "p2": "Aucun frais n'est exigé pour une première demande d'accès."
       },
-
       "s10": {
         "heading": "10. Témoins et technologies similaires",
         "p1": "La plateforme utilise les témoins strictement nécessaires à son fonctionnement, notamment pour maintenir votre session et mémoriser votre langue d'affichage. Ces témoins ne servent ni à la publicité ni au suivi entre sites.",
         "p2": "Si des témoins de mesure d'audience ou de publicité venaient à être ajoutés, votre consentement préalable serait recueilli et la présente politique serait mise à jour en conséquence."
       },
-
       "s11": {
         "heading": "11. Décisions automatisées et profilage",
         "p1": "La plateforme attribue un pointage indicatif aux personnes ayant manifesté un intérêt pour nos services, afin d'aider le cabinet à prioriser ses suivis. Ce pointage constitue un profilage au sens de la Loi 25.",
         "p2": "Aucune décision produisant un effet juridique ou vous affectant de manière significative n'est prise sur le seul fondement d'un traitement automatisé. Toute évaluation d'admissibilité, toute recommandation et tout acte réservé sont rendus par un consultant réglementé, personne physique.",
         "p3": "Vous pouvez demander à connaître les renseignements utilisés pour établir ce pointage et présenter vos observations."
       },
-
       "s12": {
         "heading": "12. Renseignements concernant des mineurs",
         "p1": "Certains dossiers d'immigration visent des personnes mineures à titre de personnes à charge. Les renseignements les concernant sont recueillis auprès du titulaire de l'autorité parentale et traités avec les mêmes garanties que ceux des personnes majeures, avec les protections additionnelles prévues par la Loi 25.",
         "p2": "La plateforme n'est pas destinée à être utilisée directement par des personnes mineures."
       },
-
       "s13": {
         "heading": "13. Incidents de confidentialité",
         "p1": "Nous tenons un registre des incidents de confidentialité. En cas d'incident présentant un risque qu'un préjudice sérieux soit causé, nous avisons avec diligence la Commission d'accès à l'information ainsi que les personnes concernées, et nous prenons les mesures raisonnables pour réduire le risque de préjudice et éviter la répétition de l'incident.",
         "p2": "Si vous avez des raisons de croire qu'un incident est survenu, veuillez nous en aviser immédiatement à l'adresse indiquée à la section 1."
       },
-
       "s14": {
         "heading": "14. Plaintes",
         "p1": "Si notre réponse ne vous satisfait pas, vous pouvez porter plainte auprès de l'autorité compétente.",
@@ -139,78 +121,66 @@
         "l2": "Ailleurs au Canada, auprès du Commissariat à la protection de la vie privée du Canada.",
         "l3": "En Alberta et en Colombie-Britannique, auprès du commissaire à l'information et à la protection de la vie privée de la province concernée."
       },
-
       "s15": {
         "heading": "15. Modifications de la présente politique",
         "p1": "Nous pouvons modifier la présente politique afin de refléter une évolution de nos pratiques ou du cadre légal. La date d'entrée en vigueur figurant en tête du document indique la version applicable.",
         "p2": "Toute modification substantielle est portée à la connaissance des personnes concernées avant sa prise d'effet."
       }
     },
-
     "terms": {
       "title": "Conditions d'utilisation",
       "subtitle": "Conditions régissant l'accès à la plateforme et son utilisation",
       "effectiveDate": "2026-08-02",
-      "intro": "Les présentes conditions régissent l'accès à la plateforme de gestion de cabinet exploitée par Cabinet Immigration Boréale Inc. et son utilisation. En accédant à la plateforme, vous acceptez d'être lié par ces conditions.",
-
+      "intro": "Les présentes conditions régissent l'accès à la plateforme de gestion de cabinet exploitée par {firmName} et son utilisation. En accédant à la plateforme, vous acceptez d'être lié par ces conditions.",
       "s1": {
         "heading": "1. Objet et acceptation",
         "p1": "La plateforme est un outil de gestion destiné aux cabinets de consultants réglementés en immigration canadienne et à leurs clients. Elle permet notamment le suivi des dossiers, la conservation des pièces, la production d'ententes de services et la facturation.",
         "p2": "L'utilisation de la plateforme vaut acceptation des présentes conditions. Si vous n'y consentez pas, vous devez cesser d'y accéder."
       },
-
       "s2": {
         "heading": "2. Admissibilité",
         "p1": "L'accès est réservé aux personnes majeures ayant la capacité juridique de contracter, ainsi qu'aux personnes morales agissant par l'entremise d'un représentant dûment autorisé.",
         "p2": "L'accès professionnel est en outre réservé aux consultants réglementés en règle avec le Collège des consultants en immigration et en citoyenneté et aux membres de leur personnel autorisé."
       },
-
       "s3": {
         "heading": "3. Comptes et responsabilités",
         "p1": "Vous êtes responsable de la confidentialité de vos identifiants et de toute activité effectuée au moyen de votre compte.",
         "p2": "Vous vous engagez à fournir des renseignements exacts, à les tenir à jour, et à nous aviser sans délai de toute utilisation non autorisée de votre compte.",
         "p3": "Il est interdit de tenter d'accéder aux données d'un autre cabinet ou d'un autre client, de contourner les mesures de sécurité, ou d'utiliser la plateforme à une fin illicite."
       },
-
       "s4": {
         "heading": "4. Licence d'utilisation",
         "p1": "Sous réserve du respect des présentes conditions, il vous est concédé un droit personnel, non exclusif, non transférable et révocable d'utiliser la plateforme aux fins prévues.",
         "p2": "Aucun droit de propriété intellectuelle sur la plateforme, son code, sa présentation ou ses composants n'est cédé."
       },
-
       "s5": {
         "heading": "5. Contenus et données que vous nous confiez",
         "p1": "Vous demeurez titulaire des droits sur les documents et renseignements que vous téléversez. Vous nous accordez le droit de les héberger, de les traiter et de les afficher aux seules fins d'exécuter le mandat et de fournir le service.",
         "p2": "Vous garantissez détenir les autorisations nécessaires pour nous confier tout renseignement concernant un tiers, notamment un membre de votre famille ou un employé.",
         "p3": "Vous pouvez obtenir une copie de vos données en tout temps, selon les modalités prévues à la politique de confidentialité."
       },
-
       "s6": {
         "heading": "6. Honoraires, facturation et fidéicommis",
         "p1": "Les honoraires professionnels sont fixés dans l'entente de services conclue séparément. Les frais gouvernementaux ne constituent pas des honoraires : ils sont payables aux autorités compétentes, ne sont pas remboursables par le cabinet et ne sont inclus dans aucun forfait.",
         "p2": "Les sommes reçues d'avance sont déposées dans le compte en fidéicommis du cabinet et administrées conformément au Code de déontologie du Collège des consultants en immigration et en citoyenneté.",
         "p3": "En cas de divergence entre les présentes conditions et l'entente de services signée, l'entente de services prévaut quant aux honoraires et à l'étendue du mandat."
       },
-
       "s7": {
         "heading": "7. Absence de garantie de résultat",
         "p1": "Aucune décision relative à une demande d'immigration ne relève du cabinet. Ces décisions appartiennent exclusivement aux autorités gouvernementales compétentes.",
         "p2": "Aucun contenu de la plateforme, y compris les analyses d'admissibilité, les listes de vérification et les documents générés, ne constitue une garantie d'issue favorable."
       },
-
       "s8": {
         "heading": "8. Limitation de responsabilité",
         "p1": "La plateforme est fournie dans l'état où elle se trouve. Dans les limites permises par la loi, notre responsabilité ne peut être engagée pour les dommages indirects, la perte de profits ou la perte de données résultant de l'utilisation de la plateforme.",
         "p2": "Aucune stipulation des présentes ne limite la responsabilité professionnelle du consultant réglementé au titre du mandat qui lui est confié, ni les droits que la loi vous confère à titre de consommateur."
       },
-
       "s9": {
         "heading": "9. Résiliation",
         "p1": "Vous pouvez cesser d'utiliser la plateforme en tout temps et demander la fermeture de votre compte.",
         "p2": "Nous pouvons suspendre ou résilier un accès en cas de manquement aux présentes conditions, sous réserve du préavis raisonnable requis et de nos obligations professionnelles de conservation des dossiers.",
         "p3": "La résiliation de l'accès n'emporte pas destruction immédiate des renseignements : ceux-ci demeurent conservés selon les durées indiquées dans la politique de confidentialité."
       },
-
       "s10": {
         "heading": "10. Droit applicable et modifications",
         "p1": "Les présentes conditions sont régies par le droit applicable dans la province de Québec et par le droit canadien applicable. Les tribunaux du district judiciaire de Montréal sont compétents, sous réserve des règles impératives protégeant le consommateur.",

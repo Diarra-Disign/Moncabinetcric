@@ -1,6 +1,12 @@
 import type { Metadata } from "next"
 import { getTranslations } from "next-intl/server"
 import { LegalDocument, type LegalSection } from "@/components/legal/legal-document"
+import { getPlatformOperatorFirm, shortLocation } from "@/lib/data/platform-firm"
+
+// L'identité de l'exploitant est lue en base : sans cela, la page serait
+// figée au build et continuerait d'afficher l'ancienne raison sociale
+// après un changement de dénomination ou de permis.
+export const revalidate = 3600
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Legal.privacy")
@@ -10,9 +16,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function PrivacyPolicyPage() {
   const t = await getTranslations("Legal.privacy")
   const c = await getTranslations("Legal.common")
+  // L'identité vient de la base, jamais des catalogues : une mention
+  // légale figée finit par nommer le mauvais cabinet.
+  const operator = await getPlatformOperatorFirm()
 
   const sections: LegalSection[] = [
-    { heading: t("s1.heading"), paragraphs: [t("s1.p1"), t("s1.p2")] },
+    { heading: t("s1.heading"), paragraphs: [
+        t("s1.p1", { ownerName: operator.rcicName, rcicNumber: operator.rcicNumber }),
+        t("s1.p2", { email: operator.email }),
+      ] },
     {
       heading: t("s2.heading"),
       paragraphs: [t("s2.p1")],
@@ -67,16 +79,16 @@ export default async function PrivacyPolicyPage() {
       subtitle={t("subtitle")}
       effectiveLabel={c("effectiveLabel")}
       effectiveDate={t("effectiveDate")}
-      intro={t("intro")}
+      intro={t("intro", { firmName: operator.name })}
       draftNotice={c("draftNotice")}
       tableOfContentsLabel={c("tableOfContents")}
       backLabel={c("backToHome")}
       contactHeading={c("contactHeading")}
       contact={{
-        name: c("firmName"),
-        rcic: c("firmRcic"),
-        email: c("firmEmail"),
-        city: c("firmCity"),
+        name: operator.name,
+        rcic: `${c("rcicPrefix")} ${operator.rcicNumber}`,
+        email: operator.email,
+        city: shortLocation(operator.address),
       }}
       sections={sections}
     />
