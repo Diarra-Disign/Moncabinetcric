@@ -121,12 +121,12 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
   // Form State pour le nouveau document
   const [docName, setDocName] = React.useState("")
   const [docCategory, setDocCategory] = React.useState<DocumentRecord["category"]>("client_upload")
-  const [docClient, setDocClient] = React.useState("M. Adama Diarra (#DOS-35695)")
+  const [docClient, setDocClient] = React.useState("")
   const [docExpiration, setDocExpiration] = React.useState("2031-12-31")
   const [selectedFileSize, setSelectedFileSize] = React.useState<string>("2.4 MB")
 
   // State pour l'Autoremplissage Automatique Formulaire IRCC
-  const [irccClient, setIrccClient] = React.useState("M. Adama Diarra (#DOS-35695)")
+  const [irccClient, setIrccClient] = React.useState("")
   const [irccFormType, setIrccFormType] = React.useState("IMM 5669 - Antécédents / Déclaration")
 
   const filteredDocuments = documents.filter(d => {
@@ -488,7 +488,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                       {/* Client & Dossier */}
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-slate-900">{doc.clientName || doc.uploadedBy}</div>
-                        <div className="text-[10px] font-mono text-slate-500">{doc.matterId || "#DOS-35695"}</div>
+                        <div className="text-[10px] font-mono text-slate-500">{doc.matterId || "—"}</div>
                       </td>
 
                       {/* Date & Taille */}
@@ -639,7 +639,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                     </div>
                     <div className="flex justify-between border-b border-slate-100 pb-2">
                       <span className="font-bold text-slate-500">Numéro de dossier</span>
-                      <span className="font-mono font-bold">{selectedDoc.matterId || "#DOS-35695"}</span>
+                      <span className="font-mono font-bold">{selectedDoc.matterId || "—"}</span>
                     </div>
                     <div className="flex justify-between border-b border-slate-100 pb-2">
                       <span className="font-bold text-slate-500">Source</span>
@@ -777,7 +777,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Passeport_Officiel_2026.pdf"
+                  placeholder="ex : Passeport.pdf"
                   value={docName}
                   onChange={(e) => setDocName(e.target.value)}
                   className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-indigo-600 focus:outline-none"
@@ -787,7 +787,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
               <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => fileInputRef.current?.click()}>
                 <UploadCloud className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
                 <p className="text-xs font-bold text-slate-800">Cliquez pour choisir un fichier sur votre ordinateur</p>
-                <p className="text-[10px] text-slate-400 mt-1">Sélecteur natif OS (PDF, PNG, JPG jusqu&apos;à 50 MB)</p>
+                <p className="text-[10px] text-slate-400 mt-1">PDF, JPEG, PNG ou HEIC — 20 Mo maximum</p>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
               </div>
 

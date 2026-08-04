@@ -42,7 +42,9 @@ export function getServerSupabase(): SupabaseClient {
 
 /** Slug du cabinet actif, en attendant que la session le fournisse. */
 export function getActiveFirmSlug(): string {
-  return process.env.ACTIVE_FIRM_SLUG || "firm-boreale"
+  // Aucun repli sur un cabinet fictif : mieux vaut une chaîne vide
+  // qu'un identifiant qui n'existe pas.
+  return process.env.ACTIVE_FIRM_SLUG || ""
 }
 
 let cachedFirmId: string | null = null

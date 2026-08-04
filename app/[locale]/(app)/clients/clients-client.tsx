@@ -30,12 +30,13 @@ import {
   X
 } from "lucide-react"
 import { Link, useRouter } from "@/i18n/routing"
-import { ClientRecord } from "@/lib/data/types"
+import { ClientRecord, Matter } from "@/lib/data/types"
 import { matchesPerson } from "@/lib/utils/search"
 
 export type { ClientRecord }
 
 interface ClientsClientProps {
+  initialMatters?: Matter[]
   t: {
     title: string
     subtitle: string
@@ -47,7 +48,8 @@ interface ClientsClientProps {
   initialClients: ClientRecord[]
 }
 
-export function ClientsClient({ t, initialClients }: ClientsClientProps) {
+export function ClientsClient({ t, initialClients, initialMatters = [] }: ClientsClientProps) {
+  const matters = initialMatters
   const router = useRouter()
   const [clients, setClients] = React.useState<ClientRecord[]>(initialClients)
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -69,15 +71,11 @@ export function ClientsClient({ t, initialClients }: ClientsClientProps) {
   const [newProvince, setNewProvince] = React.useState("Québec")
   const [intakeNotes, setIntakeNotes] = React.useState("")
 
-  const getMatterIdForClient = (clientId: string) => {
-    switch (clientId) {
-      case "c-1": return "DOS-35695"
-      case "c-2": return "DOS-35697"
-      case "c-3": return "DOS-35694"
-      case "c-4": return "DOS-35698"
-      default: return "DOS-35695"
-    }
-  }
+  // Ce tableau associait en dur c-1 à c-4 aux dossiers de démonstration, et
+  // renvoyait DOS-35695 pour tout le reste. Sur des clients réels, il
+  // conduisait donc systématiquement vers un dossier inexistant.
+  const getMatterIdForClient = (clientId: string) =>
+    matters.find((m) => m.clientId === clientId)?.id.replace("#", "") ?? null
 
   const filteredClients = clients.filter(c => {
     let matchesStatus = true
@@ -404,7 +402,12 @@ export function ClientsClient({ t, initialClients }: ClientsClientProps) {
               {filteredClients.map((client) => (
                 <tr 
                   key={client.id} 
-                  onClick={() => router.push(`/matters/${getMatterIdForClient(client.id)}`)}
+                  onClick={() => {
+                    const ref = getMatterIdForClient(client.id)
+                    // Sans dossier rattaché, on ouvre la liste plutôt qu'une
+                    // fiche qui n'existe pas.
+                    router.push(ref ? `/matters/${ref}` : "/matters")
+                  }}
                   className="group hover:bg-slate-50/80 transition-colors cursor-pointer"
                 >
                   {/* Numéro de dossier */}
@@ -590,7 +593,7 @@ export function ClientsClient({ t, initialClients }: ClientsClientProps) {
                 <input
                   type="text"
                   required
-                  placeholder="ex: Diarra"
+                  placeholder="ex : Nom de famille"
                   value={newLastName}
                   onChange={(e) => setNewLastName(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
@@ -604,7 +607,7 @@ export function ClientsClient({ t, initialClients }: ClientsClientProps) {
                     <input
                       type="text"
                       required
-                      placeholder="ex: Les Industries Nordiques Inc."
+                      placeholder="ex : Nom de l'entreprise"
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
                       className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"

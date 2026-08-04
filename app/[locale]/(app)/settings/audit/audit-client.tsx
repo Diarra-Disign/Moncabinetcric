@@ -106,8 +106,8 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
       id: `aud-${timestampMs}`,
       occurredAt: now,
       actorMemberId: "mem-01",
-      actorEmail: "adama.diarra@boreale-immigration.ca",
-      actorName: "Me Adama Diarra",
+      actorEmail: firm.email,
+      actorName: firm.rcicName,
       actorRole: "rcic",
       action: "approval",
       entityType: "approval_queue",
@@ -275,7 +275,7 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
                 Toutes les mutations métier (contrats, virements fidéicommis, approbations) sont scellées par une empreinte SHA-256 dépendante de la transaction précédente (<code className="font-mono text-indigo-300">row_hash</code>). Toute suppression ou altération rétroactive est détectable instantanément.
               </p>
               <div className="flex items-center gap-4 mt-3 text-[11px] font-mono text-slate-400">
-                <span>Cabinet ID: <strong className="text-white">firm-boreale</strong></span>
+                <span>Cabinet : <strong className="text-white">{firm.name}</strong></span>
                 <span>•</span>
                 <span>Dernier Hash: <strong className="text-indigo-300">{logs[0]?.rowHash.substring(0, 16)}...</strong></span>
               </div>

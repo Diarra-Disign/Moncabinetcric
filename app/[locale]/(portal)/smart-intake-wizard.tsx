@@ -39,7 +39,7 @@ const INITIAL_ACTIVITIES: ActivityItem[] = [
     id: "act-1",
     from: "2023-01",
     to: "2026-07",
-    activity: "Ingénieur Logiciel Senior · Les Industries Nordiques",
+    activity: "",
     location: "Montréal, QC, Canada",
     status: "valid"
   },

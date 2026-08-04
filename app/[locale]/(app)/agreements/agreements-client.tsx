@@ -364,8 +364,8 @@ export function AgreementsClient({
                     <div className="space-y-1 text-slate-700">
                       <p><strong>Cabinet :</strong> {firm.name}</p>
                       <p><strong>Consultant Titulaire :</strong> {previewAgreement.rcicName} (RCIC #{previewAgreement.rcicLicenceNo})</p>
-                      <p><strong>Adresse Officielle :</strong> 500 Boulevard René-Lévesque Ouest, Bureau 1200, Montréal (QC) H2Z 1W7</p>
-                      <p><strong>Téléphone / Courriel :</strong> +1 (514) 800-2020 · info@immigrationboreale.ca</p>
+                      {firm.address && <p><strong>Adresse :</strong> {firm.address}</p>}
+                      <p><strong>Téléphone / Courriel :</strong> {firm.phone || "—"} · {firm.email || "—"}</p>
                     </div>
                   </div>
 

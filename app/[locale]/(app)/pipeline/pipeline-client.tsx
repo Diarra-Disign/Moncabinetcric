@@ -437,7 +437,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
       // l'enregistrement entier.
       lastContact: new Date().toISOString().slice(0, 10),
       email: newLeadEmail || "prospect@consulting.ca",
-      phone: newLeadPhone || "+1 (514) 555-0100",
+      phone: newLeadPhone || "",
       notes: newLeadNotes || "Fiche prospect créée depuis le pipeline CRM.",
       lmiaPositions: newLeadType === "b2b" ? Number(newLeadPositions) : undefined,
       source: newLeadSource,
@@ -1162,7 +1162,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                 <input
                   type="text"
                   required
-                  placeholder="ex: Rahman"
+                  placeholder="ex : Nom de famille"
                   value={newLeadLastName}
                   onChange={(e) => setNewLeadLastName(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
@@ -1175,7 +1175,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                   <input
                     type="text"
                     required
-                    placeholder="ex: Les Industries Nordiques Inc."
+                    placeholder="ex : Nom de l'entreprise"
                     value={newLeadCompany}
                     onChange={(e) => setNewLeadCompany(e.target.value)}
                     className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"

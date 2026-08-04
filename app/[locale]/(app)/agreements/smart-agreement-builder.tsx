@@ -24,16 +24,18 @@ export function SmartAgreementBuilder({
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
 
   // Step 1: Persons
-  const [clientName, setClientName] = useState("Adama Traoré")
-  const [persons, setPersons] = useState([
-    { id: "p-1", name: "Jean-François Tremblay", role: "principal" as const, isSignatory: true },
-    { id: "p-2", name: "Marie-Louise Tremblay", role: "spouse" as const, isSignatory: true }
-  ])
+  const [clientName, setClientName] = useState("")
+  // Aucune partie par défaut : l'entente s'ouvrait pré-remplie de deux
+  // personnes qui n'existent pas. Le type est annoté explicitement, sans
+  // quoi un tableau vide devient never[] et bloque tout ajout.
+  const [persons, setPersons] = useState<
+    { id: string; name: string; role: "principal" | "spouse" | "child" | "employer" | "sponsor"; isSignatory: boolean }[]
+  >([])
 
   // Client Contact Details (CICC Regulation)
-  const [clientAddress, setClientAddress] = useState("7420 Boulevard Saint-Laurent, App. 402, Montréal (QC) H2R 1W6")
+  const [clientAddress, setClientAddress] = useState("")
   const [clientCountry, setClientCountry] = useState("Canada (Québec)")
-  const [clientPhone, setClientPhone] = useState("+1 (514) 892-3401")
+  const [clientPhone, setClientPhone] = useState("")
   const [clientEmail, setClientEmail] = useState("jf.tremblay@email.ca")
 
   // Step 2: Services
@@ -41,7 +43,7 @@ export function SmartAgreementBuilder({
     {
       id: "s-1",
       personId: "p-1",
-      personName: "Jean-François Tremblay",
+      personName: "",
       programName: "Programme de l'Expérience Québécoise (PEQ)",
       scopeIncluded: "Constitution complète du dossier CSQ + Demande de RP fédérale IRCC",
       scopeExcluded: "Traduction certifiée de documents non fournis en français/anglais",
@@ -50,7 +52,7 @@ export function SmartAgreementBuilder({
     {
       id: "s-2",
       personId: "p-2",
-      personName: "Marie-Louise Tremblay",
+      personName: "",
       programName: "Permis de travail ouvert conjoint",
       scopeIncluded: "Dépôt conjoint et suivi permis de travail rattaché",
       scopeExcluded: "Frais de renouvellement ultérieur",

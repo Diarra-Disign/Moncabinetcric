@@ -9,7 +9,7 @@ interface SignaturePadProps {
   onSave?: (signatureDataUrl: string) => void
 }
 
-export function SignaturePad({ title = "Signature Électronique du Mandat CICC", clientName = "M. A. Diarra", onSave }: SignaturePadProps) {
+export function SignaturePad({ title = "Signature Électronique du Mandat CICC", clientName = "", onSave }: SignaturePadProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = React.useState(false)
   const [hasSignature, setHasSignature] = React.useState(false)

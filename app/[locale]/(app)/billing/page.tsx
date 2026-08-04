@@ -1,10 +1,12 @@
 import { getTranslations } from "next-intl/server"
 import { BillingClient } from "./billing-client"
-import { getInvoices } from "@/lib/data"
+import { getInvoices, getClients, getMatters } from "@/lib/data"
 
 export default async function BillingPage() {
   const tBilling = await getTranslations("Billing")
-  const initialInvoices = await getInvoices()
+  const [initialInvoices, initialClients, initialMatters] = await Promise.all([
+    getInvoices(), getClients(), getMatters(),
+  ])
 
   const translations = {
     title: tBilling("title"),
@@ -27,5 +29,10 @@ export default async function BillingPage() {
     },
   }
 
-  return <BillingClient t={translations} initialInvoices={initialInvoices} />
+  return <BillingClient
+      t={translations}
+      initialInvoices={initialInvoices}
+      initialClients={initialClients}
+      initialMatters={initialMatters}
+    />
 }

@@ -37,7 +37,7 @@ export interface Lead {
 
 export interface InvoiceRecord {
   id: string
-  invoiceNumber: string // "#FAC-202601"
+  invoiceNumber: string // format : #FAC-AAAAMM##
   clientName: string
   serviceDescription?: string // "Description du service facturé"
   amount: number // $ CAD
@@ -51,7 +51,7 @@ export interface InvoiceRecord {
 
 export interface ClientRecord {
   id: string
-  fileNumber: string // "CRIC-2026-0101"
+  fileNumber: string // format : CRIC-AAAA-####
   name: string
   firstName?: string
   lastName?: string
@@ -193,7 +193,7 @@ export interface AgreementService {
 
 export interface AgreementRecord {
   id: string
-  reference: string // "SA-2026-000142"
+  reference: string // format : SA-AAAA-######
   clientName: string
   clientAddress?: string
   clientCountryOfResidence?: string
@@ -315,7 +315,7 @@ export interface ActionApprovalRecord {
   actionTitle: string
   summary: string
   payload: Record<string, unknown>
-  preparedBy: string // "Sophie Tremblay (Adjointe Staff)"
+  preparedBy: string // nom du membre ayant préparé la pièce
   preparedByRole: "staff" | "risia"
   preparedAt: string
   approvedBy?: string // nom et permis du consultant approbateur

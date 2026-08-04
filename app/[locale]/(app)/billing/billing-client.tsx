@@ -30,7 +30,7 @@ import {
 } from "lucide-react"
 import { useRouter } from "@/i18n/routing"
 import { useTranslations } from "next-intl"
-import { InvoiceRecord } from "@/lib/data/types"
+import { InvoiceRecord, ClientRecord, Matter } from "@/lib/data/types"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { triggerDocumentPdfDownload } from "@/lib/utils/download-helper"
@@ -47,9 +47,24 @@ interface BillingClientProps {
     table: Record<string, string>
   }
   initialInvoices: InvoiceRecord[]
+  initialClients?: ClientRecord[]
+  initialMatters?: Matter[]
 }
 
-export function BillingClient({ t, initialInvoices }: BillingClientProps) {
+export function BillingClient({
+  t,
+  initialInvoices,
+  initialClients = [],
+  initialMatters = [],
+}: BillingClientProps) {
+  // La liste des clients à facturer était une énumération figée de cinq
+  // clients de démonstration : un cabinet réel se serait vu contraint
+  // d'établir une facture au nom d'un client inexistant.
+  const optionsClients = initialClients.map((c) => {
+    const dossier = initialMatters.find((m) => m.clientId === c.id)
+    const libelle = dossier ? `${c.name} (${dossier.id})` : c.name
+    return { valeur: libelle, texte: `${libelle}${c.program ? ` — ${c.program}` : ""}` }
+  })
   const firm = useFirm()
   const tBilling = useTranslations("Billing")
   const router = useRouter()
@@ -63,7 +78,7 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
   const [notice, setNotice] = React.useState<string | null>(null)
 
   // Form State pour émettre une nouvelle facture
-  const [newClient, setNewClient] = React.useState("M. A. Diarra (#DOS-35695)")
+  const [newClient, setNewClient] = React.useState("")
   const [newServiceDescription, setNewServiceDescription] = React.useState("Honoraires professionnels — Mandat de représentation & dépôt Résidence Permanente PEQ / IRCC")
   const [newAmount, setNewAmount] = React.useState("4500")
   const [isTrust, setIsTrust] = React.useState(true)
@@ -71,11 +86,9 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
 
   const getMatterIdForInvoice = (invId: string) => {
     switch (invId) {
-      case "inv-1": return "DOS-35698"
-      case "inv-2": return "DOS-35697"
-      case "inv-3": return "DOS-35696"
-      case "inv-4": return "DOS-35695"
-      default: return "DOS-35698"
+      // Le dossier provient de la facture elle-même ; ces quatre cas
+      // renvoyaient des dossiers de démonstration.
+      default: return ""
     }
   }
 
@@ -518,11 +531,12 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                     onChange={(e) => setNewClient(e.target.value)}
                     className="w-full pl-10 pr-9 py-2.5 text-xs font-bold rounded-2xl bg-white border border-slate-200 focus:border-blue-600 focus:outline-none transition-all cursor-pointer appearance-none shadow-xs text-slate-900"
                   >
-                    <option value="Les Industries Nordiques Inc. (12 EIMT)" className="bg-white text-slate-900 py-2">Les Industries Nordiques Inc. (#DOS-35698) — B2B</option>
-                    <option value="Dr. S. Rahman (#DOS-35697)" className="bg-white text-slate-900 py-2">Dr. S. Rahman (#DOS-35697) — Entrée Express</option>
-                    <option value="M. A. Diarra (#DOS-35695)" className="bg-white text-slate-900 py-2">M. A. Diarra (#DOS-35695) — PEQ Québec</option>
-                    <option value="Santé Québec Express (#DOS-35696)" className="bg-white text-slate-900 py-2">Santé Québec Express (#DOS-35696) — Infirmières B2B</option>
-                    <option value="K. Tremblay (Client à l'Étranger)" className="bg-white text-slate-900 py-2">K. Tremblay (#DOS-35694) — Client International</option>
+                    <option value="">— Choisir un client —</option>
+                    {optionsClients.map((o) => (
+                      <option key={o.valeur} value={o.valeur} className="bg-white text-slate-900 py-2">
+                        {o.texte}
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
@@ -711,9 +725,10 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                           <div className="flex items-center gap-2 text-blue-900 font-black text-lg tracking-tight">
                             <span>{firm.name}</span>
                           </div>
-                          <p className="text-xs text-slate-600 mt-0.5">1000 Rue Sherbrooke Ouest, Bureau 1400, Montréal, QC H3A 3G4</p>
+                          {firm.address && <p className="text-xs text-slate-600 mt-0.5">{firm.address}</p>}
                           <p className="text-xs text-slate-600 font-mono">N° Permis CICC : <strong>{firm.rcicNumber}</strong> ({firm.rcicName})</p>
-                          <p className="text-[11px] text-slate-500 font-mono">TPS : 123456789 RT0001 · TVQ : 1234567890 TQ0001</p>
+                          {/* Les numéros de taxes étaient inventés. Une facture qui porte un
+                              numéro de TPS erroné n'est pas une facture valide. */}
                         </div>
                       </div>
 
@@ -730,7 +745,9 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                       <div>
                         <span className="text-slate-400 font-semibold uppercase tracking-wider block text-[10px]">Facturé à (Client) :</span>
                         <strong className="text-sm text-slate-900">{selectedInvoice.clientName}</strong>
-                        <p className="text-slate-500">Dossier Rattaché : #DOS-35698 (Régime IRCC)</p>
+                        {selectedInvoice.matterId && (
+                          <p className="text-slate-500">Dossier rattaché : {selectedInvoice.matterId}</p>
+                        )}
                       </div>
                       <div className="text-right">
                         <span className="bg-emerald-100 text-emerald-900 text-[10px] font-mono font-extrabold px-2.5 py-1 rounded-full border border-emerald-300">
@@ -952,61 +969,36 @@ export function BillingClient({ t, initialInvoices }: BillingClientProps) {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-200 font-medium text-slate-800 text-[11px]">
-                            <tr className="hover:bg-slate-50 transition-colors">
-                              <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">18-05-2026</td>
-                              <td className="px-3.5 py-3 font-bold text-slate-900">Les Industries Nordiques (#DOS-35698)</td>
-                              <td className="px-3.5 py-3 text-slate-700 leading-snug">Mandat Entreprise B2B — Accompagnement & dépôt 12 EIMT</td>
-                              <td className="px-3.5 py-3 text-center whitespace-nowrap">
-                                <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
-                                  DÉPÔT 📥
-                                </span>
-                              </td>
-                              <td className="px-3.5 py-3 text-right font-mono font-black text-emerald-950 whitespace-nowrap min-w-[130px]">18 500,00 $</td>
-                            </tr>
-                            <tr className="hover:bg-slate-50 transition-colors">
-                              <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">17-05-2026</td>
-                              <td className="px-3.5 py-3 font-bold text-slate-900">Les Industries Nordiques (#DOS-35698)</td>
-                              <td className="px-3.5 py-3 text-slate-700 leading-snug">Prélèvement Honoraires Exécutés — Phase 1 Approbation EIMT</td>
-                              <td className="px-3.5 py-3 text-center whitespace-nowrap">
-                                <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
-                                  SORTIE 📤
-                                </span>
-                              </td>
-                              <td className="px-3.5 py-3 text-right font-mono font-black text-amber-950 whitespace-nowrap min-w-[130px]">- 10 000,00 $</td>
-                            </tr>
-                            <tr className="hover:bg-slate-50 transition-colors">
-                              <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">16-05-2026</td>
-                              <td className="px-3.5 py-3 font-bold text-slate-900">Dr. S. Rahman (#DOS-35697)</td>
-                              <td className="px-3.5 py-3 text-slate-700 leading-snug">Accompagnement Entrée Express, ÉDE & Dépôt d&apos;intérêt</td>
-                              <td className="px-3.5 py-3 text-center whitespace-nowrap">
-                                <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
-                                  DÉPÔT 📥
-                                </span>
-                              </td>
-                              <td className="px-3.5 py-3 text-right font-mono font-black text-emerald-950 whitespace-nowrap min-w-[130px]">4 200,00 $</td>
-                            </tr>
-                            <tr className="hover:bg-slate-50 transition-colors">
-                              <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">15-05-2026</td>
-                              <td className="px-3.5 py-3 font-bold text-slate-900">Santé Québec Express (#DOS-35696)</td>
-                              <td className="px-3.5 py-3 text-slate-700 leading-snug">Programme Santé Québec & Recrutement Infirmières</td>
-                              <td className="px-3.5 py-3 text-center whitespace-nowrap">
-                                <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
-                                  DÉPÔT 📥
-                                </span>
-                              </td>
-                              <td className="px-3.5 py-3 text-right font-mono font-black text-emerald-950 whitespace-nowrap min-w-[130px]">14 400,00 $</td>
-                            </tr>
-                            <tr className="hover:bg-slate-50 transition-colors">
-                              <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">14-05-2026</td>
-                              <td className="px-3.5 py-3 font-bold text-slate-900">Santé Québec Express (#DOS-35696)</td>
-                              <td className="px-3.5 py-3 text-slate-700 leading-snug">Paiement Débours Officiels IRCC (Frais de traitement permis)</td>
-                              <td className="px-3.5 py-3 text-center whitespace-nowrap">
-                                <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
-                                  SORTIE 📤
-                                </span>
-                              </td>
-                              <td className="px-3.5 py-3 text-right font-mono font-black text-amber-950 whitespace-nowrap min-w-[130px]">- 12 500,00 $</td>
-                            </tr>
+                            {/* Ce grand livre affichait cinq écritures en dur, au nom de
+                                clients de démonstration. Il reflète maintenant les
+                                factures réelles du cabinet. */}
+                            {invoices.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-3.5 py-10 text-center text-slate-400 italic">
+                                  Aucun mouvement enregistré.
+                                </td>
+                              </tr>
+                            ) : (
+                              invoices.map((inv) => (
+                                <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                                  <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">{inv.date}</td>
+                                  <td className="px-3.5 py-3 font-bold text-slate-900">
+                                    {inv.clientName}{inv.matterId ? ` (${inv.matterId})` : ""}
+                                  </td>
+                                  <td className="px-3.5 py-3 text-slate-700 leading-snug">
+                                    {inv.serviceDescription ?? "—"}
+                                  </td>
+                                  <td className="px-3.5 py-3 text-center whitespace-nowrap">
+                                    <span className="bg-slate-100 text-slate-900 border border-slate-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                                      {inv.isTrustAccount ? "FIDÉICOMMIS" : "GÉNÉRAL"}
+                                    </span>
+                                  </td>
+                                  <td className="px-3.5 py-3 text-right font-mono font-bold whitespace-nowrap">
+                                    {inv.amount.toLocaleString("fr-CA", { minimumFractionDigits: 2 })} $
+                                  </td>
+                                </tr>
+                              ))
+                            )}
                           </tbody>
                         </table>
                       </div>

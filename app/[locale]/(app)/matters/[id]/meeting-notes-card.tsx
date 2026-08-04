@@ -12,26 +12,10 @@ export interface MeetingNote {
   content: string
 }
 
-const INITIAL_NOTES: Record<string, MeetingNote[]> = {
-  "#DOS-35695": [
-    {
-      id: "note-1",
-      date: "28 Juillet 2026",
-      author: "Adama Diarra (RCIC)",
-      type: "consultation",
-      content: "Consultation initiale effectuée via Zoom. Révision du diplôme et du résultat TEF Canada (B2/C1)."
-    }
-  ],
-  "#DOS-35697": [
-    {
-      id: "note-101",
-      date: "25 Juillet 2026",
-      author: "Adama Diarra (RCIC)",
-      type: "consultation",
-      content: "Examen des diplômes biomédicaux. Évaluation EDE WES à joindre au profil Entrée Express."
-    }
-  ]
-}
+// Ce registre contenait des notes de consultation pré-écrites pour deux
+// dossiers de démonstration : elles apparaissaient sur les dossiers réels
+// portant les mêmes références.
+const INITIAL_NOTES: Record<string, MeetingNote[]> = {}
 
 interface MeetingNotesCardProps {
   matterId: string

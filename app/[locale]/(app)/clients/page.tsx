@@ -1,10 +1,10 @@
 import { getTranslations } from "next-intl/server"
 import { ClientsClient } from "./clients-client"
-import { getClients } from "@/lib/data"
+import { getClients, getMatters } from "@/lib/data"
 
 export default async function ClientsPage() {
   const tClients = await getTranslations("Clients")
-  const initialClients = await getClients()
+  const [initialClients, initialMatters] = await Promise.all([getClients(), getMatters()])
 
   const translations = {
     title: tClients("title"),
@@ -27,5 +27,5 @@ export default async function ClientsPage() {
     },
   }
 
-  return <ClientsClient t={translations} initialClients={initialClients} />
+  return <ClientsClient t={translations} initialClients={initialClients} initialMatters={initialMatters} />
 }

@@ -611,7 +611,7 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Dr. S. Rahman"
+                    placeholder="ex : Nom du client"
                     value={newClientName}
                     onChange={(e) => setNewClientName(e.target.value)}
                     className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-indigo-600 focus:outline-none"

@@ -297,7 +297,7 @@ export async function executeAiConnectorAction(
     apiKeyPrefix,
     clientIp: "198.51.100.42",
     action,
-    resourceId: payload.agreementId as string || "SA-2026-000142",
+    resourceId: payload.agreementId as string || "",
     status: "success",
     summary: `Exécution réussie par l'IA : ${action} (${JSON.stringify(payload).substring(0, 60)}...)`,
     rowHash: `sha256-${Date.now()}`
@@ -309,7 +309,7 @@ export async function executeAiConnectorAction(
     data: {
       action,
       executedAt: new Date().toISOString(),
-      agreementId: payload.agreementId || "SA-2026-000142",
+      agreementId: payload.agreementId || "",
       status: "draft_updated",
       payload
     }
