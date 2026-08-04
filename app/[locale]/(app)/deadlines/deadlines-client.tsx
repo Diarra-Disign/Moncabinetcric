@@ -249,7 +249,7 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
             <p className="text-xs text-slate-500">Calculé sur 7 items réglementaires obligatoires.</p>
 
             <div className="mt-4 flex items-baseline gap-2">
-              <span className="text-4xl font-black text-emerald-600">{complianceScore.totalScore}</span>
+              <span className="text-4xl font-black text-emerald-600">{complianceScore.totalScore ?? "—"}</span>
               <span className="text-sm font-bold text-slate-400">/ 100 Points</span>
             </div>
           </div>
@@ -501,7 +501,7 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900">Audit de Conformité CICC (7 Items)</h3>
-                  <p className="text-xs text-slate-500 font-mono">Score total : {complianceScore.totalScore} / 100 points</p>
+                  <p className="text-xs text-slate-500 font-mono">Score total : {complianceScore.totalScore ?? "non évalué"} / 100 points</p>
                 </div>
               </div>
               <button 

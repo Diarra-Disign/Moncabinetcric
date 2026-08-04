@@ -182,16 +182,25 @@ export const MOCK_DEADLINE_RECORDS: DeadlineRecord[] = [
   }
 ]
 
+/**
+ * Grille des sept items de conformité CICC.
+ *
+ * Les libellés et pondérations sont la référence réglementaire et restent
+ * valides. En revanche isSatisfied vaut désormais false partout : rien
+ * dans l'application ne vérifie encore ces points, et les déclarer
+ * satisfaits revenait à attester une conformité que personne n'a
+ * constatée. Le score se calcule à partir de ces drapeaux.
+ */
 export const OFFICIAL_CICC_COMPLIANCE_SCORE: CiccComplianceScore = {
-  totalScore: 95,
-  status: "perfect",
+  totalScore: null,
+  status: "not_assessed",
   items: [
     {
       id: "cicc-01",
       labelFr: "Contrat de services réglementé signé au dossier",
       labelEn: "Regulated Service Agreement Signed on File",
       weight: 20,
-      isSatisfied: true,
+      isSatisfied: false,
       detailFr: "Tous les dossiers actifs possèdent une entente CICC signée et horodatée.",
       detailEn: "All active matters have a signed and timestamped CICC agreement."
     },
@@ -200,7 +209,7 @@ export const OFFICIAL_CICC_COMPLIANCE_SCORE: CiccComplianceScore = {
       labelFr: "Mandat de représentation IMM 5476 signé et versé",
       labelEn: "IMM 5476 Representation Mandate Signed & Filed",
       weight: 15,
-      isSatisfied: true,
+      isSatisfied: false,
       detailFr: "Formulaire IMM 5476 valide et actif sur chaque dossier client.",
       detailEn: "Valid IMM 5476 form filed for all active clients."
     },
@@ -209,7 +218,7 @@ export const OFFICIAL_CICC_COMPLIANCE_SCORE: CiccComplianceScore = {
       labelFr: "Aucune échéance réglementaire critique dépassée",
       labelEn: "Zero Critical Regulatory Deadlines Overdue",
       weight: 20,
-      isSatisfied: true,
+      isSatisfied: false,
       detailFr: "Toutes les échéances critiques sont dans les délais prescrits par la LIPR.",
       detailEn: "All critical deadlines are within prescribed LIPR timeframes."
     },
@@ -218,7 +227,7 @@ export const OFFICIAL_CICC_COMPLIANCE_SCORE: CiccComplianceScore = {
       labelFr: "Rapprochement du compte fidéicommis du mois précédent complété",
       labelEn: "Prior Month Trust Account Reconciliation Completed",
       weight: 15,
-      isSatisfied: true,
+      isSatisfied: false,
       detailFr: "Rapprochement mensuel du compte client validé et scellé au 31 juillet 2026.",
       detailEn: "Monthly trust reconciliation validated as of July 31, 2026."
     },
@@ -227,7 +236,7 @@ export const OFFICIAL_CICC_COMPLIANCE_SCORE: CiccComplianceScore = {
       labelFr: "Aucun retrait fidéicommis sans facture justificative rattachée",
       labelEn: "Zero Trust Withdrawals Without Attached Invoice",
       weight: 15,
-      isSatisfied: true,
+      isSatisfied: false,
       detailFr: "Chaque virement du fidéicommis correspond à un reçu et une facture émise.",
       detailEn: "Every trust transfer matches an issued invoice and receipt."
     },
@@ -236,7 +245,7 @@ export const OFFICIAL_CICC_COMPLIANCE_SCORE: CiccComplianceScore = {
       labelFr: "Registre des conflits d'intérêts vérifié à l'ouverture",
       labelEn: "Conflict of Interest Registry Checked at Opening",
       weight: 10,
-      isSatisfied: true,
+      isSatisfied: false,
       detailFr: "Contrôle d'absence de conflit exécuté avant la première consultation.",
       detailEn: "Conflict of interest check completed prior to initial consultation."
     },

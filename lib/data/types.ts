@@ -274,8 +274,15 @@ export interface CiccComplianceItem {
 }
 
 export interface CiccComplianceScore {
-  totalScore: number // Sur 100
-  status: "perfect" | "good" | "action_required"
+  /**
+   * Score sur 100, ou null lorsqu'il n'y a rien à évaluer.
+   *
+   * null n'est pas une commodité : afficher « 95/100 — parfait » à un
+   * cabinet sans aucun dossier était une attestation de conformité sans
+   * fondement, portant qui plus est le nom d'un audit CICC.
+   */
+  totalScore: number | null
+  status: "perfect" | "good" | "action_required" | "not_assessed"
   items: CiccComplianceItem[]
 }
 

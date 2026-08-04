@@ -47,6 +47,7 @@ import { Badge } from "@/components/ui/badge"
 import { useTranslations } from "next-intl"
 import { CalendarEvent, ClientRecord, Matter, Lead } from "@/lib/data/types"
 import { createEvent } from "@/lib/data/actions"
+import { PromoteFromEvent } from "@/components/calendar/promote-from-event"
 import { PageHeader } from "@/components/app-shell/page-header"
 
 export type { CalendarEvent }
@@ -902,8 +903,21 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                                     setDraggedEventId(null)
                                     setDragOverTarget(null)
                                   }}
-                                  onClick={() => setSelectedEvent(evt)}
-                                  className={`p-2.5 rounded-xl border text-left cursor-grab active:cursor-grabbing transition-all duration-200 shadow-2xs space-y-1.5 ${style.card}`}
+                                  role="button"
+                                  tabIndex={0}
+                                  // La fiche ne s'ouvrait que par une petite
+                                  // icône d'étincelle, invisible pour qui ne
+                                  // la connaît pas. La carte entière ouvre
+                                  // maintenant le détail.
+                                  onClick={() => handleOpenBrief(evt)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                      e.preventDefault()
+                                      handleOpenBrief(evt)
+                                    }
+                                  }}
+                                  aria-label={`Ouvrir le rendez-vous de ${evt.clientName}`}
+                                  className={`p-2.5 rounded-xl border text-left cursor-pointer active:cursor-grabbing transition-all duration-200 shadow-2xs space-y-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 ${style.card}`}
                                 >
                                   <div className="flex items-center justify-between gap-1">
                                     <span className="text-[10px] font-mono font-bold opacity-80 flex items-center gap-1">
@@ -1631,14 +1645,23 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
             </div>
 
             <div className="p-6 space-y-6 flex-1">
-              <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80 flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-bold text-slate-700">Compte Fidéicommis CICC</p>
-                  <p className="text-lg font-black text-emerald-600 font-mono">{selectedEvent.trustBalance || "$0 CAD"}</p>
-                </div>
-                <Badge variant="success" className="text-xs font-bold">
-                  Frais provisionnés ✓
-                </Badge>
+              {/* Depuis un rendez-vous, ouvrir la fiche correspondante :
+                  c'est ce qui évite de recopier à la main ce que la
+                  personne a déjà saisi en réservant. */}
+              <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 sm:p-5">
+                <p className="mb-1 text-xs font-black uppercase tracking-wider text-slate-500">
+                  Suite à donner
+                </p>
+                <p className="mb-3 text-xs text-slate-600">
+                  Créez la fiche de {selectedEvent.clientName} à partir de ce rendez-vous.
+                </p>
+                <PromoteFromEvent
+                  clientName={selectedEvent.clientName}
+                  program={selectedEvent.program}
+                  notes={selectedEvent.notes}
+                  dejaClient={clients.some(c => c.name === selectedEvent.clientName)}
+                  dejaProspect={leads.some(l => l.name === selectedEvent.clientName)}
+                />
               </div>
 
               <div className="space-y-3">

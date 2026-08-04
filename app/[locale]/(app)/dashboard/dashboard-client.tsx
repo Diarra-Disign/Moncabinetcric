@@ -48,14 +48,22 @@ interface SearchItem {
 // qui remontaient dans la recherche globale d'un cabinet réel.
 const SEARCH_DATABASE: SearchItem[] = []
 
+export interface DashboardCounts {
+  activeMatters: number
+  verifiedDocuments: number
+  totalDocuments: number
+}
+
 export function DashboardClient({ 
   t, 
   deadlines = [], 
-  complianceScore 
+  complianceScore,
+  counts = { activeMatters: 0, verifiedDocuments: 0, totalDocuments: 0 }
 }: { 
   t: Record<string, unknown>
   deadlines?: DeadlineRecord[]
   complianceScore?: CiccComplianceScore
+  counts?: DashboardCounts
 }) {
   const firm = useFirm()
   const router = useRouter()
@@ -370,10 +378,7 @@ export function DashboardClient({
             </div>
             <div>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-slate-900 tracking-tight">45</span>
-                <span className="inline-flex items-center gap-0.5 text-xs font-extrabold text-emerald-700 bg-emerald-100/80 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                  <TrendingUp className="w-3 h-3" /> +12% ce mois
-                </span>
+                <span className="text-3xl font-black text-slate-900 tracking-tight">{counts.activeMatters}</span>
               </div>
               <p className="text-xs font-bold text-slate-600 mt-1">Cliquer pour basculer vers les dossiers</p>
             </div>
@@ -420,10 +425,13 @@ export function DashboardClient({
             </div>
             <div>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-slate-900 tracking-tight">421</span>
-                <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
-                  <UserCheck className="w-3 h-3" /> 100% Conformes
-                </span>
+                <span className="text-3xl font-black text-slate-900 tracking-tight">{counts.verifiedDocuments}</span>
+                {counts.totalDocuments > 0 && (
+                  <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                    <UserCheck className="w-3 h-3" />
+                    {Math.round((counts.verifiedDocuments / counts.totalDocuments) * 100)}% conformes
+                  </span>
+                )}
               </div>
               <p className="text-xs font-bold text-slate-600 mt-1">Cliquer pour ouvrir le coffre-fort</p>
             </div>
@@ -446,7 +454,7 @@ export function DashboardClient({
             <div>
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-black text-indigo-600 tracking-tight">
-                  {complianceScore?.totalScore || 98}%
+                  {typeof complianceScore?.totalScore === "number" ? `${complianceScore.totalScore}%` : "—"}
                 </span>
                 <span className="text-xs font-extrabold text-indigo-900 bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-300">
                   Audit Ready
@@ -731,7 +739,7 @@ export function DashboardClient({
                   <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
                     Score de Conformité CICC & Audit
                     <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-mono font-bold px-2 py-0.5 rounded">
-                      {complianceScore.totalScore} / 100 PTS
+                      {complianceScore.totalScore ?? "—"} / 100 PTS
                     </span>
                   </h3>
                   <p className="text-xs text-slate-300">Audité selon les exigences de l&apos;Art. 13 et du Code de conduite CICC</p>
@@ -755,7 +763,7 @@ export function DashboardClient({
                   </strong>
                 </div>
                 <div className="text-right">
-                  <span className="text-2xl font-black text-emerald-600 font-mono">{complianceScore.totalScore}%</span>
+                  <span className="text-2xl font-black text-emerald-600 font-mono">{complianceScore.totalScore ?? "—"}%</span>
                   <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full block mt-0.5">7 / 7 RÈGLES VALIDÉES</span>
                 </div>
               </div>
