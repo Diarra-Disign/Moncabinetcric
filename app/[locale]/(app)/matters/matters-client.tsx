@@ -39,6 +39,8 @@ import {
 import { Link, useRouter } from "@/i18n/routing"
 import { Matter } from "@/lib/data/types"
 import { PageHeader } from "@/components/app-shell/page-header"
+import { useFirm } from "@/components/app-shell/firm-provider"
+import { createMatter } from "@/lib/data/actions"
 
 import { SideSheetDrawer } from "@/components/ui/side-sheet-drawer"
 
@@ -71,6 +73,16 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
   // NEW MATTER MODAL
   const [isNewModalOpen, setIsNewModalOpen] = React.useState(false)
   const [toastNotice, setToastNotice] = React.useState<string | null>(null)
+
+  // Ouverture d'un dossier : le formulaire annonçait « Nouveau dossier créé
+  // avec succès et synchronisé sur le Registre CICC » sans rien enregistrer,
+  // et attribuait le dossier à un numéro de permis inventé. Il écrit
+  // maintenant en base, et le titulaire vient du profil du cabinet.
+  const firm = useFirm()
+  const [nouveauClient, setNouveauClient] = React.useState("")
+  const [nouveauProgramme, setNouveauProgramme] = React.useState("Résidence permanente (PEQ Québec)")
+  const [creationEnCours, setCreationEnCours] = React.useState(false)
+  const [erreurCreation, setErreurCreation] = React.useState<string | null>(null)
 
   const showToast = (msg: string) => {
     setToastNotice(msg)
@@ -274,7 +286,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                   {/* METADATA BAR */}
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
                     <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-amber-500" /> Échéance : <strong className="text-slate-900 font-bold">{m.deadline}</strong>
+                      <Calendar className="w-3.5 h-3.5 text-amber-500" /> Échéance : <strong className="text-slate-900 font-bold">{m.deadline || "à fixer"}</strong>
                     </span>
                     <span className="flex items-center gap-1 text-slate-700 font-bold">
                       <User className="w-3.5 h-3.5 text-blue-600" /> {m.rcic}
@@ -428,11 +440,31 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
               </button>
             </div>
 
-            <form 
-              onSubmit={(e) => {
+            <form
+              onSubmit={async (e) => {
                 e.preventDefault()
-                setIsNewModalOpen(false)
-                showToast("Nouveau dossier créé avec succès et synchronisé sur le Registre CICC !")
+                if (!nouveauClient.trim() || creationEnCours) return
+                setCreationEnCours(true)
+                setErreurCreation(null)
+                try {
+                  const cree = await createMatter({
+                    clientName: nouveauClient.trim(),
+                    program: nouveauProgramme,
+                    openedDate: new Date().toISOString().split("T")[0],
+                    deadline: "",
+                    rcic: firm.rcicName,
+                    status: "pending",
+                  })
+                  setMatters(prev => [cree, ...prev])
+                  setIsNewModalOpen(false)
+                  setNouveauClient("")
+                  showToast(`Dossier ${cree.id} ouvert pour ${cree.clientName}.`)
+                  router.refresh()
+                } catch (err) {
+                  setErreurCreation(err instanceof Error ? err.message : "L'enregistrement a échoué.")
+                } finally {
+                  setCreationEnCours(false)
+                }
               }}
               className="p-6 space-y-4"
             >
@@ -441,14 +473,20 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                 <input
                   type="text"
                   required
-                  placeholder="Ex : Mme. Sarah Laroche ou TechCorp Inc."
+                  value={nouveauClient}
+                  onChange={(e) => setNouveauClient(e.target.value)}
+                  placeholder="Nom complet du client, ou raison sociale"
                   className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Programme d&apos;Immigration Requis</label>
-                <select className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none">
+                <select
+                  value={nouveauProgramme}
+                  onChange={(e) => setNouveauProgramme(e.target.value)}
+                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none"
+                >
                   <option value="PEQ">Résidence Permanente (PEQ Québec)</option>
                   <option value="EE">Entrée Express (Catégorie Santé / Tech)</option>
                   <option value="VTR">Visa de Visiteur (VTR / TRV)</option>
@@ -462,13 +500,28 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Consultant RCIC Responsable</label>
+                {/* Ce champ affichait « Adama Diarra (RCIC #R512345) », un
+                    numéro de permis inventé porté au nom du titulaire. Il est
+                    lu du profil du cabinet, et n'affiche rien s'il n'y est
+                    pas : un permis plausible affiché par défaut est une faute
+                    déontologique, pas un dépannage. */}
                 <input
                   type="text"
                   readOnly
-                  value="Adama Diarra (RCIC #R512345)"
+                  value={
+                    firm.rcicName
+                      ? `${firm.rcicName}${firm.rcicNumber ? ` (permis CICC #${firm.rcicNumber})` : ""}`
+                      : "Titulaire non renseigné — complétez le profil du cabinet"
+                  }
                   className="w-full h-12 px-4 text-xs font-bold rounded-2xl bg-slate-100 border border-slate-200 text-slate-700"
                 />
               </div>
+
+              {erreurCreation && (
+                <p role="alert" className="rounded-2xl bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs font-bold text-rose-800">
+                  {erreurCreation}
+                </p>
+              )}
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
                 <button
@@ -480,10 +533,11 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-xs sm:text-sm font-bold shadow-md cursor-pointer"
+                  disabled={creationEnCours || !nouveauClient.trim()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-xs sm:text-sm font-bold shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Créer le dossier</span>
+                  <span>{creationEnCours ? "Enregistrement…" : "Créer le dossier"}</span>
                 </button>
               </div>
             </form>
@@ -518,7 +572,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                 </div>
                 <div>
                   <span className="text-slate-500 font-bold block">Échéance Réglementaire :</span>
-                  <span className="font-mono font-bold text-amber-700">{drawerMatter.deadline}</span>
+                  <span className="font-mono font-bold text-amber-700">{drawerMatter.deadline || "à fixer"}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 font-bold block">Consultant RCIC :</span>

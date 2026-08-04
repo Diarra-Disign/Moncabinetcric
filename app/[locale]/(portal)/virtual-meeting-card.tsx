@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge"
 
 interface VirtualMeetingCardProps {
   calendlyUrl?: string
+  /** Titulaire du cabinet, lu en base par la page. Vide si indisponible. */
+  consultantName?: string
 }
 
-export function VirtualMeetingCard({ calendlyUrl = "" }: VirtualMeetingCardProps) {
+export function VirtualMeetingCard({ calendlyUrl = "", consultantName = "" }: VirtualMeetingCardProps) {
   // Ce bloc décrivait un rendez-vous entièrement fictif — date, motif et
   // lien — affiché à tout client ouvrant le portail. Vidé : la carte
   // n'annonce plus une rencontre qui n'existe pas.
@@ -68,7 +70,11 @@ export function VirtualMeetingCard({ calendlyUrl = "" }: VirtualMeetingCardProps
 
             <div>
               <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                Prochaine Rencontre Virtuelle avec Me. Adama Diarra
+                {/* Le titulaire était nommé en dur, avec le titre « Me » qui
+                    est celui d'un avocat. Il vient maintenant du cabinet. */}
+                {consultantName
+                  ? `Prochaine rencontre virtuelle avec ${consultantName}`
+                  : "Prochaine rencontre virtuelle"}
               </h3>
               <p className="text-sm font-extrabold text-blue-700 mt-1">
                 Motif d&apos;entrevue : {meetingState.reason}

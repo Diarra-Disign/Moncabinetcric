@@ -25,6 +25,7 @@ import {
   Award
 } from "lucide-react"
 import { PageHeader } from "@/components/app-shell/page-header"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { DeadlineRecord, DeadlineRule, CiccComplianceScore } from "@/lib/data/types"
 import { triggerFileDownload } from "@/lib/utils/download-helper"
 
@@ -35,6 +36,9 @@ interface DeadlinesClientProps {
 }
 
 export function DeadlinesClient({ initialDeadlines, initialRules, initialComplianceScore }: DeadlinesClientProps) {
+  // Le titulaire responsable était inscrit en dur, avec le titre « Me »
+  // qui est celui d'un avocat. Il vient du profil du cabinet.
+  const firm = useFirm()
   const [deadlines, setDeadlines] = React.useState<DeadlineRecord[]>(initialDeadlines)
   const [rules, setRules] = React.useState<DeadlineRule[]>(initialRules)
   const [complianceScore, setComplianceScore] = React.useState<CiccComplianceScore>(initialComplianceScore)
@@ -57,7 +61,7 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
   const [newProgram, setNewProgram] = React.useState("Entrée Express")
   const [newDueOn, setNewDueOn] = React.useState("2026-09-15")
   const [newSeverity, setNewSeverity] = React.useState<"critical" | "high" | "normal">("high")
-  const [newAssignedTo, setNewAssignedTo] = React.useState("Me Adama Diarra")
+  const [newAssignedTo, setNewAssignedTo] = React.useState(firm.rcicName)
   const [newAuthority, setNewAuthority] = React.useState("LIPR art. 87")
 
   // Filtered Deadlines
@@ -86,7 +90,7 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
           ...d,
           status: "done",
           completedAt: new Date().toISOString(),
-          completedBy: "Me Adama Diarra"
+          completedBy: firm.rcicName
         }
       }
       return d

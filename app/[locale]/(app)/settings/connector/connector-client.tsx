@@ -66,7 +66,7 @@ export function ConnectorClient({
       await toggleAiConnector(true)
     }
 
-    const key = await generateAiApiKey(newKeyName, "m-owner-01", "Me Adama Diarra (Owner)")
+    const key = await generateAiApiKey(newKeyName, "m-owner-01", firm.rcicName)
     setApiKeys(prev => [key, ...prev])
     setNewlyCreatedKey(`${key.keyPrefix}_${Math.random().toString(36).substring(2, 18)}`)
     setShowKeyModal(false)

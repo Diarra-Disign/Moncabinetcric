@@ -3,6 +3,7 @@
 import * as React from "react"
 import { MessageSquareText, Plus, User, Calendar, CheckCircle2, Clock, Trash2, Send, Video, Globe } from "lucide-react"
 import { SignaturePad } from "@/components/ui/signature-pad"
+import { useFirm } from "@/components/app-shell/firm-provider"
 
 export interface MeetingNote {
   id: string
@@ -23,12 +24,15 @@ interface MeetingNotesCardProps {
 }
 
 export function MeetingNotesCard({ matterId, clientName = "Client" }: MeetingNotesCardProps) {
+  // L'auteur des notes était « Adama Diarra (RCIC) » en dur : sur le poste
+  // d'un autre titulaire, les notes auraient porté la mauvaise signature.
+  const firm = useFirm()
   const normalizedId = matterId.startsWith("#") ? matterId : `#${matterId}`
   const [notes, setNotes] = React.useState<MeetingNote[]>(INITIAL_NOTES[normalizedId] || [
     {
       id: "note-default",
       date: "Aujourd'hui",
-      author: "Adama Diarra (RCIC)",
+      author: firm.rcicName,
       type: "consultation",
       content: `Compte-rendu d'ouverture de dossier pour ${clientName}. Vérification réglementaire initiale effectuée.`
     }
@@ -36,7 +40,7 @@ export function MeetingNotesCard({ matterId, clientName = "Client" }: MeetingNot
 
   const [newNoteContent, setNewNoteContent] = React.useState("")
   const [newNoteType, setNewNoteType] = React.useState<MeetingNote["type"]>("consultation")
-  const [authorName, setAuthorName] = React.useState("Adama Diarra (RCIC)")
+  const [authorName, setAuthorName] = React.useState(firm.rcicName)
   const [successNotice, setSuccessNotice] = React.useState<string | null>(null)
 
   const handleSendCalendlyInvite = () => {

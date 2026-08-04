@@ -35,12 +35,16 @@ export default async function PortalPage({
   // Les politiques du portail restreignent déjà ces lectures au client
   // connecté : aucun filtre applicatif n'est nécessaire, et surtout aucun
   // n'est oubliable.
-  const [{ data: dossiers }, { data: pieces }] = await Promise.all([
+  const [{ data: dossiers }, { data: pieces }, { data: cabinet }] = await Promise.all([
     supabase
       .from("matters")
       .select("id, reference, program, status, opened_date, deadline")
       .order("opened_date", { ascending: false }),
     supabase.from("documents").select("id, name, category, date, status, storage_path, sha256"),
+    // Le client doit pouvoir nommer son représentant — c'est ce qu'exige le
+    // Code au contrat, et ce qu'il lui faut pour s'adresser au Collège. La
+    // politique `firms_portal_read` limite cette lecture à son cabinet.
+    supabase.from("firms").select("owner_name, rcic_license_number").maybeSingle(),
   ])
 
   // Aucune notification n'existe : sans ce bandeau, le client n'a aucun
@@ -99,7 +103,7 @@ export default async function PortalPage({
         </a>
       )}
 
-      <VirtualMeetingCard />
+      <VirtualMeetingCard consultantName={(cabinet?.owner_name as string) ?? ""} />
 
       {/* Avancement : affiché seulement si un dossier existe. Une barre
           figée à 50 % laissait croire à une progression réelle. */}

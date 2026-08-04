@@ -66,7 +66,7 @@ export async function createMatter(data: Omit<Matter, "id"> & { id?: string }): 
     category: data.category || 'pr',
     opened_date: toDateOnly(data.openedDate, today()),
     deadline: toDateOnly(data.deadline),
-    rcic: data.rcic || 'Adama Diarra',
+    rcic: data.rcic || '',
     status: data.status || 'valid',
     urgency_days: data.urgencyDays || 0,
     notes: data.notes || '',
