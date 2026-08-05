@@ -9,14 +9,15 @@ import { getServerSupabase } from "@/lib/supabase/server"
  * Trois choses expliquent la forme de ce module.
  *
  * Le visiteur n'a pas de session : aucune politique RLS ne peut donc le
- * rattacher à un cabinet. L'écriture passe par la clé service_role, et le
- * cabinet destinataire est résolu ici, jamais transmis par le formulaire —
- * un firm_id qui viendrait du navigateur permettrait de déposer un
- * prospect dans le pipeline de n'importe quel cabinet abonné.
+ * rattacher à quoi que ce soit. L'écriture passe par la clé service_role,
+ * et `demo_requests` n'a volontairement aucune politique d'insertion —
+ * cette action est la seule porte, ce qui rend les contrôles ci-dessous
+ * incontournables plutôt que facultatifs.
  *
- * Le destinataire est le cabinet exploitant de la plateforme, celui que
- * marque `is_platform_operator`. Une demande de démonstration s'adresse à
- * l'éditeur, pas à un cabinet client.
+ * La demande ne va plus dans `leads`. Un prospect de la plateforme n'est
+ * pas un prospect d'immigration : il s'adresse à l'éditeur, et le compte
+ * exploitant — membre d'aucun cabinet — ne voyait rien de ce qui lui était
+ * destiné.
  *
  * Le formulaire est ouvert à tous : tout ce qui en vient est traité comme
  * hostile jusqu'à validation, et borné en longueur avant d'atteindre la
@@ -29,6 +30,9 @@ const Demande = z.object({
   cabinet: z.string().trim().max(160).optional().default(""),
   telephone: z.string().trim().max(40).optional().default(""),
   message: z.string().trim().max(2000).optional().default(""),
+  // La réponse doit repartir dans la langue de la page où la demande a été
+  // remplie, pas dans celle de l'exploitant.
+  langue: z.enum(["fr", "en"]).optional().default("fr"),
   // Champ leurre : invisible à l'écran, donc vide chez un humain. Ce n'est
   // pas une protection sérieuse contre un robot déterminé, seulement le
   // filtre le moins coûteux contre le remplissage automatique courant.
@@ -53,47 +57,13 @@ export async function enregistrerDemandeDemo(
   // écrire. Annoncer le rejet apprendrait au robot à le contourner.
   if (d.site) return { ok: true }
 
-  const supabase = getServerSupabase()
-
-  const { data: exploitant, error: erreurExploitant } = await supabase
-    .from("firms")
-    .select("id")
-    .eq("is_platform_operator", true)
-    .maybeSingle()
-
-  if (erreurExploitant || !exploitant) {
-    // Sans cabinet exploitant, la demande n'a pas de destinataire. Mieux
-    // vaut le dire que de la perdre en silence.
-    return {
-      ok: false,
-      erreur: "Aucun cabinet exploitant n'est configuré. La demande n'a pas pu être enregistrée.",
-    }
-  }
-
-  const notes = [
-    d.cabinet && `Cabinet : ${d.cabinet}`,
-    d.message && `Message : ${d.message}`,
-  ]
-    .filter(Boolean)
-    .join("\n")
-
-  const { error } = await supabase.from("leads").insert({
-    firm_id: exploitant.id,
-    legacy_id: `demo-${Date.now()}`,
+  const { error } = await getServerSupabase().from("demo_requests").insert({
     name: d.nom,
-    company: d.cabinet || null,
-    // Un cabinet qui demande une démonstration est un prospect
-    // professionnel, et l'objet n'est pas une demande de visa : la colonne
-    // le dit plutôt que d'emprunter un type de visa qui fausserait les
-    // statistiques du pipeline.
-    type: "b2b",
-    visa_type: "Démonstration de la plateforme",
-    score_label: "med",
-    stage: "newLead",
     email: d.courriel,
-    phone: d.telephone,
-    notes,
-    source: "landing_demo",
+    company: d.cabinet || null,
+    phone: d.telephone || null,
+    message: d.message || null,
+    locale: d.langue,
   })
 
   if (error) return { ok: false, erreur: error.message }

@@ -85,6 +85,46 @@ export async function getAdminFirms(): Promise<AdminFirmRow[]> {
   }))
 }
 
+export interface DemoRequestRow {
+  id: string
+  name: string
+  email: string
+  company: string
+  phone: string
+  message: string
+  locale: string
+  createdAt: string
+}
+
+/**
+ * Demandes de démonstration encore en attente.
+ *
+ * Seules les demandes non traitées sont chargées : la console sert à
+ * répondre, pas à consulter un historique. Celles qui ont abouti gardent
+ * en base le cabinet qu'elles ont ouvert, celles écartées gardent leur
+ * trace — ni les unes ni les autres n'ont à revenir devant les yeux.
+ */
+export async function getDemoRequests(): Promise<DemoRequestRow[]> {
+  const supabase = await getSessionSupabase()
+
+  const { data } = await supabase
+    .from("demo_requests")
+    .select("id, name, email, company, phone, message, locale, created_at")
+    .eq("status", "new")
+    .order("created_at", { ascending: false })
+
+  return (data ?? []).map((d) => ({
+    id: d.id as string,
+    name: (d.name as string) ?? "",
+    email: (d.email as string) ?? "",
+    company: (d.company as string) ?? "",
+    phone: (d.phone as string) ?? "",
+    message: (d.message as string) ?? "",
+    locale: (d.locale as string) ?? "fr",
+    createdAt: (d.created_at as string) ?? "",
+  }))
+}
+
 export interface AdminOverview {
   firmCount: number
   memberCount: number

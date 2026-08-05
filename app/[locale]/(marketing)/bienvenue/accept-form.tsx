@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useTranslations } from "next-intl"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, Eye, EyeOff } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -17,6 +17,7 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
   const t = useTranslations("Invite")
   const [fullName, setFullName] = React.useState("")
   const [password, setPassword] = React.useState("")
+  const [visible, setVisible] = React.useState(false)
   const [error, setError] = React.useState<AcceptResult["error"] | null>(null)
   const [done, setDone] = React.useState(false)
   const [pending, startTransition] = React.useTransition()
@@ -95,17 +96,33 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
         <label htmlFor="invite-password" className="mb-1.5 block text-xs font-bold text-foreground">
           {t("passwordLabel")}
         </label>
-        <input
-          id="invite-password"
-          type="password"
-          required
-          minLength={MIN_PASSWORD}
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          aria-describedby="invite-password-hint"
-          className={cn(FIELD, "h-11")}
-        />
+        {/* Un seul champ, avec la possibilité de relire ce qu'on tape.
+            La double saisie date d'avant que cela soit possible : elle
+            fait retaper à l'aveugle, et une faute recopiée deux fois à
+            l'identique passe le contrôle sans être vue. Ici la personne
+            vérifie, ce qui est le but qu'on poursuivait. */}
+        <div className="relative">
+          <input
+            id="invite-password"
+            type={visible ? "text" : "password"}
+            required
+            minLength={MIN_PASSWORD}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            aria-describedby="invite-password-hint"
+            className={cn(FIELD, "h-11 pr-11")}
+          />
+          <button
+            type="button"
+            onClick={() => setVisible((v) => !v)}
+            aria-pressed={visible}
+            aria-label={visible ? t("passwordHide") : t("passwordShow")}
+            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            {visible ? <EyeOff aria-hidden className="h-4 w-4" /> : <Eye aria-hidden className="h-4 w-4" />}
+          </button>
+        </div>
         <p id="invite-password-hint" className="mt-1 text-[11px] text-muted-foreground">
           {t("passwordHint")}
         </p>

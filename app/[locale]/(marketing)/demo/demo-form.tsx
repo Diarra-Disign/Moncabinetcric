@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { AlertTriangle, CheckCircle2, CalendarClock } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,9 @@ const FIELD =
 
 export function DemoForm() {
   const t = useTranslations("Demo")
+  // La langue voyage avec la demande : la réponse et le lien d'accès
+  // doivent repartir dans celle où le formulaire a été rempli.
+  const langue = useLocale()
 
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -23,7 +26,7 @@ export function DemoForm() {
     setError(null)
     const data = Object.fromEntries(new FormData(e.currentTarget))
     try {
-      const r = await enregistrerDemandeDemo(data)
+      const r = await enregistrerDemandeDemo({ ...data, langue })
       if (!r.ok) {
         setError(r.erreur ?? t("genericError"))
         return

@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import { getTranslations } from "next-intl/server"
 import { Building2, Users, AlertTriangle, Terminal, Lock, Ban } from "lucide-react"
-import { getAdminFirms, summarise, type AdminMemberRow } from "@/lib/data/admin"
+import { getAdminFirms, getDemoRequests, summarise, type AdminMemberRow } from "@/lib/data/admin"
 import { CreerCabinet, ActionsCabinet } from "./firm-actions"
+import { DemoRequests } from "./demo-requests"
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Admin")
@@ -52,14 +53,18 @@ function MemberList({
 
 export default async function AdminPage() {
   const t = await getTranslations("Admin")
-  const firms = await getAdminFirms()
+  const [firms, demandes] = await Promise.all([getAdminFirms(), getDemoRequests()])
   const stats = summarise(firms)
 
   // Les libellés traversent la frontière serveur/client : un composant
   // client ne peut pas appeler getTranslations lui-même.
   const etiquettes = Object.fromEntries(
-    ["newFirm","firmName","license","consultant","email","plan","trialDays",
-     "cancel","create","saving","apply","suspend","activate"].map(k => [k, t(k)])
+    ["newFirm","firmName","license","consultant","email","emailHint","plan","trialDays",
+     "cancel","create","saving","apply","suspend","activate",
+     "linkOnce","copy","copied"].map(k => [k, t(k)])
+  )
+  const etiquettesDemandes = Object.fromEntries(
+    ["requestsHeading","requestsEmpty","openAccess","dismiss","done"].map(k => [k, t(k)])
   )
 
   const tiles = [
@@ -118,6 +123,24 @@ export default async function AdminPage() {
             <p className="mt-2 text-3xl font-black tabular-nums text-foreground">{value}</p>
           </div>
         ))}
+      </section>
+
+      {/* Les demandes viennent avant la liste des cabinets : c'est ce qui
+          attend une décision, et le reste est de la consultation. */}
+      <section>
+        <h2 className="mb-3 flex flex-wrap items-center gap-2 text-base font-black tracking-tight text-foreground">
+          {t("requestsHeading")}
+          {demandes.length > 0 && (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-black tabular-nums text-primary-foreground">
+              {demandes.length}
+            </span>
+          )}
+        </h2>
+        <DemoRequests
+          requests={demandes}
+          labels={{ ...etiquettesDemandes, empty: etiquettesDemandes.requestsEmpty }}
+          firmLabels={etiquettes}
+        />
       </section>
 
       <section>

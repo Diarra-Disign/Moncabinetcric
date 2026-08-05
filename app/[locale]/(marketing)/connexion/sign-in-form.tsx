@@ -37,10 +37,37 @@ export function SignInForm() {
     return raw
   }, [searchParams])
 
-  const goNext = () => {
+  /**
+   * Destination après connexion.
+   *
+   * Un administrateur de plateforme n'est membre d'aucun cabinet. Envoyé
+   * au tableau de bord — ce que faisait le repli — il déclenchait le
+   * chargement de dossiers auxquels il n'a pas droit : la mise en page le
+   * redirigeait bien vers la console, mais la page s'exécutait en
+   * parallèle et levait avant d'y parvenir. Une erreur à chaque connexion
+   * de l'exploitant, pour un détour dont on connaissait l'issue.
+   *
+   * La lecture s'appuie sur la RLS : un compte ordinaire ne voit aucune
+   * ligne dans platform_admins, la requête lui coûte un aller-retour et
+   * ne lui apprend rien.
+   */
+  const goNext = async () => {
+    let destination = nextPath ?? "/fr/dashboard"
+    if (!nextPath) {
+      try {
+        const { data } = await getBrowserSupabase()
+          .from("platform_admins")
+          .select("user_id")
+          .maybeSingle()
+        if (data) destination = "/fr/admin"
+      } catch {
+        // Sans réponse, le tableau de bord reste le repli : la mise en page
+        // redirigera, au prix du détour qu'on cherchait à éviter.
+      }
+    }
     // Rechargement complet et non router.push : le middleware doit relire
     // les cookies de session fraîchement posés.
-    window.location.assign(nextPath ?? "/fr/dashboard")
+    window.location.assign(destination)
   }
 
   const handlePassword = async (e: React.FormEvent) => {
@@ -59,7 +86,7 @@ export function SignInForm() {
         setError(t("invalidCredentials"))
         return
       }
-      goNext()
+      await goNext()
     } catch {
       setError(t("genericError"))
     } finally {

@@ -534,7 +534,7 @@
     "roleBookkeeper": "Teneur de livres",
     "roleReadonly": "Lecture seule",
     "scriptsHeading": "Actions hors console",
-    "scriptsBody": "La création de cabinets, l'attribution des accès et la promotion d'un administrateur passent par des scripts, volontairement hors de l'interface web : on ne se promeut pas administrateur depuis une page.",
+    "scriptsBody": "La promotion d'un administrateur de plateforme et le provisionnement initial restent hors de l'interface web : on ne se promeut pas administrateur depuis une page. La création d'un cabinet et l'ouverture de son accès, elles, se font ci-dessus.",
     "backToSite": "Retour au site public",
     "colPlan": "Abonnement",
     "statClosed": "Accès fermés",
@@ -554,7 +554,16 @@
     "apply": "Appliquer",
     "suspend": "Suspendre",
     "activate": "Réactiver",
-    "actionsCol": "Actions"
+    "actionsCol": "Actions",
+    "emailHint": "Reçoit le lien qui ouvre l'accès.",
+    "linkOnce": "Lien d'accès — affiché une seule fois",
+    "copy": "Copier",
+    "copied": "Copié",
+    "requestsHeading": "Demandes de démonstration",
+    "requestsEmpty": "Aucune demande en attente.",
+    "openAccess": "Ouvrir un accès",
+    "dismiss": "Écarter",
+    "done": "Terminé"
   },
   "Invite": {
     "title": "Bienvenue",
@@ -576,7 +585,9 @@
     "errorFailed": "La création a échoué. Réessayez dans un instant.",
     "successTitle": "Accès créé",
     "successBody": "Votre compte est prêt. Vous pouvez maintenant vous connecter.",
-    "goToSignIn": "Aller à la connexion"
+    "goToSignIn": "Aller à la connexion",
+    "passwordShow": "Afficher le mot de passe",
+    "passwordHide": "Masquer le mot de passe"
   },
   "Signatures": {
     "title": "Signatures électroniques",

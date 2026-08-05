@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Ban, Play, Check, AlertTriangle } from "lucide-react"
+import { Plus, Ban, Play, Check, AlertTriangle, Copy, Link2 } from "lucide-react"
 import { creerCabinet, changerPlan, basculerAcces, type ResultatAction } from "@/lib/data/admin-actions"
 import { cn } from "@/lib/utils"
 
@@ -10,29 +10,108 @@ const PLANS = ["trial", "solo", "cabinet", "courtoisie"] as const
 const CHAMP =
   "w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
 
-function Retour({ resultat }: { resultat: ResultatAction | null }) {
-  if (!resultat) return null
+/**
+ * Lien d'invitation, quand le courriel n'a pas pu partir.
+ *
+ * Il n'est affiché qu'une fois : la base n'en garde que l'empreinte, et
+ * cet écran est le seul endroit où il aura jamais existé en clair. Le
+ * bouton de copie évite la sélection à la souris, où l'on perd un
+ * caractère sans s'en apercevoir.
+ */
+export function LienARecopier({ lien, labels }: { lien: string; labels: Record<string, string> }) {
+  const [copie, setCopie] = React.useState(false)
+
   return (
-    <p
-      role="status"
-      className={cn(
-        "mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-bold",
-        resultat.ok ? "bg-success/10 text-success" : "bg-error/10 text-error"
-      )}
-    >
-      {resultat.ok ? (
-        <Check aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
-      ) : (
-        <AlertTriangle aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
-      )}
-      {resultat.message}
-    </p>
+    <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3">
+      <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-foreground">
+        <Link2 aria-hidden className="h-3.5 w-3.5" />
+        {labels.linkOnce}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <code className="min-w-0 flex-1 break-all rounded-lg bg-background px-2 py-1.5 font-mono text-[11px] text-foreground">
+          {lien}
+        </code>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard.writeText(lien)
+            setCopie(true)
+          }}
+          className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          {copie ? <Check aria-hidden className="h-3.5 w-3.5" /> : <Copy aria-hidden className="h-3.5 w-3.5" />}
+          {copie ? labels.copied : labels.copy}
+        </button>
+      </div>
+    </div>
   )
 }
 
-/** Ouverture d'un cabinet : c'est l'acte qui donne accès à la plateforme. */
-export function CreerCabinet({ labels }: { labels: Record<string, string> }) {
-  const [ouvert, setOuvert] = React.useState(false)
+function Retour({
+  resultat,
+  labels,
+}: {
+  resultat: ResultatAction | null
+  labels: Record<string, string>
+}) {
+  if (!resultat) return null
+  return (
+    <>
+      <p
+        role="status"
+        className={cn(
+          "mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs font-bold",
+          resultat.ok ? "bg-success/10 text-success" : "bg-error/10 text-error"
+        )}
+      >
+        {resultat.ok ? (
+          <Check aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
+        ) : (
+          <AlertTriangle aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
+        )}
+        {resultat.message}
+      </p>
+      {resultat.lien && <LienARecopier lien={resultat.lien} labels={labels} />}
+    </>
+  )
+}
+
+/** Coordonnées reprises d'une demande de démonstration. */
+export interface PreRemplissage {
+  demandeId: string
+  nom: string
+  proprietaire: string
+  courriel: string
+  langue: string
+}
+
+/**
+ * Ouverture d'un cabinet : c'est l'acte qui donne accès à la plateforme.
+ *
+ * Le formulaire crée le cabinet ET invite son propriétaire. Les deux ne
+ * sont pas séparables : un cabinet sans membre est une impasse, et c'est
+ * l'état dans lequel les premiers essais ont laissé « Groupe Immedia ».
+ */
+export function CreerCabinet({
+  labels,
+  prefill,
+  onDone,
+  onResultat,
+}: {
+  labels: Record<string, string>
+  prefill?: PreRemplissage
+  onDone?: () => void
+  /**
+   * Remonte le résultat à un parent qui survivra au rafraîchissement.
+   *
+   * Nécessaire quand ce formulaire est rendu à l'intérieur d'une demande :
+   * l'ouverture de l'accès la fait sortir de la liste, le composant est
+   * démonté, et le lien — dont c'est le seul exemplaire — disparaissait
+   * avec lui.
+   */
+  onResultat?: (r: ResultatAction) => void
+}) {
+  const [ouvert, setOuvert] = React.useState(Boolean(prefill))
   const [resultat, setResultat] = React.useState<ResultatAction | null>(null)
   const [enCours, demarrer] = React.useTransition()
   const [plan, setPlan] = React.useState<string>("trial")
@@ -54,17 +133,34 @@ export function CreerCabinet({ labels }: { labels: Record<string, string> }) {
     <form
       action={(fd) => demarrer(async () => {
         const r = await creerCabinet(fd)
-        setResultat(r)
-        if (r.ok) setOuvert(false)
+        // Quand un parent prend le relais, il conserve le résultat après le
+        // démontage de ce formulaire ; sinon on l'affiche ici.
+        if (onResultat) onResultat(r)
+        else setResultat(r)
+        // Le formulaire ne se referme que si le lien est parti par courriel,
+        // ou si quelqu'un d'autre se charge de l'afficher.
+        if (r.ok && (!r.lien || onResultat)) {
+          setOuvert(false)
+          onDone?.()
+        }
       })}
       className="w-full rounded-2xl border border-border bg-card p-5"
     >
       <h3 className="mb-4 text-sm font-black text-foreground">{labels.newFirm}</h3>
 
+      {prefill && <input type="hidden" name="demandeId" value={prefill.demandeId} />}
+      {/* Le courriel repart dans la langue où la demande a été remplie. */}
+      <input type="hidden" name="langue" value={prefill?.langue ?? "fr"} />
+
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs font-bold text-foreground">
           {labels.firmName}
-          <input name="nom" required className={cn(CHAMP, "mt-1 h-10 font-normal")} />
+          <input
+            name="nom"
+            required
+            defaultValue={prefill?.nom}
+            className={cn(CHAMP, "mt-1 h-10 font-normal")}
+          />
         </label>
         <label className="text-xs font-bold text-foreground">
           {labels.license}
@@ -77,11 +173,27 @@ export function CreerCabinet({ labels }: { labels: Record<string, string> }) {
         </label>
         <label className="text-xs font-bold text-foreground">
           {labels.consultant}
-          <input name="proprietaire" required className={cn(CHAMP, "mt-1 h-10 font-normal")} />
+          <input
+            name="proprietaire"
+            required
+            defaultValue={prefill?.proprietaire}
+            className={cn(CHAMP, "mt-1 h-10 font-normal")}
+          />
         </label>
         <label className="text-xs font-bold text-foreground">
           {labels.email}
-          <input name="courriel" type="email" className={cn(CHAMP, "mt-1 h-10 font-normal")} />
+          {/* Obligatoire : c'est cette adresse qui reçoit le lien d'accès.
+              Sans elle, on créerait un cabinet où personne ne peut entrer. */}
+          <input
+            name="courriel"
+            type="email"
+            required
+            defaultValue={prefill?.courriel}
+            className={cn(CHAMP, "mt-1 h-10 font-normal")}
+          />
+          <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+            {labels.emailHint}
+          </span>
         </label>
         <label className="text-xs font-bold text-foreground">
           {labels.plan}
@@ -114,7 +226,7 @@ export function CreerCabinet({ labels }: { labels: Record<string, string> }) {
         )}
       </div>
 
-      <Retour resultat={resultat} />
+      <Retour resultat={resultat} labels={labels} />
 
       <div className="mt-4 flex items-center justify-end gap-3">
         <button
@@ -206,7 +318,7 @@ export function ActionsCabinet({
         </button>
       </form>
 
-      <Retour resultat={resultat} />
+      <Retour resultat={resultat} labels={labels} />
     </div>
   )
 }

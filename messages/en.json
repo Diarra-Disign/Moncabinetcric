@@ -534,7 +534,7 @@
     "roleBookkeeper": "Bookkeeper",
     "roleReadonly": "Read only",
     "scriptsHeading": "Actions outside this console",
-    "scriptsBody": "Creating firms, granting access and promoting an administrator go through scripts, deliberately outside the web interface: you do not promote yourself to administrator from a page.",
+    "scriptsBody": "Promoting a platform administrator and initial provisioning stay outside the web interface: you do not promote yourself to administrator from a page. Creating a firm and opening its access, however, happen above.",
     "backToSite": "Back to the public site",
     "colPlan": "Subscription",
     "statClosed": "Closed access",
@@ -554,7 +554,16 @@
     "apply": "Apply",
     "suspend": "Suspend",
     "activate": "Reactivate",
-    "actionsCol": "Actions"
+    "actionsCol": "Actions",
+    "emailHint": "Receives the link that opens access.",
+    "linkOnce": "Access link — shown once only",
+    "copy": "Copy",
+    "copied": "Copied",
+    "requestsHeading": "Demo requests",
+    "requestsEmpty": "No pending request.",
+    "openAccess": "Open access",
+    "dismiss": "Dismiss",
+    "done": "Done"
   },
   "Invite": {
     "title": "Welcome",
@@ -576,7 +585,9 @@
     "errorFailed": "Creation failed. Please try again in a moment.",
     "successTitle": "Access created",
     "successBody": "Your account is ready. You can now sign in.",
-    "goToSignIn": "Go to sign-in"
+    "goToSignIn": "Go to sign-in",
+    "passwordShow": "Show password",
+    "passwordHide": "Hide password"
   },
   "Signatures": {
     "title": "Electronic signatures",
