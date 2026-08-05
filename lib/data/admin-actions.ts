@@ -3,7 +3,7 @@
 import { randomBytes, createHash } from "node:crypto"
 import { revalidatePath } from "next/cache"
 import { getCurrentPlatformAdmin, getSessionSupabase } from "@/lib/supabase/session"
-import { envoyerCourriel } from "@/lib/email/send"
+import { envoyerCourriel, adresseDeReponse } from "@/lib/email/send"
 import { courrielInvitation, type Langue } from "@/lib/email/templates"
 
 /**
@@ -130,7 +130,13 @@ export async function creerCabinet(formData: FormData): Promise<ResultatAction> 
     }
 
     const lien = `${baseUrl()}/${langue}/bienvenue?jeton=${jeton}`
-    const message = courrielInvitation({ langue, cabinet: nom, lien, jours: VALIDITE_INVITATION })
+    const message = courrielInvitation({
+      langue,
+      cabinet: nom,
+      lien,
+      jours: VALIDITE_INVITATION,
+      reponsePossible: Boolean(adresseDeReponse()),
+    })
     const envoi = await envoyerCourriel({
       destinataire: courriel,
       sujet: message.sujet,

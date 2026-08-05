@@ -27,6 +27,18 @@ export function envoiConfigure(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM)
 }
 
+/**
+ * Adresse à laquelle une réponse doit parvenir.
+ *
+ * L'expéditeur d'un courriel transactionnel — acces@… — n'est pas une
+ * boîte de réception : Resend signe en son nom, rien ne l'écoute. Sans
+ * cette adresse, répondre revient à écrire dans le vide, ce qui est pire
+ * que de ne pas proposer de répondre du tout.
+ */
+export function adresseDeReponse(): string | null {
+  return process.env.EMAIL_REPLY_TO?.trim() || null
+}
+
 export async function envoyerCourriel(opts: {
   destinataire: string
   sujet: string
@@ -48,6 +60,7 @@ export async function envoyerCourriel(opts: {
       body: JSON.stringify({
         from: expediteur,
         to: [opts.destinataire],
+        ...(adresseDeReponse() ? { reply_to: adresseDeReponse() } : {}),
         subject: opts.sujet,
         html: opts.html,
         // Toujours accompagner le HTML de sa version texte : sans elle,

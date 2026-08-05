@@ -46,14 +46,22 @@ function bouton(url: string, libelle: string): string {
 </td></tr></table>`
 }
 
-/** Invitation à ouvrir son accès et à choisir son mot de passe. */
+/**
+ * Invitation à ouvrir son accès et à choisir son mot de passe.
+ *
+ * `reponsePossible` commande une phrase, pas une mise en forme : inviter à
+ * répondre quand aucune adresse de réponse n'est configurée enverrait le
+ * consultant écrire à une boîte que personne ne relève. Mieux vaut ne
+ * rien promettre que promettre dans le vide.
+ */
 export function courrielInvitation(opts: {
   langue: Langue
   cabinet: string
   lien: string
   jours: number
+  reponsePossible: boolean
 }): CourrielCompose {
-  const { langue, cabinet, lien, jours } = opts
+  const { langue, cabinet, lien, jours, reponsePossible } = opts
 
   if (langue === "en") {
     return {
@@ -62,7 +70,7 @@ export function courrielInvitation(opts: {
         "Your firm's access is open",
         `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">An access has been opened for <strong>${cabinet}</strong>. Choose your password to sign in — nobody else knows it, not even us.</p>
          ${bouton(lien, "Choose my password")}
-         <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">This link works once and expires in ${jours} days. If it has expired, reply to this message and we will send a new one.</p>`,
+         <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">This link works once and expires in ${jours} days.${reponsePossible ? " If it has expired, reply to this message and we will send a new one." : ""}</p>`,
         "You are receiving this message because an access was opened for your firm. If you were not expecting it, ignore it — the link is useless without you."
       ),
       texte: `An access has been opened for ${cabinet}.
@@ -79,7 +87,7 @@ This link works once and expires in ${jours} days.`,
       "L'accès de votre cabinet est ouvert",
       `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Un accès a été ouvert pour <strong>${cabinet}</strong>. Choisissez votre mot de passe pour entrer — personne d'autre ne le connaîtra, nous pas davantage.</p>
        ${bouton(lien, "Choisir mon mot de passe")}
-       <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Ce lien ne sert qu'une fois et expire dans ${jours} jours. S'il est périmé, répondez à ce message et nous vous en enverrons un autre.</p>`,
+       <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Ce lien ne sert qu'une fois et expire dans ${jours} jours.${reponsePossible ? " S'il est périmé, répondez à ce message et nous vous en enverrons un autre." : ""}</p>`,
       "Vous recevez ce message parce qu'un accès a été ouvert pour votre cabinet. Si vous ne l'attendiez pas, ignorez-le : le lien ne sert à rien sans vous."
     ),
     texte: `Un accès a été ouvert pour ${cabinet}.
