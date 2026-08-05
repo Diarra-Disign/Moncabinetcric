@@ -21,7 +21,6 @@ import {
   Search,
   SlidersHorizontal,
   Bell,
-  Star,
   Award
 } from "lucide-react"
 import { Link } from "@/i18n/routing"
@@ -37,11 +36,15 @@ interface LandingClientProps {
       badge: string
       title: string
       subtitle: string
-      monthly: string
-      annual: string
       basic: Record<string, string>
       business: Record<string, string>
       enterprise: Record<string, string>
+    }
+    finalCta: {
+      title: string
+      subtitle: string
+      ctaPrimary: string
+      ctaSecondary: string
     }
     faq: {
       badge: string
@@ -62,7 +65,6 @@ export function LandingClient({ t }: LandingClientProps) {
   // Les libellés légaux réutilisent les titres du catalogue juridique
   // plutôt que d'introduire des clés en double.
   const tLegal = useTranslations("Legal")
-  const [isAnnual, setIsAnnual] = React.useState(true)
   const [openFaq, setOpenFaq] = React.useState<number | null>(0)
   const [activeTab, setActiveTab] = React.useState<"all" | "expiring" | "audit">("all")
 
@@ -227,17 +229,20 @@ export function LandingClient({ t }: LandingClientProps) {
               >
                 {t.nav.login}
               </Link>
-              <a 
-                href="#pricing"
+              <Link
+                href="/demo"
                 className="inline-flex items-center justify-center rounded-full bg-white text-[#1e40af] px-5 sm:px-6 py-2.5 text-xs sm:text-sm font-bold shadow-lg hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
               >
                 {t.nav.bookDemo}
-              </a>
+              </Link>
             </div>
           </nav>
 
           {/* Hero Content */}
-          <div className="relative z-20 flex flex-col items-center text-center px-4 sm:px-6 pt-8 sm:pt-12 pb-56 sm:pb-72 md:pb-80 max-w-4xl mx-auto">
+          {/* La réserve de place sous le contenu ne dépend plus d'un padding
+              deviné : la maquette est dans le flux, et c'est elle qui pousse
+              ce qui la précède. Voir le commentaire du bloc plus bas. */}
+          <div className="relative z-20 flex flex-col items-center text-center px-4 sm:px-6 pt-8 sm:pt-12 pb-12 sm:pb-16 max-w-4xl mx-auto">
             
             {/* Pill Badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 backdrop-blur-md px-4 py-1.5 text-xs sm:text-sm font-bold text-white mb-6 shadow-sm">
@@ -255,13 +260,13 @@ export function LandingClient({ t }: LandingClientProps) {
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto mb-10">
-              <a 
-                href="#pricing" 
+              <Link
+                href="/demo"
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 text-white px-8 py-4 text-sm sm:text-base font-bold shadow-2xl hover:bg-black hover:scale-[1.02] transition-all duration-200 group"
               >
                 <span>{t.hero.ctaPrimary}</span>
                 <ArrowUpRight className="h-4 w-4 text-blue-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </a>
+              </Link>
               <Link 
                 href="/portal" 
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-white/25 bg-white/10 hover:bg-white/20 text-white px-8 py-4 text-sm sm:text-base font-semibold backdrop-blur-md transition-all duration-200"
@@ -271,28 +276,29 @@ export function LandingClient({ t }: LandingClientProps) {
               </Link>
             </div>
 
-            {/* BANDEAU SOCIAL PROOF (AXE 2 UI/UX PRO MAX) */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-3 rounded-full text-white text-xs font-semibold shadow-inner">
-              <div className="flex -space-x-2">
-                <div className="w-7 h-7 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-[10px] font-bold">AD</div>
-                <div className="w-7 h-7 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-[10px] font-bold">KT</div>
-                <div className="w-7 h-7 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center text-[10px] font-bold">SR</div>
-                <div className="w-7 h-7 rounded-full bg-indigo-500 border-2 border-white flex items-center justify-center text-[10px] font-bold">+150</div>
-              </div>
-              <div className="flex items-center gap-1.5 text-amber-300">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                ))}
-                <span className="text-white font-bold ml-1">4.9/5</span>
-              </div>
-              <span className="hidden sm:inline text-white/50">•</span>
-              <span className="text-white/90">Adopté par les consultants agréés CICC au Canada</span>
-            </div>
+            {/* Ce bandeau montrait quatre avatars dont un « +150 », cinq
+                étoiles pleines, « 4.9/5 » et « Adopté par les consultants
+                agréés CICC au Canada ». Aucun cabinet n'est abonné à ce
+                jour : c'était une note et une clientèle inventées sur la
+                page publique d'un professionnel réglementé. Rien ne le
+                remplace — une preuve sociale s'affiche quand elle existe. */}
 
           </div>
 
-          {/* INTERACTIVE UI PREVIEW MOCKUP (AXE 1 DYNAMIQUE) */}
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-20 sm:translate-y-24 w-full max-w-5xl px-4 z-20">
+          {/* MAQUETTE D'APERÇU DE L'APPLICATION
+              Elle était en position absolue, ancrée en bas et descendue de
+              80 px, tandis que le contenu au-dessus réservait sa place avec
+              un padding fixe. Les deux valeurs ne se parlaient pas : la
+              carte, haute de 450 px, remontait 186 px plus haut que la
+              réserve et recouvrait le bas du héros — mesuré à 1440 px,
+              elementFromPoint renvoyait la maquette là où le texte était
+              censé être.
+
+              Elle est maintenant dans le flux : sa hauteur pousse d'elle-même
+              ce qui la précède, à toute largeur. La marge négative ne sert
+              plus qu'à la faire déborder sous le panneau bleu, où le
+              overflow-hidden du héros la coupe — l'effet recherché. */}
+          <div className="relative z-20 w-full max-w-5xl mx-auto px-4 -mb-20 sm:-mb-24">
             <div className="bg-white/95 backdrop-blur-2xl rounded-t-[28px] shadow-[0_-20px_50px_rgba(0,0,0,0.25)] border border-white/60 p-3 sm:p-5 h-[450px] sm:h-[490px] overflow-hidden flex flex-col gap-4 relative">
               
               {/* Fake OS Header */}
@@ -425,8 +431,10 @@ export function LandingClient({ t }: LandingClientProps) {
         </div>
       </section>
 
-      {/* SPACER FOR FLOATING MOCKUP */}
-      <div className="h-44 sm:h-56 md:h-64" />
+      {/* L'espaceur de 176 à 256 px qui suivait compensait une maquette
+          flottante qui, elle, était déjà coupée par le héros. Il ne
+          réservait donc de la place pour rien, et creusait le vide qu'on
+          voyait entre le héros et les chiffres. */}
 
       {/* 2. STATS / TRUST SECTION */}
       <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
@@ -513,9 +521,14 @@ export function LandingClient({ t }: LandingClientProps) {
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                    <span className="text-xs font-bold">Coffre-fort Client Chiffré</span>
+                    <span className="text-xs font-bold">Coffre-fort client</span>
                   </div>
-                  <span className="text-[10px] uppercase font-mono bg-white/20 px-2 py-0.5 rounded">AES-256</span>
+                  {/* Le badge annonçait « AES-256 » — dernière occurrence
+                      publique d'une allégation de chiffrement que rien dans
+                      le code ne soutient. L'empreinte SHA-256, elle, est
+                      bien calculée sur le serveur à chaque dépôt : voir
+                      lib/data/storage.ts. */}
+                  <span className="text-[10px] uppercase font-mono bg-white/20 px-2 py-0.5 rounded">SHA-256</span>
                 </div>
                 <div className="bg-white/10 rounded-lg p-2.5 flex items-center justify-between text-xs">
                   <span>IMM5709_Signé.pdf</span>
@@ -609,36 +622,25 @@ export function LandingClient({ t }: LandingClientProps) {
           {t.pricing.subtitle}
         </p>
         
-        {/* Interactive Monthly/Annual Switch */}
-        <div className="flex items-center gap-2 bg-slate-200/80 p-1.5 rounded-full mb-16 shadow-inner">
-          <button 
-            type="button"
-            onClick={() => setIsAnnual(false)} 
-            className={`px-6 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${!isAnnual ? "bg-white shadow-md text-slate-900" : "text-slate-600 hover:text-slate-900"}`}
-          >
-            {t.pricing.monthly}
-          </button>
-          <button 
-            type="button"
-            onClick={() => setIsAnnual(true)} 
-            className={`px-6 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${isAnnual ? "bg-white shadow-md text-blue-600" : "text-slate-600 hover:text-slate-900"}`}
-          >
-            <span>{t.pricing.annual}</span>
-            <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Économisez 20%</span>
-          </button>
-        </div>
+        {/* Le sélecteur mensuel / annuel et sa promesse « Économisez 20% »
+            ont été retirés avec les montants : un basculement qui ne change
+            plus aucun prix affiché est un bouton mort de plus, et le rabais
+            annoncé porterait sur un tarif qui n'est pas publié. */}
 
         {/* 3 Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch w-full max-w-6xl">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch w-full max-w-6xl">
           
           {/* Solo Card */}
           <div className="bg-white rounded-3xl p-8 shadow-xs border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-shadow">
             <div>
               <h3 className="text-xl font-extrabold text-slate-900 mb-2">{t.pricing.basic.name}</h3>
               <p className="text-xs text-slate-500 mb-6 min-h-[32px]">{t.pricing.basic.desc}</p>
-              <div className="text-4xl sm:text-5xl font-black text-slate-900 mb-8 flex items-baseline gap-1">
-                <span>{isAnnual ? "69$" : "89$"}</span>
-                <span className="text-sm font-normal text-slate-400">/mois</span>
+              {/* Le code affichait 89$ et 69$, le fichier de traduction
+                  99$ et 79$ : deux tarifs publics contradictoires, dont un
+                  seul était traduit. Aucun n'est arrêté, donc aucun n'est
+                  affiché. */}
+              <div className="text-3xl sm:text-4xl font-black text-slate-900 mb-8">
+                {t.pricing.basic.price}
               </div>
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Inclus dans l&apos;offre :</div>
               <ul className="flex flex-col gap-4 text-sm font-medium text-slate-700 mb-8">
@@ -648,9 +650,17 @@ export function LandingClient({ t }: LandingClientProps) {
                 <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.basic.f4}</span></li>
               </ul>
             </div>
-            <button type="button" className="w-full rounded-full border border-slate-300 py-3.5 text-sm font-bold text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer">
+            {/* Les trois boutons de cette section étaient des <button> sans
+                onClick ni href : inertes, à l'endroit précis où le visiteur
+                venait de décider. Ce sont des liens, et ils mènent au seul
+                parcours qui existe réellement — la demande de démonstration,
+                l'inscription libre étant fermée par conception. */}
+            <Link
+              href="/demo"
+              className="w-full inline-flex items-center justify-center rounded-full border border-slate-300 py-3.5 text-sm font-bold text-slate-800 hover:bg-slate-50 transition-colors"
+            >
               {t.pricing.basic.btn}
-            </button>
+            </Link>
           </div>
 
           {/* Business Pro Card */}
@@ -662,9 +672,8 @@ export function LandingClient({ t }: LandingClientProps) {
             <div>
               <h3 className="text-xl font-extrabold text-white mb-2">{t.pricing.business.name}</h3>
               <p className="text-xs text-white/80 mb-6 min-h-[32px]">{t.pricing.business.desc}</p>
-              <div className="text-4xl sm:text-5xl font-black text-white mb-8 flex items-baseline gap-1">
-                <span>{isAnnual ? "149$" : "189$"}</span>
-                <span className="text-sm font-normal text-white/70">/mois</span>
+              <div className="text-3xl sm:text-4xl font-black text-white mb-8">
+                {t.pricing.business.price}
               </div>
               <div className="h-px w-full bg-white/20 mb-6" />
               <div className="text-xs font-bold uppercase tracking-wider text-white/70 mb-4">Solo + Avantages Pro :</div>
@@ -675,9 +684,12 @@ export function LandingClient({ t }: LandingClientProps) {
                 <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.business.f4}</span></li>
               </ul>
             </div>
-            <button type="button" className="w-full rounded-full bg-white text-[#1e40af] py-4 text-sm font-black shadow-xl hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer">
+            <Link
+              href="/demo"
+              className="w-full inline-flex items-center justify-center rounded-full bg-white text-[#1e40af] py-4 text-sm font-black shadow-xl hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+            >
               {t.pricing.business.btn}
-            </button>
+            </Link>
           </div>
 
           {/* Enterprise Card */}
@@ -696,9 +708,12 @@ export function LandingClient({ t }: LandingClientProps) {
                 <li className="flex items-center gap-3"><Check className="w-4 h-4 text-blue-600 shrink-0" /> <span>{t.pricing.enterprise.f4}</span></li>
               </ul>
             </div>
-            <button type="button" className="w-full rounded-full border border-slate-300 py-3.5 text-sm font-bold text-slate-800 hover:bg-slate-50 transition-colors cursor-pointer">
+            <Link
+              href="/demo"
+              className="w-full inline-flex items-center justify-center rounded-full border border-slate-300 py-3.5 text-sm font-bold text-slate-800 hover:bg-slate-50 transition-colors"
+            >
               {t.pricing.enterprise.btn}
-            </button>
+            </Link>
           </div>
 
         </div>
@@ -753,24 +768,28 @@ export function LandingClient({ t }: LandingClientProps) {
           <div className="pointer-events-none absolute -top-32 -right-32 w-80 h-80 rounded-full bg-blue-600/30 blur-3xl animate-pulse-glow" />
           <div className="pointer-events-none absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-indigo-600/30 blur-3xl animate-pulse-glow" />
           
+          {/* Ces quatre textes étaient écrits en dur, donc identiques en
+              anglais. Le sous-titre invitait par ailleurs à « rejoindre les
+              consultants de référence » qui utilisent la plateforme : il
+              n'y en a aucun à ce jour. */}
           <h2 className="text-3xl sm:text-5xl font-black max-w-2xl tracking-tight leading-tight relative z-10">
-            Prêt à faire évoluer votre cabinet d&apos;immigration ?
+            {t.finalCta.title}
           </h2>
           <p className="text-white/70 max-w-xl text-sm sm:text-base relative z-10">
-            Rejoignez les consultants de référence qui sécurisent leurs échéances réglementaires avec moncabinetcric.
+            {t.finalCta.subtitle}
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4 relative z-10 mt-2">
-            <a 
-              href="#pricing"
+            <Link
+              href="/demo"
               className="rounded-full bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 text-sm sm:text-base font-bold shadow-xl transition-all hover:scale-105"
             >
-              Démarrer l&apos;essai gratuit
-            </a>
-            <Link 
+              {t.finalCta.ctaPrimary}
+            </Link>
+            <Link
               href="/connexion"
               className="rounded-full border border-white/20 bg-white/10 hover:bg-white/20 text-white px-8 py-4 text-sm sm:text-base font-semibold backdrop-blur-md transition-all"
             >
-              Connexion Cabinet
+              {t.finalCta.ctaSecondary}
             </Link>
           </div>
         </div>

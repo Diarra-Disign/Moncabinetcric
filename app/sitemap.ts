@@ -3,7 +3,11 @@ import type { MetadataRoute } from 'next'
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://moncabinetcric.ca'
   const locales = ['fr', 'en']
-  const routes = ['', '/landing', '/dashboard', '/matters', '/calendar', '/pipeline', '/billing', '/documents', '/clients']
+  // Seules les pages accessibles sans compte. Le plan listait auparavant
+  // /dashboard, /matters, /pipeline, /billing, /documents et /clients :
+  // toutes derrière une authentification, donc invisibles pour un robot,
+  // et les annoncer ne faisait que publier la structure de l'application.
+  const routes = ['', '/landing', '/demo', '/confidentialite', '/conditions']
 
   const sitemapEntries: MetadataRoute.Sitemap = []
 
@@ -12,7 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       sitemapEntries.push({
         url: `${baseUrl}/${locale}${route}`,
         lastModified: new Date(),
-        changeFrequency: route === '/dashboard' || route === '/matters' ? 'daily' : 'weekly',
+        changeFrequency: 'weekly',
         priority: route === '' || route === '/landing' ? 1.0 : 0.8,
       })
     })

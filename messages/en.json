@@ -100,12 +100,12 @@
       "ctaSecondary": "Explore Client Portal"
     },
     "stats": {
-      "stat1Value": "99.8%",
-      "stat1Label": "Audit compliance pass rate",
-      "stat2Value": "0 missed",
-      "stat2Label": "Critical IRCC/MIFI deadlines",
-      "stat3Value": "3x faster",
-      "stat3Label": "Application assembly turnaround"
+      "stat1Value": "FR / EN",
+      "stat1Label": "Interface, agreements and client portal in both official languages",
+      "stat2Value": "SHA-256",
+      "stat2Label": "Fingerprint computed by the database on every audit-log write",
+      "stat3Value": "Append-only",
+      "stat3Label": "The audit log accepts no updates and no deletions"
     },
     "features": {
       "sectionBadge": "BUILT FOR IMMIGRATION LAW",
@@ -114,7 +114,7 @@
       "f1Title": "Document Compliance & Audit Readiness",
       "f1Desc": "No more manual checking. Track passport validity, IMM forms, and financial proofs in real time with automated expiration alerts.",
       "f2Title": "Secure & Zero-Friction Client Portal",
-      "f2Desc": "Your clients upload their files into a structured encrypted vault, track their application progress, and follow clear guidance without email threads.",
+      "f2Desc": "Your clients upload their documents into a partitioned space, track their application's progress and receive precise instructions, without endless email threads.",
       "f3Title": "Sales Pipeline & Practice Lifecycle",
       "f3Desc": "Keep commercial prospecting separate from regulatory casework. Convert a prospect to a mandate in one click while preserving communication history.",
       "f4Title": "Traceability & International Taxation",
@@ -124,30 +124,26 @@
       "badge": "TRANSPARENT PRICING",
       "title": "A profitable investment from your very first case",
       "subtitle": "No hidden fees. Choose the plan tailored to your firm's volume.",
-      "monthly": "Monthly",
-      "annual": "Annual (-20%)",
       "basic": {
         "name": "Solo Consultant",
-        "price": "$99",
-        "priceAnnual": "$79",
+        "price": "On request",
         "desc": "Everything you need to secure your solo practice and elevate your client intake.",
         "f1": "Up to 50 simultaneous active cases",
         "f2": "Branded client document portal",
         "f3": "Expiration alerts & automated reminders",
         "f4": "Visa-specific checklist generator",
-        "btn": "Start Free Trial"
+        "btn": "Request a demo"
       },
       "business": {
         "name": "Firm Pro",
-        "price": "$199",
-        "priceAnnual": "$159",
+        "price": "On request",
         "desc": "The gold standard for growing firms demanding seamless team coordination.",
         "f1": "Unlimited active cases & secure storage",
         "f2": "Multi-user role & access management",
         "f3": "Full regulatory audit trail (CICC compliant)",
         "f4": "Priority support & tax engine integration",
         "badge": "RECOMMENDED",
-        "btn": "Upgrade to Pro"
+        "btn": "Request a demo"
       },
       "enterprise": {
         "name": "Enterprise",
@@ -157,8 +153,14 @@
         "f2": "Dedicated account & compliance manager",
         "f3": "Custom API access & secure webhooks",
         "f4": "Security review & 99.9% uptime SLA",
-        "btn": "Contact Leadership"
+        "btn": "Talk to leadership"
       }
+    },
+    "finalCta": {
+      "title": "Ready to grow your immigration practice?",
+      "subtitle": "Request a demo: access is opened one firm at a time, there is no open sign-up.",
+      "ctaPrimary": "Request a demo",
+      "ctaSecondary": "Firm sign-in"
     },
     "faq": {
       "badge": "CLEAR ANSWERS",
@@ -591,5 +593,22 @@
     "expiresOn": "sign before",
     "divergenceWarning": "The file has changed since signing.",
     "explain": "What constitutes proof is not the handwritten stroke but the file's fingerprint, frozen at the moment of signing. A discrepancy reported here does not mean the signature was invalid: it means the file has changed since."
+  },
+  "Demo": {
+    "title": "Request a demo",
+    "subtitle": "Tell us who you are and what you are trying to solve. We will get back to you to arrange a walkthrough of the platform.",
+    "accessNote": "There is no open sign-up: access is granted one firm at a time, after a conversation. This is deliberate — the platform holds immigration files, and we will not keep data for accounts nobody can account for.",
+    "nameLabel": "Your name",
+    "emailLabel": "Work email",
+    "firmLabel": "Firm (optional)",
+    "phoneLabel": "Phone (optional)",
+    "messageLabel": "What you need (optional)",
+    "messagePlaceholder": "Number of consultants, caseload, what is getting in your way today…",
+    "submit": "Send request",
+    "sending": "Sending…",
+    "sent": "Request received. We will write to the address you gave to arrange a time.",
+    "genericError": "The request could not be sent. Please try again in a moment.",
+    "privacyNote": "The information you enter is used only to answer this request. <lien>Privacy policy</lien>.",
+    "back": "Back to home"
   }
 }

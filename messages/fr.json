@@ -100,12 +100,12 @@
       "ctaSecondary": "Explorer le portail client"
     },
     "stats": {
-      "stat1Value": "99.8%",
-      "stat1Label": "De conformité documentaire aux audits",
-      "stat2Value": "0 oubli",
-      "stat2Label": "Sur les échéances critiques et visas",
-      "stat3Value": "3x plus rapide",
-      "stat3Label": "Pour constituer un dossier complet"
+      "stat1Value": "FR / EN",
+      "stat1Label": "Interface, ententes et portail client dans les deux langues officielles",
+      "stat2Value": "SHA-256",
+      "stat2Label": "Empreinte calculée par la base à chaque écriture du journal d'audit",
+      "stat3Value": "Ajout seul",
+      "stat3Label": "Le journal d'audit n'accepte ni modification ni suppression"
     },
     "features": {
       "sectionBadge": "CONÇU POUR LE DROIT DE L'IMMIGRATION",
@@ -114,7 +114,7 @@
       "f1Title": "Conformité Documentaire & Audits",
       "f1Desc": "Fini les vérifications manuelles. Suivez en temps réel la validité de chaque passeport, formulaire IMM et preuve financière avec des alertes d'expiration automatiques.",
       "f2Title": "Portail Client Sécurisé & Zéro-Friction",
-      "f2Desc": "Vos clients déposent leurs pièces dans un espace chiffré clair, suivent l'avancement de leur demande et reçoivent des instructions précises sans échange d'e-mails interminable.",
+      "f2Desc": "Vos clients déposent leurs pièces dans un espace cloisonné, suivent l'avancement de leur demande et reçoivent des instructions précises, sans échange de courriels interminable.",
       "f3Title": "Pipeline Commercial & Cycle de Vie",
       "f3Desc": "Séparez nettement la prospection commerciale de la gestion de dossier. Convertissez un prospect en client en un clic sans jamais perdre son historique de communication.",
       "f4Title": "Traçabilité & Exonération Fiscale",
@@ -124,30 +124,26 @@
       "badge": "TARIFICATION TRANSPARENTE",
       "title": "Un investissement rentable dès le premier dossier",
       "subtitle": "Pas de coûts cachés. Choisissez le forfait adapté à la taille de votre cabinet.",
-      "monthly": "Mensuel",
-      "annual": "Annuel (-20%)",
       "basic": {
         "name": "Consultant Solo",
-        "price": "99$",
-        "priceAnnual": "79$",
+        "price": "Sur demande",
         "desc": "L'essentiel pour sécuriser votre pratique indépendante et professionnaliser votre accueil client.",
         "f1": "Jusqu'à 50 dossiers actifs simultanés",
         "f2": "Portail client documentaire à votre marque",
         "f3": "Alertes d'expiration & rappels automatiques",
         "f4": "Génération de checklist par type de visa",
-        "btn": "Démarrer l'essai gratuit"
+        "btn": "Demander une démonstration"
       },
       "business": {
         "name": "Cabinet Pro",
-        "price": "199$",
-        "priceAnnual": "159$",
+        "price": "Sur demande",
         "desc": "Le standard d'excellence pour les cabinets en croissance exigeant une coordination parfaite.",
         "f1": "Dossiers clients & stockage illimités",
         "f2": "Gestion multi-utilisateurs & rôles sur mesure",
         "f3": "Journal d'audit réglementaire complet (CICC)",
         "f4": "Support prioritaire & intégration fiscale",
         "badge": "RECOMMANDÉ",
-        "btn": "Passer au forfait Pro"
+        "btn": "Demander une démonstration"
       },
       "enterprise": {
         "name": "Grandes Études",
@@ -157,8 +153,14 @@
         "f2": "Responsable de compte & conformité dédié",
         "f3": "Accès API & webhooks personnalisés",
         "f4": "Audit de sécurité & SLA garanti à 99.9%",
-        "btn": "Contacter la direction"
+        "btn": "Parler à la direction"
       }
+    },
+    "finalCta": {
+      "title": "Prêt à faire évoluer votre cabinet d'immigration ?",
+      "subtitle": "Demandez une démonstration : nous ouvrons les accès cabinet par cabinet, il n'y a pas d'inscription libre.",
+      "ctaPrimary": "Demander une démonstration",
+      "ctaSecondary": "Connexion cabinet"
     },
     "faq": {
       "badge": "RÉPONSES CLAIRES",
@@ -591,5 +593,22 @@
     "expiresOn": "à signer avant le",
     "divergenceWarning": "Le fichier a changé depuis la signature.",
     "explain": "Ce qui fait preuve n'est pas le tracé manuscrit mais l'empreinte du fichier, figée au moment de la signature. Une divergence signalée ici ne dit pas que la signature était invalide : elle dit que le fichier a changé depuis."
+  },
+  "Demo": {
+    "title": "Demander une démonstration",
+    "subtitle": "Dites-nous qui vous êtes et ce que vous cherchez à régler. Nous revenons vers vous pour convenir d'une présentation de la plateforme.",
+    "accessNote": "Il n'y a pas d'inscription libre : un accès s'ouvre cabinet par cabinet, après échange. C'est volontaire — la plateforme héberge des dossiers d'immigration, et nous ne voulons pas conserver les données de comptes ouverts sans que personne ne sache à qui ils appartiennent.",
+    "nameLabel": "Votre nom",
+    "emailLabel": "Courriel professionnel",
+    "firmLabel": "Cabinet (facultatif)",
+    "phoneLabel": "Téléphone (facultatif)",
+    "messageLabel": "Votre besoin (facultatif)",
+    "messagePlaceholder": "Nombre de consultants, volume de dossiers, ce qui vous pose problème aujourd'hui…",
+    "submit": "Envoyer la demande",
+    "sending": "Envoi…",
+    "sent": "Demande reçue. Nous vous écrivons à l'adresse indiquée pour convenir d'un moment.",
+    "genericError": "La demande n'a pas pu être envoyée. Réessayez dans un instant.",
+    "privacyNote": "Les renseignements saisis servent uniquement à répondre à cette demande. <lien>Politique de confidentialité</lien>.",
+    "back": "Retour à l'accueil"
   }
 }

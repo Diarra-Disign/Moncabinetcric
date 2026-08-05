@@ -22,13 +22,17 @@ export default async function LandingPage() {
       ctaPrimary: tLanding("hero.ctaPrimary", { defaultValue: "Réserver une démo privée" }),
       ctaSecondary: tLanding("hero.ctaSecondary", { defaultValue: "Explorer le portail client" }),
     },
+    // Ces trois chiffres portaient des valeurs de repli — « 99.8% de
+    // conformité », « 0 oubli », « 3x plus rapide » — qu'aucune mesure ne
+    // soutenait. Un repli est une valeur affichée : il engage autant que
+    // le fichier de traduction. Les clés existent, elles suffisent.
     stats: {
-      stat1Value: tLanding("stats.stat1Value", { defaultValue: "99.8%" }),
-      stat1Label: tLanding("stats.stat1Label", { defaultValue: "De conformité documentaire aux audits" }),
-      stat2Value: tLanding("stats.stat2Value", { defaultValue: "0 oubli" }),
-      stat2Label: tLanding("stats.stat2Label", { defaultValue: "Sur les échéances critiques et visas" }),
-      stat3Value: tLanding("stats.stat3Value", { defaultValue: "3x plus rapide" }),
-      stat3Label: tLanding("stats.stat3Label", { defaultValue: "Pour constituer un dossier complet" }),
+      stat1Value: tLanding("stats.stat1Value"),
+      stat1Label: tLanding("stats.stat1Label"),
+      stat2Value: tLanding("stats.stat2Value"),
+      stat2Label: tLanding("stats.stat2Label"),
+      stat3Value: tLanding("stats.stat3Value"),
+      stat3Label: tLanding("stats.stat3Label"),
     },
     features: {
       sectionBadge: tLanding("features.sectionBadge", { defaultValue: "CONÇU POUR LE DROIT DE L'IMMIGRATION" }),
@@ -47,8 +51,6 @@ export default async function LandingPage() {
       badge: tLanding("pricing.badge", { defaultValue: "TARIFICATION TRANSPARENTE" }),
       title: tLanding("pricing.title"),
       subtitle: tLanding("pricing.subtitle"),
-      monthly: tLanding("pricing.monthly"),
-      annual: tLanding("pricing.annual"),
       basic: {
         name: tLanding("pricing.basic.name"),
         price: tLanding("pricing.basic.price"),
@@ -80,6 +82,12 @@ export default async function LandingPage() {
         f4: tLanding("pricing.enterprise.f4", { defaultValue: "Audit de sécurité & SLA garanti à 99.9%" }),
         btn: tLanding("pricing.enterprise.btn"),
       },
+    },
+    finalCta: {
+      title: tLanding("finalCta.title"),
+      subtitle: tLanding("finalCta.subtitle"),
+      ctaPrimary: tLanding("finalCta.ctaPrimary"),
+      ctaSecondary: tLanding("finalCta.ctaSecondary"),
     },
     faq: {
       badge: tLanding("faq.badge", { defaultValue: "RÉPONSES CLAIRES" }),
