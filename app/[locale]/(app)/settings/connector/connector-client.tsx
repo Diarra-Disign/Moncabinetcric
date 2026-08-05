@@ -446,7 +446,7 @@ export function ConnectorClient({
                 <input
                   type="text"
                   required
-                  placeholder="ex : ChatGPT — poste de Me X"
+                  placeholder="ex : ChatGPT — poste du CRIC responsable"
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
                   className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-indigo-600 focus:outline-none"

@@ -129,7 +129,7 @@ export const MOCK_DEADLINE_RECORDS: DeadlineRecord[] = [
     daysRemaining: 13,
     severity: "high",
     status: "open",
-    assignedTo: "Me Adama Diarra",
+    assignedTo: "Adama Diarra, CRIC",
     authority: "LIPR art. 10.3 & Instructions Entrée Express",
     sourceFact: { type: "ita_issued", date: "2026-06-15" },
     isManual: false
@@ -162,7 +162,7 @@ export const MOCK_DEADLINE_RECORDS: DeadlineRecord[] = [
     daysRemaining: 30,
     severity: "normal",
     status: "open",
-    assignedTo: "Me Adama Diarra",
+    assignedTo: "Adama Diarra, CRIC",
     authority: "Règlement Fidéicommis CICC art. 13.4",
     isManual: false
   },

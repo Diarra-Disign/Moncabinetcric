@@ -2,7 +2,7 @@ import { AiConnectorSettings, AiApiKeyRecord, AiConnectorLogRecord } from "../ty
 
 export const INITIAL_AI_CONNECTOR_SETTINGS: AiConnectorSettings = {
   enabled: false,
-  enabledBy: "Me Adama Diarra (Owner)",
+  enabledBy: "Adama Diarra, CRIC (owner)",
   enabledAt: undefined,
   allowedMemberIds: ["m-owner-01", "m-rcic-02"],
   allowedActions: [
@@ -26,11 +26,11 @@ export const INITIAL_AI_CONNECTOR_SETTINGS: AiConnectorSettings = {
 export const INITIAL_AI_API_KEYS: AiApiKeyRecord[] = [
   {
     id: "key-01",
-    name: "ChatGPT Custom GPT — Me Adama Diarra",
+    name: "ChatGPT Custom GPT — Adama Diarra, CRIC",
     keyPrefix: "cric_live_7a8b9c0d",
     secretHash: "sha256-hash-secret-01",
     createdForMemberId: "m-owner-01",
-    createdForMemberName: "Me Adama Diarra (RCIC #R000000)",
+    createdForMemberName: "Adama Diarra, CRIC (permis R000000)",
     createdAt: "2026-07-29",
     lastUsedAt: "2026-08-01 14:15",
     isActive: true

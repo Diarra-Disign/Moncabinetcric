@@ -462,7 +462,7 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
             <div>
               <strong className="text-amber-900 font-extrabold text-sm block">Mécanique de Supervision CRIC en 2 Temps (Règlement sur la Conduite du CICC)</strong>
               <p className="mt-1 text-amber-900/90 leading-relaxed">
-                Conformément aux règlements du CICC, le personnel administratif (<code className="font-mono bg-amber-100 px-1 rounded">staff</code>) et les stagiaires (<code className="font-mono bg-amber-100 px-1 rounded">risia</code>) peuvent **préparer** des actes réservés (virements fidéicommis, contrats, fermetures de dossiers). Cependant, l&apos;acte ne devient exécutoire qu&apos;après **validation électronique explicite par le consultant titulaire RCIC**.
+                Conformément aux règlements du CICC, le personnel administratif (<code className="font-mono bg-amber-100 px-1 rounded">staff</code>) et les stagiaires (<code className="font-mono bg-amber-100 px-1 rounded">risia</code>) peuvent **préparer** des actes réservés (virements fidéicommis, contrats, fermetures de dossiers). Cependant, l&apos;acte ne devient exécutoire qu&apos;après **validation électronique explicite par le consultant titulaire (CRIC)**.
               </p>
             </div>
           </div>

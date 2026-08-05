@@ -240,7 +240,7 @@
       "program": "Programme & Visa",
       "openedDate": "Date d'ouverture",
       "deadline": "Échéance Butoir",
-      "rcic": "RCIC Responsable",
+      "rcic": "CRIC responsable",
       "status": "Statut",
       "actions": "Actions"
     },
@@ -397,7 +397,7 @@
   },
   "MatterDetail": {
     "headerTitle": "Dossier d'immigration CICC",
-    "rcicResponsible": "RCIC Responsable",
+    "rcicResponsible": "CRIC responsable",
     "deadline": "Échéance Butoir",
     "status": "Statut",
     "timelineTitle": "Parcours IRCC / MIFI",

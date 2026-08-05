@@ -8,7 +8,7 @@ export const MOCK_MATTERS: Matter[] = [
     program: "Permis de travail / EIMT",
     openedDate: "18-05-26",
     deadline: "18-08-26",
-    rcic: "Me. A. Diarra",
+    rcic: "A. Diarra, CRIC",
     status: "valid",
     isPriority: true,
     clientId: "c-4"
@@ -20,7 +20,7 @@ export const MOCK_MATTERS: Matter[] = [
     program: "Résidence Permanente (EE)",
     openedDate: "16-05-26",
     deadline: "16-09-26",
-    rcic: "Me. A. Diarra",
+    rcic: "A. Diarra, CRIC",
     status: "valid",
     clientId: "c-2"
   },
@@ -31,7 +31,7 @@ export const MOCK_MATTERS: Matter[] = [
     program: "Recrutement LMIA Exemption",
     openedDate: "15-05-26",
     deadline: "01-08-26",
-    rcic: "Me. S. Lavoie",
+    rcic: "S. Lavoie, CRIC",
     status: "alert",
     isPriority: true,
     clientId: "c-4"
@@ -43,7 +43,7 @@ export const MOCK_MATTERS: Matter[] = [
     program: "Parrainage d'Époux / Conjoint de fait",
     openedDate: "12-05-26",
     deadline: "14-10-26",
-    rcic: "Me. A. Diarra",
+    rcic: "A. Diarra, CRIC",
     status: "review",
     clientId: "c-1"
   },
@@ -54,7 +54,7 @@ export const MOCK_MATTERS: Matter[] = [
     program: "Permis d'études (CAQ UdeM)",
     openedDate: "10-05-26",
     deadline: "30-07-26",
-    rcic: "Me. S. Lavoie",
+    rcic: "S. Lavoie, CRIC",
     status: "pending",
     clientId: "c-3"
   },
@@ -65,7 +65,7 @@ export const MOCK_MATTERS: Matter[] = [
     program: "EIMT - Charpentiers",
     openedDate: "08-05-26",
     deadline: "25-08-26",
-    rcic: "Me. A. Diarra",
+    rcic: "A. Diarra, CRIC",
     status: "valid",
     clientId: "c-4"
   },
@@ -76,7 +76,7 @@ export const MOCK_MATTERS: Matter[] = [
     program: "Résidence Permanente (PEQ)",
     openedDate: "01-05-26",
     deadline: "15-09-26",
-    rcic: "Me. S. Lavoie",
+    rcic: "S. Lavoie, CRIC",
     status: "valid",
     clientId: "c-1"
   }

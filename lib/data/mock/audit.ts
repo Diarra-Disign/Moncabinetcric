@@ -6,7 +6,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     occurredAt: "2026-08-01T14:20:11Z",
     actorMemberId: "mem-01",
     actorEmail: "adama.diarra@demo-immigration.ca",
-    actorName: "Me Adama Diarra",
+    actorName: "Adama Diarra, CRIC",
     actorRole: "rcic",
     action: "approval",
     entityType: "approval_queue",
@@ -14,7 +14,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     summary: "Approbation RCIC exécutée — Virement Fidéicommis 10 000,00 $ (Phase 1 EIMT)",
     changes: {
       status: { before: "pending", after: "approved" },
-      approvedBy: { before: null, after: "Me Adama Diarra (RCIC #R000000)" }
+      approvedBy: { before: null, after: "Adama Diarra, CRIC (permis R000000)" }
     },
     ipAddress: "192.168.1.42",
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -46,7 +46,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     occurredAt: "2026-08-01T11:12:30Z",
     actorMemberId: "mem-01",
     actorEmail: "adama.diarra@demo-immigration.ca",
-    actorName: "Me Adama Diarra",
+    actorName: "Adama Diarra, CRIC",
     actorRole: "rcic",
     action: "trust_transfer",
     entityType: "trust_account",
@@ -82,7 +82,7 @@ export const MOCK_AUDIT_LOGS: AuditLogRecord[] = [
     occurredAt: "2026-07-30T09:30:00Z",
     actorMemberId: "mem-01",
     actorEmail: "adama.diarra@demo-immigration.ca",
-    actorName: "Me Adama Diarra",
+    actorName: "Adama Diarra, CRIC",
     actorRole: "owner",
     action: "update",
     entityType: "agreement",
@@ -156,7 +156,7 @@ export const MOCK_APPROVAL_QUEUE: ActionApprovalRecord[] = [
     preparedBy: "Sophie Tremblay (Adjointe Staff)",
     preparedByRole: "staff",
     preparedAt: "2026-07-30T15:20:00Z",
-    approvedBy: "Me Adama Diarra (RCIC #R000000)",
+    approvedBy: "Adama Diarra, CRIC (permis R000000)",
     approvedAt: "2026-07-31T09:00:00Z",
     status: "approved"
   }

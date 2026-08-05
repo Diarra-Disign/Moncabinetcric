@@ -312,9 +312,15 @@ export function LandingClient({ t }: LandingClientProps) {
                   <Lock className="h-3 w-3 text-emerald-600" />
                   <span>moncabinetcric-app.ca/dossiers</span>
                 </div>
+                {/* La maquette affichait « Me. A. Diarra ». Me est réservé
+                    aux avocats et aux notaires : un consultant réglementé
+                    qui le porte laisse croire à un titre qu'il n'a pas, et
+                    la page publique est précisément l'endroit où cela se
+                    lit comme une qualification. La désignation du CICC est
+                    CRIC en français, RCIC en anglais, et elle suit le nom. */}
                 <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
                   <span className="hidden sm:inline">Connecté en tant que:</span>
-                  <span className="font-bold text-slate-700">Me. A. Diarra</span>
+                  <span className="font-bold text-slate-700">A. Diarra, CRIC</span>
                 </div>
               </div>
 

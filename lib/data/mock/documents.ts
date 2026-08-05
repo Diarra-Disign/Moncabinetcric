@@ -95,7 +95,7 @@ postérieur à cette date exigera de repasser l'épreuve.`
     name: "Entente_de_Service_CICC_SA-2026-000142.pdf",
     type: "Contrat de Services",
     category: "contract",
-    uploadedBy: "Me Adama Diarra (RCIC)",
+    uploadedBy: "Adama Diarra, CRIC",
     date: "2026-07-25",
     expiration: "N/A",
     source: "Générateur CICC",
@@ -110,7 +110,7 @@ postérieur à cette date exigera de repasser l'épreuve.`
 Contrat n° SA-2026-000142
 
 ENTRE : Cabinet de démonstration
-        Représenté par Me Adama Diarra
+        Représenté par Adama Diarra, CRIC
         Consultant réglementé — RCIC #R000000
         Membre en règle du Collège des consultants en
         immigration et en citoyenneté (CICC)
@@ -152,7 +152,7 @@ ET :    Les Industries Nordiques Inc. (« le Client »)
    compétentes.
 
 SIGNATURES
-   Me Adama Diarra (RCIC #R000000) ..... 25 juillet 2026
+   Adama Diarra, CRIC (permis R000000) ..... 25 juillet 2026
    Les Industries Nordiques Inc. ........ 25 juillet 2026`
   },
   {
@@ -210,7 +210,7 @@ après l'échéance.`
     name: "Note_Consultation_Eligibilite_PEQ.pdf",
     type: "Note Interne Consultant",
     category: "consultant_upload",
-    uploadedBy: "Me Adama Diarra (RCIC)",
+    uploadedBy: "Adama Diarra, CRIC",
     date: "2026-07-29",
     expiration: "N/A",
     source: "Espace Consultant",
@@ -226,7 +226,7 @@ CONFIDENTIEL — COUVERT PAR LE SECRET PROFESSIONNEL
 
 Dossier .............. #DOS-35695
 Client ............... M. Adama Diarra
-Consultant ........... Me Adama Diarra (RCIC #R000000)
+Consultant ........... Adama Diarra, CRIC (permis R000000)
 Entretien ............ 29 juillet 2026 — 45 min, visioconférence
 
 1. PROGRAMME ÉVALUÉ

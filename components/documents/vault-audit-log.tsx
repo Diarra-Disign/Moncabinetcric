@@ -32,9 +32,12 @@ const ACTION_CONFIG: Record<string, { label: string; icon: React.ElementType; co
   export: { label: "Export Audit", icon: FileCheck2, color: "text-violet-700", bgColor: "bg-violet-50 border-violet-200" },
 }
 
+// Libellés français : la désignation du CICC s'écrit CRIC en français et
+// RCIC en anglais. La clé du rôle, elle, reste `rcic` — c'est la valeur
+// stockée en base, et la renommer demanderait une migration.
 const ROLE_LABELS: Record<string, string> = {
   owner: "Propriétaire",
-  rcic: "RCIC",
+  rcic: "CRIC",
   risia: "Stagiaire RISIA",
   staff: "Personnel",
   bookkeeper: "Comptable",

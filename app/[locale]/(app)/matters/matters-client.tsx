@@ -499,7 +499,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Consultant RCIC Responsable</label>
+                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">CRIC responsable</label>
                 {/* Ce champ affichait « Adama Diarra (RCIC #R512345) », un
                     numéro de permis inventé porté au nom du titulaire. Il est
                     lu du profil du cabinet, et n'affiche rien s'il n'y est

@@ -340,7 +340,7 @@ export interface ActionApprovalRecord {
 
 export interface AiConnectorSettings {
   enabled: boolean
-  enabledBy: string // "Me Adama Diarra (Owner)"
+  enabledBy: string // "Adama Diarra, CRIC (owner)"
   enabledAt?: string
   allowedMemberIds: string[]
   allowedActions: string[]
@@ -350,7 +350,7 @@ export interface AiConnectorSettings {
 
 export interface AiApiKeyRecord {
   id: string
-  name: string // "ChatGPT Custom GPT - Me Diarra"
+  name: string // "ChatGPT Custom GPT - A. Diarra, CRIC"
   keyPrefix: string // "cric_live_7a8b..."
   secretHash: string
   createdForMemberId: string
