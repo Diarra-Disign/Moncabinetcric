@@ -53,16 +53,48 @@ export async function getSessionSupabase(): Promise<SupabaseClient> {
 /**
  * Identité du cabinet de l'utilisateur connecté.
  *
- * Lue avec le client de session : la politique RLS de `firms` restreint
- * déjà la lecture au cabinet du membre, aucun filtre applicatif n'est
- * donc nécessaire — et surtout, aucun n'est oubliable.
+ * Le filtre sur l'identifiant est indispensable, contrairement à ce que
+ * cette fonction supposait d'abord.
+ *
+ * Elle interrogeait `firms` sans aucune clause et comptait sur la RLS pour
+ * ne renvoyer qu'une ligne. Ce raisonnement a cessé d'être vrai le jour où
+ * la politique `firms_public_operator` a ouvert la lecture du cabinet
+ * exploitant à tout le monde, pour alimenter les pages légales publiques.
+ * Depuis, un membre d'un autre cabinet en voit deux : le sien et celui de
+ * l'exploitant. `maybeSingle()` refuse alors de choisir, renvoie une
+ * erreur, et l'identité retombe sur EMPTY_FIRM — dont `accessOpen` vaut
+ * false.
+ *
+ * Conséquence observée : tout membre d'un cabinet autre que l'exploitant
+ * se voyait refuser l'entrée avec « Accès suspendu », plan et statut
+ * vides, quel que soit son abonnement réel.
+ *
+ * Le cabinet vient donc du profil du membre. La RLS reste le verrou — elle
+ * refuse toujours la ligne d'un cabinet tiers — mais elle n'a plus à
+ * servir de sélecteur, ce qu'une politique n'a jamais promis d'être.
  */
 export async function getCurrentFirm(): Promise<FirmIdentity> {
   const supabase = await getSessionSupabase()
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return EMPTY_FIRM
+
+  // Lisible même sous suspension : c'est ce qui permet d'afficher au membre
+  // le plan et le statut réels de son cabinet plutôt que deux tirets.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("firm_id")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
+  if (!profile?.firm_id) return EMPTY_FIRM
+
   const { data, error } = await supabase
     .from("firms")
     .select("id, name, rcic_license_number, owner_name, address, phone, email, logo_letter, logo_url, plan, status, trial_ends_at")
+    .eq("id", profile.firm_id)
     .maybeSingle()
 
   if (error || !data) return EMPTY_FIRM

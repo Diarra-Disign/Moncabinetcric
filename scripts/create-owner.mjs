@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Création du compte propriétaire du cabinet.
+ * Création du compte propriétaire d'un cabinet.
  *
  *   node scripts/create-owner.mjs
+ *   node scripts/create-owner.mjs --cabinet="<permis ou raison sociale>"
  *
  * Il n'existe aucune inscription publique : le premier compte doit donc
  * être créé hors application. Ce script utilise la clé service_role, la
@@ -24,6 +25,11 @@ import { fileURLToPath } from "node:url"
 import { createClient } from "@supabase/supabase-js"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
+
+const valueOf = (n) => {
+  const hit = process.argv.slice(2).find((a) => a.startsWith(`--${n}=`))
+  return hit ? hit.slice(n.length + 3).trim() : undefined
+}
 
 /** Lit .env.local sans dépendance externe. */
 async function loadEnv() {
@@ -68,6 +74,48 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
+  // 1. Le cabinet doit exister, et être désigné sans ambiguïté.
+  //
+  //    Ce script prenait auparavant le premier cabinet venu (`limit(1)`).
+  //    Tant qu'il n'y en avait qu'un, cela passait ; dès le deuxième, il
+  //    rattachait silencieusement le propriétaire au mauvais — sans erreur,
+  //    et sans que rien ne le laisse voir avant la première connexion.
+  const { data: firms, error: firmErr } = await admin
+    .from("firms")
+    .select("id, name, rcic_license_number")
+    .order("name")
+  if (firmErr) throw new Error(`Lecture des cabinets impossible : ${firmErr.message}`)
+  if (!firms || firms.length === 0) {
+    throw new Error("Aucun cabinet en base. Appliquer d'abord les migrations de schéma et de données.")
+  }
+
+  const cible = valueOf("cabinet")
+  let firm
+  if (cible) {
+    const trouves = firms.filter(
+      (f) => f.rcic_license_number === cible || f.name === cible || f.name.includes(cible)
+    )
+    if (trouves.length === 0) {
+      throw new Error(
+        `Aucun cabinet ne correspond à « ${cible} ». Connus : ${firms.map((f) => f.name).join(", ")}`
+      )
+    }
+    if (trouves.length > 1) {
+      throw new Error(
+        `« ${cible} » désigne plusieurs cabinets : ${trouves.map((f) => f.name).join(", ")}. Préciser le permis.`
+      )
+    }
+    firm = trouves[0]
+  } else if (firms.length === 1) {
+    firm = firms[0]
+  } else {
+    throw new Error(
+      `Plusieurs cabinets en base — préciser lequel avec --cabinet=…\n  ` +
+        firms.map((f) => `${f.name} (${f.rcic_license_number})`).join("\n  ")
+    )
+  }
+  console.log(`\nCabinet cible : ${firm.name} (${firm.rcic_license_number})`)
+
   const rl = createInterface({ input: stdin, output: stdout })
   const email = (await rl.question("Adresse courriel du propriétaire : ")).trim()
   const fullName = (await rl.question("Nom complet : ")).trim()
@@ -80,14 +128,6 @@ async function main() {
     throw new Error("Mot de passe trop court : 12 caractères minimum.")
   }
 
-  // 1. Le cabinet doit exister.
-  const { data: firms, error: firmErr } = await admin.from("firms").select("id, name").limit(1)
-  if (firmErr) throw new Error(`Lecture des cabinets impossible : ${firmErr.message}`)
-  if (!firms || firms.length === 0) {
-    throw new Error("Aucun cabinet en base. Appliquer d'abord les migrations de schéma et de données.")
-  }
-  const firm = firms[0]
-  console.log(`\nCabinet cible : ${firm.name}`)
 
   // 2. Création du compte, courriel confirmé d'office : c'est un compte
   //    d'administration créé de la main du propriétaire, pas une inscription.
