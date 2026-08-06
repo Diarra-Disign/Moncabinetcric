@@ -18,13 +18,44 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
   const [fullName, setFullName] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [visible, setVisible] = React.useState(false)
-  const [error, setError] = React.useState<AcceptResult["error"] | null>(null)
+  // « tooShort » et « nameRequired » n'existent pas côté serveur : ce sont
+  // les deux refus que le formulaire prononce lui-même, avant tout appel.
+  const [error, setError] = React.useState<
+    AcceptResult["error"] | "tooShort" | "nameRequired" | null
+  >(null)
   const [done, setDone] = React.useState(false)
   const [pending, startTransition] = React.useTransition()
 
+  const champNom = React.useRef<HTMLInputElement>(null)
+  const champMotDePasse = React.useRef<HTMLInputElement>(null)
+
+  /**
+   * Le bouton reste cliquable même quand la saisie est incomplète.
+   *
+   * Il était auparavant grisé tant que le mot de passe n'atteignait pas
+   * douze caractères. Rien n'indiquait pourquoi : la seule mention de la
+   * longueur était une ligne d'aide sous le champ, que personne ne relit
+   * en cherchant pourquoi un bouton ne répond pas. Un invité s'y est
+   * arrêté, croyant la page cassée — au dernier écran du parcours, celui
+   * qui ouvre son accès.
+   *
+   * Cliquer dit maintenant ce qui manque, et combien il manque.
+   */
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if (!fullName.trim()) {
+      setError("nameRequired")
+      champNom.current?.focus()
+      return
+    }
+    if (password.length < MIN_PASSWORD) {
+      setError("tooShort")
+      champMotDePasse.current?.focus()
+      return
+    }
+
     startTransition(async () => {
       const result = await acceptInvitation(token, fullName, password)
       if (result.ok) setDone(true)
@@ -51,10 +82,19 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
   }
 
   const messageKey =
-    error === "weak" ? "errorWeak" : error === "exists" ? "errorExists" : "errorFailed"
+    error === "nameRequired"
+      ? "errorNameRequired"
+      : error === "weak"
+        ? "errorWeak"
+        : error === "exists"
+          ? "errorExists"
+          : "errorFailed"
 
+  // noValidate : sans cela le navigateur bloque l'envoi avant notre
+  // contrôle, avec un libellé générique et dans SA langue — pas dans celle
+  // de la page. Les deux règles sont donc énoncées par le formulaire.
   return (
-    <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
+    <form onSubmit={onSubmit} noValidate className="mt-6 flex flex-col gap-4">
       <div>
         <label htmlFor="invite-email" className="mb-1.5 block text-xs font-bold text-foreground">
           {t("emailLabel")}
@@ -82,8 +122,8 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
         </label>
         <input
           id="invite-name"
+          ref={champNom}
           type="text"
-          required
           autoComplete="name"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
@@ -104,9 +144,8 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
         <div className="relative">
           <input
             id="invite-password"
+            ref={champMotDePasse}
             type={visible ? "text" : "password"}
-            required
-            minLength={MIN_PASSWORD}
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -123,18 +162,22 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
             {visible ? <EyeOff aria-hidden className="h-4 w-4" /> : <Eye aria-hidden className="h-4 w-4" />}
           </button>
         </div>
+        {/* Le décompte se met à jour à la frappe : la personne voit ce
+            qu'il reste à faire au lieu de le déduire d'un bouton inerte. */}
         <p id="invite-password-hint" className="mt-1 text-[11px] text-muted-foreground">
-          {t("passwordHint")}
+          {password.length > 0 && password.length < MIN_PASSWORD
+            ? t("passwordRemaining", { n: MIN_PASSWORD - password.length })
+            : t("passwordHint")}
         </p>
       </div>
 
       {error && (
         <p role="alert" className="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs font-bold text-error">
-          {t(messageKey)}
+          {error === "tooShort" ? t("errorTooShort", { n: MIN_PASSWORD }) : t(messageKey)}
         </p>
       )}
 
-      <Button type="submit" disabled={pending || password.length < MIN_PASSWORD} className="mt-1">
+      <Button type="submit" disabled={pending} className="mt-1">
         {pending ? t("submitting") : t("submit")}
       </Button>
     </form>

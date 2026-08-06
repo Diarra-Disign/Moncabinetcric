@@ -587,7 +587,10 @@
     "successBody": "Votre compte est prêt. Vous pouvez maintenant vous connecter.",
     "goToSignIn": "Aller à la connexion",
     "passwordShow": "Afficher le mot de passe",
-    "passwordHide": "Masquer le mot de passe"
+    "passwordHide": "Masquer le mot de passe",
+    "errorTooShort": "Mot de passe trop court : il doit compter au moins {n} caractères.",
+    "passwordRemaining": "Encore {n} caractère(s).",
+    "errorNameRequired": "Votre nom est requis."
   },
   "Signatures": {
     "title": "Signatures électroniques",

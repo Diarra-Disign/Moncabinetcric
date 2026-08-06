@@ -587,7 +587,10 @@
     "successBody": "Your account is ready. You can now sign in.",
     "goToSignIn": "Go to sign-in",
     "passwordShow": "Show password",
-    "passwordHide": "Hide password"
+    "passwordHide": "Hide password",
+    "errorTooShort": "Password too short: it must be at least {n} characters.",
+    "passwordRemaining": "{n} more character(s).",
+    "errorNameRequired": "Your name is required."
   },
   "Signatures": {
     "title": "Electronic signatures",
