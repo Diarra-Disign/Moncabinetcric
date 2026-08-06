@@ -32,6 +32,7 @@ case "$commande" in
   cabinet)      exec node scripts/reset-firm.mjs "$@" ;;
   verifier)     exec node scripts/verify-auth.mjs "$@" ;;
   roles)        exec node scripts/verify-roles.mjs "$@" ;;
+  connecteur)   exec node scripts/verify-connector.mjs "$@" ;;
   migration)    exec node scripts/apply-migration.mjs "$@" ;;
   provisionner) exec node scripts/provision-project.mjs "$@" ;;
   motdepasse)   exec node scripts/set-password.mjs "$@" ;;
@@ -70,6 +71,7 @@ Usage : ./cric <commande> [options]
 
   verifier     Diagnostic : clés, comptes, fermeture de la base
   roles        Éprouve la matrice des droits en base
+  connecteur   Éprouve le cloisonnement du connecteur IA par cabinet
   comptes      Met en place les cabinets et comptes de départ
   cabinet      Purge les données de démonstration, écrit l'identité réelle
   cle          Enregistre la clé de service Supabase

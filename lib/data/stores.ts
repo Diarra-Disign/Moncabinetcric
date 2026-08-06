@@ -10,9 +10,6 @@ import {
   DeadlineRecord,
   LegislationProvision,
   ResearchWorkspace,
-  AiConnectorSettings,
-  AiApiKeyRecord,
-  AiConnectorLogRecord,
 } from "./types"
 import { MOCK_MATTERS } from "./mock/matters"
 import { MOCK_LEADS } from "./mock/leads"
@@ -23,7 +20,6 @@ import { MOCK_EVENTS } from "./mock/events"
 import { MOCK_AGREEMENTS } from "./mock/agreements"
 import { MOCK_DEADLINE_RECORDS } from "./mock/deadlines"
 import { MOCK_LEGISLATION_PROVISIONS, MOCK_RESEARCH_WORKSPACES } from "./mock/legislation"
-import { INITIAL_AI_CONNECTOR_SETTINGS, INITIAL_AI_API_KEYS, INITIAL_AI_CONNECTOR_LOGS } from "./mock/connector"
 
 /**
  * Magasins en mémoire de la source « mock ».
@@ -54,9 +50,9 @@ let deadlinesStore: DeadlineRecord[] = [...MOCK_DEADLINE_RECORDS]
 let legislationProvisionsStore: LegislationProvision[] = [...MOCK_LEGISLATION_PROVISIONS]
 let researchWorkspacesStore: ResearchWorkspace[] = [...MOCK_RESEARCH_WORKSPACES]
 
-let aiConnectorSettingsStore: AiConnectorSettings = { ...INITIAL_AI_CONNECTOR_SETTINGS }
-let aiApiKeysStore: AiApiKeyRecord[] = [...INITIAL_AI_API_KEYS]
-let aiConnectorLogsStore: AiConnectorLogRecord[] = [...INITIAL_AI_CONNECTOR_LOGS]
+// Les trois variables du connecteur qui vivaient ici étaient partagées par
+// tout le processus, donc par tous les cabinets. Elles sont en base,
+// cloisonnées — voir la migration 20260806100000_connector_auth.sql.
 
 const foldersStore: FolderRecord[] = [...MOCK_FOLDERS]
 const eventsStore: CalendarEvent[] = [...MOCK_EVENTS]
@@ -90,16 +86,6 @@ export function _getResearchStores() {
   }
 }
 
-export function _getAiStores() {
-  return {
-    aiConnectorSettingsStore,
-    aiApiKeysStore,
-    aiConnectorLogsStore,
-    setAiConnectorSettingsStore: (val: AiConnectorSettings) => { aiConnectorSettingsStore = val },
-    setAiApiKeysStore: (val: AiApiKeyRecord[]) => { aiApiKeysStore = val },
-    setAiConnectorLogsStore: (val: AiConnectorLogRecord[]) => { aiConnectorLogsStore = val },
-  }
-}
 
 /** Lecture directe d'une disposition, sans passer par queries.ts. */
 export function _findLegislationProvision(id: string): LegislationProvision | undefined {
@@ -118,7 +104,4 @@ export const _mockStores = {
   get deadlines() { return deadlinesStore },
   get legislationProvisions() { return legislationProvisionsStore },
   get researchWorkspaces() { return researchWorkspacesStore },
-  get aiConnectorSettings() { return aiConnectorSettingsStore },
-  get aiApiKeys() { return aiApiKeysStore },
-  get aiConnectorLogs() { return aiConnectorLogsStore },
 }

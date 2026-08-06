@@ -13,7 +13,7 @@ import { _mockStores } from "./stores"
 
 // Réexportés pour compatibilité : leur définition vit désormais dans ./stores,
 // afin qu'actions.ts n'ait plus à importer ce module (voir stores.ts).
-export { _getStores, _getResearchStores, _getAiStores } from "./stores"
+export { _getStores, _getResearchStores } from "./stores"
 
 // Chargement paresseux des lectures Supabase.
 //
@@ -195,23 +195,12 @@ export async function getApprovalQueue(): Promise<ActionApprovalRecord[]> {
   return MOCK_APPROVAL_QUEUE
 }
 
-import { INITIAL_AI_CONNECTOR_SETTINGS, INITIAL_AI_API_KEYS, INITIAL_AI_CONNECTOR_LOGS } from "./mock/connector"
-import { AiConnectorSettings, AiApiKeyRecord, AiConnectorLogRecord } from "./types"
 
 
-export async function getAiConnectorSettings(): Promise<AiConnectorSettings> {
-  return _mockStores.aiConnectorSettings
-}
-
-export async function getAiApiKeys(): Promise<AiApiKeyRecord[]> {
-  if (isSupabaseSource()) return []
-  return _mockStores.aiApiKeys
-}
-
-export async function getAiConnectorLogs(): Promise<AiConnectorLogRecord[]> {
-  if (isSupabaseSource()) return []
-  return _mockStores.aiConnectorLogs
-}
+// Les réglages, les clés et le journal du connecteur ne passent plus par
+// ici. Ils vivaient dans des variables de processus partagées par toute
+// l'application : l'interrupteur d'un cabinet valait pour tous. Ils sont
+// désormais en base, cloisonnés par cabinet — voir lib/data/connector-reads.ts.
 
 
 
