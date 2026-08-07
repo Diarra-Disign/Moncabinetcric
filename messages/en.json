@@ -186,7 +186,8 @@
       "totalValue": "Pipeline Value",
       "activeLeads": "Active Prospects",
       "conversionRate": "Conversion Rate",
-      "b2bShare": "Corporate Share (B2B)"
+      "b2bShare": "Corporate Share (B2B)",
+      "conversionBasis": "{signed} of {total} leads at the “Signed retainer” stage"
     },
     "filters": {
       "all": "All (B2B & B2C)",

@@ -23,6 +23,26 @@ function fail(entity: string, message: string): never {
   throw new Error(`Écriture Supabase « ${entity} » en échec : ${message}`)
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Filtre de recherche par identifiant, tolérant aux deux formes d'id.
+ *
+ * Les enregistrements portent deux identités : la clé primaire `uuid` de
+ * Postgres, et le `legacy_id` lisible hérité du modèle mock (« lead-1 »,
+ * « doc-1785726863868 »). Les mappers exposent le `legacy_id` en priorité,
+ * donc l'interface renvoie presque toujours cette forme-là.
+ *
+ * Interroger les deux colonnes d'un seul `or` semble naturel, mais Postgres
+ * doit convertir le littéral en uuid pour évaluer `id = '...'` — et cette
+ * conversion échoue avant que le OR ne puisse court-circuiter. L'écriture
+ * entière est alors rejetée alors que la ligne existe bel et bien sous son
+ * legacy_id. On n'interroge donc `id` que si la valeur en a la forme.
+ */
+function byId(id: string): string {
+  return UUID.test(id) ? `id.eq.${id},legacy_id.eq.${id}` : `legacy_id.eq.${id}`
+}
+
 /**
  * Normalise une valeur destinée à une colonne `date`.
  *
@@ -142,7 +162,7 @@ export async function moveLeadStage(id: string, stage: Lead["stage"]): Promise<L
     .from("leads")
     .update({ stage })
     .eq("firm_id", firmId)
-    .or(`id.eq.${id},legacy_id.eq.${id}`)
+    .or(byId(id))
     .select("*")
     .single()
 
@@ -170,7 +190,7 @@ export async function updateLead(id: string, updates: Partial<Lead>): Promise<Le
     .from("leads")
     .update(payload)
     .eq("firm_id", firmId)
-    .or(`id.eq.${id},legacy_id.eq.${id}`)
+    .or(byId(id))
     .select("*")
     .maybeSingle()
 
@@ -279,7 +299,7 @@ export async function archiveDocumentRecord(id: string): Promise<DocumentRecord 
     .from("documents")
     .update({ status: 'archived' })
     .eq("firm_id", firmId)
-    .or(`id.eq.${id},legacy_id.eq.${id}`)
+    .or(byId(id))
     .select("*")
     .single()
 
@@ -294,7 +314,7 @@ export async function deleteDocumentRecord(id: string): Promise<boolean> {
     .from("documents")
     .delete()
     .eq("firm_id", firmId)
-    .or(`id.eq.${id},legacy_id.eq.${id}`)
+    .or(byId(id))
 
   if (error) fail("deleteDocumentRecord", error.message)
   return true
@@ -307,7 +327,7 @@ export async function restoreDocumentRecord(id: string): Promise<DocumentRecord 
     .from("documents")
     .update({ status: 'valid' })
     .eq("firm_id", firmId)
-    .or(`id.eq.${id},legacy_id.eq.${id}`)
+    .or(byId(id))
     .select("*")
     .single()
 
@@ -371,7 +391,7 @@ export async function convertLeadToClient(
     .from("leads")
     .select("*")
     .eq("firm_id", firmId)
-    .or(`id.eq.${leadId},legacy_id.eq.${leadId}`)
+    .or(byId(leadId))
     .maybeSingle()
 
   if (readErr) fail("convertLeadToClient", readErr.message)

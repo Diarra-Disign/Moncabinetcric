@@ -38,11 +38,12 @@ import {
   Info,
   MessageSquare
 } from "lucide-react"
-import { Link } from "@/i18n/routing"
+import { useTranslations } from "next-intl"
+import { Link, useRouter } from "@/i18n/routing"
 import { Lead } from "@/lib/data/types"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { matchesPerson } from "@/lib/utils/search"
-import { createLead, updateLead, convertLeadToClient } from "@/lib/data/actions"
+import { createLead, updateLead, moveLeadStage, convertLeadToClient } from "@/lib/data/actions"
 
 export type { Lead }
 
@@ -159,47 +160,80 @@ function getStageHeaderConfig(stage: Lead["stage"]) {
 }
 
 export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
-  const [leads, setLeads] = React.useState<Lead[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("moncabinetcric_pipeline_leads")
-        if (saved) {
-          const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed
-        }
-      } catch {
-        // Ignorer
-      }
-    }
-    return initialLeads
-  })
-  const [filterType, setFilterType] = React.useState<"all" | "b2b" | "b2c" | "high">("all")
+  // Les prospects viennent de la base, et d'elle seule.
+  //
+  // Cette liste était auparavant amorcée depuis localStorage quand une copie
+  // s'y trouvait. Deux défauts en découlaient. D'abord une erreur
+  // d'hydratation : le serveur rendait les chiffres de la base, le navigateur
+  // ceux de sa copie, et React constatait la divergence. Ensuite, et c'est le
+  // plus grave, la copie masquait le fait que les changements d'étape
+  // n'étaient jamais écrits en base — le pipeline paraissait fonctionner
+  // parce que le navigateur rejouait ses propres modifications au
+  // rechargement, mais aucun collègue, aucun autre poste ne les voyait.
+  const [leads, setLeads] = React.useState<Lead[]>(initialLeads)
+  const [filterType, setFilterType] = React.useState<"all" | "b2b" | "b2c" | "high" | "signed">("all")
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null)
   const [showNewModal, setShowNewModal] = React.useState(false)
   const [conversionSuccess, setConversionSuccess] = React.useState<string | null>(null)
+  const [pipelineError, setPipelineError] = React.useState<string | null>(null)
   // DRAG AND DROP STATE
   const [draggedLeadId, setDraggedLeadId] = React.useState<string | null>(null)
   const [dragOverStage, setDragOverStage] = React.useState<string | null>(null)
 
-  const persistLeads = (updatedLeads: Lead[]) => {
-    setLeads(updatedLeads)
+  const router = useRouter()
+  // Le reste du fichier reçoit ses libellés par la prop `t`, une forme figée
+  // qui ne sait pas interpoler. Ce sous-titre porte deux nombres : il passe
+  // donc par le hook, conforme à la convention du projet.
+  const tPipeline = useTranslations("Pipeline")
+
+  const notifySuccess = (message: string) => {
+    setPipelineError(null)
+    setConversionSuccess(message)
+    setTimeout(() => setConversionSuccess(null), 4000)
+  }
+
+  const notifyError = (message: string) => {
+    setConversionSuccess(null)
+    setPipelineError(message)
+    setTimeout(() => setPipelineError(null), 6000)
+  }
+
+  /**
+   * Change l'étape d'un prospect, en base puis à l'écran.
+   *
+   * L'affichage est mis à jour immédiatement pour que le glisser-déposer
+   * reste fluide, mais il est remis dans son état antérieur si l'écriture
+   * échoue : mieux vaut voir la carte revenir à sa place que croire une
+   * étape franchie qui ne l'est pas.
+   */
+  const applyStageChange = async (leadId: string, targetStage: Lead["stage"]) => {
+    const previous = leads
+    const target = leads.find(l => l.id === leadId)
+    if (!target || target.stage === targetStage) return
+
+    setLeads(leads.map(l => (l.id === leadId ? { ...l, stage: targetStage } : l)))
+
     try {
-      localStorage.setItem("moncabinetcric_pipeline_leads", JSON.stringify(updatedLeads))
-    } catch {
-      // Ignorer
+      await moveLeadStage(leadId, targetStage)
+      notifySuccess(
+        `Prospect « ${target.company || target.name} » déplacé vers « ${t.columns[targetStage]} ».`
+      )
+    } catch (err) {
+      setLeads(previous)
+      notifyError(
+        `Le déplacement de « ${target.company || target.name} » n'a pas pu être enregistré : ${
+          err instanceof Error ? err.message : "erreur inconnue"
+        }`
+      )
     }
   }
 
+  // Recharge les prospects depuis la base. Il n'y a plus de copie locale à
+  // effacer : le bouton sert à récupérer les modifications faites ailleurs.
   const handleResetPipeline = () => {
-    setLeads(initialLeads)
-    try {
-      localStorage.removeItem("moncabinetcric_pipeline_leads")
-    } catch {
-      // Ignorer
-    }
-    setConversionSuccess("Configuration du Pipeline réinitialisée aux opportunités initiales ! ")
-    setTimeout(() => setConversionSuccess(null), 4000)
+    router.refresh()
+    notifySuccess("Pipeline resynchronisé avec la base.")
   }
 
   // Form State pour un nouveau prospect (Renseignements, Consultation ou Mandat)
@@ -260,13 +294,20 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
       notes: editLeadNotes,
     }
 
-    const updatedList = leads.map(l => l.id === selectedLead.id ? { ...l, ...updates } : l)
-    persistLeads(updatedList)
+    const previous = leads
+    setLeads(leads.map(l => l.id === selectedLead.id ? { ...l, ...updates } : l))
 
     try {
       await updateLead(selectedLead.id, updates)
     } catch (err) {
-      console.error("Erreur mise à jour prospect :", err)
+      // L'échec était auparavant relégué à la console : l'écran affichait
+      // une fiche modifiée que la base n'avait jamais reçue.
+      setLeads(previous)
+      notifyError(
+        `Les modifications de « ${selectedLead.company || selectedLead.name} » n'ont pas été enregistrées : ${
+          err instanceof Error ? err.message : "erreur inconnue"
+        }`
+      )
     }
 
     setSelectedLead(prev => prev ? { ...prev, ...updates } : null)
@@ -306,6 +347,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     if (filterType === "b2b") matchesType = lead.type === "b2b"
     else if (filterType === "b2c") matchesType = lead.type === "b2c"
     else if (filterType === "high") matchesType = lead.scoreLabel === "high"
+    else if (filterType === "signed") matchesType = lead.stage === "signed"
 
     const matchesSearch = matchesPerson(searchQuery, [
       lead.name, lead.firstName, lead.lastName, lead.company,
@@ -318,6 +360,17 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
   const activeLeadsCount = leads.length
   const b2bCount = leads.filter(l => l.type === "b2b").length
   const b2bShare = Math.round((b2bCount / (activeLeadsCount || 1)) * 100)
+
+  // Taux de conversion : part des prospects parvenus au mandat signé.
+  //
+  // Ce chiffre était figé à 68 %, seule des quatre cartes à ne rien mesurer.
+  // Il s'agit d'une photographie du pipeline actuel, non d'un taux sur une
+  // période : le sous-titre énonce donc la base du calcul, pour qu'un
+  // pourcentage flatteur sur trois prospects ne se lise pas comme une
+  // performance commerciale.
+  const signedCount = leads.filter(l => l.stage === "signed").length
+  const conversionRate =
+    activeLeadsCount === 0 ? 0 : Math.round((signedCount / activeLeadsCount) * 100)
 
   // GESTION DU DRAG & DROP HTML5 NATIF
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
@@ -336,31 +389,28 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
 
   const handleDrop = (e: React.DragEvent, targetStage: Lead["stage"]) => {
     e.preventDefault()
+    // dataTransfer n'est lisible que de façon synchrone : on relève la
+    // valeur avant toute écriture asynchrone.
     const leadId = e.dataTransfer.getData("text/plain") || draggedLeadId
-    if (!leadId) return
-
-    const updated = leads.map(l => l.id === leadId ? { ...l, stage: targetStage } : l)
-    persistLeads(updated)
     setDraggedLeadId(null)
     setDragOverStage(null)
-    
-    const targetLead = leads.find(l => l.id === leadId)
-    setConversionSuccess(`Prospect "${targetLead?.company || targetLead?.name}" glissé vers l'étape "${t.columns[targetStage]}" !`)
-    setTimeout(() => setConversionSuccess(null), 4000)
+    if (!leadId) return
+
+    void applyStageChange(leadId, targetStage)
   }
 
   // Stage move handler via flèches
   const moveLead = (id: string, direction: "left" | "right", e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
-    const updated = leads.map(lead => {
-      if (lead.id !== id) return lead
-      const currentIndex = STAGE_ORDER.indexOf(lead.stage)
-      const nextIndex = direction === "right" 
-        ? Math.min(STAGE_ORDER.length - 1, currentIndex + 1)
-        : Math.max(0, currentIndex - 1)
-      return { ...lead, stage: STAGE_ORDER[nextIndex] }
-    })
-    persistLeads(updated)
+    const current = leads.find(l => l.id === id)
+    if (!current) return
+
+    const currentIndex = STAGE_ORDER.indexOf(current.stage)
+    const nextIndex = direction === "right"
+      ? Math.min(STAGE_ORDER.length - 1, currentIndex + 1)
+      : Math.max(0, currentIndex - 1)
+
+    void applyStageChange(id, STAGE_ORDER[nextIndex])
   }
 
   // Delete lead handler
@@ -395,7 +445,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
       )
       // Le prospect reste dans le pipeline, à l'étape signée : on perdrait
       // sinon l'historique du cycle de vente.
-      persistLeads(leads.map(l => (l.id === lead.id ? { ...l, stage: "signed" as const } : l)))
+      setLeads(leads.map(l => (l.id === lead.id ? { ...l, stage: "signed" as const } : l)))
       setSelectedLead(null)
       setIsEditingSelectedLead(false)
     } catch (err) {
@@ -444,13 +494,20 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
       contactIntent: newLeadIntent,
     }
 
-    const updated = [created, ...leads]
-    persistLeads(updated)
+    const previous = leads
+    setLeads([created, ...leads])
 
     try {
       await createLead(created)
     } catch (err) {
-      console.error("Erreur création prospect backend :", err)
+      // Sans ce retour en arrière, la carte restait affichée alors
+      // qu'aucun prospect n'existait en base.
+      setLeads(previous)
+      notifyError(
+        `Le prospect « ${created.company || created.name} » n'a pas pu être créé : ${
+          err instanceof Error ? err.message : "erreur inconnue"
+        }`
+      )
     }
 
     setShowNewModal(false)
@@ -475,6 +532,16 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     <div className="flex flex-col gap-8 pb-16">
       
       {/* 1. SUCCESS ALERT BANNER */}
+      {pipelineError && (
+        <div
+          role="alert"
+          className="bg-rose-50 border border-rose-200 text-rose-900 rounded-3xl p-4 flex items-center gap-3 shadow-md animate-fadeIn"
+        >
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+          <span className="font-bold text-xs sm:text-sm">{pipelineError}</span>
+        </div>
+      )}
+
       {conversionSuccess && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-3xl p-4 flex items-center justify-between shadow-md animate-fadeIn">
           <div className="flex items-center gap-3 font-bold text-xs sm:text-sm">
@@ -563,10 +630,10 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
         </div>
 
         {/* KPI 3: TAUX DE CONVERSION (CLIC -> FILTRE SCORE ÉLEVÉ) */}
-        <div 
-          onClick={() => setFilterType(filterType === "high" ? "all" : "high")}
+        <div
+          onClick={() => setFilterType(filterType === "signed" ? "all" : "signed")}
           className={`rounded-3xl p-6 border transition-all duration-200 cursor-pointer flex flex-col justify-between ${
-            filterType === "high"
+            filterType === "signed"
               ? "bg-emerald-50/90 border-emerald-500 shadow-lg scale-[1.02] ring-2 ring-emerald-400/30"
               : "bg-white border-slate-200/80 hover:border-emerald-300 shadow-[0_4px_20px_rgba(0,0,0,0.02)]"
           }`}
@@ -578,8 +645,10 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
             </div>
           </div>
           <div className="mt-3">
-            <div className="text-3xl font-black text-emerald-600 tracking-tight">68%</div>
-            <span className="text-xs font-bold text-slate-600 mt-1">Filtrer par Praticabilité Élevée</span>
+            <div className="text-3xl font-black text-emerald-600 tracking-tight">{conversionRate}%</div>
+            <span className="text-xs font-bold text-slate-600 mt-1">
+              {tPipeline("stats.conversionBasis", { signed: signedCount, total: activeLeadsCount })}
+            </span>
           </div>
         </div>
 

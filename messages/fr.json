@@ -186,7 +186,8 @@
       "totalValue": "Valeur du Pipeline",
       "activeLeads": "Prospects Actifs",
       "conversionRate": "Taux de Conversion",
-      "b2bShare": "Part Corporative (B2B)"
+      "b2bShare": "Part Corporative (B2B)",
+      "conversionBasis": "{signed} sur {total} prospects au stade « Mandat signé »"
     },
     "filters": {
       "all": "Tous (B2B & B2C)",
