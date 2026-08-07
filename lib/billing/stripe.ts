@@ -52,39 +52,84 @@ function taxeAutomatique(): boolean {
 }
 
 /**
- * Identifiant du tarif chez Stripe, créé au besoin.
+ * Montant catalogue d'une ligne de facturation, en cents.
+ *
+ * Une seule fonction pour les quatre combinaisons, afin que le montant
+ * facturé et le montant vérifié soient littéralement calculés par le même
+ * code. Deux expressions équivalentes écrites à deux endroits finissent par
+ * diverger, et la divergence ne se voit que sur une facture.
+ */
+function montantCatalogue(plan: PlanId, cadence: Cadence, extra: boolean): number {
+  const p = PLANS[plan]
+  if (extra) return cadence === "annual" ? p.extraSeatAnnual : p.extraSeatMonthly
+  return cadence === "annual" ? p.annual : p.monthly
+}
+
+/** Clé de recherche du tarif chez Stripe. Stable, et unique par compte. */
+export function cleTarif(plan: PlanId, cadence: Cadence, extra: boolean): string {
+  return `mcc_${plan}_${cadence}${extra ? "_place" : ""}`
+}
+
+/**
+ * Identifiant du tarif chez Stripe, créé ou renouvelé au besoin.
  *
  * Rien à configurer à la main dans le tableau de bord : la clé de recherche
- * (`lookup_key`) rend l'opération idempotente. Le tarif est retrouvé s'il
- * existe, créé sinon, et le catalogue Stripe reste le reflet exact de
- * `lib/billing/plans.ts` — pas une seconde liste de prix à tenir à jour.
+ * (`lookup_key`) rend l'opération idempotente.
+ *
+ * Le montant du tarif retrouvé est RELU et comparé au catalogue avant d'être
+ * réutilisé. C'est le cœur de la garantie « on facture le prix affiché », et
+ * ça manquait : la version précédente retournait le tarif portant la bonne
+ * clé sans jamais regarder son montant.
+ *
+ * Le scénario était concret. Un tarif chez Stripe est immuable — on ne peut
+ * pas en changer le montant. Le jour où l'on modifie un prix dans
+ * `plans.ts`, la page publique affiche aussitôt le nouveau ; la recherche par
+ * clé, elle, retrouvait l'ancien tarif et le facturait. Le client voyait 59 $
+ * et payait 49 $, sans qu'aucune erreur ne se produise nulle part. Rien
+ * n'aurait signalé l'écart, ni au client, ni ici.
+ *
+ * `transfer_lookup_key` déplace la clé de l'ancien tarif vers le nouveau :
+ * l'ancien reste attaché aux abonnements en cours — un abonné garde le prix
+ * auquel il a souscrit, ce qui est le comportement attendu — mais plus aucune
+ * souscription nouvelle ne s'y accroche.
  */
 async function tarif(plan: PlanId, cadence: Cadence, extra: boolean): Promise<string> {
   const sdk = stripe()
-  const cle = `mcc_${plan}_${cadence}${extra ? "_place" : ""}`
+  const cle = cleTarif(plan, cadence, extra)
+  const montant = montantCatalogue(plan, cadence, extra)
+  const intervalle = cadence === "annual" ? "year" : "month"
 
   const existants = await sdk.prices.list({ lookup_keys: [cle], active: true, limit: 1 })
-  if (existants.data[0]) return existants.data[0].id
+  const trouve = existants.data[0]
 
-  const p = PLANS[plan]
-  const montant = extra
-    ? cadence === "annual"
-      ? p.extraSeatAnnual
-      : p.extraSeatMonthly
-    : cadence === "annual"
-      ? p.annual
-      : p.monthly
+  if (
+    trouve &&
+    trouve.unit_amount === montant &&
+    trouve.currency === DEVISE &&
+    trouve.recurring?.interval === intervalle
+  ) {
+    return trouve.id
+  }
 
   const prix = await sdk.prices.create({
     lookup_key: cle,
+    // Reprend la clé au tarif périmé, s'il en existe un. Sans cela, Stripe
+    // refuserait la création : une clé de recherche est unique par compte.
+    ...(trouve ? { transfer_lookup_key: true } : {}),
     currency: DEVISE,
     unit_amount: montant,
-    recurring: { interval: cadence === "annual" ? "year" : "month" },
-    product_data: {
-      name: extra
-        ? `${etiquette(plan)} — place supplémentaire`
-        : `moncabinetcric — ${etiquette(plan)}`,
-    },
+    recurring: { interval: intervalle },
+    // Le produit est réutilisé quand il existe déjà, pour ne pas empiler un
+    // produit par changement de prix dans le catalogue Stripe.
+    ...(trouve && typeof trouve.product === "string"
+      ? { product: trouve.product }
+      : {
+          product_data: {
+            name: extra
+              ? `${etiquette(plan)} — place supplémentaire`
+              : `moncabinetcric — ${etiquette(plan)}`,
+          },
+        }),
     // Le logiciel infonuagique est taxable au Canada ; le code précis relève
     // du tableau de bord Stripe Tax, pas d'ici.
     tax_behavior: "exclusive",
