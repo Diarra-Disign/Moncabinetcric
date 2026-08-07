@@ -32,6 +32,7 @@ import {
 import { Link, useRouter } from "@/i18n/routing"
 import { ClientRecord, Matter } from "@/lib/data/types"
 import { matchesPerson } from "@/lib/utils/search"
+import { createClient } from "@/lib/data/actions"
 
 export type { ClientRecord }
 
@@ -56,6 +57,9 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "consultation" | "employer">("all")
   const [showNewModal, setShowNewModal] = React.useState(false)
   const [actionNotice, setActionNotice] = React.useState<string | null>(null)
+
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
   // Form states for new client modal (NOM ET PRÉNOM SÉPARÉS)
   const [clientType, setClientType] = React.useState<"individual" | "employer">("individual")
@@ -92,19 +96,18 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
     return matchesStatus && matchesSearch
   })
 
-  const handleCreateClient = (e: React.FormEvent) => {
+  const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault()
     const fullName = `${newFirstName.trim()} ${newLastName.trim()}`.trim()
     const clientDisplayName = clientType === "employer" 
       ? `${companyName} (${fullName || "Représentant RH"})`
       : fullName
 
-    if (!clientDisplayName.trim()) return
+    if (!clientDisplayName.trim() || isSubmitting) return
 
     const nextSeq = 100 + clients.length + 1
     const fileNumber = `CRIC-2026-0${nextSeq}`
-    const created: ClientRecord = {
-      id: `c-${Date.now()}`,
+    const createdData: Omit<ClientRecord, "id"> = {
       fileNumber,
       name: clientDisplayName,
       firstName: newFirstName,
@@ -121,19 +124,30 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
       neqNumber: clientType === "employer" ? neqNumber : undefined
     }
 
-    setClients(prev => [created, ...prev])
-    setShowNewModal(false)
-    setActionNotice(`Nouveau dossier client CICC ${fileNumber} créé avec succès !`)
-    setTimeout(() => setActionNotice(null), 5000)
-    
-    // Reset form
-    setNewFirstName("")
-    setNewLastName("")
-    setCompanyName("")
-    setNeqNumber("")
-    setNewEmail("")
-    setNewPhone("")
-    setIntakeNotes("")
+    setIsSubmitting(true)
+    setErrorMessage(null)
+
+    try {
+      const created = await createClient(createdData)
+      setClients(prev => [created, ...prev])
+      setShowNewModal(false)
+      setActionNotice(`Nouveau dossier client CICC ${created.fileNumber} créé avec succès !`)
+      setTimeout(() => setActionNotice(null), 5000)
+      
+      // Reset form
+      setNewFirstName("")
+      setNewLastName("")
+      setCompanyName("")
+      setNeqNumber("")
+      setNewEmail("")
+      setNewPhone("")
+      setIntakeNotes("")
+      router.refresh()
+    } catch (err) {
+      setErrorMessage(`Erreur lors de l'enregistrement du client : ${err instanceof Error ? err.message : "échec inattendu"}`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleDeleteClient = (id: string, e: React.MouseEvent) => {
@@ -666,19 +680,28 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
               </div>
             </div>
 
+            {errorMessage && (
+              <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-3 text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setShowNewModal(false)}
-                className="px-5 py-2.5 rounded-2xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                disabled={isSubmitting}
+                className="px-5 py-2.5 rounded-2xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
               >
                 Annuler
               </button>
               <button 
                 type="submit"
-                className="px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-600/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Créer la Fiche Client CICC
+                {isSubmitting ? "Création en cours..." : "Créer la Fiche Client CICC"}
               </button>
             </div>
           </form>

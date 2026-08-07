@@ -448,6 +448,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
       setLeads(leads.map(l => (l.id === lead.id ? { ...l, stage: "signed" as const } : l)))
       setSelectedLead(null)
       setIsEditingSelectedLead(false)
+      router.refresh()
     } catch (err) {
       setConversionSuccess(
         `Conversion impossible : ${err instanceof Error ? err.message : "erreur inattendue"}`
@@ -1083,12 +1084,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                   <button
                     type="button"
                     onClick={() => handleConvertToMatter(selectedLead)}
-                    disabled={isConverting || selectedLead.stage !== "signed"}
-                    title={
-                      selectedLead.stage !== "signed"
-                        ? "Disponible une fois l'entente de services signée"
-                        : undefined
-                    }
+                    disabled={isConverting}
                     className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
                   >
                     <CheckCircle2 className="w-4 h-4" />
