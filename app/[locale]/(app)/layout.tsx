@@ -11,6 +11,10 @@ import { FirmProvider } from "@/components/app-shell/firm-provider"
 import { AccessClosed } from "@/components/app-shell/access-closed"
 import { getTranslations } from "next-intl/server"
 import { redirect } from "next/navigation"
+import { Suspense } from "react"
+import { getAbonnement } from "@/lib/data/subscription"
+import { stripeConfigure } from "@/lib/billing/stripe"
+import { SubscriptionClient } from "./settings/subscription/subscription-client"
 
 export default async function AppLayout({
   children,
@@ -47,6 +51,15 @@ export default async function AppLayout({
   const firmForAccess = await getCurrentFirm()
   if (!firmForAccess.accessOpen) {
     const tAuth = await getTranslations("Auth")
+
+    // L'écran d'abonnement est greffé sur l'écran de refus, et non atteint
+    // par un lien : toutes les pages de ce groupe passent par ce layout, donc
+    // aucune n'est atteignable une fois l'accès fermé — y compris celle qui
+    // permettrait de payer. Sans cette greffe, un cabinet dont l'essai vient
+    // d'échoir devrait écrire un courriel et attendre une réponse pour un
+    // geste qui prend trente secondes.
+    const abonnement = await getAbonnement()
+
     return (
       <AccessClosed
         firm={firmForAccess}
@@ -57,7 +70,21 @@ export default async function AppLayout({
         signOutLabel={tAuth("signOut")}
         planLabel={tAuth("planLabel")}
         statusLabel={tAuth("statusLabel")}
-      />
+        contactEmail={process.env.EMAIL_REPLY_TO || "acces@moncabinetcric.com"}
+      >
+        {/* Une suspension décidée depuis la console n'est pas un impayé :
+            payer ne la lèverait pas. Proposer le paiement dans ce cas serait
+            encaisser sans rouvrir. */}
+        {member.ciccRole === "owner" && firmForAccess.status === "active" && (
+          <Suspense fallback={null}>
+            <SubscriptionClient
+              estProprietaire
+              paiementConfigure={stripeConfigure()}
+              abonnement={abonnement}
+            />
+          </Suspense>
+        )}
+      </AccessClosed>
     )
   }
 

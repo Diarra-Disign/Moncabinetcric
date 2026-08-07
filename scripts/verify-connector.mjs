@@ -81,6 +81,17 @@ async function main() {
       .single()
     if (error) throw new Error(`Création du cabinet ${nom} : ${error.message}`)
 
+    // Le connecteur exige un plan qui le comprenne ET un accès ouvert. Depuis
+    // la facturation, « cabinet » sans abonnement est un plan payant impayé :
+    // l'accès est fermé, et le connecteur avec lui. C'est bien ce qu'on veut
+    // — le cabinet d'épreuve doit donc être un cabinet qui paie.
+    await sb.from("firm_subscriptions").insert({
+      firm_id: data.id,
+      plan: "cabinet",
+      status: "active",
+      seats: 3,
+    })
+
     await sb.from("ai_connector_settings").insert({ firm_id: data.id })
     const cle = "cric_live_" + randomBytes(32).toString("base64url")
     await sb.from("ai_api_keys").insert({

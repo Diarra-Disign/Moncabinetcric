@@ -36,6 +36,11 @@ interface LandingClientProps {
       badge: string
       title: string
       subtitle: string
+      period: string
+      taxNote: string
+      includedLabel: string
+      plusProLabel: string
+      plusEnterpriseLabel: string
       basic: Record<string, string>
       business: Record<string, string>
       enterprise: Record<string, string>
@@ -643,12 +648,16 @@ export function LandingClient({ t }: LandingClientProps) {
               <p className="text-xs text-slate-500 mb-6 min-h-[32px]">{t.pricing.basic.desc}</p>
               {/* Le code affichait 89$ et 69$, le fichier de traduction
                   99$ et 79$ : deux tarifs publics contradictoires, dont un
-                  seul était traduit. Aucun n'est arrêté, donc aucun n'est
-                  affiché. */}
-              <div className="text-3xl sm:text-4xl font-black text-slate-900 mb-8">
-                {t.pricing.basic.price}
+                  seul était traduit. Le montant vient désormais du catalogue
+                  qui sert aussi à facturer — il ne peut plus diverger. */}
+              <div className="mb-8">
+                <div className="text-3xl sm:text-4xl font-black text-slate-900 flex items-baseline gap-1.5">
+                  {t.pricing.basic.price}
+                  <span className="text-sm font-bold text-slate-400">{t.pricing.period}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">{t.pricing.basic.annual}</p>
               </div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Inclus dans l&apos;offre :</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{t.pricing.includedLabel}</div>
               <ul className="flex flex-col gap-4 text-sm font-medium text-slate-700 mb-8">
                 <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.basic.f1}</span></li>
                 <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.basic.f2}</span></li>
@@ -678,11 +687,15 @@ export function LandingClient({ t }: LandingClientProps) {
             <div>
               <h3 className="text-xl font-extrabold text-white mb-2">{t.pricing.business.name}</h3>
               <p className="text-xs text-white/80 mb-6 min-h-[32px]">{t.pricing.business.desc}</p>
-              <div className="text-3xl sm:text-4xl font-black text-white mb-8">
-                {t.pricing.business.price}
+              <div className="mb-8">
+                <div className="text-3xl sm:text-4xl font-black text-white flex items-baseline gap-1.5">
+                  {t.pricing.business.price}
+                  <span className="text-sm font-bold text-white/60">{t.pricing.period}</span>
+                </div>
+                <p className="mt-1 text-xs text-white/70">{t.pricing.business.annual}</p>
               </div>
               <div className="h-px w-full bg-white/20 mb-6" />
-              <div className="text-xs font-bold uppercase tracking-wider text-white/70 mb-4">Solo + Avantages Pro :</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-white/70 mb-4">{t.pricing.plusProLabel}</div>
               <ul className="flex flex-col gap-4 text-sm font-medium text-white mb-8">
                 <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.business.f1}</span></li>
                 <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.business.f2}</span></li>
@@ -703,10 +716,12 @@ export function LandingClient({ t }: LandingClientProps) {
             <div>
               <h3 className="text-xl font-extrabold text-slate-900 mb-2">{t.pricing.enterprise.name}</h3>
               <p className="text-xs text-slate-500 mb-6 min-h-[32px]">{t.pricing.enterprise.desc}</p>
-              <div className="text-4xl sm:text-5xl font-black text-slate-900 mb-8 flex items-baseline gap-1">
-                <span>Sur mesure</span>
+              {/* Ce libellé était écrit en dur, donc identique en anglais sur
+                  une page par ailleurs entièrement traduite. */}
+              <div className="text-3xl sm:text-4xl font-black text-slate-900 mb-8">
+                {t.pricing.enterprise.price}
               </div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">Pro + Avantages Entreprise :</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{t.pricing.plusEnterpriseLabel}</div>
               <ul className="flex flex-col gap-4 text-sm font-medium text-slate-700 mb-8">
                 <li className="flex items-center gap-3"><Check className="w-4 h-4 text-blue-600 shrink-0" /> <span>{t.pricing.enterprise.f1}</span></li>
                 <li className="flex items-center gap-3"><Check className="w-4 h-4 text-blue-600 shrink-0" /> <span>{t.pricing.enterprise.f2}</span></li>
@@ -723,6 +738,11 @@ export function LandingClient({ t }: LandingClientProps) {
           </div>
 
         </div>
+
+        {/* Devise et taxes annoncées avec les montants. Un prix canadien
+            affiché sans mention de taxe se lit comme un prix toutes taxes
+            comprises, et la première facture dément la page. */}
+        <p className="mt-8 text-xs text-slate-500 text-center max-w-2xl">{t.pricing.taxNote}</p>
       </section>
 
       {/* 5. INTERACTIVE FAQ ACCORDION SECTION */}

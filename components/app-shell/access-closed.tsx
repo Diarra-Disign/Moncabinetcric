@@ -10,6 +10,16 @@ export interface AccessClosedProps {
   signOutLabel: string
   planLabel: string
   statusLabel: string
+  /** Adresse à contacter, tirée de la configuration plutôt qu'écrite ici. */
+  contactEmail: string
+  /**
+   * Moyen de rouvrir l'accès soi-même — l'écran d'abonnement, pour le
+   * propriétaire. Sans lui, un cabinet dont l'essai vient d'échoir n'a
+   * strictement aucun chemin vers le paiement : toutes les pages sont
+   * derrière ce mur, y compris celle qui permettrait de payer. Il faudrait
+   * écrire un courriel et attendre, pour un geste de trente secondes.
+   */
+  children?: React.ReactNode
 }
 
 /**
@@ -33,11 +43,13 @@ export function AccessClosed({
   signOutLabel,
   planLabel,
   statusLabel,
+  contactEmail,
+  children,
 }: AccessClosedProps) {
   const expired = firm.status === "active" && firm.plan === "trial"
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-5 py-16">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-background px-5 py-16">
       <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-8 shadow-sm">
         <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-warning/15 text-warning">
           <AlertTriangle aria-hidden className="h-5 w-5" />
@@ -73,7 +85,7 @@ export function AccessClosed({
 
         <div className="mt-7 flex flex-wrap items-center gap-3">
           <a
-            href="mailto:infos@dgvimmigration.com"
+            href={`mailto:${contactEmail}`}
             className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             <Mail aria-hidden className="h-3.5 w-3.5" />
@@ -91,6 +103,8 @@ export function AccessClosed({
           </form>
         </div>
       </div>
+
+      {children && <div className="w-full max-w-3xl">{children}</div>}
     </main>
   )
 }

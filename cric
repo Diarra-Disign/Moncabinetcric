@@ -33,6 +33,7 @@ case "$commande" in
   verifier)     exec node scripts/verify-auth.mjs "$@" ;;
   roles)        exec node scripts/verify-roles.mjs "$@" ;;
   connecteur)   exec node scripts/verify-connector.mjs "$@" ;;
+  facturation)  exec node scripts/verify-billing.mjs "$@" ;;
   migration)    exec node scripts/apply-migration.mjs "$@" ;;
   provisionner) exec node scripts/provision-project.mjs "$@" ;;
   motdepasse)   exec node scripts/set-password.mjs "$@" ;;
@@ -53,6 +54,10 @@ Usage : ./cric <commande> [options]
                  ./cric abonnement
                  ./cric abonnement --firm=R000000 --suspend
                  ./cric abonnement --firm=R000000 --activate
+
+  facturation  Éprouver le verrou de facturation : l'accès suit-il
+               réellement l'état de l'abonnement ?
+                 ./cric facturation
 
   admin        Administrateurs de la plateforme
                  ./cric admin

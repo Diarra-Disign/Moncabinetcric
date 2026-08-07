@@ -170,7 +170,18 @@ export function SettingsClient() {
         subtitle="Personnalisez les informations légales, numéros de taxe, intégrations Stripe et visioconférence de votre étude."
         action={
           <div className="flex items-center gap-3">
-            <button 
+            {/* L'abonnement était jusqu'ici sans porte d'entrée : la page
+                existait, aucun écran n'y menait. */}
+            <button
+              type="button"
+              onClick={() => router.push("/settings/subscription")}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground shadow-sm transition-colors hover:bg-muted cursor-pointer"
+            >
+              <CreditCard className="w-4 h-4 text-muted-foreground" />
+              <span>Abonnement</span>
+            </button>
+
+            <button
               type="button"
               onClick={() => router.push("/settings/audit")}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-all cursor-pointer"

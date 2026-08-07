@@ -1,8 +1,17 @@
-import { getTranslations } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
 import { LandingClient } from "./landing-client"
+import { PLANS, formatMontant } from "@/lib/billing/plans"
 
 export default async function LandingPage() {
   const tLanding = await getTranslations("Landing")
+  const locale = await getLocale()
+
+  // Les montants viennent du catalogue, jamais du fichier de traduction.
+  // Deux tarifs publics contradictoires — l'un dans le code, l'autre dans les
+  // traductions — ont déjà coexisté sur cette page. Un prix qu'on peut écrire
+  // à deux endroits finit toujours par y différer, et c'est le client qui
+  // découvre lequel est facturé.
+  const prix = (cents: number) => formatMontant(cents, locale)
 
   // Assemble translation object to pass to client component
   const translations = {
@@ -51,24 +60,33 @@ export default async function LandingPage() {
       badge: tLanding("pricing.badge", { defaultValue: "TARIFICATION TRANSPARENTE" }),
       title: tLanding("pricing.title"),
       subtitle: tLanding("pricing.subtitle"),
+      period: tLanding("pricing.period"),
+      taxNote: tLanding("pricing.taxNote"),
+      // Ces trois intitulés étaient écrits en dur dans le composant, donc
+      // affichés en français sur la page anglaise.
+      includedLabel: tLanding("pricing.includedLabel"),
+      plusProLabel: tLanding("pricing.plusProLabel"),
+      plusEnterpriseLabel: tLanding("pricing.plusEnterpriseLabel"),
       basic: {
         name: tLanding("pricing.basic.name"),
-        price: tLanding("pricing.basic.price"),
+        price: prix(PLANS.solo.monthly),
+        annual: tLanding("pricing.annualNote", { price: prix(PLANS.solo.annual) }),
         desc: tLanding("pricing.basic.desc"),
         f1: tLanding("pricing.basic.f1"),
         f2: tLanding("pricing.basic.f2"),
         f3: tLanding("pricing.basic.f3"),
-        f4: tLanding("pricing.basic.f4", { defaultValue: "Génération de checklist par type de visa" }),
+        f4: tLanding("pricing.basic.f4"),
         btn: tLanding("pricing.basic.btn"),
       },
       business: {
         name: tLanding("pricing.business.name"),
-        price: tLanding("pricing.business.price"),
+        price: prix(PLANS.cabinet.monthly),
+        annual: tLanding("pricing.annualNote", { price: prix(PLANS.cabinet.annual) }),
         desc: tLanding("pricing.business.desc"),
-        f1: tLanding("pricing.business.f1"),
+        f1: tLanding("pricing.business.f1", { price: prix(PLANS.cabinet.extraSeatMonthly) }),
         f2: tLanding("pricing.business.f2"),
         f3: tLanding("pricing.business.f3"),
-        f4: tLanding("pricing.business.f4", { defaultValue: "Support prioritaire & intégration fiscale" }),
+        f4: tLanding("pricing.business.f4"),
         badge: tLanding("pricing.business.badge", { defaultValue: "RECOMMANDÉ" }),
         btn: tLanding("pricing.business.btn"),
       },
@@ -79,7 +97,7 @@ export default async function LandingPage() {
         f1: tLanding("pricing.enterprise.f1"),
         f2: tLanding("pricing.enterprise.f2"),
         f3: tLanding("pricing.enterprise.f3"),
-        f4: tLanding("pricing.enterprise.f4", { defaultValue: "Audit de sécurité & SLA garanti à 99.9%" }),
+        f4: tLanding("pricing.enterprise.f4"),
         btn: tLanding("pricing.enterprise.btn"),
       },
     },
