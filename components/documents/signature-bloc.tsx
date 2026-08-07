@@ -40,12 +40,19 @@ export function SignatureBloc({ documentId, documentName, signataire }: Signatur
   const [padOuvert, setPadOuvert] = React.useState(false)
 
   const recharger = React.useCallback(async () => {
-    setEtat(await etatSignature(documentId))
+    const res = await etatSignature(documentId)
+    setEtat(res)
   }, [documentId])
 
   React.useEffect(() => {
-    void recharger()
-  }, [recharger])
+    let actif = true
+    void etatSignature(documentId).then((res) => {
+      if (actif) setEtat(res)
+    })
+    return () => {
+      actif = false
+    }
+  }, [documentId])
 
   async function envoyer() {
     setEnCours(true)
