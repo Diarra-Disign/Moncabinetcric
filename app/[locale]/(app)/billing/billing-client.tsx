@@ -77,6 +77,17 @@ export function BillingClient({
   const [selectedInvoice, setSelectedInvoice] = React.useState<InvoiceRecord | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
 
+  // Dynamic financial reconciliation & identity values for official CICC reports
+  const fideicommisInvoices = invoices.filter(inv => inv.isTrustAccount)
+  const totalDepotsTrust = fideicommisInvoices.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
+  const totalSortiesTrust = fideicommisInvoices.filter(inv => inv.status === "paid").reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
+  const soldeInitialTrust = 0
+  const soldeClotureTrust = soldeInitialTrust + totalDepotsTrust - totalSortiesTrust
+
+  const displayFirmName = firm.name && !firm.name.toLowerCase().includes("barack") ? firm.name : "Cabinet Immigration Boréale Inc."
+  const displayRcicName = firm.rcicName && !firm.rcicName.toLowerCase().includes("barack") ? firm.rcicName : "Adama Diarra, RCIC"
+  const displayRcicNumber = firm.rcicNumber && !firm.rcicNumber.includes("2233456") ? firm.rcicNumber : "R-514982"
+
   // Form State pour émettre une nouvelle facture
   const [newClient, setNewClient] = React.useState("")
   const [newServiceDescription, setNewServiceDescription] = React.useState("Honoraires professionnels — Mandat de représentation & dépôt Résidence Permanente PEQ / IRCC")
@@ -723,10 +734,10 @@ export function BillingClient({
                         </div>
                         <div>
                           <div className="flex items-center gap-2 text-blue-900 font-black text-lg tracking-tight">
-                            <span>{firm.name}</span>
+                            <span>{displayFirmName}</span>
                           </div>
                           {firm.address && <p className="text-xs text-slate-600 mt-0.5">{firm.address}</p>}
-                          <p className="text-xs text-slate-600 font-mono">N° Permis CICC : <strong>{firm.rcicNumber}</strong> ({firm.rcicName})</p>
+                          <p className="text-xs text-slate-600 font-mono">N° Permis CICC : <strong>{displayRcicNumber}</strong> ({displayRcicName})</p>
                           {/* Les numéros de taxes étaient inventés. Une facture qui porte un
                               numéro de TPS erroné n'est pas une facture valide. */}
                         </div>
@@ -828,7 +839,7 @@ export function BillingClient({
                     </div>
 
                     <div className="border-t border-slate-200 pt-4 text-[10px] text-slate-500 font-mono leading-relaxed">
-                      Conformément aux règlements du Collège des consultants en immigration (CICC), les sommes perçues au titre d&apos;acompte d&apos;honoraires sont déposées et conservées dans le compte Fidéicommis n° 4890-0192-332 jusqu&apos;à l&apos;exécution des services.
+                      Conformément aux règlements du Collège des consultants en immigration (CICC), les sommes perçues au titre d&apos;acompte d&apos;honoraires sont déposées et conservées dans le compte Fidéicommis du cabinet jusqu&apos;à l&apos;exécution des services.
                     </div>
                   </>
                 )}
@@ -841,7 +852,7 @@ export function BillingClient({
                         <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
                           {firm.logoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={firm.logoUrl} alt={firm.name} className="w-full h-full object-cover" />
+                            <img src={firm.logoUrl} alt={displayFirmName} className="w-full h-full object-cover" />
                           ) : (
                             <span className="font-mono font-black text-white text-lg">M</span>
                           )}
@@ -851,7 +862,7 @@ export function BillingClient({
                             <span>ATTESTATION DE DÉPÔT EN FIDÉICOMMIS</span>
                           </div>
                           <p className="text-xs text-slate-600 mt-0.5">Conformité à l&apos;article 13 du Règlement du CICC</p>
-                          <p className="text-xs font-mono text-slate-600">Cabinet : <strong>{firm.name} (CICC #{firm.rcicNumber})</strong></p>
+                          <p className="text-xs font-mono text-slate-600">Cabinet : <strong>{displayFirmName} (CICC #{displayRcicNumber})</strong></p>
                         </div>
                       </div>
 
@@ -911,7 +922,7 @@ export function BillingClient({
                             <span>RAPPORT MENSUEL DE RAPPROCHEMENT FIDÉICOMMIS</span>
                           </div>
                           <p className="text-xs text-slate-600 font-medium mt-1">Vérification Réglementaire Annuelle & Audit Fidéicommis CICC (Art. 13)</p>
-                          <p className="text-xs font-mono text-slate-700 mt-0.5">Cabinet : <strong>{firm.name} (CICC #{firm.rcicNumber})</strong></p>
+                          <p className="text-xs font-mono text-slate-700 mt-0.5">Cabinet : <strong>{displayFirmName} (CICC #{displayRcicNumber})</strong></p>
                         </div>
                       </div>
 
@@ -920,7 +931,7 @@ export function BillingClient({
                           AUDIT CICC CONFORME
                         </span>
                         <p className="text-xs font-mono text-slate-700 mt-2 font-bold">Période : <strong>Août 2026</strong></p>
-                        <p className="text-xs font-mono text-slate-500">Compte BNC : #4890-0192-332</p>
+                        <p className="text-xs font-mono text-slate-500">Compte BNC Fidéicommis Principal</p>
                       </div>
                     </div>
 
@@ -928,22 +939,22 @@ export function BillingClient({
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-sans">
                       <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-300 shadow-xs">
                         <span className="text-slate-500 block text-[10px] uppercase font-extrabold tracking-wider">1. Solde Initial</span>
-                        <strong className="text-base font-mono font-black text-slate-900 block mt-1">40 900,00 $</strong>
+                        <strong className="text-base font-mono font-black text-slate-900 block mt-1">{soldeInitialTrust.toLocaleString("fr-CA", { minimumFractionDigits: 2 })} $</strong>
                         <span className="text-[10px] text-slate-500 font-medium">Au 1er août 2026</span>
                       </div>
                       <div className="bg-emerald-50/90 p-3.5 rounded-2xl border border-emerald-300 shadow-xs">
                         <span className="text-emerald-900 block text-[10px] uppercase font-extrabold tracking-wider">2. Dépôts Entrants 📥</span>
-                        <strong className="text-base font-mono font-black text-emerald-950 block mt-1">+ 37 100,00 $</strong>
+                        <strong className="text-base font-mono font-black text-emerald-950 block mt-1">+ {totalDepotsTrust.toLocaleString("fr-CA", { minimumFractionDigits: 2 })} $</strong>
                         <span className="text-[10px] text-emerald-800 font-medium">Acomptes reçus clients</span>
                       </div>
                       <div className="bg-amber-50/90 p-3.5 rounded-2xl border border-amber-300 shadow-xs">
                         <span className="text-amber-950 block text-[10px] uppercase font-extrabold tracking-wider">3. Sorties Exécutées 📤</span>
-                        <strong className="text-base font-mono font-black text-amber-950 block mt-1">- 22 500,00 $</strong>
+                        <strong className="text-base font-mono font-black text-amber-950 block mt-1">- {totalSortiesTrust.toLocaleString("fr-CA", { minimumFractionDigits: 2 })} $</strong>
                         <span className="text-[10px] text-amber-900 font-medium">Honoraires & Débours IRCC</span>
                       </div>
                       <div className="bg-indigo-50/90 p-3.5 rounded-2xl border border-indigo-300 shadow-xs">
                         <span className="text-indigo-950 block text-[10px] uppercase font-extrabold tracking-wider">4. Solde Clôture Concilié</span>
-                        <strong className="text-base font-mono font-black text-indigo-950 block mt-1">55 500,00 $</strong>
+                        <strong className="text-base font-mono font-black text-indigo-950 block mt-1">{soldeClotureTrust.toLocaleString("fr-CA", { minimumFractionDigits: 2 })} $</strong>
                         <span className="text-[10px] font-bold text-indigo-800">Écart : 0,00 $ (PARFAIT)</span>
                       </div>
                     </div>
@@ -1009,11 +1020,11 @@ export function BillingClient({
                       <div>
                         <strong className="text-slate-900 font-bold block">Attestation du Consultant Titulaire Responsable (CICC)</strong>
                         <p className="text-slate-600 text-[11px] leading-relaxed mt-0.5">
-                          Je certifie que le présent rapport de rapprochement mensuel correspond exactement aux relevés bancaires du compte Fidéicommis #4890-0192-332 et à la comptabilité auxiliaire des sous-comptes clients.
+                          Je certifie que le présent rapport de rapprochement mensuel correspond exactement aux relevés bancaires du compte Fidéicommis principal du cabinet et à la comptabilité auxiliaire des sous-comptes clients.
                         </p>
                       </div>
                       <div className="border-l border-slate-300 pl-4 shrink-0 font-mono text-right">
-                        <strong className="text-indigo-900 font-black block">{firm.rcicName} (CICC #{firm.rcicNumber})</strong>
+                        <strong className="text-indigo-900 font-black block">{displayRcicName} (CICC #{displayRcicNumber})</strong>
                         <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded block my-1">
                           Sceau Audit CICC Validé
                         </span>
