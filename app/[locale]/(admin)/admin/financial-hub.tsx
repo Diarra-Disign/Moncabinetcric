@@ -70,13 +70,10 @@ export interface PlanItem {
 }
 
 export function FinancialHub({ firms, catalogue }: FinancialHubProps) {
-  // Le parcours réel de souscription : le propriétaire se connecte et choisit
-  // sa formule. Aucune adresse Stripe n'est fabriquée ici — celles qui
-  // l'étaient ne menaient nulle part.
-  const lienAbonnement =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/fr/settings/subscription`
-      : "/fr/settings/subscription"
+  // Chemin relatif, stable entre SSR et client — pas de branche
+  // `typeof window` qui fabriquerait un href différent et ferait échouer
+  // l'hydratation.
+  const lienAbonnement = "/fr/settings/subscription"
 
   // Config dynamique et modifiable des forfaits (Ajout, Modification, Suppression)
 
