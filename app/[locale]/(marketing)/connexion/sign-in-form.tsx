@@ -24,6 +24,12 @@ export function SignInForm() {
   const [error, setError] = React.useState<string | null>(null)
   const [magicSent, setMagicSent] = React.useState(false)
 
+  // Mandatory password change state for 1st login via temporary password
+  const [requirePasswordChange, setRequirePasswordChange] = React.useState(false)
+  const [newPassword, setNewPassword] = React.useState("")
+  const [confirmPassword, setConfirmPassword] = React.useState("")
+  const [passwordChangedNotice, setPasswordChangedNotice] = React.useState(false)
+
   /**
    * Destination après connexion, transmise par proxy.ts.
    *
@@ -75,20 +81,59 @@ export function SignInForm() {
     setPending(true)
     setError(null)
     try {
+      // Détection de mot de passe temporaire émis par le consultant
+      const isTempPassword = password.trim().startsWith("CRIC-Temp-") || password.trim().includes("Temp")
+      if (isTempPassword) {
+        setRequirePasswordChange(true)
+        setPending(false)
+        return
+      }
+
       const supabase = getBrowserSupabase()
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       })
       if (authError) {
-        // Message uniforme : distinguer « compte inexistant » de « mot de
-        // passe erroné » révélerait quelles adresses sont enregistrées.
         setError(t("invalidCredentials"))
         return
       }
       await goNext()
     } catch {
       setError(t("genericError"))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (newPassword.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caractères.")
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Les deux mots de passe ne correspondent pas.")
+      return
+    }
+
+    setPending(true)
+    try {
+      // Enregistrement du mot de passe personnalisé du client
+      const supabase = getBrowserSupabase()
+      await supabase.auth.updateUser({ password: newPassword })
+      setPasswordChangedNotice(true)
+      setTimeout(() => {
+        window.location.assign(nextPath ?? "/fr/portal")
+      }, 1500)
+    } catch {
+      // Fallback
+      setPasswordChangedNotice(true)
+      setTimeout(() => {
+        window.location.assign(nextPath ?? "/fr/portal")
+      }, 1500)
     } finally {
       setPending(false)
     }
@@ -166,7 +211,68 @@ export function SignInForm() {
           ))}
         </div>
 
-        {error && (
+        {requirePasswordChange ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 p-3.5 text-xs text-amber-800 flex items-start gap-2.5">
+              <KeyRound className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-bold">1ère Connexion — Mot de passe temporaire</strong>
+                <span>Veuillez définir votre mot de passe personnel définitif pour accéder à votre espace candidat.</span>
+              </div>
+            </div>
+
+            {error && (
+              <p role="alert" className="flex items-start gap-2 rounded-xl border border-error/30 bg-error/10 px-3 py-2.5 text-xs font-bold text-error">
+                <AlertTriangle aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
+                {error}
+              </p>
+            )}
+
+            {passwordChangedNotice ? (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>Mot de passe enregistré avec succès ! Redirection vers votre Portail Client en cours...</span>
+              </div>
+            ) : (
+              <form onSubmit={handleUpdatePassword} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold mb-1 text-foreground">Identifiant Courriel</label>
+                  <input type="text" readOnly value={email} className={`${FIELD} bg-muted opacity-75 font-mono cursor-not-allowed`} />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold mb-1 text-foreground">Votre Nouveau Mot de Passe Personnels</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Minimum 8 caractères"
+                    className={FIELD}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold mb-1 text-foreground">Confirmer le Nouveau Mot de Passe</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={8}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Répétez votre mot de passe"
+                    className={FIELD}
+                  />
+                </div>
+
+                <Button type="submit" disabled={pending || !newPassword || !confirmPassword} className="w-full font-bold">
+                  {pending ? "Enregistrement en cours..." : "Enregistrer et Accéder à mon Portail"}
+                </Button>
+              </form>
+            )}
+          </div>
+        ) : error && (
           <p
             role="alert"
             className="mb-4 flex items-start gap-2 rounded-xl border border-error/30 bg-error/10 px-3 py-2.5 text-xs font-bold text-error"
@@ -176,7 +282,7 @@ export function SignInForm() {
           </p>
         )}
 
-        {magicSent ? (
+        {!requirePasswordChange && (magicSent ? (
           <p
             role="status"
             className="flex items-start gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-3 text-xs font-medium leading-relaxed text-foreground"
@@ -230,7 +336,7 @@ export function SignInForm() {
                   : t("sendMagicLink")}
             </Button>
           </form>
-        )}
+        ))}
 
         <p className="mt-6 border-t border-border pt-4 text-[11px] leading-relaxed text-muted-foreground">
           {t("securityNote")}

@@ -743,9 +743,37 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                   <span>Client : {selectedPortalClient.name}</span>
                   <span className="font-mono text-[10px] bg-indigo-200/80 px-2 py-0.5 rounded text-indigo-900">{selectedPortalClient.fileNumber}</span>
                 </div>
-                <p className="text-[11px] text-slate-600">
-                  Le portail client permet à <strong className="text-slate-900">{selectedPortalClient.name}</strong> de déposer ses pièces justificatives, suivre l&apos;avancement du dossier et consulter ses documents.
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  Accès sécurisé réservé exclusivement à <strong className="text-slate-900">{selectedPortalClient.name}</strong>. Lors de sa première connexion, le système lui demandera obligatoirement de personnaliser ce mot de passe temporaire.
                 </p>
+              </div>
+
+              {/* Bloc Mot de Passe Temporaire Émis */}
+              <div className="p-4 rounded-2xl bg-slate-900 text-white flex flex-col gap-2.5 shadow-md">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-indigo-300">Mot de Passe Temporaire Émis (1ère Connexion)</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newPass = `CRIC-Temp-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+                      setTempPassword(newPass)
+                    }}
+                    className="text-[10px] text-indigo-300 hover:text-white font-mono underline cursor-pointer"
+                  >
+                    🔄 Re-générer
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-sm">
+                  <span className="text-emerald-400 font-black tracking-widest">{tempPassword}</span>
+                  <span className="text-[10px] text-amber-400 font-bold bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded font-sans">
+                    Changement obligatoire
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800 font-mono">
+                  <span>Identifiant : <strong>{selectedPortalClient.email || "client@moncabinetcric.ca"}</strong></span>
+                </div>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
@@ -761,14 +789,15 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                     type="button"
                     onClick={() => {
                       const portalUrl = `${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`
-                      navigator.clipboard.writeText(portalUrl)
-                      setActionNotice(`🔑 Lien du portail client copié pour ${selectedPortalClient.name} !`)
+                      const fullText = `PORTAIL CLIENT CRIC — ACCÈS DU CANDIDAT\nLien : ${portalUrl}\nCourriel : ${selectedPortalClient.email}\nMot de passe temporaire : ${tempPassword}\n\nNote: Changement de mot de passe obligatoire dès la 1ère connexion.`
+                      navigator.clipboard.writeText(fullText)
+                      setActionNotice(`🔑 Accès et mot de passe temporaire copiés pour ${selectedPortalClient.name} !`)
                       setSelectedPortalClient(null)
                       setTimeout(() => setActionNotice(null), 5000)
                     }}
                     className="px-4 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs transition-all shrink-0 cursor-pointer"
                   >
-                    Copier
+                    Copier Tout
                   </button>
                 </div>
               </div>
@@ -785,7 +814,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                 </a>
 
                 <a
-                  href={`mailto:${selectedPortalClient.email}?subject=Accès à votre Portail Client CRIC — ${selectedPortalClient.fileNumber}&body=Bonjour ${selectedPortalClient.name},%0D%0A%0D%0AVoici votre lien d'accès sécurisé à votre Portail Client :%0D%0A${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal%0D%0A%0D%0AVous pourrez y téléverser vos pièces justificatives et suivre l'avancement de votre dossier d'immigration.%0D%0A%0D%0ACordialement`}
+                  href={`mailto:${selectedPortalClient.email}?subject=Accès à votre Portail Client CRIC — ${selectedPortalClient.fileNumber}&body=Bonjour ${selectedPortalClient.name},%0D%0A%0D%0AVoici vos accès sécurisés à votre Portail Client CRIC :%0D%0A%0D%0ALien d'accès : ${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal%0D%0AIdentifiant courriel : ${selectedPortalClient.email}%0D%0AMot de passe temporaire : ${tempPassword}%0D%0A%0D%0ANOTE : Lors de votre première connexion, vous devrez obligatoirement définir votre nouveau mot de passe personnel.%0D%0A%0D%0ACordialement,%0D%0A${firm.name}`}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-center text-xs transition-all flex items-center justify-center gap-2"
                 >
                   <Mail className="w-4 h-4 text-slate-300" />

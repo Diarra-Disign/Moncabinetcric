@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Ban, Play, Check, AlertTriangle, Copy, Link2 } from "lucide-react"
+import { Plus, Ban, Play, Check, AlertTriangle, Copy, Link2, CreditCard } from "lucide-react"
 import { creerCabinet, changerPlan, basculerAcces, type ResultatAction } from "@/lib/data/admin-actions"
 import { cn } from "@/lib/utils"
 
@@ -315,6 +315,20 @@ export function ActionsCabinet({
               {labels.activate}
             </>
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            const stripeUrl = "https://buy.stripe.com/test_moncabinetcric_saas"
+            navigator.clipboard.writeText(stripeUrl)
+            setResultat({ ok: true, message: `💳 Lien de paiement Stripe copié dans le presse-papier !` })
+          }}
+          className="inline-flex min-h-8 items-center gap-1 text-[11px] font-bold rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-indigo-900 transition-colors hover:bg-indigo-100 cursor-pointer"
+          title="Copier le lien d'abonnement Stripe pour ce cabinet"
+        >
+          <CreditCard className="h-3 w-3 text-indigo-600" />
+          <span>Stripe Lien</span>
         </button>
       </form>
 
