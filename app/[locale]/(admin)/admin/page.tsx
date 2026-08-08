@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server"
 import { Building2, Users, AlertTriangle, Terminal, Lock, Ban } from "lucide-react"
 import { getAdminFirms, getDemoRequests, summarise, type AdminMemberRow } from "@/lib/data/admin"
 import { getCatalogue } from "@/lib/billing/catalogue"
+import { getDemandesEnAttente } from "@/lib/data/seat-reads"
+import { SeatRequests } from "./seat-requests"
 import { CreerCabinet, ActionsCabinet } from "./firm-actions"
 import { DemoRequests } from "./demo-requests"
 import { FinancialHub } from "./financial-hub"
@@ -55,10 +57,11 @@ function MemberList({
 
 export default async function AdminPage() {
   const t = await getTranslations("Admin")
-  const [firms, demandes, catalogue] = await Promise.all([
+  const [firms, demandes, catalogue, demandesSieges] = await Promise.all([
     getAdminFirms(),
     getDemoRequests(),
     getCatalogue(),
+    getDemandesEnAttente(),
   ])
   const stats = summarise(firms)
 
@@ -132,6 +135,35 @@ export default async function AdminPage() {
           requests={demandes}
           labels={{ ...etiquettesDemandes, empty: etiquettesDemandes.requestsEmpty }}
           firmLabels={etiquettes}
+        />
+      </section>
+
+      <section>
+        <h2 className="mb-3 flex flex-wrap items-center gap-2 text-base font-black tracking-tight text-foreground">
+          Demandes de places
+          {demandesSieges.length > 0 && (
+            <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-black tabular-nums text-primary-foreground">
+              {demandesSieges.length}
+            </span>
+          )}
+        </h2>
+        <SeatRequests
+          demandes={demandesSieges.map((d) => {
+            const cab = firms.find((f) => f.id === d.firmId)
+            return {
+              id: d.id,
+              firmName: cab?.name ?? "Cabinet inconnu",
+              plan: cab?.plan ?? "",
+              demandeur: d.demandeur,
+              seats: d.seats,
+              roleHint: d.roleHint,
+              justification: d.justification,
+              statut: d.statut,
+              creeLe: d.creeLe,
+              placesOccupees: cab?.members.filter((m) => m.statut === "active").length ?? 0,
+              placesMax: null,
+            }
+          })}
         />
       </section>
 

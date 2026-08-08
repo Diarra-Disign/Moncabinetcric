@@ -7,6 +7,8 @@ import {
   type MembrePermissions,
 } from "@/components/settings/permissions-panel"
 import { membrePeut } from "@/lib/auth/permissions"
+import { SeatRequestPanel } from "@/components/settings/seat-request-panel"
+import { getDemandesDuCabinet, getPlacesDuCabinet } from "@/lib/data/seat-reads"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 
 export default async function SettingsPage({
@@ -42,6 +44,8 @@ export default async function SettingsPage({
     supabase.from("profile_permissions").select("profile_id, permission, granted"),
     membrePeut("firm.members"),
   ])
+
+  const [places, demandes] = await Promise.all([getPlacesDuCabinet(), getDemandesDuCabinet()])
 
   // Défaut du rôle et ajustement individuel sont passés séparément : l'écran
   // doit pouvoir distinguer « suit le rôle » de « accordée », faute de quoi il
@@ -89,6 +93,19 @@ export default async function SettingsPage({
   return (
     <div className="space-y-8">
       <SettingsClient />
+      <SeatRequestPanel
+        occupees={places.occupees}
+        limite={places.limite}
+        peutDemander={peutGererMembres}
+        demandes={demandes.map((d) => ({
+          id: d.id,
+          seats: d.seats,
+          statut: d.statut,
+          accordees: d.accordees,
+          reponse: d.reponse,
+          creeLe: d.creeLe,
+        }))}
+      />
       <TeamPanel
         membres={membres}
         invitations={enAttente}

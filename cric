@@ -35,6 +35,7 @@ case "$commande" in
   connecteur)   exec node scripts/verify-connector.mjs "$@" ;;
   membres)      exec node scripts/verify-members.mjs "$@" ;;
   permissions)  exec node scripts/verify-permissions.mjs "$@" ;;
+  sieges)       exec node scripts/verify-seats.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types scripts/verify-billing.mjs "$@" ;;
   facturation)  exec node scripts/verify-billing.mjs "$@" ;;
   migration)    exec node scripts/apply-migration.mjs "$@" ;;

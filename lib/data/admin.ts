@@ -59,6 +59,8 @@ export interface AdminMemberRow {
   email: string
   fullName: string
   ciccRole: string
+  /** active | suspended | revoked. Seul un membre actif occupe une place. */
+  statut: string
 }
 
 /** Dernier segment de l'adresse : « Gatineau, QC J8X 0B9 » suffit à situer. */
@@ -78,7 +80,7 @@ export async function getAdminFirms(): Promise<AdminFirmRow[]> {
       .from("firms")
       .select("id, name, rcic_license_number, owner_name, email, phone, address, created_at, plan, status, trial_ends_at")
       .order("created_at", { ascending: true }),
-    supabase.from("profiles").select("id, firm_id, email, full_name, cicc_role"),
+    supabase.from("profiles").select("id, firm_id, email, full_name, cicc_role, status"),
     supabase
       .from("firm_subscriptions")
       .select(
@@ -126,6 +128,7 @@ export async function getAdminFirms(): Promise<AdminFirmRow[]> {
         email: (p.email as string) ?? "",
         fullName: (p.full_name as string) ?? "",
         ciccRole: (p.cicc_role as string) ?? "",
+        statut: (p.status as string) ?? "active",
       })),
     subscription: parCabinet.get(f.id as string) ?? null,
   }))
