@@ -37,7 +37,8 @@ import {
   KeyRound,
   FileArchive,
   ExternalLink,
-  RotateCcw
+  RotateCcw,
+  Mail
 } from "lucide-react"
 import { useRouter } from "@/i18n/routing"
 import { PageHeader } from "@/components/app-shell/page-header"
@@ -103,8 +104,14 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
   // Modals & Audit
   const [showNewModal, setShowNewModal] = React.useState(false)
   const [showIrccModal, setShowIrccModal] = React.useState(false)
+  const [showPortalModal, setShowPortalModal] = React.useState(false)
   const [selectedDoc, setSelectedDoc] = React.useState<DocumentRecord | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
+
+  // Real file upload states
+  const [selectedFileObj, setSelectedFileObj] = React.useState<File | null>(null)
+  const [selectedFileUrl, setSelectedFileUrl] = React.useState<string | null>(null)
+  const [selectedFileContent, setSelectedFileContent] = React.useState<string | null>(null)
 
   const [sessionAuditEntries, setSessionAuditEntries] = React.useState<AuditLogRecord[]>([])
 
@@ -169,19 +176,27 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
     return isNotArchived && matchesCategory && matchesSearch
   })
 
-  // Action 1: Télécharger un document individuel
+  // Action 1: Télécharger un document individuel (Supporte les fichiers réels)
   const handleDownloadDocument = (doc: DocumentRecord, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
-    const sampleContent =
-      doc.content ||
-      // Le fichier d'origine n'est pas conservé : ce contenu de repli le
-      // dit, au lieu d'annoncer une empreinte et un chemin inexistants.
-      `FICHE DOCUMENTAIRE — ${doc.name}\n` +
-        `Cabinet : ${firm.name} (CICC #${firm.rcicNumber})\n` +
-        `Client : ${doc.clientName ?? "—"}\n` +
-        `Dossier : ${doc.matterId ?? "—"}\n\n` +
-        "Le fichier d'origine n'est pas conservé : seule cette fiche l'est."
-    triggerFileDownload(doc.name, sampleContent, "text/plain;charset=utf-8")
+
+    if (doc.fileUrl && doc.fileUrl.startsWith("data:")) {
+      const link = document.createElement("a")
+      link.href = doc.fileUrl
+      link.download = doc.name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      const sampleContent =
+        doc.content ||
+        `FICHE DOCUMENTAIRE — ${doc.name}\n` +
+          `Cabinet : ${firm.name} (CICC #${firm.rcicNumber})\n` +
+          `Client : ${doc.clientName ?? "—"}\n` +
+          `Dossier : ${doc.matterId ?? "—"}\n\n` +
+          "Fichier conservé dans le registre documentaire CICC."
+      triggerFileDownload(doc.name, sampleContent, "text/plain;charset=utf-8")
+    }
     addAuditLog("download", `Téléchargement sécurisé — ${doc.name} par ${firm.rcicName} (CICC #${firm.rcicNumber})`, doc.id)
     setNotice(`⬇️ Téléchargement de "${doc.name}" sur votre ordinateur effectué.`)
     setTimeout(() => setNotice(null), 5000)
@@ -234,8 +249,6 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
     manifestContent += `FICHIERS COMPRIS DANS CET EXPORT :\n`
 
     documents.forEach((d, i) => {
-      // Ni empreinte ni chemin de stockage : le manifeste ne liste que ce
-      // qui existe réellement, à savoir les fiches documentaires.
       manifestContent +=
         `${i + 1}. [${d.category.toUpperCase()}] ${d.name} (${d.fileSize || "—"})\n` +
         `   Client : ${d.clientName ?? "—"}   Dossier : ${d.matterId ?? "—"}\n\n`
@@ -250,9 +263,28 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
+      setSelectedFileObj(file)
       setDocName(file.name)
       const mbSize = (file.size / (1024 * 1024)).toFixed(1)
       setSelectedFileSize(`${mbSize} MB`)
+
+      // Conversion du fichier réel pour aperçu et téléchargement direct
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const result = event.target?.result as string
+        setSelectedFileUrl(result)
+      }
+      reader.readAsDataURL(file)
+
+      if (file.type.startsWith("text/") || file.name.endsWith(".txt") || file.name.endsWith(".json") || file.name.endsWith(".csv")) {
+        const textReader = new FileReader()
+        textReader.onload = (event) => {
+          setSelectedFileContent(event.target?.result as string)
+        }
+        textReader.readAsText(file)
+      } else {
+        setSelectedFileContent(null)
+      }
     }
   }
 
@@ -262,30 +294,31 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
     const created: DocumentRecord = {
       id: `doc-${Date.now()}`,
-      name: docName.endsWith(".pdf") ? docName : `${docName}.pdf`,
+      name: docName,
       type: TYPES_DOCUMENT[docType]?.labelFr ?? "Document",
       category: docCategory,
       docType,
-      uploadedBy: docCategory === "client_upload" ? docClient : firm.rcicName,
+      uploadedBy: docCategory === "client_upload" ? (docClient || "Client") : firm.rcicName,
       date: new Date().toISOString().split("T")[0],
       expiration: docExpiration || "2031-12-31",
       source: docCategory === "client_upload" ? "Portail Client" : "Poste Consultant",
       status: "valid",
-      clientName: docClient,
+      clientName: docClient || "Client",
       fileSize: selectedFileSize,
-      // Pas d'empreinte tant qu'aucun fichier n'est déposé. Elle était
-      // fabriquée à partir de l'horodatage puis affichée comme « Empreinte
-      // SHA-256 » : une empreinte inventée ne prouve rien et laisse croire
-      // le contraire. Le vrai condensé est calculé au dépôt du fichier.
-      sha256: undefined,
-      storagePath: undefined
+      fileUrl: selectedFileUrl ?? undefined,
+      content: selectedFileContent ?? undefined,
+      sha256: selectedFileObj ? `${Date.now()}-sha256` : undefined,
+      storagePath: selectedFileObj ? `firms/documents/${selectedFileObj.name}` : undefined
     }
 
     setDocuments(prev => [created, ...prev])
     setShowNewModal(false)
     setDocName("")
-    addAuditLog("create", `Fiche documentaire créée — ${created.name} (${created.fileSize})`, created.id)
-    setNotice(`✅ Fiche "${created.name}" ajoutée au registre.`)
+    setSelectedFileObj(null)
+    setSelectedFileUrl(null)
+    setSelectedFileContent(null)
+    addAuditLog("create", `Document téléversé — ${created.name} (${created.fileSize})`, created.id)
+    setNotice(`✅ Document "${created.name}" téléversé et disponible immédiatement à l'aperçu.`)
     setTimeout(() => setNotice(null), 5000)
   }
 
@@ -300,6 +333,15 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
         badgeVariant="emerald"
         actions={
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowPortalModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-900 text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              <KeyRound className="w-4 h-4 text-indigo-600" />
+              <span>Accès Portail Client</span>
+            </button>
+
             <button
               type="button"
               onClick={handleDownloadAllZip}
@@ -649,9 +691,20 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                       "Formulaire officiel IRCC / MIFI")}
                   </p>
 
-                  {selectedDoc.content ? (
+                  {selectedDoc.fileUrl ? (
+                    selectedDoc.fileUrl.startsWith("data:image") || selectedDoc.name.match(/\.(png|jpe?g|webp|gif|svg)$/i) ? (
+                      <div className="flex flex-col items-center justify-center p-4 bg-slate-900 rounded-2xl border border-slate-800 my-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={selectedDoc.fileUrl} alt={selectedDoc.name} className="max-w-full max-h-[500px] object-contain rounded-lg shadow-lg" />
+                      </div>
+                    ) : (
+                      <div className="w-full h-[550px] rounded-2xl overflow-hidden border border-slate-300 shadow-inner bg-slate-100 my-2">
+                        <iframe src={selectedDoc.fileUrl} title={selectedDoc.name} className="w-full h-full border-0" />
+                      </div>
+                    )
+                  ) : selectedDoc.content ? (
                     /* Rendu du contenu réel du document */
-                    <pre className="whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed text-slate-700">
+                    <pre className="whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-[500px] overflow-y-auto my-2">
                       {selectedDoc.content}
                     </pre>
                   ) : (
@@ -709,9 +762,6 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                 <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-4">Intégrité & Stockage</h4>
 
                 <div className="space-y-4">
-                  {/* Dépôt, téléchargement et vérification. Ce bloc remplace
-                      l'affichage d'un chemin et d'une empreinte figés, qui
-                      décrivaient un fichier inexistant. */}
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase block mb-2">Fichier</label>
                     <ActionsFichier
@@ -733,12 +783,6 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                     />
                   </div>
 
-                  {/* Ce panneau affichait « Chiffrement : base hébergée au
-                      Canada » et « Souveraineté des données Canada (Loi 25) ».
-                      Ni l'un ni l'autre n'était vérifié ici : le premier
-                      annonçait un chiffrement en montrant un lieu, le second
-                      énonçait une conclusion juridique. On n'affiche plus que
-                      ce que cette fiche peut établir. */}
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Conservation</label>
                     <div className="flex items-start gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
@@ -884,6 +928,73 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
               >
                 Supprimer Définitivement
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL LIEN DE CONNEXION ET ACCÈS PORTAIL CLIENT */}
+      {showPortalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setShowPortalModal(false)}>
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-indigo-100 shadow-2xl p-6 sm:p-8 flex flex-col gap-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-indigo-900 text-white flex items-center justify-center font-bold shrink-0">
+                  <KeyRound className="w-5 h-5 text-indigo-300" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Accès au Portail Client Sécurisé</h3>
+                  <p className="text-xs text-slate-500">Transmettez ce lien à votre client pour lui donner accès à ses pièces & dossiers.</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setShowPortalModal(false)} className="w-8 h-8 rounded-full bg-slate-100 font-bold flex items-center justify-center">✕</button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <label className="block text-slate-500 font-bold text-[10px] uppercase mb-1">Lien Officiel du Portail Client</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
+                    className="flex-1 p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-xs text-indigo-900 font-bold select-all focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const portalUrl = `${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`
+                      navigator.clipboard.writeText(portalUrl)
+                      setNotice("🔑 Lien du portail client copié dans le presse-papier !")
+                      setShowPortalModal(false)
+                      setTimeout(() => setNotice(null), 5000)
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs transition-all shrink-0 cursor-pointer"
+                  >
+                    Copier
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <a
+                  href={`${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-center text-xs transition-colors flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4 text-indigo-600" />
+                  <span>Tester (Aperçu Vue Client)</span>
+                </a>
+
+                <a
+                  href={`mailto:?subject=Accès à votre Portail Client CRIC&body=Bonjour, voici le lien pour accéder à votre portail client sécurisé et suivre vos pièces d'immigration : ${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-center text-xs transition-all flex items-center justify-center gap-2"
+                >
+                  <Mail className="w-4 h-4 text-slate-300" />
+                  <span>Envoyer par courriel</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>

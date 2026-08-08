@@ -25,7 +25,8 @@
     "menu": "Navigation menu",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "signatures": "Signatures"
+    "signatures": "Signatures",
+    "portal": "Client Portal"
   },
   "Documents": {
     "title": "Documents",

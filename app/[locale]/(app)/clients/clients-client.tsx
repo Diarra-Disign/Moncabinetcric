@@ -27,7 +27,9 @@ import {
   FolderOpen,
   Receipt,
   ChevronRight,
-  X
+  X,
+  KeyRound,
+  ExternalLink
 } from "lucide-react"
 import { Link, useRouter } from "@/i18n/routing"
 import { ClientRecord, Matter } from "@/lib/data/types"
@@ -56,6 +58,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [searchQuery, setSearchQuery] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "consultation" | "employer">("all")
   const [showNewModal, setShowNewModal] = React.useState(false)
+  const [selectedPortalClient, setSelectedPortalClient] = React.useState<ClientRecord | null>(null)
   const [actionNotice, setActionNotice] = React.useState<string | null>(null)
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -523,6 +526,15 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
 
                       <button
                         type="button"
+                        onClick={() => setSelectedPortalClient(client)}
+                        title="Donner et partager l'accès au Portail Client"
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <KeyRound className="w-4 h-4 text-indigo-600" />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={(e) => handleDeleteClient(client.id, e)}
                         title="Supprimer la fiche client"
                         className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
@@ -705,6 +717,83 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* MODAL TRANSMISSION ACCÈS PORTAIL CLIENT */}
+      {selectedPortalClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setSelectedPortalClient(null)}>
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-indigo-100 shadow-2xl p-6 sm:p-8 flex flex-col gap-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-indigo-900 text-white flex items-center justify-center font-bold shrink-0">
+                  <KeyRound className="w-5 h-5 text-indigo-300" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Accès Portail Client — {selectedPortalClient.name}</h3>
+                  <p className="text-xs text-slate-500">Dossier n° <span className="font-mono font-bold text-slate-800">{selectedPortalClient.fileNumber}</span></p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setSelectedPortalClient(null)} className="w-8 h-8 rounded-full bg-slate-100 font-bold flex items-center justify-center">✕</button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-100 flex flex-col gap-2">
+                <div className="flex justify-between items-center text-indigo-950 font-bold">
+                  <span>Client : {selectedPortalClient.name}</span>
+                  <span className="font-mono text-[10px] bg-indigo-200/80 px-2 py-0.5 rounded text-indigo-900">{selectedPortalClient.fileNumber}</span>
+                </div>
+                <p className="text-[11px] text-slate-600">
+                  Le portail client permet à <strong className="text-slate-900">{selectedPortalClient.name}</strong> de déposer ses pièces justificatives, suivre l&apos;avancement du dossier et consulter ses documents.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <label className="block text-slate-500 font-bold text-[10px] uppercase mb-1">Lien Officiel d&apos;Accès au Portail Client</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
+                    className="flex-1 p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-xs text-indigo-900 font-bold select-all focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const portalUrl = `${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`
+                      navigator.clipboard.writeText(portalUrl)
+                      setActionNotice(`🔑 Lien du portail client copié pour ${selectedPortalClient.name} !`)
+                      setSelectedPortalClient(null)
+                      setTimeout(() => setActionNotice(null), 5000)
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs transition-all shrink-0 cursor-pointer"
+                  >
+                    Copier
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <a
+                  href={`${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-center text-xs transition-colors flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4 text-indigo-600" />
+                  <span>Tester le Portail (Aperçu)</span>
+                </a>
+
+                <a
+                  href={`mailto:${selectedPortalClient.email}?subject=Accès à votre Portail Client CRIC — ${selectedPortalClient.fileNumber}&body=Bonjour ${selectedPortalClient.name},%0D%0A%0D%0AVoici votre lien d'accès sécurisé à votre Portail Client :%0D%0A${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal%0D%0A%0D%0AVous pourrez y téléverser vos pièces justificatives et suivre l'avancement de votre dossier d'immigration.%0D%0A%0D%0ACordialement`}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-center text-xs transition-all flex items-center justify-center gap-2"
+                >
+                  <Mail className="w-4 h-4 text-slate-300" />
+                  <span>Envoyer par courriel</span>
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
