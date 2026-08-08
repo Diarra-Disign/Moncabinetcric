@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
+import { synchroniserSiegesStripe } from "@/lib/billing/seat-sync"
 
 /**
  * Acceptation d'une invitation.
@@ -100,6 +101,12 @@ export async function acceptInvitation(
     .from("invitations")
     .update({ accepted_at: new Date().toISOString(), accepted_by: user.id })
     .eq("id", invite.id)
+
+  // L'invitation cesse d'occuper une place et le profil en prend une : le
+  // total ne bouge pas, mais la répartition par rôle peut changer. Le résultat
+  // n'est pas remonté — l'acceptation d'une invitation ne doit pas parler de
+  // facturation à la personne qui rejoint le cabinet.
+  await synchroniserSiegesStripe(invite.firm_id as string)
 
   return { ok: true }
 }

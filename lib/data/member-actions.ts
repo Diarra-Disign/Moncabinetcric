@@ -4,6 +4,7 @@ import { randomBytes, createHash } from "node:crypto"
 import { revalidatePath } from "next/cache"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 import { exigerPermission } from "@/lib/auth/permissions"
+import { synchroniserSiegesStripe } from "@/lib/billing/seat-sync"
 
 /**
  * Gestion des membres d'un cabinet, depuis l'écran Paramètres.
@@ -77,10 +78,17 @@ export async function inviterMembre(formData: FormData): Promise<ResultatMembre>
 
     if (error) return { ok: false, message: error.message }
 
+    // Une invitation vivante occupe une place, donc en facture une : la
+    // réconciliation part maintenant et non à l'acceptation, sans quoi le
+    // plafond et la facture parleraient de deux effectifs différents.
+    const sync = await synchroniserSiegesStripe(membre.firmId)
+
     revalidatePath("/[locale]/settings", "page")
     return {
       ok: true,
-      message: `Invitation créée pour ${courriel}. Le lien n'est affiché qu'une fois.`,
+      message:
+        `Invitation créée pour ${courriel}. Le lien n'est affiché qu'une fois.` +
+        (sync.modifie ? ` ${sync.message}` : ""),
       lien: `/fr/bienvenue?jeton=${jeton}`,
     }
   } catch (e) {
@@ -117,8 +125,12 @@ export async function changerRole(formData: FormData): Promise<ResultatMembre> {
     const { error } = await supabase.from("profiles").update({ cicc_role: role }).eq("id", profilId)
     if (error) return { ok: false, message: error.message }
 
+    // Le prix d'une place dépend du rôle qui l'occupe : passer une adjointe
+    // consultante change ce que le cabinet paie.
+    const sync = await synchroniserSiegesStripe(membre.firmId)
+
     revalidatePath("/[locale]/settings", "page")
-    return { ok: true, message: "Rôle mis à jour." }
+    return { ok: true, message: "Rôle mis à jour." + (sync.modifie ? ` ${sync.message}` : "") }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
@@ -192,9 +204,14 @@ export async function changerStatutMembre(formData: FormData): Promise<ResultatM
 
     if (error) return { ok: false, message: error.message }
 
+    const sync = await synchroniserSiegesStripe(membre.firmId)
+
     revalidatePath("/[locale]/settings", "page")
     const qui = cible.full_name || cible.email || "Le membre"
-    return { ok: true, message: `${qui} — ${LIBELLE_STATUT[statut]}.` }
+    return {
+      ok: true,
+      message: `${qui} — ${LIBELLE_STATUT[statut]}.` + (sync.modifie ? ` ${sync.message}` : ""),
+    }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
@@ -202,7 +219,7 @@ export async function changerStatutMembre(formData: FormData): Promise<ResultatM
 
 export async function revoquerInvitation(formData: FormData): Promise<ResultatMembre> {
   try {
-    await exigerProprietaire()
+    const membre = await exigerProprietaire()
     const supabase = await getSessionSupabase()
 
     const id = String(formData.get("invitationId") ?? "")
@@ -216,8 +233,13 @@ export async function revoquerInvitation(formData: FormData): Promise<ResultatMe
 
     if (error) return { ok: false, message: error.message }
 
+    const sync = await synchroniserSiegesStripe(membre.firmId)
+
     revalidatePath("/[locale]/settings", "page")
-    return { ok: true, message: "Invitation révoquée. Le lien ne fonctionne plus." }
+    return {
+      ok: true,
+      message: "Invitation révoquée. Le lien ne fonctionne plus." + (sync.modifie ? ` ${sync.message}` : ""),
+    }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
