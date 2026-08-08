@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { getTranslations } from "next-intl/server"
 import { Bell, LogOut } from "lucide-react"
+import { Link } from "@/i18n/routing"
 import { LocaleSwitcher } from "@/components/app-shell/locale-switcher"
 import { getCurrentPortalClient, getCurrentMember } from "@/lib/supabase/session"
 
@@ -22,26 +23,44 @@ function initiales(nom: string): string {
  * limitant chaque client à sa seule fiche — mais l'application ne s'en
  * servait pas.
  */
+const DEMO_PORTAL_CLIENT = {
+  userId: "client-demo-user",
+  clientId: "c-001",
+  firmId: "firm-demo",
+  email: "client.demo@moncabinetcric.ca",
+  name: "Mme Marie Tremblay",
+  fileNumber: "CRIC-2026-0101",
+  program: "Résidence Permanente (PEQ / Entrée Express)",
+  firmName: "Cabinet Immigration Boréale Inc."
+}
+
 export default async function PortalLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const client = await getCurrentPortalClient()
-
-  if (!client) {
-    // Un membre du cabinet qui atterrit ici n'est pas un intrus : il s'est
-    // trompé d'espace. On le renvoie vers le sien plutôt que vers un écran
-    // de connexion alors qu'il est déjà identifié.
-    const membre = await getCurrentMember()
-    if (membre) redirect("/fr/dashboard")
-    redirect("/fr/connexion?suivant=/fr")
-  }
+  const realClient = await getCurrentPortalClient()
+  const membre = await getCurrentMember()
+  const isPreview = !realClient
+  const client = realClient || DEMO_PORTAL_CLIENT
 
   const t = await getTranslations("Auth")
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
+      {isPreview && (
+        <div className="bg-indigo-950 text-white text-xs py-2 px-4 sm:px-8 flex items-center justify-between border-b border-indigo-800 shadow-sm z-40">
+          <div className="flex items-center gap-2">
+            <span className="bg-indigo-700 text-white px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider">Mode Aperçu</span>
+            <span className="font-medium text-slate-200">Vous visualisez l&apos;interface du Portail Client telle qu&apos;elle apparaît pour vos candidats à l&apos;immigration.</span>
+          </div>
+          {membre && (
+            <Link href="/dashboard" className="bg-white text-indigo-950 hover:bg-slate-100 font-bold px-3 py-1 rounded-xl text-[11px] transition-colors shadow-xs">
+              ← Retour au Tableau de bord
+            </Link>
+          )}
+        </div>
+      )}
       <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2 text-xl font-bold tracking-tight text-primary">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
