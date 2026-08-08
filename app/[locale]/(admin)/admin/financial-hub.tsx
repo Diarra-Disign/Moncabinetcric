@@ -15,7 +15,8 @@ import {
   Plus,
   Trash2,
   Settings,
-  X
+  ShieldCheck,
+  Package
 } from "lucide-react"
 import type { AdminFirmRow } from "@/lib/data/admin"
 
@@ -30,15 +31,28 @@ export interface CouponItem {
   discount: string
 }
 
+export interface PlanItem {
+  id: string
+  key: string
+  name: string
+  price: number
+  isSystem?: boolean
+}
+
 export function FinancialHub({ firms }: FinancialHubProps) {
-  // Config des prix modifiables (Solo: 49$ / Cabinet Pro: 79$)
-  const [planPrices, setPlanPrices] = React.useState<Record<string, number>>({
-    trial: 0,
-    solo: 49,
-    cabinet: 79,
-    courtoisie: 0,
-  })
+  // Config dynamique et modifiable des forfaits (Ajout, Modification, Suppression)
+  const [plans, setPlans] = React.useState<PlanItem[]>([
+    { id: "p-solo", key: "solo", name: "Forfait Solo", price: 49, isSystem: true },
+    { id: "p-cabinet", key: "cabinet", name: "Forfait Cabinet Pro", price: 79, isSystem: true },
+    { id: "p-trial", key: "trial", name: "Période d'Essai (30 jours)", price: 0, isSystem: true },
+    { id: "p-courtoisie", key: "courtoisie", name: "Forfait Courtoisie / Partenaire", price: 0, isSystem: true },
+  ])
   const [showEditPricesModal, setShowEditPricesModal] = React.useState(false)
+
+  // Formulaire d'ajout de nouveau forfait
+  const [showAddPlanForm, setShowAddPlanForm] = React.useState(false)
+  const [newPlanName, setNewPlanName] = React.useState("")
+  const [newPlanPrice, setNewPlanPrice] = React.useState<number>(99)
 
   // Liste modifiable des codes promo
   const [coupons, setCoupons] = React.useState<CouponItem[]>([
@@ -47,36 +61,89 @@ export function FinancialHub({ firms }: FinancialHubProps) {
     { id: "c3", code: "LANCEMENT-2026", label: "Tarif Préférentiel Lancement 2026", discount: "-15 $/mois" },
   ])
 
-  // Modals et formulaire d'ajout
+  // Modals et formulaire d'ajout promo
   const [showAddCouponModal, setShowAddCouponModal] = React.useState(false)
   const [newCode, setNewCode] = React.useState("")
   const [newLabel, setNewLabel] = React.useState("")
   const [newDiscount, setNewDiscount] = React.useState("")
 
   const [copiedLink, setCopiedLink] = React.useState<string | null>(null)
-  const [selectedPlan, setSelectedPlan] = React.useState<string>("solo")
+  const [selectedPlanKey, setSelectedPlanKey] = React.useState<string>("solo")
   const [selectedCouponCode, setSelectedCouponCode] = React.useState<string>("CICC-MEMBRE-20")
   const [notice, setNotice] = React.useState<string | null>(null)
 
+  // Helper pour trouver le prix d'un forfait
+  const getPlanPrice = (planKey: string): number => {
+    const found = plans.find((p) => p.key === planKey)
+    return found ? found.price : 0
+  }
+
   // Calculs Financiers SaaS Réactifs
-  const mrr = firms.reduce((sum, f) => sum + (planPrices[f.plan] ?? 0), 0)
+  const mrr = firms.reduce((sum, f) => sum + getPlanPrice(f.plan), 0)
   const arr = mrr * 12
-  const paidFirms = firms.filter(f => f.plan === "solo" || f.plan === "cabinet")
+  const paidFirms = firms.filter((f) => getPlanPrice(f.plan) > 0)
   const arpu = paidFirms.length > 0 ? mrr / paidFirms.length : 0
 
-  const trialFirms = firms.filter(f => f.plan === "trial")
+  const trialFirms = firms.filter((f) => f.plan === "trial")
   const conversionRate = firms.length > 0 ? Math.round((paidFirms.length / firms.length) * 100) : 0
 
   // Offres & Génération de liens Stripe
   const handleGenerateStripeLink = () => {
-    const baseUrl = selectedPlan === "cabinet" 
-      ? "https://buy.stripe.com/test_moncabinetcric_cabinet" 
-      : "https://buy.stripe.com/test_moncabinetcric_solo"
+    const activePlan = plans.find((p) => p.key === selectedPlanKey) || plans[0]
+    const baseUrl = `https://buy.stripe.com/test_moncabinetcric_${activePlan.key}`
     const finalUrl = `${baseUrl}?prefilled_promo_code=${selectedCouponCode}`
     
     navigator.clipboard.writeText(finalUrl)
     setCopiedLink(finalUrl)
-    setNotice(`💳 Lien Stripe avec coupon ${selectedCouponCode} copié dans le presse-papier !`)
+    setNotice(`💳 Lien Stripe (${activePlan.name} - ${activePlan.price} $ CAD) avec coupon ${selectedCouponCode} copié !`)
+    setTimeout(() => setNotice(null), 5000)
+  }
+
+  // Ajout de nouveau forfait
+  const handleAddPlan = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPlanName.trim()) return
+
+    const key = newPlanName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_")
+    const newPlan: PlanItem = {
+      id: `plan-${Date.now()}`,
+      key,
+      name: newPlanName.trim(),
+      price: Number(newPlanPrice) || 0,
+      isSystem: false,
+    }
+
+    setPlans((prev) => [...prev, newPlan])
+    setSelectedPlanKey(key)
+    setNewPlanName("")
+    setNewPlanPrice(99)
+    setShowAddPlanForm(false)
+    setNotice(`✨ NOUVEAU FORFAIT "${newPlan.name}" (${newPlan.price} $ CAD/mo) CRÉÉ ET AJOUTÉ !`)
+    setTimeout(() => setNotice(null), 5000)
+  }
+
+  // Modification du prix d'un forfait
+  const handleUpdatePrice = (id: string, newPrice: number) => {
+    setPlans((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, price: Math.max(0, newPrice) } : p))
+    )
+  }
+
+  // Modification du nom d'un forfait
+  const handleUpdateName = (id: string, newName: string) => {
+    setPlans((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, name: newName } : p))
+    )
+  }
+
+  // Suppression d'un forfait
+  const handleDeletePlan = (id: string, name: string) => {
+    if (plans.length <= 1) {
+      alert("Il faut au moins garder un forfait actif.")
+      return
+    }
+    setPlans((prev) => prev.filter((p) => p.id !== id))
+    setNotice(`🗑️ Forfait "${name}" supprimé.`)
     setTimeout(() => setNotice(null), 5000)
   }
 
@@ -116,16 +183,20 @@ export function FinancialHub({ firms }: FinancialHubProps) {
 
   return (
     <div className="space-y-6">
-      {/* En-tête avec bouton d'ajustement des forfaits */}
+      {/* En-tête avec bouton de gestion dynamique des forfaits */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/40 p-4 rounded-2xl border border-border">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold">
             <DollarSign className="w-5 h-5 text-emerald-400" />
           </div>
           <div>
-            <span className="text-xs font-black text-foreground">Tarifs des Forfaits SaaS Actifs</span>
-            <p className="text-[11px] text-muted-foreground">
-              Solo : <strong className="text-foreground">{planPrices.solo} $ CAD/mo</strong> | Cabinet Pro : <strong className="text-foreground">{planPrices.cabinet} $ CAD/mo</strong>
+            <span className="text-xs font-black text-foreground">Gestion des Tarifs & Forfaits SaaS ({plans.length})</span>
+            <p className="text-[11px] text-muted-foreground flex flex-wrap gap-2 mt-0.5">
+              {plans.map((p) => (
+                <span key={p.id} className="bg-background px-2 py-0.5 rounded border border-border font-mono text-[10px]">
+                  <strong>{p.name}</strong> : {p.price} $ CAD/mo
+                </span>
+              ))}
             </p>
           </div>
         </div>
@@ -136,7 +207,7 @@ export function FinancialHub({ firms }: FinancialHubProps) {
           className="px-3.5 py-1.5 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
         >
           <Settings className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Modifier les Tarifs</span>
+          <span>Gérer / Modifier / Ajouter les Forfaits</span>
         </button>
       </div>
 
@@ -155,7 +226,7 @@ export function FinancialHub({ firms }: FinancialHubProps) {
           </p>
           <div className="mt-2 flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>Basé sur {planPrices.solo}$ (Solo) & {planPrices.cabinet}$ (Cabinet Pro)</span>
+            <span>Basé sur {plans.length} forfait(s) configuré(s)</span>
           </div>
         </div>
 
@@ -278,12 +349,15 @@ export function FinancialHub({ firms }: FinancialHubProps) {
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">Forfait Cible</label>
             <select
-              value={selectedPlan}
-              onChange={(e) => setSelectedPlan(e.target.value)}
+              value={selectedPlanKey}
+              onChange={(e) => setSelectedPlanKey(e.target.value)}
               className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600"
             >
-              <option value="solo">Forfait Solo ({planPrices.solo} $ CAD / mo)</option>
-              <option value="cabinet">Forfait Cabinet Pro ({planPrices.cabinet} $ CAD / mo)</option>
+              {plans.map((p) => (
+                <option key={p.id} value={p.key}>
+                  {p.name} ({p.price} $ CAD / mo)
+                </option>
+              ))}
             </select>
           </div>
 
@@ -352,7 +426,7 @@ export function FinancialHub({ firms }: FinancialHubProps) {
 
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <a
-                    href={`mailto:${f.email}?subject=Suite à votre période d'essai sur MonCabinetCRIC&body=Bonjour ${f.ownerName},%0D%0A%0D%0ANous espérons que votre essai de MonCabinetCRIC se passe au mieux.%0D%0A%0D%0APour poursuivre l'utilisation sans interruption, vous pouvez activer votre abonnement (Solo ${planPrices.solo}$/mo ou Cabinet Pro ${planPrices.cabinet}$/mo) via le lien sécurisé Stripe ci-dessous :%0D%0Ahttps://buy.stripe.com/test_moncabinetcric_solo?prefilled_promo_code=${selectedCouponCode}%0D%0A%0D%0AUn code de réduction y est pré-appliqué.%0D%0A%0D%0ACordialement,%0D%0AL'Équipe MonCabinetCRIC`}
+                    href={`mailto:${f.email}?subject=Suite à votre période d'essai sur MonCabinetCRIC&body=Bonjour ${f.ownerName},%0D%0A%0D%0ANous espérons que votre essai de MonCabinetCRIC se passe au mieux.%0D%0A%0D%0APour poursuivre l'utilisation sans interruption, vous pouvez activer votre abonnement via le lien sécurisé Stripe ci-dessous :%0D%0Ahttps://buy.stripe.com/test_moncabinetcric_solo?prefilled_promo_code=${selectedCouponCode}%0D%0A%0D%0AUn code de réduction y est pré-appliqué.%0D%0A%0D%0ACordialement,%0D%0AL'Équipe MonCabinetCRIC`}
                     className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-colors flex items-center justify-center gap-1.5"
                   >
                     <Mail className="w-3.5 h-3.5 text-muted-foreground" />
@@ -379,69 +453,130 @@ export function FinancialHub({ firms }: FinancialHubProps) {
         )}
       </div>
 
-      {/* MODAL MODIFICATION TARIFS DES FORFAITS */}
+      {/* MODAL GESTION DYNAMIQUE DES FORFAITS (MODIFIER, AJOUTER, SUPPRIMER) */}
       {showEditPricesModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setShowEditPricesModal(false)}>
-          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl p-6 flex flex-col gap-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white w-full max-w-xl rounded-3xl border border-slate-200 shadow-2xl p-6 flex flex-col gap-4 overflow-hidden max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-indigo-900 text-white flex items-center justify-center font-bold">
-                  <Settings className="w-4 h-4 text-indigo-300" />
+                  <Package className="w-4 h-4 text-indigo-300" />
                 </div>
-                <h3 className="text-base font-black text-slate-900">Modifier les Prix des Forfaits</h3>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Gestion des Tarifs & Forfaits SaaS</h3>
+                  <p className="text-xs text-slate-500">Modifiez le nom et le prix des forfaits existants, ou ajoutez/supprimez de nouvelles formules.</p>
+                </div>
               </div>
               <button type="button" onClick={() => setShowEditPricesModal(false)} className="w-8 h-8 rounded-full bg-slate-100 font-bold flex items-center justify-center cursor-pointer">✕</button>
             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                setShowEditPricesModal(false)
-                setNotice(`⚙️ Tarifs mis à jour : Solo (${planPrices.solo} $ CAD/mo), Cabinet Pro (${planPrices.cabinet} $ CAD/mo).`)
-                setTimeout(() => setNotice(null), 5000)
-              }}
-              className="space-y-4 text-xs"
-            >
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Prix Forfait Solo ($ CAD / mois)</label>
-                <input
-                  type="number"
-                  required
-                  min={1}
-                  value={planPrices.solo}
-                  onChange={(e) => setPlanPrices((prev) => ({ ...prev, solo: Number(e.target.value) }))}
-                  className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
+            <div className="overflow-y-auto space-y-4 pr-1 text-xs">
+              {/* Liste des forfaits configurés */}
+              <div className="space-y-3">
+                <label className="block text-slate-500 font-bold text-[10px] uppercase">Forfaits Actuels ({plans.length})</label>
+                {plans.map((p) => (
+                  <div key={p.id} className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50 flex items-center gap-3">
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Nom du Forfait</label>
+                        <input
+                          type="text"
+                          value={p.name}
+                          onChange={(e) => handleUpdateName(p.id, e.target.value)}
+                          className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Prix ($ CAD / mois)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={p.price}
+                          onChange={(e) => handleUpdatePrice(p.id, Number(e.target.value))}
+                          className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePlan(p.id, p.name)}
+                      title="Supprimer ce forfait"
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer shrink-0 mt-3"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Prix Forfait Cabinet Pro ($ CAD / mois)</label>
-                <input
-                  type="number"
-                  required
-                  min={1}
-                  value={planPrices.cabinet}
-                  onChange={(e) => setPlanPrices((prev) => ({ ...prev, cabinet: Number(e.target.value) }))}
-                  className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                />
-              </div>
+              {/* Formulaire d'ajout de nouveau forfait */}
+              {showAddPlanForm ? (
+                <form onSubmit={handleAddPlan} className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <strong className="text-xs font-bold text-indigo-950">➕ Créer un Nouveau Forfait SaaS</strong>
+                    <button type="button" onClick={() => setShowAddPlanForm(false)} className="text-[11px] text-slate-500 hover:text-slate-800 font-bold">Annuler</button>
+                  </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">Nom du Forfait (ex: Enterprise)</label>
+                      <input
+                        type="text"
+                        required
+                        value={newPlanName}
+                        onChange={(e) => setNewPlanName(e.target.value)}
+                        placeholder="ex: Forfait Réseau Multi-Cabinets"
+                        className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">Prix Mensuel ($ CAD / mo)</label>
+                      <input
+                        type="number"
+                        required
+                        min={0}
+                        value={newPlanPrice}
+                        onChange={(e) => setNewPlanPrice(Number(e.target.value))}
+                        className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2 bg-indigo-900 hover:bg-indigo-950 text-white font-bold rounded-xl text-xs transition-all cursor-pointer"
+                  >
+                    Ajouter ce Forfait
+                  </button>
+                </form>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => setShowEditPricesModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  onClick={() => setShowAddPlanForm(true)}
+                  className="w-full py-2.5 rounded-2xl border border-dashed border-indigo-300 bg-indigo-50/50 hover:bg-indigo-100 text-indigo-900 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
-                  Annuler
+                  <Plus className="w-4 h-4 text-indigo-600" />
+                  <span>Ajouter une nouvelle formule / Forfait personnalisé</span>
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold transition-all cursor-pointer"
-                >
-                  Enregistrer les Tarifs
-                </button>
-              </div>
-            </form>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditPricesModal(false)
+                  setNotice("⚙️ Configuration des forfaits enregistrée avec succès.")
+                  setTimeout(() => setNotice(null), 5000)
+                }}
+                className="px-6 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs transition-all cursor-pointer shadow-md"
+              >
+                Fermer et Appliquer
+              </button>
+            </div>
           </div>
         </div>
       )}
