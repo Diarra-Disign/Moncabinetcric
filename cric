@@ -37,7 +37,7 @@ case "$commande" in
   permissions)  exec node scripts/verify-permissions.mjs "$@" ;;
   sieges)       exec node scripts/verify-seats.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types scripts/verify-billing.mjs "$@" ;;
-  facturation)  exec node scripts/verify-billing.mjs "$@" ;;
+  portail)      exec node scripts/portail-stripe.mjs "$@" ;;
   migration)    exec node scripts/apply-migration.mjs "$@" ;;
   provisionner) exec node scripts/provision-project.mjs "$@" ;;
   motdepasse)   exec node scripts/set-password.mjs "$@" ;;
@@ -62,6 +62,12 @@ Usage : ./cric <commande> [options]
   facturation  Éprouver le verrou de facturation : l'accès suit-il
                réellement l'état de l'abonnement ?
                  ./cric facturation
+
+  portail      Configuration du portail client Stripe : moyen de paiement,
+               factures, résiliation. Sans elle, le bouton « Gérer » échoue.
+               Sans --appliquer, montre ce qu'il ferait sans rien écrire.
+                 ./cric portail --site=https://moncabinetcric.com
+                 ./cric portail --site=https://moncabinetcric.com --appliquer
 
   admin        Administrateurs de la plateforme
                  ./cric admin
