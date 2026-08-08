@@ -36,6 +36,7 @@ import { useFirm } from "@/components/app-shell/firm-provider"
 import { ClientRecord, Matter } from "@/lib/data/types"
 import { matchesPerson } from "@/lib/utils/search"
 import { createClient } from "@/lib/data/actions"
+import { ouvrirAccesPortail } from "@/lib/data/portal-access"
 
 export type { ClientRecord }
 
@@ -68,20 +69,35 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const firm = useFirm()
 
   /**
-   * Mot de passe temporaire proposé pour l'accès au portail d'un client.
+   * Mot de passe temporaire du client, tel que le serveur vient de le poser.
    *
-   * Engendré à l'ouverture du panneau, et non à l'initialisation du
-   * composant : une valeur tirée au hasard au premier rendu différerait
-   * entre le serveur et le navigateur, et deux clients d'affilée
-   * partageraient le même mot de passe — celui du premier resterait
-   * affiché pour le second.
+   * Vide tant que l'accès n'a pas été ouvert. Ce n'est plus une chaîne
+   * fabriquée dans le navigateur pour l'affichage : c'est le secret réellement
+   * enregistré sur le compte, rendu une seule fois et jamais relisible.
    */
   const [tempPassword, setTempPassword] = React.useState("")
+  const [portalError, setPortalError] = React.useState<string | null>(null)
+  const [openingPortal, setOpeningPortal] = React.useState(false)
 
+  // Un mot de passe appartient au client pour lequel il a été engendré.
+  // Le laisser à l'écran en changeant de fiche ferait transmettre celui du
+  // précédent, sans que rien ne le signale.
   React.useEffect(() => {
-    if (!selectedPortalClient) return
-    setTempPassword(`CRIC-Temp-${Math.random().toString(36).substring(2, 6).toUpperCase()}`)
+    setTempPassword("")
+    setPortalError(null)
   }, [selectedPortalClient])
+
+  const handleOuvrirAcces = async () => {
+    if (!selectedPortalClient) return
+    setOpeningPortal(true)
+    setPortalError(null)
+    const fd = new FormData()
+    fd.set("clientId", selectedPortalClient.id)
+    const r = await ouvrirAccesPortail(fd)
+    setOpeningPortal(false)
+    if (r.ok && r.motDePasse) setTempPassword(r.motDePasse)
+    else setPortalError(r.message)
+  }
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
@@ -770,31 +786,54 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                 </p>
               </div>
 
-              {/* Bloc Mot de Passe Temporaire Émis */}
+              {/* Bloc Mot de Passe Temporaire — posé par le serveur */}
               <div className="p-4 rounded-2xl bg-slate-900 text-white flex flex-col gap-2.5 shadow-md">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-indigo-300">Mot de Passe Temporaire Émis (1ère Connexion)</span>
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-indigo-300">
+                    {tempPassword ? "Mot de Passe Temporaire Émis (1ère Connexion)" : "Aucun accès ouvert pour l'instant"}
+                  </span>
                   <button
                     type="button"
-                    onClick={() => {
-                      const newPass = `CRIC-Temp-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-                      setTempPassword(newPass)
-                    }}
-                    className="text-[10px] text-indigo-300 hover:text-white font-mono underline cursor-pointer"
+                    onClick={handleOuvrirAcces}
+                    disabled={openingPortal}
+                    className="text-[10px] text-indigo-300 hover:text-white font-mono underline cursor-pointer disabled:opacity-50 disabled:cursor-wait"
                   >
-                    🔄 Re-générer
+                    {openingPortal ? "…" : tempPassword ? "🔄 Re-générer" : "🔑 Ouvrir l'accès"}
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-sm">
-                  <span className="text-emerald-400 font-black tracking-widest">{tempPassword}</span>
-                  <span className="text-[10px] text-amber-400 font-bold bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded font-sans">
-                    Changement obligatoire
-                  </span>
-                </div>
+                {/* Le mot de passe n'apparaît qu'une fois le compte réellement
+                    créé. Auparavant, cette zone affichait d'emblée une chaîne
+                    engendrée dans le navigateur : rien ne distinguait un accès
+                    ouvert d'un accès qui n'existait pas. */}
+                {tempPassword ? (
+                  <>
+                    <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-sm">
+                      <span className="text-emerald-400 font-black tracking-widest select-all">{tempPassword}</span>
+                      <span className="text-[10px] text-amber-400 font-bold bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded font-sans">
+                        Changement obligatoire
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-300/90 font-sans leading-relaxed">
+                      Copiez-le maintenant : il n&apos;est conservé nulle part et ne sera plus affiché.
+                      Le client devra le remplacer à sa première connexion.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-slate-400 font-sans leading-relaxed">
+                    Le compte du client sera créé et son mot de passe posé sur le serveur.
+                    Re-générer remplace le mot de passe existant : l&apos;ancien cesse aussitôt de fonctionner.
+                  </p>
+                )}
+
+                {portalError && (
+                  <p role="alert" className="text-[11px] font-sans font-bold text-red-300 bg-red-500/15 border border-red-500/30 rounded-lg px-2.5 py-2">
+                    {portalError}
+                  </p>
+                )}
 
                 <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800 font-mono">
-                  <span>Identifiant : <strong>{selectedPortalClient.email || "client@moncabinetcric.ca"}</strong></span>
+                  <span>Identifiant : <strong>{selectedPortalClient.email || "— aucune adresse au dossier"}</strong></span>
                 </div>
               </div>
 
@@ -807,8 +846,12 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                     value={`${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
                     className="flex-1 p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-xs text-indigo-900 font-bold select-all focus:outline-none"
                   />
+                  {/* Sans mot de passe, il n'y a rien à copier : le bouton
+                      annonçait « accès copié » alors que le presse-papiers ne
+                      contenait qu'un lien et une ligne vide. */}
                   <button
                     type="button"
+                    disabled={!tempPassword}
                     onClick={() => {
                       const portalUrl = `${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`
                       const fullText = `PORTAIL CLIENT CRIC — ACCÈS DU CANDIDAT\nLien : ${portalUrl}\nCourriel : ${selectedPortalClient.email}\nMot de passe temporaire : ${tempPassword}\n\nNote: Changement de mot de passe obligatoire dès la 1ère connexion.`
@@ -817,7 +860,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                       setSelectedPortalClient(null)
                       setTimeout(() => setActionNotice(null), 5000)
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs transition-all shrink-0 cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs transition-all shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Copier Tout
                   </button>
@@ -835,13 +878,23 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                   <span>Tester le Portail (Aperçu)</span>
                 </a>
 
-                <a
-                  href={`mailto:${selectedPortalClient.email}?subject=Accès à votre Portail Client CRIC — ${selectedPortalClient.fileNumber}&body=Bonjour ${selectedPortalClient.name},%0D%0A%0D%0AVoici vos accès sécurisés à votre Portail Client CRIC :%0D%0A%0D%0ALien d'accès : ${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal%0D%0AIdentifiant courriel : ${selectedPortalClient.email}%0D%0AMot de passe temporaire : ${tempPassword}%0D%0A%0D%0ANOTE : Lors de votre première connexion, vous devrez obligatoirement définir votre nouveau mot de passe personnel.%0D%0A%0D%0ACordialement,%0D%0A${firm.name}`}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-center text-xs transition-all flex items-center justify-center gap-2"
-                >
-                  <Mail className="w-4 h-4 text-slate-300" />
-                  <span>Envoyer par courriel</span>
-                </a>
+                {/* Un lien mailto sans mot de passe expédierait au client un
+                    courriel annonçant un accès, avec le champ vide. Tant que
+                    l'accès n'est pas ouvert, ce n'est pas un lien. */}
+                {tempPassword ? (
+                  <a
+                    href={`mailto:${selectedPortalClient.email}?subject=Accès à votre Portail Client CRIC — ${selectedPortalClient.fileNumber}&body=Bonjour ${selectedPortalClient.name},%0D%0A%0D%0AVoici vos accès sécurisés à votre Portail Client CRIC :%0D%0A%0D%0ALien d'accès : ${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal%0D%0AIdentifiant courriel : ${selectedPortalClient.email}%0D%0AMot de passe temporaire : ${tempPassword}%0D%0A%0D%0ANOTE : Lors de votre première connexion, vous devrez obligatoirement définir votre nouveau mot de passe personnel.%0D%0A%0D%0ACordialement,%0D%0A${firm.name}`}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-center text-xs transition-all flex items-center justify-center gap-2"
+                  >
+                    <Mail className="w-4 h-4 text-slate-300" />
+                    <span>Envoyer par courriel</span>
+                  </a>
+                ) : (
+                  <span className="flex-1 px-4 py-2.5 rounded-xl bg-slate-200 text-slate-500 font-bold text-center text-xs flex items-center justify-center gap-2 cursor-not-allowed">
+                    <Mail className="w-4 h-4 text-slate-400" />
+                    <span>Ouvrez l&apos;accès d&apos;abord</span>
+                  </span>
+                )}
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import { ShieldCheck, Mail, KeyRound, AlertTriangle, CheckCircle2 } from "lucide-react"
 import { getBrowserSupabase } from "@/lib/supabase/browser"
+import { leverChangementObligatoire } from "@/lib/data/portal-access"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -81,16 +82,21 @@ export function SignInForm() {
     setPending(true)
     setError(null)
     try {
-      // Détection de mot de passe temporaire émis par le consultant
-      const isTempPassword = password.trim().startsWith("CRIC-Temp-") || password.trim().includes("Temp")
-      if (isTempPassword) {
-        setRequirePasswordChange(true)
-        setPending(false)
-        return
-      }
-
+      // L'authentification a lieu D'ABORD, sans exception.
+      //
+      // Le code précédent devinait le caractère temporaire du mot de passe à
+      // sa forme — il suffisait qu'il contienne « Temp » — et présentait
+      // l'écran de changement SANS avoir authentifié qui que ce soit. Deux
+      // conséquences : n'importe qui tapant « Temp » y accédait, et un usager
+      // dont le vrai mot de passe contenait ces quatre lettres ne pouvait
+      // plus se connecter du tout.
+      //
+      // L'obligation de changer est désormais un fait, pas une devinette :
+      // elle est portée par app_metadata.must_change_password, posée par le
+      // serveur au moment où le cabinet ouvre l'accès, et hors de portée du
+      // compte lui-même.
       const supabase = getBrowserSupabase()
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       })
@@ -98,6 +104,12 @@ export function SignInForm() {
         setError(t("invalidCredentials"))
         return
       }
+
+      if (data.user?.app_metadata?.must_change_password) {
+        setRequirePasswordChange(true)
+        return
+      }
+
       await goNext()
     } catch {
       setError(t("genericError"))
@@ -121,19 +133,33 @@ export function SignInForm() {
 
     setPending(true)
     try {
-      // Enregistrement du mot de passe personnalisé du client
+      // La session existe : on vient de s'authentifier avec le mot de passe
+      // temporaire. updateUser() a donc de quoi travailler — ce qui n'était
+      // pas le cas auparavant, où l'on arrivait ici sans jamais s'être
+      // connecté et où l'échec était rattrapé par un « catch » qui redirigeait
+      // quand même, en annonçant un succès.
       const supabase = getBrowserSupabase()
-      await supabase.auth.updateUser({ password: newPassword })
+      const { error: erreurMaj } = await supabase.auth.updateUser({ password: newPassword })
+      if (erreurMaj) {
+        setError(erreurMaj.message)
+        return
+      }
+
+      // Le drapeau ne se lève qu'une fois le nouveau mot de passe accepté.
+      // Il vit dans app_metadata : seule la clé de service peut l'effacer,
+      // donc seule une action de serveur.
+      const r = await leverChangementObligatoire()
+      if (!r.ok) {
+        setError(r.message)
+        return
+      }
+
       setPasswordChangedNotice(true)
       setTimeout(() => {
         window.location.assign(nextPath ?? "/fr/portal")
       }, 1500)
     } catch {
-      // Fallback
-      setPasswordChangedNotice(true)
-      setTimeout(() => {
-        window.location.assign(nextPath ?? "/fr/portal")
-      }, 1500)
+      setError(t("genericError"))
     } finally {
       setPending(false)
     }
