@@ -23,17 +23,6 @@ function initiales(nom: string): string {
  * limitant chaque client à sa seule fiche — mais l'application ne s'en
  * servait pas.
  */
-const DEMO_PORTAL_CLIENT = {
-  userId: "client-demo-user",
-  clientId: "c-001",
-  firmId: "firm-demo",
-  email: "client.demo@moncabinetcric.ca",
-  name: "Mme Marie Tremblay",
-  fileNumber: "CRIC-2026-0101",
-  program: "Résidence Permanente (PEQ / Entrée Express)",
-  firmName: "Cabinet Immigration Boréale Inc."
-}
-
 export default async function PortalLayout({
   children,
 }: {
@@ -42,7 +31,13 @@ export default async function PortalLayout({
   const realClient = await getCurrentPortalClient()
   const membre = await getCurrentMember()
   const isPreview = !realClient
-  const client = realClient || DEMO_PORTAL_CLIENT
+
+  // En aperçu, l'en-tête porte le VRAI cabinet du membre connecté. Il
+  // affichait « Cabinet Immigration Boréale Inc. » et les initiales « MT »
+  // d'une cliente inventée — un consultant venu vérifier l'allure de son
+  // portail y voyait la marque de quelqu'un d'autre.
+  const nomCabinet = realClient?.firmName ?? membre?.firmName ?? ""
+  const nomAffiche = realClient?.name ?? membre?.fullName ?? ""
 
   const t = await getTranslations("Auth")
 
@@ -64,9 +59,9 @@ export default async function PortalLayout({
       <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2 text-xl font-bold tracking-tight text-primary">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            {client.firmName.trim().charAt(0).toUpperCase() || "P"}
+            {nomCabinet.trim().charAt(0).toUpperCase() || "P"}
           </div>
-          <span className="truncate">{client.firmName}</span>
+          <span className="truncate">{nomCabinet}</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -74,10 +69,10 @@ export default async function PortalLayout({
           <Bell aria-hidden className="h-5 w-5 text-muted-foreground" />
 
           <div
-            title={`${t("signedInAs")} ${client.email}`}
+            title={`${t("signedInAs")} ${realClient?.email ?? membre?.email ?? ""}`}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground"
           >
-            {initiales(client.name)}
+            {initiales(nomAffiche)}
           </div>
 
           <form action="/api/auth/sign-out" method="post">

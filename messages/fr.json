@@ -372,7 +372,7 @@
   "Portal": {
     "title": "Bienvenue, Client !",
     "subtitle": "Voici l'état de votre dossier d'immigration.",
-    "stepTitle": "Entrée Express - Étape 2/4",
+    "stepTitle": "Vos dossiers",
     "stepDesc": "Votre dossier est en bonne voie. Nous avons besoin de quelques documents supplémentaires pour finaliser la préparation de votre demande.",
     "eval": "Évaluation",
     "collect": "Collecte Docs",
@@ -399,7 +399,9 @@
     "uploadDisabled": "Le dépôt de fichiers n'est pas encore en service. Transmettez vos pièces à votre consultant par les moyens convenus avec lui.",
     "signaturePendingOne": "Votre consultant attend votre signature sur un document.",
     "signaturePendingMany": "Votre consultant attend votre signature sur {count} documents.",
-    "signaturePendingCta": "Voir les documents à signer"
+    "signaturePendingCta": "Voir les documents à signer",
+    "previewTitle": "Aperçu du portail client",
+    "previewBody": "Voici ce que verra votre client une fois son accès ouvert. Son nom, son numéro de dossier et ses pièces apparaîtront ici — cet aperçu n'en invente aucun."
   },
   "MatterDetail": {
     "headerTitle": "Dossier d'immigration CICC",

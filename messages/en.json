@@ -372,7 +372,7 @@
   "Portal": {
     "title": "Welcome, Client!",
     "subtitle": "Here is the status of your immigration matter.",
-    "stepTitle": "Express Entry - Step 2/4",
+    "stepTitle": "Your files",
     "stepDesc": "Your application is progressing well. We need a few more documents to finalize your submission.",
     "eval": "Assessment",
     "collect": "Doc Collection",
@@ -399,7 +399,9 @@
     "uploadDisabled": "File upload is not yet in service. Send your documents to your consultant by the means agreed with them.",
     "signaturePendingOne": "Your consultant is waiting for your signature on one document.",
     "signaturePendingMany": "Your consultant is waiting for your signature on {count} documents.",
-    "signaturePendingCta": "See documents to sign"
+    "signaturePendingCta": "See documents to sign",
+    "previewTitle": "Client portal preview",
+    "previewBody": "This is what your client will see once their access is open. Their name, file number and documents will appear here — this preview invents none of them."
   },
   "MatterDetail": {
     "headerTitle": "CICC Immigration Matter",

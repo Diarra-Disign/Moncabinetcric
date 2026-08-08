@@ -84,9 +84,20 @@ export function BillingClient({
   const soldeInitialTrust = 0
   const soldeClotureTrust = soldeInitialTrust + totalDepotsTrust - totalSortiesTrust
 
-  const displayFirmName = firm.name && !firm.name.toLowerCase().includes("barack") ? firm.name : "Cabinet Immigration Boréale Inc."
-  const displayRcicName = firm.rcicName && !firm.rcicName.toLowerCase().includes("barack") ? firm.rcicName : "Adama Diarra, RCIC"
-  const displayRcicNumber = firm.rcicNumber && !firm.rcicNumber.includes("2233456") ? firm.rcicNumber : "R-514982"
+  // Identité portée sur les factures et le rapport de fidéicommis.
+  //
+  // Ces trois lignes substituaient « Cabinet Immigration Boréale Inc. »,
+  // « Adama Diarra, RCIC » et le permis « R-514982 » dès que le cabinet
+  // connecté ressemblait au compte d'essai. Le numéro de permis n'a jamais
+  // été délivré : il figurait donc, inventé, sur des documents remis à des
+  // clients — la mention même par laquelle un consultant réglementé engage
+  // sa responsabilité.
+  //
+  // Un champ vide se voit et se corrige dans les réglages du cabinet. Un
+  // numéro plausible ne se voit pas, et personne ne le corrige.
+  const displayFirmName = firm.name
+  const displayRcicName = firm.rcicName
+  const displayRcicNumber = firm.rcicNumber
 
   // Form State pour émettre une nouvelle facture
   const [newClient, setNewClient] = React.useState("")

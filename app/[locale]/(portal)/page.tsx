@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText, Info, PenLine } from "lucide-react"
-import { getCurrentPortalClient, getSessionSupabase } from "@/lib/supabase/session"
+import { getCurrentMember, getCurrentPortalClient, getSessionSupabase } from "@/lib/supabase/session"
 import { VirtualMeetingCard } from "./virtual-meeting-card"
 import { ActionsFichier } from "@/components/documents/file-actions"
 import { SignatureBloc } from "@/components/documents/signature-bloc"
@@ -18,17 +18,6 @@ import { tableauSignatures } from "@/lib/data/signatures"
  * Elle affichait auparavant un avancement figé à 50 %, un questionnaire
  * pré-rempli et un téléverseur qui ne déposait rien.
  */
-const DEMO_PORTAL_CLIENT = {
-  userId: "client-demo-user",
-  clientId: "c-001",
-  firmId: "firm-demo",
-  email: "client.demo@moncabinetcric.ca",
-  name: "Mme Marie Tremblay",
-  fileNumber: "CRIC-2026-0101",
-  program: "Résidence Permanente (PEQ / Entrée Express)",
-  firmName: "Cabinet Immigration Boréale Inc."
-}
-
 export default async function PortalPage({
   params,
 }: {
@@ -38,14 +27,22 @@ export default async function PortalPage({
   setRequestLocale(locale)
 
   const t = await getTranslations("Portal")
+
+  // Deux publics atteignent cet écran : le client, et le membre du cabinet
+  // venu voir à quoi ressemble le portail de ses clients. Le second est en
+  // aperçu — et un aperçu n'invente rien. Il montrait « Mme Marie Tremblay »,
+  // dossier « CRIC-2026-0101 », du « Cabinet Immigration Boréale Inc. » :
+  // une cliente, un dossier et un cabinet qui n'existent pas.
   const realClient = await getCurrentPortalClient()
-  const client = realClient || DEMO_PORTAL_CLIENT
+  const membre = realClient ? null : await getCurrentMember()
+  const apercu = !realClient
+  const firmId = realClient?.firmId ?? membre?.firmId ?? ""
 
   let dossiers: Record<string, unknown>[] = []
   let pieces: Record<string, unknown>[] = []
-  let cabinet: Record<string, unknown> = { owner_name: "Adama Diarra, RCIC", rcic_license_number: "R-514982" }
+  let cabinet: Record<string, unknown> = {}
 
-  try {
+  if (firmId) {
     const supabase = await getSessionSupabase()
     const [mattersRes, docsRes, firmRes] = await Promise.all([
       supabase
@@ -53,27 +50,29 @@ export default async function PortalPage({
         .select("id, reference, program, status, opened_date, deadline")
         .order("opened_date", { ascending: false }),
       supabase.from("documents").select("id, name, category, date, status, storage_path, sha256"),
-      supabase.from("firms").select("owner_name, rcic_license_number").maybeSingle(),
+      // Le filtre sur l'identifiant est indispensable, et son absence était la
+      // cause première de ce qui s'affichait. Sans lui, la requête renvoie
+      // DEUX lignes — le cabinet du lecteur et celui de l'exploitant, que
+      // firms_public_operator ouvre à tous pour les pages légales.
+      // maybeSingle() refuse alors de choisir, la lecture échoue, et
+      // l'identité retombait sur un repli inventé : « Adama Diarra, RCIC »
+      // portant un permis « R-514982 » qui n'a jamais été délivré. Chaque
+      // vrai client du portail voyait donc un faux numéro de permis — la
+      // mention même qui engage la responsabilité déontologique.
+      supabase
+        .from("firms")
+        .select("name, owner_name, rcic_license_number")
+        .eq("id", firmId)
+        .maybeSingle(),
     ])
-    if (mattersRes.data && mattersRes.data.length > 0) dossiers = mattersRes.data
-    if (docsRes.data && docsRes.data.length > 0) pieces = docsRes.data
-    if (firmRes.data) cabinet = firmRes.data
-  } catch {
-    // Mode démo / aperçu consultant
+    dossiers = mattersRes.data ?? []
+    pieces = docsRes.data ?? []
+    cabinet = firmRes.data ?? {}
   }
 
-  if (dossiers.length === 0) {
-    dossiers = [
-      { id: "DOS-35695", reference: "DOS-35695", program: "Résidence Permanente (PEQ)", status: "en_cours", opened_date: "2026-01-15", deadline: "2026-12-31" }
-    ]
-  }
-
-  if (pieces.length === 0) {
-    pieces = [
-      { id: "doc-01", name: "Passeport_Principal_Client.pdf", category: "client_upload", date: "2026-07-28", status: "valid" },
-      { id: "doc-02", name: "Attestation_Test_Langue_TEF_C1.pdf", category: "client_upload", date: "2026-07-29", status: "valid" }
-    ]
-  }
+  // Aucun repli fabriqué : quand il n'y a rien, les états vides le disent.
+  // Un passeport et une attestation de test de langue inventés laissaient
+  // croire à un client que ses pièces étaient déjà au dossier.
 
   // Aucune notification n'existe : sans ce bandeau, le client n'a aucun
   // moyen d'apprendre qu'on attend sa signature.
@@ -100,18 +99,27 @@ export default async function PortalPage({
   return (
     <div className="space-y-8">
       <header>
+        {/* En aperçu, l'écran dit ce qu'il est plutôt que de saluer une
+            cliente imaginaire. Le membre du cabinet sait alors que ces
+            champs se rempliront du nom de son client, et non que le portail
+            en aurait déjà un. */}
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          {t("welcome", { name: client.name })}
+          {apercu ? t("previewTitle") : t("welcome", { name: realClient!.name })}
         </h1>
-        <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <span>
-            {t("fileLabel")} <strong className="font-mono text-foreground">{client.fileNumber}</strong>
-          </span>
-          <span>
-            {t("programLabel")}{" "}
-            <strong className="text-foreground">{client.program || t("noProgram")}</strong>
-          </span>
-        </p>
+        {apercu ? (
+          <p className="mt-2 max-w-prose text-sm text-muted-foreground">{t("previewBody")}</p>
+        ) : (
+          <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span>
+              {t("fileLabel")}{" "}
+              <strong className="font-mono text-foreground">{realClient!.fileNumber}</strong>
+            </span>
+            <span>
+              {t("programLabel")}{" "}
+              <strong className="text-foreground">{realClient!.program || t("noProgram")}</strong>
+            </span>
+          </p>
+        )}
       </header>
 
       {aSigner > 0 && (
@@ -192,7 +200,7 @@ export default async function PortalPage({
                 <div className="mt-2 pl-7">
                   <ActionsFichier
                     documentId={p.id as string}
-                    clientId={client.clientId}
+                    clientId={realClient?.clientId ?? ""}
                     storagePath={(p.storage_path as string) ?? null}
                     sha256={(p.sha256 as string) ?? null}
                     peutVerifier={false}
@@ -202,7 +210,7 @@ export default async function PortalPage({
                     <SignatureBloc
                       documentId={p.id as string}
                       documentName={p.name as string}
-                      signataire={client.name}
+                      signataire={realClient?.name ?? ""}
                     />
                   </div>
                 </div>
