@@ -434,13 +434,26 @@ function CartePlan({
       </ul>
 
       <button
-        type="submit"
-        disabled={enCours || desactive || actuel}
+        type={desactive ? "button" : "submit"}
+        disabled={enCours || actuel}
+        onClick={
+          desactive
+            ? () => {
+                const targetUrl =
+                  plan.key === "cabinet" || plan.key === "business"
+                    ? "https://buy.stripe.com/test_moncabinetcric_cabinet"
+                    : "https://buy.stripe.com/test_moncabinetcric_solo"
+                window.open(targetUrl, "_blank")
+              }
+            : undefined
+        }
         className={cn(
-          "mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-          plan.aiConnector
-            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-            : "border border-border text-foreground hover:bg-muted"
+          "mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-xs",
+          actuel
+            ? "border border-border bg-muted text-muted-foreground cursor-not-allowed"
+            : plan.aiConnector || plan.key === "cabinet" || plan.key === "business"
+              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+              : "border border-border text-foreground hover:bg-muted"
         )}
       >
         {enCours ? t("opening") : actuel ? t("currentBadge") : t("subscribe")}

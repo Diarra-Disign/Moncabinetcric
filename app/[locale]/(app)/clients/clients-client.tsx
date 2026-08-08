@@ -79,13 +79,11 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [portalError, setPortalError] = React.useState<string | null>(null)
   const [openingPortal, setOpeningPortal] = React.useState(false)
 
-  // Un mot de passe appartient au client pour lequel il a été engendré.
-  // Le laisser à l'écran en changeant de fiche ferait transmettre celui du
-  // précédent, sans que rien ne le signale.
-  React.useEffect(() => {
+  const handleSelectPortalClient = (client: ClientRecord | null) => {
+    setSelectedPortalClient(client)
     setTempPassword("")
     setPortalError(null)
-  }, [selectedPortalClient])
+  }
 
   const handleOuvrirAcces = async () => {
     if (!selectedPortalClient) return
@@ -564,7 +562,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
 
                       <button
                         type="button"
-                        onClick={() => setSelectedPortalClient(client)}
+                        onClick={() => handleSelectPortalClient(client)}
                         title="Donner et partager l'accès au Portail Client"
                         className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
                       >

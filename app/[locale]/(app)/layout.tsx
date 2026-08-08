@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/app-shell/sidebar"
 import { Topbar, SearchItem } from "@/components/app-shell/topbar"
+import { AppShellContainer } from "./app-shell-container"
 import { getClients, getMatters, getDocuments, getInvoices } from "@/lib/data"
 import {
   getCurrentMember,
@@ -159,25 +160,17 @@ export default async function AppLayout({
 
   return (
     <FirmProvider firm={firm}>
-    <div className="h-full bg-background text-foreground">
-      <Sidebar />
-      <div className="lg:pl-72 flex flex-col h-full">
-        <Topbar
-          searchDb={searchDb}
-          member={{
-            fullName: member.fullName,
-            email: member.email,
-            ciccRole: member.ciccRole,
-            initials: initialsOf(member.fullName),
-          }}
-        />
-        <main className="flex-1 py-10">
-          <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
+      <AppShellContainer
+        searchDb={searchDb}
+        member={{
+          fullName: member.fullName,
+          email: member.email,
+          ciccRole: member.ciccRole,
+          initials: initialsOf(member.fullName),
+        }}
+      >
+        {children}
+      </AppShellContainer>
     </FirmProvider>
   )
 }
