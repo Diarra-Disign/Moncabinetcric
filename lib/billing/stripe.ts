@@ -52,6 +52,27 @@ function taxeAutomatique(): boolean {
 }
 
 /**
+ * Le prélèvement préautorisé canadien est-il proposé ?
+ *
+ * Même précaution que pour la taxe, et pour un motif constaté : `acss_debit`
+ * doit être ACTIVÉ dans le tableau de bord Stripe, et il ne l'est pas encore
+ * sur ce compte. Le demander malgré tout fait échouer la création de la
+ * session — donc tout paiement, y compris par carte, puisque la liste des
+ * moyens est validée d'un bloc.
+ *
+ * Par défaut absent, donc désactivé : le paiement par carte fonctionne seul.
+ * On pose STRIPE_ACSS_DEBIT=1 le jour où Stripe a validé le mandat, sans
+ * déploiement.
+ *
+ * Ce moyen mérite d'être activé : 1 % plafonné contre 2,9 % + 0,30 $, et un
+ * compte bancaire n'expire pas, là où une carte expire tous les trois ans,
+ * toujours un jour où personne ne surveille.
+ */
+function prelevementBancaire(): boolean {
+  return process.env.STRIPE_ACSS_DEBIT === "1"
+}
+
+/**
  * Montant catalogue d'une ligne de facturation, en cents.
  *
  * Une seule fonction pour les quatre combinaisons, afin que le montant
@@ -206,22 +227,26 @@ export async function sessionPaiement(params: {
     locale: params.langue === "en" ? "en" : "fr-CA",
     currency: DEVISE,
 
-    payment_method_types: ["card", "acss_debit"],
-    payment_method_options: {
-      acss_debit: {
-        mandate_options: {
-          // Prélèvement récurrent d'un cabinet : « business », et non
-          // « personal ». La distinction figure sur le mandat que Stripe fait
-          // signer, et les règles de Paiements Canada n'y attachent pas les
-          // mêmes délais de contestation.
-          payment_schedule: "interval",
-          interval_description:
-            params.cadence === "annual" ? "Une fois par année" : "Une fois par mois",
-          transaction_type: "business",
-        },
-        verification_method: "automatic",
-      },
-    },
+    payment_method_types: prelevementBancaire() ? ["card", "acss_debit"] : ["card"],
+    ...(prelevementBancaire()
+      ? {
+          payment_method_options: {
+            acss_debit: {
+              mandate_options: {
+                // Prélèvement récurrent d'un cabinet : « business », et non
+                // « personal ». La distinction figure sur le mandat que Stripe
+                // fait signer, et les règles de Paiements Canada n'y attachent
+                // pas les mêmes délais de contestation.
+                payment_schedule: "interval" as const,
+                interval_description:
+                  params.cadence === "annual" ? "Une fois par année" : "Une fois par mois",
+                transaction_type: "business" as const,
+              },
+              verification_method: "automatic" as const,
+            },
+          },
+        }
+      : {}),
 
     subscription_data: {
       metadata: { firm_id: params.firmId, plan: p.key, cadence: params.cadence },
@@ -229,7 +254,11 @@ export async function sessionPaiement(params: {
       // confirmer la première fois. Sans ces quelques jours, l'abonnement
       // resterait « incomplete » et le cabinet, qui vient pourtant de signer
       // son mandat, se verrait refuser l'entrée toute une semaine.
-      trial_period_days: 7,
+      //
+      // Ce délai ne s'accorde QUE si le prélèvement est proposé : offrir une
+      // semaine gratuite à un paiement par carte, qui se confirme en deux
+      // secondes, serait une semaine donnée sans raison.
+      ...(prelevementBancaire() ? { trial_period_days: 7 } : {}),
     },
     // Le moyen de paiement se recueille malgré la période d'essai : c'est tout
     // l'objet de la manœuvre.
