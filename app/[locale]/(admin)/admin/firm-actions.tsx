@@ -5,7 +5,22 @@ import { Plus, Ban, Play, Check, AlertTriangle, Copy, Link2, CreditCard } from "
 import { creerCabinet, changerPlan, basculerAcces, type ResultatAction } from "@/lib/data/admin-actions"
 import { cn } from "@/lib/utils"
 
-const PLANS = ["trial", "solo", "cabinet", "courtoisie"] as const
+/**
+ * Ce qu'un exploitant accorde lui-même.
+ *
+ * « solo » et « cabinet » ont été retirés de la liste : ce sont des plans
+ * payants, et le seul chemin qui y mène est le paiement, depuis Réglages →
+ * Abonnement du cabinet. Les offrir ici faisait diverger la console et
+ * Stripe — un cabinet marqué « cabinet » d'un côté, facturé « solo » de
+ * l'autre —, et créait des cabinets dont l'accès se refermait à la première
+ * connexion, faute d'abonnement derrière le plan.
+ *
+ * Pour donner l'accès complet sans facturer, « courtoisie » existe et le dit.
+ *
+ * Le refus ne repose pas sur cette liste : admin-actions.ts revalide côté
+ * serveur. Ceci ne fait que retirer une option qui ne menait nulle part.
+ */
+const PLANS = ["trial", "courtoisie"] as const
 
 const CHAMP =
   "w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
@@ -263,33 +278,45 @@ export function ActionsCabinet({
   const [resultat, setResultat] = React.useState<ResultatAction | null>(null)
   const [enCours, demarrer] = React.useTransition()
 
+  // Un plan payant ne se modifie pas ici. Afficher un menu déroulant dont
+  // aucune option ne correspond au plan en cours serait pire que de n'en
+  // afficher aucun : le navigateur sélectionnerait « trial » d'office, et
+  // l'exploitant lirait « essai » sur la ligne d'un cabinet qui paie.
+  const planOctroyable = (PLANS as readonly string[]).includes(plan)
+
   return (
     <div className="space-y-2">
-      <form
-        action={(fd) => demarrer(async () => setResultat(await changerPlan(fd)))}
-        className="flex items-center gap-1.5"
-      >
-        <input type="hidden" name="firmId" value={firmId} />
-        <input type="hidden" name="jours" value={30} />
-        <select
-          name="plan"
-          defaultValue={plan}
-          className="min-h-8 rounded-lg border border-border bg-background px-2 py-1 text-[11px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      {planOctroyable ? (
+        <form
+          action={(fd) => demarrer(async () => setResultat(await changerPlan(fd)))}
+          className="flex items-center gap-1.5"
         >
-          {PLANS.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          disabled={enCours}
-          className="min-h-8 rounded-lg border border-border px-2 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-        >
-          {labels.apply}
-        </button>
-      </form>
+          <input type="hidden" name="firmId" value={firmId} />
+          <input type="hidden" name="jours" value={30} />
+          <select
+            name="plan"
+            defaultValue={plan}
+            className="min-h-8 rounded-lg border border-border bg-background px-2 py-1 text-[11px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            {PLANS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={enCours}
+            className="min-h-8 rounded-lg border border-border px-2 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+          >
+            {labels.apply}
+          </button>
+        </form>
+      ) : (
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Plan payant — géré par l&apos;abonnement Stripe du cabinet.
+        </p>
+      )}
 
       <form action={(fd) => demarrer(async () => setResultat(await basculerAcces(fd)))}>
         <input type="hidden" name="firmId" value={firmId} />

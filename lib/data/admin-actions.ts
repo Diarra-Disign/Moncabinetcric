@@ -78,6 +78,19 @@ export async function creerCabinet(formData: FormData): Promise<ResultatAction> 
       return { ok: false, message: "Une adresse courriel valide est requise : c'est elle qui recevra l'accès." }
     }
 
+    // Même règle qu'à changerPlan, et ici elle évite pire qu'une incohérence
+    // d'affichage : un cabinet créé d'emblée en « solo » n'a aucun abonnement,
+    // donc firm_access_open() le refuse. On ouvrirait un accès qui se referme
+    // à la première connexion, sans que rien n'explique pourquoi.
+    if (!PLANS_OCTROYABLES.includes(plan as (typeof PLANS_OCTROYABLES)[number])) {
+      return {
+        ok: false,
+        message:
+          "Ouvrez le cabinet en « trial » ou en « courtoisie ». Un plan payant se souscrit " +
+          "par le cabinet lui-même, depuis Réglages → Abonnement.",
+      }
+    }
+
     // Un essai sans échéance n'est pas un essai : il devient un accès
     // gratuit permanent que personne ne pense à révoquer.
     const echeance =
@@ -213,6 +226,22 @@ export async function ecarterDemande(formData: FormData): Promise<ResultatAction
   }
 }
 
+/**
+ * Plans qu'un exploitant peut accorder lui-même.
+ *
+ * « solo » et « cabinet » n'en font délibérément pas partie : ce sont des
+ * plans payants, et le seul chemin légitime pour y entrer est le paiement.
+ * Les accorder d'un clic laissait la console et Stripe se contredire — un
+ * cabinet marqué « cabinet » ici, facturé « solo » là-bas.
+ *
+ * Depuis firm_effective_plan(), cette contradiction ne donne plus de droits
+ * indus : les droits suivent l'abonnement. Mais elle produisait encore un
+ * tableau de bord qui ment sur son propre chiffre d'affaires, et un
+ * exploitant convaincu d'avoir fait passer un client au forfait supérieur
+ * alors que rien n'était facturé.
+ */
+const PLANS_OCTROYABLES = ["trial", "courtoisie"] as const
+
 export async function changerPlan(formData: FormData): Promise<ResultatAction> {
   try {
     await exigerAdministrateur()
@@ -223,6 +252,16 @@ export async function changerPlan(formData: FormData): Promise<ResultatAction> {
     const jours = Number.parseInt(String(formData.get("jours") ?? "30"), 10)
 
     if (!id || !plan) return { ok: false, message: "Cabinet ou plan manquant." }
+
+    if (!PLANS_OCTROYABLES.includes(plan as (typeof PLANS_OCTROYABLES)[number])) {
+      return {
+        ok: false,
+        message:
+          "Un plan payant ne s'accorde pas depuis cette console : il se souscrit par le cabinet, " +
+          "depuis Réglages → Abonnement, et c'est Stripe qui fait foi. " +
+          "Pour offrir l'accès complet sans facturer, choisissez « courtoisie ».",
+      }
+    }
 
     const echeance =
       plan === "trial"

@@ -120,6 +120,45 @@ async function main() {
       verifier(acte, await appel(cabinets.A.cle, `${API}/SA-1/${acte}`, "POST"), 403, "RESERVED_HUMAN_ACTION")
     }
 
+    // Le connecteur est un avantage du forfait Cabinet Pro. Rien n'empêche
+    // l'exploitant d'écrire « cabinet » dans firms.plan depuis sa console —
+    // et c'est précisément ce qui, avant firm_effective_plan(), ouvrait le
+    // connecteur à un cabinet abonné au forfait Solo. Stripe continuait de
+    // prélever 49 $. Le cas est ici parce qu'aucune relecture de code ne
+    // l'aurait rattrapé : les deux colonnes portaient chacune un plan
+    // plausible.
+    console.log("\nLe connecteur suit le plan payé, pas le plan accordé")
+
+    // A est accordé « cabinet » dans firms.plan et le reste tout du long : on
+    // ne fait varier que ce qu'il PAIE. C'est exactement la divergence que la
+    // console d'exploitation pouvait produire d'un clic.
+    const changerAbonnement = async (champs) => {
+      const { error } = await sb
+        .from("firm_subscriptions")
+        .update(champs)
+        .eq("firm_id", cabinets.A.id)
+      // Une écriture d'épreuve qui échoue en silence ferait passer le cas
+      // suivant pour une réussite : l'état testé ne serait pas celui décrit.
+      if (error) throw new Error(`Abonnement d'épreuve : ${error.message}`)
+    }
+
+    await changerAbonnement({ plan: "solo", seats: 1 })
+    verifier("accordé « cabinet », abonné « solo »", await appel(cabinets.A.cle), 401, "UNAUTHORIZED")
+
+    await changerAbonnement({ plan: "cabinet", seats: 3 })
+    verifier("abonnement porté à « cabinet »", await appel(cabinets.A.cle), 200, "OK")
+
+    // Un plan payant sans abonnement est un plan impayé : firm_access_open()
+    // referme tout, connecteur compris. Ce cas garde cet invariant, qui est
+    // ce qui empêche d'obtenir un forfait en l'écrivant simplement dans
+    // firms.plan depuis la console.
+    await sb.from("firm_subscriptions").delete().eq("firm_id", cabinets.A.id)
+    verifier("plan payant, aucun abonnement", await appel(cabinets.A.cle), 401, "UNAUTHORIZED")
+
+    await sb
+      .from("firm_subscriptions")
+      .insert({ firm_id: cabinets.A.id, plan: "cabinet", status: "active", seats: 3 })
+
     console.log("\nRévocation et suspension")
     await sb.from("ai_api_keys").update({ revoked_at: new Date().toISOString() }).eq("firm_id", cabinets.A.id)
     verifier("clé révoquée", await appel(cabinets.A.cle), 401, "UNAUTHORIZED")

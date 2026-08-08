@@ -18,7 +18,36 @@ import {
   ShieldCheck,
   Package
 } from "lucide-react"
-import type { AdminFirmRow } from "@/lib/data/admin"
+import type { AdminFirmRow, AdminSubscriptionRow } from "@/lib/data/admin"
+import { montant, estPlanPayant, formatMontant, type Cadence } from "@/lib/billing/plans"
+
+/**
+ * Statuts d'abonnement qui produisent du revenu récurrent.
+ *
+ * « trialing » en est exclu : une période d'essai n'a encore rien encaissé,
+ * et la compter gonflerait le MRR de clients qui peuvent tous partir avant
+ * le premier prélèvement. « past_due » y figure au contraire : la somme est
+ * due, le contrat court, et le cabinet garde son accès pendant le délai de
+ * grâce — c'est du revenu en retard, pas du revenu disparu.
+ */
+const STATUTS_FACTURES = ["active", "past_due"]
+
+/**
+ * Revenu mensuel d'un abonnement, en cents.
+ *
+ * Le montant vient de `montant()` — la même fonction qui construit la
+ * facture Stripe, places supplémentaires comprises. Le tableau de bord ne
+ * refait donc aucun calcul de prix : il ne peut pas afficher un chiffre
+ * d'affaires que personne n'a payé.
+ *
+ * L'annuel est ramené au mois. Sans cette division, un abonné annuel
+ * comptait pour douze fois sa contribution réelle dans le MRR.
+ */
+function revenuMensuelCents(s: AdminSubscriptionRow | null): number {
+  if (!s || !STATUTS_FACTURES.includes(s.status) || !estPlanPayant(s.plan)) return 0
+  const total = montant(s.plan, s.cadence as Cadence, s.seats)
+  return s.cadence === "annual" ? Math.round(total / 12) : total
+}
 
 interface FinancialHubProps {
   firms: AdminFirmRow[]
@@ -72,20 +101,28 @@ export function FinancialHub({ firms }: FinancialHubProps) {
   const [selectedCouponCode, setSelectedCouponCode] = React.useState<string>("CICC-MEMBRE-20")
   const [notice, setNotice] = React.useState<string | null>(null)
 
-  // Helper pour trouver le prix d'un forfait
-  const getPlanPrice = (planKey: string): number => {
-    const found = plans.find((p) => p.key === planKey)
-    return found ? found.price : 0
-  }
-
-  // Calculs Financiers SaaS Réactifs
-  const mrr = firms.reduce((sum, f) => sum + getPlanPrice(f.plan), 0)
+  // Calculs financiers, en cents et à partir des abonnements Stripe.
+  //
+  // La version précédente sommait le prix du plan porté par `firms.plan` —
+  // celui que la console accorde à la main. Un cabinet qui résiliait gardait
+  // « cabinet » jusqu'au prochain événement Stripe et continuait de compter
+  // 79 $ ; un cabinet suspendu aussi. Le revenu affiché ne pouvait que
+  // surestimer, et jamais se corriger de lui-même.
+  const mrr = firms.reduce((sum, f) => sum + revenuMensuelCents(f.subscription), 0)
   const arr = mrr * 12
-  const paidFirms = firms.filter((f) => getPlanPrice(f.plan) > 0)
-  const arpu = paidFirms.length > 0 ? mrr / paidFirms.length : 0
+  const paidFirms = firms.filter((f) => revenuMensuelCents(f.subscription) > 0)
+  const arpu = paidFirms.length > 0 ? Math.round(mrr / paidFirms.length) : 0
 
   const trialFirms = firms.filter((f) => f.plan === "trial")
   const conversionRate = firms.length > 0 ? Math.round((paidFirms.length / firms.length) * 100) : 0
+
+  // Ce qui demande une intervention : prélèvement échoué, ou résiliation
+  // annoncée. Deux situations distinctes, mais qui appellent toutes deux un
+  // appel avant l'échéance.
+  const enRetard = firms.filter(
+    (f) => f.subscription && ["past_due", "unpaid"].includes(f.subscription.status)
+  )
+  const resiliations = firms.filter((f) => f.subscription?.cancelAtPeriodEnd)
 
   // Offres & Génération de liens Stripe
   const handleGenerateStripeLink = () => {
@@ -222,11 +259,17 @@ export function FinancialHub({ firms }: FinancialHubProps) {
             </div>
           </div>
           <p className="mt-3 text-3xl font-black tabular-nums tracking-tight">
-            {mrr.toLocaleString("fr-CA")} <span className="text-sm font-normal text-indigo-300">CAD / mo</span>
+            {formatMontant(mrr, "fr")} <span className="text-sm font-normal text-indigo-300">CAD / mois</span>
           </p>
-          <div className="mt-2 flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
+          {/* Ce que compte le chiffre est dit sous le chiffre : « abonnements
+              en cours » est vérifiable, « basé sur N forfaits configurés » ne
+              renseignait sur rien. */}
+          <div className="mt-2 flex items-center gap-1 text-[11px] font-bold text-emerald-400">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>Basé sur {plans.length} forfait(s) configuré(s)</span>
+            <span>
+              {paidFirms.length} abonnement(s) facturé(s)
+              {enRetard.length > 0 && `, dont ${enRetard.length} en retard`}
+            </span>
           </div>
         </div>
 
@@ -239,9 +282,11 @@ export function FinancialHub({ firms }: FinancialHubProps) {
             </div>
           </div>
           <p className="mt-3 text-3xl font-black tabular-nums tracking-tight text-foreground">
-            {arr.toLocaleString("fr-CA")} <span className="text-sm font-normal text-muted-foreground">CAD / an</span>
+            {formatMontant(arr, "fr")} <span className="text-sm font-normal text-muted-foreground">CAD / an</span>
           </p>
-          <p className="mt-2 text-[11px] text-muted-foreground">MRR × 12 mois</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            MRR × 12, à composition constante — ce n&apos;est pas un encaissement prévu
+          </p>
         </div>
 
         {/* ARPU */}
@@ -253,9 +298,12 @@ export function FinancialHub({ firms }: FinancialHubProps) {
             </div>
           </div>
           <p className="mt-3 text-3xl font-black tabular-nums tracking-tight text-foreground">
-            {Math.round(arpu).toLocaleString("fr-CA")} <span className="text-sm font-normal text-muted-foreground">CAD</span>
+            {formatMontant(arpu, "fr")} <span className="text-sm font-normal text-muted-foreground">CAD</span>
           </p>
-          <p className="mt-2 text-[11px] text-muted-foreground">{paidFirms.length} cabinet(s) payant(s)</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {paidFirms.length} cabinet(s) payant(s)
+            {resiliations.length > 0 && ` · ${resiliations.length} résiliation(s) annoncée(s)`}
+          </p>
         </div>
 
         {/* Taux de conversion */}

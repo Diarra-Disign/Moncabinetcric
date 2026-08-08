@@ -25,11 +25,33 @@ export interface AdminFirmRow {
   phone: string
   city: string
   createdAt: string
+  /** Plan accordé depuis cette console : « trial » ou « courtoisie ». */
   plan: string
   status: string
   trialEndsAt: string
   accessOpen: boolean
   members: AdminMemberRow[]
+  /**
+   * Abonnement Stripe, ou null.
+   *
+   * C'est la seule source recevable pour un calcul de revenu. `plan`
+   * ci-dessus ne dit que ce qui a été accordé à la main ; il reste à
+   * « cabinet » après une résiliation, jusqu'au prochain événement Stripe.
+   */
+  subscription: AdminSubscriptionRow | null
+}
+
+export interface AdminSubscriptionRow {
+  plan: string
+  cadence: string
+  status: string
+  seats: number
+  currentPeriodEnd: string
+  cancelAtPeriodEnd: boolean
+  graceUntil: string
+  paymentMethod: string
+  paymentLast4: string
+  stripeCustomerId: string
 }
 
 export interface AdminMemberRow {
@@ -49,13 +71,36 @@ function cityOf(address: string | null): string {
 export async function getAdminFirms(): Promise<AdminFirmRow[]> {
   const supabase = await getSessionSupabase()
 
-  const [{ data: firms }, { data: profiles }] = await Promise.all([
+  // La politique firm_subscriptions_read ouvre la table à l'administrateur
+  // de plateforme : aucun filtre applicatif n'est nécessaire ici.
+  const [{ data: firms }, { data: profiles }, { data: abonnements }] = await Promise.all([
     supabase
       .from("firms")
       .select("id, name, rcic_license_number, owner_name, email, phone, address, created_at, plan, status, trial_ends_at")
       .order("created_at", { ascending: true }),
     supabase.from("profiles").select("id, firm_id, email, full_name, cicc_role"),
+    supabase
+      .from("firm_subscriptions")
+      .select(
+        "firm_id, plan, cadence, status, seats, current_period_end, cancel_at_period_end, grace_until, payment_method, payment_last4, stripe_customer_id"
+      ),
   ])
+
+  const parCabinet = new Map<string, AdminSubscriptionRow>()
+  for (const s of abonnements ?? []) {
+    parCabinet.set(s.firm_id as string, {
+      plan: (s.plan as string) ?? "",
+      cadence: (s.cadence as string) ?? "monthly",
+      status: (s.status as string) ?? "",
+      seats: (s.seats as number) ?? 1,
+      currentPeriodEnd: ((s.current_period_end as string) ?? "").slice(0, 10),
+      cancelAtPeriodEnd: Boolean(s.cancel_at_period_end),
+      graceUntil: ((s.grace_until as string) ?? "").slice(0, 10),
+      paymentMethod: (s.payment_method as string) ?? "",
+      paymentLast4: (s.payment_last4 as string) ?? "",
+      stripeCustomerId: (s.stripe_customer_id as string) ?? "",
+    })
+  }
 
   return (firms ?? []).map((f) => ({
     id: f.id as string,
@@ -82,6 +127,7 @@ export async function getAdminFirms(): Promise<AdminFirmRow[]> {
         fullName: (p.full_name as string) ?? "",
         ciccRole: (p.cicc_role as string) ?? "",
       })),
+    subscription: parCabinet.get(f.id as string) ?? null,
   }))
 }
 
