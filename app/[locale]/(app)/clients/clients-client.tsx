@@ -32,6 +32,7 @@ import {
   ExternalLink
 } from "lucide-react"
 import { Link, useRouter } from "@/i18n/routing"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { ClientRecord, Matter } from "@/lib/data/types"
 import { matchesPerson } from "@/lib/utils/search"
 import { createClient } from "@/lib/data/actions"
@@ -60,6 +61,27 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [showNewModal, setShowNewModal] = React.useState(false)
   const [selectedPortalClient, setSelectedPortalClient] = React.useState<ClientRecord | null>(null)
   const [actionNotice, setActionNotice] = React.useState<string | null>(null)
+
+  // Identité du cabinet connecté, pour signer le courriel d'accès. Elle vient
+  // du contexte et jamais d'une constante : c'est ce qui a fait disparaître
+  // « Boréale » des lettres de tous les cabinets.
+  const firm = useFirm()
+
+  /**
+   * Mot de passe temporaire proposé pour l'accès au portail d'un client.
+   *
+   * Engendré à l'ouverture du panneau, et non à l'initialisation du
+   * composant : une valeur tirée au hasard au premier rendu différerait
+   * entre le serveur et le navigateur, et deux clients d'affilée
+   * partageraient le même mot de passe — celui du premier resterait
+   * affiché pour le second.
+   */
+  const [tempPassword, setTempPassword] = React.useState("")
+
+  React.useEffect(() => {
+    if (!selectedPortalClient) return
+    setTempPassword(`CRIC-Temp-${Math.random().toString(36).substring(2, 6).toUpperCase()}`)
+  }, [selectedPortalClient])
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
