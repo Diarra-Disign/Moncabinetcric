@@ -276,3 +276,100 @@ export async function sessionPortail(params: {
   })
   return session.url
 }
+
+/**
+ * Retrouve l'abonnement Stripe actif (ou en essai) d'un client.
+ *
+ * Renvoie `null` s'il n'en existe aucun : le flux de première souscription
+ * reprend alors normalement par session Checkout.
+ */
+export async function abonnementActifStripe(
+  customerId: string
+): Promise<Stripe.Subscription | null> {
+  const sdk = stripe()
+  const { data } = await sdk.subscriptions.list({
+    customer: customerId,
+    status: "active",
+    limit: 1,
+  })
+  if (data[0]) return data[0]
+
+  // Un abonnement en période d'essai n'a pas le statut « active ».
+  const essai = await sdk.subscriptions.list({
+    customer: customerId,
+    status: "trialing",
+    limit: 1,
+  })
+  return essai.data[0] ?? null
+}
+
+/**
+ * Change le forfait d'un abonnement Stripe existant.
+ *
+ * Au lieu de créer une nouvelle session Checkout (ce que Stripe refuse quand
+ * le client a déjà un abonnement), on remplace les lignes de facturation
+ * directement. Le prorata est appliqué par défaut : Stripe émet un avoir
+ * pour la période restante de l'ancien forfait et facture immédiatement la
+ * différence du nouveau.
+ *
+ * Renvoie l'URL du portail client pour que le propriétaire puisse vérifier
+ * le changement et ses factures.
+ */
+export async function changerForfait(params: {
+  customerId: string
+  subscriptionId: string
+  plan: Plan
+  cadence: Cadence
+  places: number
+  firmId: string
+  retour: string
+  langue: string
+}): Promise<string> {
+  const sdk = stripe()
+  const sub = await sdk.subscriptions.retrieve(params.subscriptionId)
+  const p = params.plan
+
+  // Construire les nouvelles lignes de tarification
+  const ligneBase = {
+    price: await tarif(p, params.cadence, false),
+    quantity: 1,
+  }
+
+  const extras = Math.max(0, params.places - p.seatsIncluded)
+  const items: Stripe.SubscriptionUpdateParams.Item[] = []
+
+  // Remplacer la première ligne existante par le nouveau forfait de base
+  if (sub.items.data[0]) {
+    items.push({ id: sub.items.data[0].id, ...ligneBase })
+  } else {
+    items.push(ligneBase)
+  }
+
+  // Supprimer les lignes supplémentaires restantes de l'ancien forfait
+  for (let i = 1; i < sub.items.data.length; i++) {
+    items.push({ id: sub.items.data[i].id, deleted: true })
+  }
+
+  // Ajouter la ligne de places supplémentaires si nécessaire
+  if (extras > 0 && p.extraSeatMonthly > 0) {
+    items.push({
+      price: await tarif(p, params.cadence, true),
+      quantity: extras,
+    })
+  }
+
+  await sdk.subscriptions.update(params.subscriptionId, {
+    items,
+    // Prorata : le client paie la différence immédiatement
+    proration_behavior: "create_prorations",
+    metadata: { firm_id: params.firmId, plan: p.key, cadence: params.cadence },
+  })
+
+  // Rediriger vers le portail pour que le propriétaire constate le changement
+  const session = await sdk.billingPortal.sessions.create({
+    customer: params.customerId,
+    return_url: params.retour,
+    locale: params.langue === "en" ? "en" : "fr-CA",
+  })
+  return session.url
+}

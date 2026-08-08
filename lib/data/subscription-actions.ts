@@ -2,7 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js"
 import { getCurrentMember } from "@/lib/supabase/session"
-import { clientStripe, sessionPaiement, sessionPortail, stripeConfigure } from "@/lib/billing/stripe"
+import { abonnementActifStripe, changerForfait, clientStripe, sessionPaiement, sessionPortail, stripeConfigure } from "@/lib/billing/stripe"
 import { type Cadence } from "@/lib/billing/plans"
 import { getPlan } from "@/lib/billing/catalogue"
 import { exigerPermission } from "@/lib/auth/permissions"
@@ -135,6 +135,27 @@ export async function ouvrirPaiement(formData: FormData): Promise<ResultatPaieme
       { onConflict: "firm_id" }
     )
 
+    // ---- Changement de forfait ----
+    // Si le client a déjà un abonnement Stripe actif ou en essai, on modifie
+    // ses lignes de facturation plutôt que de créer une session Checkout.
+    // Stripe refuse de créer un second abonnement pour le même client.
+    const subExistant = await abonnementActifStripe(customerId)
+    if (subExistant) {
+      const retourUrl = `${baseUrl()}/${langue}/settings/subscription?paiement=ok`
+      const url = await changerForfait({
+        customerId,
+        subscriptionId: subExistant.id,
+        plan,
+        cadence,
+        places,
+        firmId: membre.firmId,
+        retour: retourUrl,
+        langue,
+      })
+      return { ok: true, message: "Forfait mis à jour. Redirection vers le récapitulatif.", url }
+    }
+
+    // ---- Première souscription ----
     const url = await sessionPaiement({
       customerId,
       plan,
