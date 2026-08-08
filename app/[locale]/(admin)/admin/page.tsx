@@ -4,6 +4,7 @@ import { Building2, Users, AlertTriangle, Terminal, Lock, Ban } from "lucide-rea
 import { getAdminFirms, getDemoRequests, summarise, type AdminMemberRow } from "@/lib/data/admin"
 import { CreerCabinet, ActionsCabinet } from "./firm-actions"
 import { DemoRequests } from "./demo-requests"
+import { FinancialHub } from "./financial-hub"
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Admin")
@@ -103,26 +104,12 @@ export default async function AdminPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map(({ icon: Icon, label, value, warn }) => (
-          <div
-            key={label}
-            className={`rounded-2xl border p-5 ${
-              warn ? "border-warning/40 bg-warning/10" : "border-border bg-card"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Icon
-                aria-hidden
-                className={`h-4 w-4 ${warn ? "text-warning" : "text-muted-foreground"}`}
-              />
-              <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                {label}
-              </span>
-            </div>
-            <p className="mt-2 text-3xl font-black tabular-nums text-foreground">{value}</p>
-          </div>
-        ))}
+      {/* Hub Financier & Métriques de Revenus Stripe */}
+      <section>
+        <h2 className="text-base font-black tracking-tight text-foreground mb-4">
+          💳 Hub Financier SaaS & Performance Stripe
+        </h2>
+        <FinancialHub firms={firms} />
       </section>
 
       {/* Les demandes viennent avant la liste des cabinets : c'est ce qui
