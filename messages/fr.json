@@ -515,7 +515,10 @@
     "accessExpiredBody": "La période d'essai de ce cabinet est échue. Vos données ne sont ni supprimées ni modifiées : elles restent conservées et redeviendront visibles dès la souscription d'un abonnement.",
     "accessContact": "Contacter l'exploitant",
     "planLabel": "Plan",
-    "statusLabel": "Statut"
+    "statusLabel": "Statut",
+    "memberClosedTitle": "Votre accès est fermé",
+    "memberSuspendedBody": "Le propriétaire de ce cabinet a suspendu votre accès. Vos dossiers et votre travail sont conservés : rien n'a été supprimé. Adressez-vous à lui pour connaître la raison et faire rouvrir votre accès.",
+    "memberRevokedBody": "Le propriétaire de ce cabinet a révoqué votre accès. Votre travail reste rattaché au cabinet et n'a pas été supprimé, mais vous ne pouvez plus y entrer. Adressez-vous à lui si vous pensez qu'il s'agit d'une erreur."
   },
   "Admin": {
     "title": "Console d'exploitation",

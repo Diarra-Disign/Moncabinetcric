@@ -1,11 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { UserPlus, Trash2, Check, AlertTriangle, Copy, Clock } from "lucide-react"
+import { UserPlus, Check, AlertTriangle, Copy, Clock, PauseCircle, PlayCircle, Ban } from "lucide-react"
 import {
   inviterMembre,
   changerRole,
-  retirerMembre,
+  changerStatutMembre,
   revoquerInvitation,
   type ResultatMembre,
 } from "@/lib/data/member-actions"
@@ -17,6 +17,21 @@ export interface MembreVue {
   fullName: string
   ciccRole: string
   estMoi: boolean
+  /** active | suspended | revoked — voir profiles.status. */
+  statut: string
+}
+
+/**
+ * Un membre non actif n'est pas effacé, il est mis de côté.
+ *
+ * Le bouton « Retirer » supprimait sa ligne de `profiles` — donc le
+ * rattachement qui rend intelligibles les journaux d'audit. Trois gestes le
+ * remplacent, dont deux sont réversibles.
+ */
+const ETAT_MEMBRE: Record<string, { libelle: string; classe: string }> = {
+  active: { libelle: "actif", classe: "bg-success/10 text-success" },
+  suspended: { libelle: "suspendu", classe: "bg-warning/10 text-warning" },
+  revoked: { libelle: "révoqué", classe: "bg-error/10 text-error" },
 }
 
 export interface InvitationVue {
@@ -173,10 +188,29 @@ export function TeamPanel({
 
       <ul className="divide-y divide-border">
         {membres.map((m) => (
-          <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+          <li
+            key={m.id}
+            className={cn(
+              "flex flex-wrap items-center justify-between gap-3 py-3",
+              // Un membre écarté reste visible, mais en retrait : il ne
+              // participe plus au cabinet, et l'écran doit le montrer sans
+              // qu'on ait à lire le badge.
+              m.statut !== "active" && "opacity-60"
+            )}
+          >
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-foreground">
+              <p className="flex flex-wrap items-center gap-2 truncate text-sm font-bold text-foreground">
                 {m.fullName || m.email}
+                {m.statut !== "active" && (
+                  <span
+                    className={cn(
+                      "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                      ETAT_MEMBRE[m.statut]?.classe ?? "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {ETAT_MEMBRE[m.statut]?.libelle ?? m.statut}
+                  </span>
+                )}
                 {m.estMoi && (
                   <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                     vous
@@ -209,18 +243,56 @@ export function TeamPanel({
                 </form>
 
                 {!m.estMoi && (
-                  <form action={executer(retirerMembre)}>
-                    <input type="hidden" name="profilId" value={m.id} />
-                    <button
-                      type="submit"
-                      disabled={enCours}
-                      aria-label={`Retirer ${m.email} du cabinet`}
-                      className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-error/30 px-2 py-1 text-[11px] font-bold text-error transition-colors hover:bg-error/10 disabled:opacity-50"
-                    >
-                      <Trash2 aria-hidden className="h-3 w-3" />
-                      Retirer
-                    </button>
-                  </form>
+                  <div className="flex items-center gap-1.5">
+                    {m.statut === "active" ? (
+                      <form action={executer(changerStatutMembre)}>
+                        <input type="hidden" name="profilId" value={m.id} />
+                        <input type="hidden" name="statut" value="suspended" />
+                        <button
+                          type="submit"
+                          disabled={enCours}
+                          aria-label={`Suspendre l'accès de ${m.email}`}
+                          title="Ferme l'accès et libère la place. Réversible, rien n'est perdu."
+                          className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-warning/40 px-2 py-1 text-[11px] font-bold text-warning transition-colors hover:bg-warning/10 disabled:opacity-50"
+                        >
+                          <PauseCircle aria-hidden className="h-3 w-3" />
+                          Suspendre
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={executer(changerStatutMembre)}>
+                        <input type="hidden" name="profilId" value={m.id} />
+                        <input type="hidden" name="statut" value="active" />
+                        <button
+                          type="submit"
+                          disabled={enCours}
+                          aria-label={`Réactiver l'accès de ${m.email}`}
+                          title="Rouvre l'accès immédiatement."
+                          className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-success/40 px-2 py-1 text-[11px] font-bold text-success transition-colors hover:bg-success/10 disabled:opacity-50"
+                        >
+                          <PlayCircle aria-hidden className="h-3 w-3" />
+                          Réactiver
+                        </button>
+                      </form>
+                    )}
+
+                    {m.statut !== "revoked" && (
+                      <form action={executer(changerStatutMembre)}>
+                        <input type="hidden" name="profilId" value={m.id} />
+                        <input type="hidden" name="statut" value="revoked" />
+                        <button
+                          type="submit"
+                          disabled={enCours}
+                          aria-label={`Révoquer définitivement l'accès de ${m.email}`}
+                          title="Ferme l'accès définitivement. L'historique du membre reste rattaché au cabinet."
+                          className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-error/30 px-2 py-1 text-[11px] font-bold text-error transition-colors hover:bg-error/10 disabled:opacity-50"
+                        >
+                          <Ban aria-hidden className="h-3 w-3" />
+                          Révoquer
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 )}
               </div>
             ) : (

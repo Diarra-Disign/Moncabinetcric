@@ -9,6 +9,7 @@ import {
 } from "@/lib/supabase/session"
 import { FirmProvider } from "@/components/app-shell/firm-provider"
 import { AccessClosed } from "@/components/app-shell/access-closed"
+import { MemberClosed } from "@/components/app-shell/member-closed"
 import { getTranslations } from "next-intl/server"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
@@ -48,6 +49,30 @@ export default async function AppLayout({
   // une explication, pas à protéger — la protection est dans
   // current_firm_id(), qui renvoie NULL et fait refuser toutes les
   // politiques.
+  // Le membre lui-même peut être écarté, indépendamment de l'état du cabinet.
+  // Ce contrôle vient AVANT celui de l'abonnement : un adjoint suspendu dans
+  // un cabinet parfaitement à jour doit lire la bonne raison, pas « accès
+  // suspendu » suivi d'un plan et d'un statut qui vont très bien.
+  //
+  // Comme partout ici, ce n'est pas la protection : celle-ci est en base, dans
+  // current_firm_id(), qui renvoie NULL et fait refuser toutes les politiques.
+  // Sans cet écran, le membre verrait une application vide et en conclurait
+  // que ses dossiers ont disparu.
+  if (member.statut !== "active") {
+    const tAuth = await getTranslations("Auth")
+    return (
+      <MemberClosed
+        firmName={member.firmName}
+        fullName={member.fullName || member.email}
+        statut={member.statut}
+        title={tAuth("memberClosedTitle")}
+        suspendedBody={tAuth("memberSuspendedBody")}
+        revokedBody={tAuth("memberRevokedBody")}
+        signOutLabel={tAuth("signOut")}
+      />
+    )
+  }
+
   const firmForAccess = await getCurrentFirm()
   if (!firmForAccess.accessOpen) {
     const tAuth = await getTranslations("Auth")

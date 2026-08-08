@@ -207,6 +207,15 @@ export interface CurrentMember {
   ciccRole: string
   firmId: string
   firmName: string
+  /**
+   * active | suspended | revoked.
+   *
+   * Lu SANS filtrer : un membre suspendu doit rester identifiable, sans quoi
+   * l'application se viderait devant lui sans rien expliquer — toutes ses
+   * requêtes échouant en silence, il en conclurait que ses dossiers ont été
+   * perdus. C'est current_firm_id() qui refuse l'accès, pas cette lecture.
+   */
+  statut: string
 }
 
 /**
@@ -231,7 +240,7 @@ export async function getCurrentMember(): Promise<CurrentMember | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, cicc_role, firm_id, firms(name)")
+    .select("full_name, email, cicc_role, firm_id, status, firms(name)")
     .eq("user_id", user.id)
     .maybeSingle()
 
@@ -246,5 +255,6 @@ export async function getCurrentMember(): Promise<CurrentMember | null> {
     ciccRole: profile.cicc_role ?? "staff",
     firmId: profile.firm_id as string,
     firmName: firm?.name ?? "",
+    statut: (profile.status as string) ?? "active",
   }
 }

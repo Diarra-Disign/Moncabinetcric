@@ -33,6 +33,7 @@ case "$commande" in
   verifier)     exec node scripts/verify-auth.mjs "$@" ;;
   roles)        exec node scripts/verify-roles.mjs "$@" ;;
   connecteur)   exec node scripts/verify-connector.mjs "$@" ;;
+  membres)      exec node scripts/verify-members.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types scripts/verify-billing.mjs "$@" ;;
   facturation)  exec node scripts/verify-billing.mjs "$@" ;;
   migration)    exec node scripts/apply-migration.mjs "$@" ;;

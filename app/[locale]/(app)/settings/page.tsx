@@ -17,7 +17,10 @@ export default async function SettingsPage({
   // La RLS restreint déjà ces deux lectures au cabinet du membre : aucun
   // filtre applicatif n'est nécessaire, et surtout aucun n'est oubliable.
   const [{ data: profils }, { data: invitations }] = await Promise.all([
-    supabase.from("profiles").select("id, email, full_name, cicc_role, user_id").order("created_at"),
+    supabase
+      .from("profiles")
+      .select("id, email, full_name, cicc_role, user_id, status")
+      .order("created_at"),
     supabase
       .from("invitations")
       .select("id, email, cicc_role, expires_at, accepted_at, revoked_at")
@@ -32,6 +35,7 @@ export default async function SettingsPage({
     fullName: (p.full_name as string) ?? "",
     ciccRole: (p.cicc_role as string) ?? "staff",
     estMoi: p.user_id === membre?.userId,
+    statut: (p.status as string) ?? "active",
   }))
 
   const maintenant = new Date().toISOString()

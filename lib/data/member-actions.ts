@@ -125,32 +125,77 @@ export async function changerRole(formData: FormData): Promise<ResultatMembre> {
   }
 }
 
-export async function retirerMembre(formData: FormData): Promise<ResultatMembre> {
+/**
+ * Statuts qu'un propriétaire peut poser sur un membre de son cabinet.
+ *
+ * `revoked` est définitif du point de vue de l'usage courant, mais reste
+ * techniquement réversible : c'est une décision, pas une destruction.
+ */
+export const STATUTS_MEMBRE = ["active", "suspended", "revoked"] as const
+export type StatutMembre = (typeof STATUTS_MEMBRE)[number]
+
+const LIBELLE_STATUT: Record<StatutMembre, string> = {
+  active: "réactivé : l'accès est rouvert immédiatement",
+  suspended: "suspendu : l'accès est fermé, la place est libérée, rien n'est perdu",
+  revoked: "révoqué : l'accès est fermé définitivement, l'historique est conservé",
+}
+
+/**
+ * Change le statut d'un membre — sans jamais supprimer sa ligne.
+ *
+ * Remplace l'ancien `retirerMembre`, qui faisait un DELETE sur `profiles`.
+ * Ce n'était pas une ligne d'annuaire : c'est le rattachement qui relie un
+ * compte à son cabinet, et à travers lui toute la traçabilité de ce que la
+ * personne a fait. La supprimer n'était pas fermer un accès, c'était effacer
+ * la réponse à « qui a déposé cette pièce » — dans une application où cette
+ * réponse a une valeur déontologique.
+ *
+ * L'effet est immédiat et ne dépend d'aucun redéploiement : le verrou est
+ * current_firm_id(), évaluée à chaque requête. Un membre suspendu dont la
+ * session est encore ouverte se voit refuser dès sa requête suivante.
+ */
+export async function changerStatutMembre(formData: FormData): Promise<ResultatMembre> {
   try {
     const membre = await exigerProprietaire()
     const supabase = await getSessionSupabase()
 
     const profilId = String(formData.get("profilId") ?? "")
+    const statut = String(formData.get("statut") ?? "") as StatutMembre
+
     if (!profilId) return { ok: false, message: "Membre manquant." }
+    if (!STATUTS_MEMBRE.includes(statut)) return { ok: false, message: "Statut inconnu." }
 
     const { data: cible } = await supabase
       .from("profiles")
-      .select("user_id, email")
+      .select("user_id, email, full_name, cicc_role")
       .eq("id", profilId)
       .maybeSingle()
 
-    if (cible?.user_id === membre.userId) {
-      return { ok: false, message: "Vous ne pouvez pas vous retirer vous-même." }
+    if (!cible) return { ok: false, message: "Membre introuvable dans ce cabinet." }
+
+    // Un propriétaire qui se ferme la porte laisse un cabinet sans personne
+    // pour la rouvrir — la même impasse que les cabinets sans propriétaire
+    // rencontrée aux premiers essais. La politique RLS le refuse déjà ;
+    // ceci ne fait que produire un message compréhensible.
+    if (cible.user_id === membre.userId) {
+      return { ok: false, message: "Vous ne pouvez pas modifier votre propre accès." }
     }
 
-    // Le profil est supprimé, pas le compte : la personne perd l'accès au
-    // cabinet sans que son identité disparaisse des journaux d'audit, qui
-    // conservent son courriel et doivent rester intelligibles.
-    const { error } = await supabase.from("profiles").delete().eq("id", profilId)
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        status: statut,
+        status_at: new Date().toISOString(),
+        status_by: membre.userId,
+        status_note: String(formData.get("motif") ?? "").trim() || null,
+      })
+      .eq("id", profilId)
+
     if (error) return { ok: false, message: error.message }
 
     revalidatePath("/[locale]/settings", "page")
-    return { ok: true, message: `${cible?.email ?? "Le membre"} n'a plus accès au cabinet.` }
+    const qui = cible.full_name || cible.email || "Le membre"
+    return { ok: true, message: `${qui} — ${LIBELLE_STATUT[statut]}.` }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }

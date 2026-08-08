@@ -515,7 +515,10 @@
     "accessExpiredBody": "This firm's trial period has ended. Your data is neither deleted nor altered: it remains stored and will be visible again once a subscription is taken out.",
     "accessContact": "Contact the operator",
     "planLabel": "Plan",
-    "statusLabel": "Status"
+    "statusLabel": "Status",
+    "memberClosedTitle": "Your access is closed",
+    "memberSuspendedBody": "The owner of this firm has suspended your access. Your files and your work are kept — nothing has been deleted. Speak to them to learn why and to have your access reopened.",
+    "memberRevokedBody": "The owner of this firm has revoked your access. Your work remains attached to the firm and has not been deleted, but you can no longer sign in. Speak to them if you believe this is a mistake."
   },
   "Admin": {
     "title": "Operations console",
