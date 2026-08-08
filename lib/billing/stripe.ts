@@ -209,7 +209,6 @@ export async function sessionPaiement(params: {
     payment_method_types: ["card", "acss_debit"],
     payment_method_options: {
       acss_debit: {
-        currency: "cad",
         mandate_options: {
           // Prélèvement récurrent d'un cabinet : « business », et non
           // « personal ». La distinction figure sur le mandat que Stripe fait
