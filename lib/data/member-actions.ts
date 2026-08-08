@@ -3,6 +3,7 @@
 import { randomBytes, createHash } from "node:crypto"
 import { revalidatePath } from "next/cache"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
+import { exigerPermission } from "@/lib/auth/permissions"
 
 /**
  * Gestion des membres d'un cabinet, depuis l'écran Paramètres.
@@ -26,12 +27,10 @@ export interface ResultatMembre {
 const ROLES = ["owner", "rcic", "risia", "staff", "bookkeeper", "readonly"] as const
 
 async function exigerProprietaire() {
-  const membre = await getCurrentMember()
-  if (!membre) throw new Error("Session absente.")
-  if (membre.ciccRole !== "owner") {
-    throw new Error("Réservé au propriétaire du cabinet.")
-  }
-  return membre
+  // Le nom reste, la règle change : ce n'est plus le rôle « owner » qui
+  // ouvre, mais une permission nommée. Un cabinet peut donc la déléguer
+  // sans distribuer le reste des droits du propriétaire.
+  return exigerPermission("firm.members")
 }
 
 export async function inviterMembre(formData: FormData): Promise<ResultatMembre> {

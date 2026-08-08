@@ -1,6 +1,12 @@
 import { setRequestLocale } from "next-intl/server"
 import { SettingsClient } from "./settings-client"
 import { TeamPanel, type MembreVue, type InvitationVue } from "@/components/settings/team-panel"
+import {
+  PermissionsPanel,
+  type PermissionVue,
+  type MembrePermissions,
+} from "@/components/settings/permissions-panel"
+import { membrePeut } from "@/lib/auth/permissions"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 
 export default async function SettingsPage({
@@ -16,7 +22,8 @@ export default async function SettingsPage({
 
   // La RLS restreint déjà ces deux lectures au cabinet du membre : aucun
   // filtre applicatif n'est nécessaire, et surtout aucun n'est oubliable.
-  const [{ data: profils }, { data: invitations }] = await Promise.all([
+  const [{ data: profils }, { data: invitations }, { data: perms }, { data: defauts }, { data: ajustements }, peutGererMembres] =
+    await Promise.all([
     supabase
       .from("profiles")
       .select("id, email, full_name, cicc_role, user_id, status")
@@ -27,7 +34,39 @@ export default async function SettingsPage({
       .is("accepted_at", null)
       .is("revoked_at", null)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("permissions")
+      .select("key, label_fr, description_fr, category, rank, owner_only")
+      .order("rank", { ascending: true }),
+    supabase.from("role_permissions").select("cicc_role, permission, granted"),
+    supabase.from("profile_permissions").select("profile_id, permission, granted"),
+    membrePeut("firm.members"),
   ])
+
+  // Défaut du rôle et ajustement individuel sont passés séparément : l'écran
+  // doit pouvoir distinguer « suit le rôle » de « accordée », faute de quoi il
+  // figerait le premier en écrivant le second.
+  const defautsParRole: Record<string, Record<string, boolean>> = {}
+  for (const d of defauts ?? []) {
+    const r = d.cicc_role as string
+    defautsParRole[r] ??= {}
+    defautsParRole[r][d.permission as string] = Boolean(d.granted)
+  }
+
+  const ajustementsParProfil: Record<string, Record<string, boolean>> = {}
+  for (const a of ajustements ?? []) {
+    const pid = a.profile_id as string
+    ajustementsParProfil[pid] ??= {}
+    ajustementsParProfil[pid][a.permission as string] = Boolean(a.granted)
+  }
+
+  const permissions: PermissionVue[] = (perms ?? []).map((p) => ({
+    key: p.key as string,
+    labelFr: (p.label_fr as string) ?? "",
+    descriptionFr: (p.description_fr as string) ?? "",
+    category: (p.category as string) ?? "general",
+    ownerOnly: Boolean(p.owner_only),
+  }))
 
   const membres: MembreVue[] = (profils ?? []).map((p) => ({
     id: p.id as string,
@@ -53,7 +92,20 @@ export default async function SettingsPage({
       <TeamPanel
         membres={membres}
         invitations={enAttente}
-        peutGerer={membre?.ciccRole === "owner"}
+        peutGerer={peutGererMembres}
+      />
+      <PermissionsPanel
+        permissions={permissions}
+        peutGerer={peutGererMembres}
+        membres={(profils ?? []).map<MembrePermissions>((p) => ({
+          profilId: p.id as string,
+          nom: (p.full_name as string) || (p.email as string) || "—",
+          role: (p.cicc_role as string) ?? "staff",
+          statut: (p.status as string) ?? "active",
+          estMoi: p.user_id === membre?.userId,
+          defauts: defautsParRole[(p.cicc_role as string) ?? "staff"] ?? {},
+          ajustements: ajustementsParProfil[p.id as string] ?? {},
+        }))}
       />
     </div>
   )

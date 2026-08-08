@@ -5,6 +5,7 @@ import { getCurrentMember } from "@/lib/supabase/session"
 import { clientStripe, sessionPaiement, sessionPortail, stripeConfigure } from "@/lib/billing/stripe"
 import { type Cadence } from "@/lib/billing/plans"
 import { getPlan } from "@/lib/billing/catalogue"
+import { exigerPermission } from "@/lib/auth/permissions"
 
 /**
  * Souscription et gestion de l'abonnement, côté cabinet.
@@ -47,12 +48,10 @@ function baseUrl(): string {
 }
 
 async function exigerProprietaire() {
-  const membre = await getCurrentMember()
-  if (!membre) throw new Error("Session absente. Reconnectez-vous.")
-  if (membre.ciccRole !== "owner") {
-    throw new Error("Seul le propriétaire du cabinet peut gérer l'abonnement.")
-  }
-  return membre
+  // Le nom reste, la règle change : ce n'est plus le rôle « owner » qui
+  // ouvre, mais une permission nommée. Un cabinet peut donc la déléguer
+  // sans distribuer le reste des droits du propriétaire.
+  return exigerPermission("firm.billing")
 }
 
 /**

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 import { creerCle } from "@/lib/data/connector-auth"
+import { exigerPermission } from "@/lib/auth/permissions"
 
 /**
  * Pilotage du connecteur par le cabinet.
@@ -26,12 +27,10 @@ export interface ResultatConnecteur {
 }
 
 async function exigerProprietaire() {
-  const membre = await getCurrentMember()
-  if (!membre) throw new Error("Session absente.")
-  if (membre.ciccRole !== "owner") {
-    throw new Error("Seul le propriétaire du cabinet peut régler le connecteur.")
-  }
-  return membre
+  // Le nom reste, la règle change : ce n'est plus le rôle « owner » qui
+  // ouvre, mais une permission nommée. Un cabinet peut donc la déléguer
+  // sans distribuer le reste des droits du propriétaire.
+  return exigerPermission("firm.connector")
 }
 
 /** Ouvre ou ferme le connecteur du cabinet. */

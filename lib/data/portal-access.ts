@@ -4,6 +4,7 @@ import { randomInt } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
+import { exigerPermission } from "@/lib/auth/permissions"
 
 /**
  * Ouverture d'un accès au portail pour un client du cabinet.
@@ -74,14 +75,9 @@ function motDePasseTemporaire(): string {
  */
 export async function ouvrirAccesPortail(formData: FormData): Promise<ResultatAccesPortail> {
   try {
-    const membre = await getCurrentMember()
-    if (!membre) return { ok: false, message: "Session absente. Reconnectez-vous." }
-    if (membre.ciccRole !== "owner") {
-      return {
-        ok: false,
-        message: "Seul le propriétaire du cabinet peut ouvrir un accès au portail.",
-      }
-    }
+    // Déléguable : une adjointe peut ouvrir les accès portail sans porter
+    // pour autant les droits du propriétaire sur l'abonnement ou les membres.
+    const membre = await exigerPermission("portal.manage")
 
     const clientId = String(formData.get("clientId") ?? "").trim()
     if (!clientId) return { ok: false, message: "Client manquant." }
