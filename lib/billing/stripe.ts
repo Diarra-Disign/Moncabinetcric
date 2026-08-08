@@ -1,7 +1,7 @@
 import "server-only"
 
 import Stripe from "stripe"
-import { PLANS, DEVISE, type PlanId, type Cadence } from "./plans"
+import { DEVISE, type Cadence, type Plan } from "./plans"
 
 /**
  * Accès à Stripe.
@@ -59,14 +59,13 @@ function taxeAutomatique(): boolean {
  * code. Deux expressions équivalentes écrites à deux endroits finissent par
  * diverger, et la divergence ne se voit que sur une facture.
  */
-function montantCatalogue(plan: PlanId, cadence: Cadence, extra: boolean): number {
-  const p = PLANS[plan]
+function montantCatalogue(p: Plan, cadence: Cadence, extra: boolean): number {
   if (extra) return cadence === "annual" ? p.extraSeatAnnual : p.extraSeatMonthly
-  return cadence === "annual" ? p.annual : p.monthly
+  return (cadence === "annual" ? p.annual : p.monthly) ?? 0
 }
 
 /** Clé de recherche du tarif chez Stripe. Stable, et unique par compte. */
-export function cleTarif(plan: PlanId, cadence: Cadence, extra: boolean): string {
+export function cleTarif(plan: string, cadence: Cadence, extra: boolean): string {
   return `mcc_${plan}_${cadence}${extra ? "_place" : ""}`
 }
 
@@ -93,9 +92,9 @@ export function cleTarif(plan: PlanId, cadence: Cadence, extra: boolean): string
  * auquel il a souscrit, ce qui est le comportement attendu — mais plus aucune
  * souscription nouvelle ne s'y accroche.
  */
-async function tarif(plan: PlanId, cadence: Cadence, extra: boolean): Promise<string> {
+async function tarif(plan: Plan, cadence: Cadence, extra: boolean): Promise<string> {
   const sdk = stripe()
-  const cle = cleTarif(plan, cadence, extra)
+  const cle = cleTarif(plan.key, cadence, extra)
   const montant = montantCatalogue(plan, cadence, extra)
   const intervalle = cadence === "annual" ? "year" : "month"
 
@@ -126,8 +125,8 @@ async function tarif(plan: PlanId, cadence: Cadence, extra: boolean): Promise<st
       : {
           product_data: {
             name: extra
-              ? `${etiquette(plan)} — place supplémentaire`
-              : `moncabinetcric — ${etiquette(plan)}`,
+              ? `${plan.labelFr} — place supplémentaire`
+              : `moncabinetcric — ${plan.labelFr}`,
           },
         }),
     // Le logiciel infonuagique est taxable au Canada ; le code précis relève
@@ -136,10 +135,6 @@ async function tarif(plan: PlanId, cadence: Cadence, extra: boolean): Promise<st
   })
 
   return prix.id
-}
-
-function etiquette(plan: PlanId): string {
-  return plan === "solo" ? "Solo" : "Cabinet Pro"
 }
 
 /**
@@ -183,7 +178,8 @@ export async function clientStripe(params: {
  */
 export async function sessionPaiement(params: {
   customerId: string
-  plan: PlanId
+  /** Forfait tel qu'il figure au catalogue en base, jamais une clé nue. */
+  plan: Plan
   cadence: Cadence
   places: number
   firmId: string
@@ -192,15 +188,15 @@ export async function sessionPaiement(params: {
   langue: string
 }): Promise<string> {
   const sdk = stripe()
-  const p = PLANS[params.plan]
+  const p = params.plan
 
   const lignes: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-    { price: await tarif(params.plan, params.cadence, false), quantity: 1 },
+    { price: await tarif(p, params.cadence, false), quantity: 1 },
   ]
 
   const extras = Math.max(0, params.places - p.seatsIncluded)
   if (extras > 0 && p.extraSeatMonthly > 0) {
-    lignes.push({ price: await tarif(params.plan, params.cadence, true), quantity: extras })
+    lignes.push({ price: await tarif(p, params.cadence, true), quantity: extras })
   }
 
   const session = await sdk.checkout.sessions.create({
@@ -229,7 +225,7 @@ export async function sessionPaiement(params: {
     },
 
     subscription_data: {
-      metadata: { firm_id: params.firmId, plan: params.plan, cadence: params.cadence },
+      metadata: { firm_id: params.firmId, plan: p.key, cadence: params.cadence },
       // Le prélèvement préautorisé met jusqu'à cinq jours ouvrables à se
       // confirmer la première fois. Sans ces quelques jours, l'abonnement
       // resterait « incomplete » et le cabinet, qui vient pourtant de signer

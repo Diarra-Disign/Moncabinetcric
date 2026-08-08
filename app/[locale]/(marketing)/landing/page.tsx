@@ -1,10 +1,23 @@
 import { getLocale, getTranslations } from "next-intl/server"
 import { LandingClient } from "./landing-client"
-import { PLANS, formatMontant } from "@/lib/billing/plans"
+import { formatMontant, type Plan } from "@/lib/billing/plans"
+import { getCatalogue } from "@/lib/billing/catalogue"
 
 export default async function LandingPage() {
   const tLanding = await getTranslations("Landing")
   const locale = await getLocale()
+
+  // Le catalogue vient de la base : un prix corrigé depuis la console apparaît
+  // ici sans déploiement. `plan()` retombe sur un forfait vide quand la clé
+  // n'existe plus — la carte affiche alors un tarif nul plutôt que de faire
+  // échouer toute la page publique.
+  const catalogue = await getCatalogue()
+  const plan = (cle: string): Plan =>
+    catalogue.find((p) => p.key === cle) ?? {
+      key: cle, labelFr: "", labelEn: "", taglineFr: "", taglineEn: "", rank: 0,
+      purchasable: false, monthly: 0, annual: 0, extraSeatMonthly: 0,
+      extraSeatAnnual: 0, seatsIncluded: 1, maxSeats: null, aiConnector: false,
+    }
 
   // Les montants viennent du catalogue, jamais du fichier de traduction.
   // Deux tarifs publics contradictoires — l'un dans le code, l'autre dans les
@@ -69,8 +82,8 @@ export default async function LandingPage() {
       plusEnterpriseLabel: tLanding("pricing.plusEnterpriseLabel"),
       basic: {
         name: tLanding("pricing.basic.name"),
-        price: prix(PLANS.solo.monthly),
-        annual: tLanding("pricing.annualNote", { price: prix(PLANS.solo.annual) }),
+        price: prix(plan('solo').monthly ?? 0),
+        annual: tLanding("pricing.annualNote", { price: prix(plan('solo').annual ?? 0) }),
         desc: tLanding("pricing.basic.desc"),
         f1: tLanding("pricing.basic.f1"),
         f2: tLanding("pricing.basic.f2"),
@@ -80,10 +93,10 @@ export default async function LandingPage() {
       },
       business: {
         name: tLanding("pricing.business.name"),
-        price: prix(PLANS.cabinet.monthly),
-        annual: tLanding("pricing.annualNote", { price: prix(PLANS.cabinet.annual) }),
+        price: prix(plan('cabinet').monthly ?? 0),
+        annual: tLanding("pricing.annualNote", { price: prix(plan('cabinet').annual ?? 0) }),
         desc: tLanding("pricing.business.desc"),
-        f1: tLanding("pricing.business.f1", { price: prix(PLANS.cabinet.extraSeatMonthly) }),
+        f1: tLanding("pricing.business.f1", { price: prix(plan('cabinet').extraSeatMonthly) }),
         f2: tLanding("pricing.business.f2"),
         f3: tLanding("pricing.business.f3"),
         f4: tLanding("pricing.business.f4"),

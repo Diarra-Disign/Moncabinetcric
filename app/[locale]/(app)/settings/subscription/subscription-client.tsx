@@ -22,12 +22,13 @@ import {
   type ResultatPaiement,
 } from "@/lib/data/subscription-actions"
 import {
-  PLANS,
+  accroche,
   economieAnnuelle,
   equivalentMensuel,
   formatMontant,
+  libelle,
   type Cadence,
-  type PlanId,
+  type Plan,
 } from "@/lib/billing/plans"
 import { cn } from "@/lib/utils"
 
@@ -35,6 +36,16 @@ interface SubscriptionClientProps {
   estProprietaire: boolean
   paiementConfigure: boolean
   abonnement: AbonnementVue
+  /**
+   * Forfaits souscriptibles, lus dans `plan_limits` par le composant serveur.
+   *
+   * Passés en propriétés plutôt qu'importés d'une constante : les prix vivent
+   * en base et se modifient depuis la console d'exploitation. Un catalogue
+   * figé dans le paquet client rendrait tout changement de tarif dépendant
+   * d'un déploiement — et laisserait l'écran afficher un prix pendant que
+   * Stripe en facturerait un autre.
+   */
+  plans: Plan[]
 }
 
 /** Correspondance des statuts Stripe vers une clé de traduction. */
@@ -47,6 +58,20 @@ const CLE_STATUT: Record<string, string> = {
   incomplete: "statusIncomplete",
   incomplete_expired: "statusIncompleteExpired",
   paused: "statusPaused",
+}
+
+/**
+ * Phrases de vente, par clé de forfait.
+ *
+ * Un forfait ajouté depuis la console sans entrée ici s'affiche avec ses
+ * places et son prix, sans liste d'avantages — dégradation volontaire. Une
+ * liste inventée par défaut serait pire : elle promettrait ce que le forfait
+ * ne donne pas.
+ */
+const AVANTAGES: Record<string, string[]> = {
+  solo: ["solo2", "solo3", "solo4", "solo5", "solo6"],
+  cabinet: ["cabinet2", "cabinet3", "cabinet4", "cabinet5"],
+  business: ["cabinet2", "cabinet3", "cabinet4", "cabinet5"],
 }
 
 const TON_STATUT: Record<string, string> = {
@@ -62,6 +87,7 @@ export function SubscriptionClient({
   estProprietaire,
   paiementConfigure,
   abonnement,
+  plans,
 }: SubscriptionClientProps) {
   const t = useTranslations("Subscription")
   const locale = useLocale()
@@ -122,7 +148,10 @@ export function SubscriptionClient({
               {abonnement.existe && abonnement.statut !== "incomplete" ? (
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span className="font-bold text-foreground">
-                    {abonnement.plan === "cabinet" ? t("cabinetName") : t("soloName")}
+                    {libelle(
+                      plans.find((p) => p.key === abonnement.plan) ?? plans[0],
+                      locale
+                    )}
                   </span>
                   <span aria-hidden>·</span>
                   <span>
@@ -256,16 +285,22 @@ export function SubscriptionClient({
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {(["solo", "cabinet"] as const).map((id) => (
+          <div
+            className={cn(
+              "grid gap-4",
+              plans.length > 2 ? "lg:grid-cols-3" : "lg:grid-cols-2"
+            )}
+          >
+            {plans.map((p) => (
               <CartePlan
-                key={id}
-                id={id}
+                key={p.key}
+                plan={p}
                 cadence={cadence}
-                actuel={abonnement.plan === id && abonnement.statut !== "canceled"}
+                actuel={abonnement.plan === p.key && abonnement.statut !== "canceled"}
                 enCours={enCours}
                 desactive={!paiementConfigure}
                 prix={prix}
+                locale={locale}
                 onSoumettre={lancer(ouvrirPaiement)}
               />
             ))}
@@ -309,25 +344,31 @@ export function SubscriptionClient({
 }
 
 function CartePlan({
-  id,
+  plan,
   cadence,
   actuel,
   enCours,
   desactive,
   prix,
+  locale,
   onSoumettre,
 }: {
-  id: PlanId
+  plan: Plan
   cadence: Cadence
   actuel: boolean
   enCours: boolean
   desactive: boolean
   prix: (cents: number) => string
+  locale: string
   onSoumettre: (fd: FormData) => void
 }) {
   const t = useTranslations("Subscription")
-  const p = PLANS[id]
-  const avantages = id === "solo" ? ["solo1", "solo2", "solo3", "solo4", "solo5", "solo6"] : ["cabinet1", "cabinet2", "cabinet3", "cabinet4", "cabinet5"]
+
+  // Les avantages viennent des traductions par clé de forfait : ce sont des
+  // phrases de vente, pas des droits. Les droits, eux, sont dans
+  // plan_features et c'est firm_has_feature() qui les applique — un écran
+  // n'accorde rien.
+  const avantages = AVANTAGES[plan.key] ?? []
 
   return (
     <form
@@ -337,42 +378,34 @@ function CartePlan({
         actuel ? "border-primary" : "border-border"
       )}
     >
-      <input type="hidden" name="plan" value={id} />
+      <input type="hidden" name="plan" value={plan.key} />
       <input type="hidden" name="cadence" value={cadence} />
 
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-            {id === "solo" ? (
+            {plan.seatsIncluded === 1 ? (
               <User aria-hidden className="h-5 w-5" />
             ) : (
               <Building2 aria-hidden className="h-5 w-5" />
             )}
           </span>
           <div>
-            <h3 className="text-sm font-black text-foreground">
-              {id === "solo" ? t("soloName") : t("cabinetName")}
-            </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {id === "solo" ? t("soloTagline") : t("cabinetTagline")}
-            </p>
+            <h3 className="text-sm font-black text-foreground">{libelle(plan, locale)}</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">{accroche(plan, locale)}</p>
           </div>
         </div>
-        {actuel ? (
+        {actuel && (
           <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
             {t("currentBadge")}
           </span>
-        ) : id === "cabinet" ? (
-          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            {t("recommendedBadge")}
-          </span>
-        ) : null}
+        )}
       </div>
 
       <div className="mt-5">
         <p className="flex items-baseline gap-1.5">
           <span className="text-3xl font-black tabular-nums tracking-tight text-foreground">
-            {prix(cadence === "annual" ? equivalentMensuel(id) : p.monthly)}
+            {prix(cadence === "annual" ? equivalentMensuel(plan) : plan.monthly ?? 0)}
           </span>
           <span className="text-xs font-bold text-muted-foreground">{t("perMonth")}</span>
         </p>
@@ -380,14 +413,18 @@ function CartePlan({
             veut rien dire, et c'est la comparaison que fait l'œil. */}
         <p className="mt-1 min-h-8 text-xs text-muted-foreground">
           {cadence === "annual"
-            ? t("annualSaving", { price: prix(economieAnnuelle(id)) })
-            : p.extraSeatMonthly > 0
-              ? t("extraSeat", { price: prix(p.extraSeatMonthly) })
+            ? t("annualSaving", { price: prix(economieAnnuelle(plan)) })
+            : plan.extraSeatMonthly > 0
+              ? t("extraSeat", { price: prix(plan.extraSeatMonthly) })
               : ""}
         </p>
       </div>
 
       <ul className="mt-4 flex-1 space-y-1.5 text-xs text-muted-foreground">
+        <li className="flex items-start gap-2">
+          <Check aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+          {t("seatsIncluded", { n: plan.seatsIncluded })}
+        </li>
         {avantages.map((k) => (
           <li key={k} className="flex items-start gap-2">
             <Check aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
@@ -401,7 +438,7 @@ function CartePlan({
         disabled={enCours || desactive || actuel}
         className={cn(
           "mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-bold transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-          id === "cabinet"
+          plan.aiConnector
             ? "bg-primary text-primary-foreground hover:bg-primary/90"
             : "border border-border text-foreground hover:bg-muted"
         )}

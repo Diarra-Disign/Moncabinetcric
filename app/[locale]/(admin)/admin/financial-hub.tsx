@@ -19,7 +19,7 @@ import {
   Package
 } from "lucide-react"
 import type { AdminFirmRow, AdminSubscriptionRow } from "@/lib/data/admin"
-import { montant, estPlanPayant, formatMontant, type Cadence } from "@/lib/billing/plans"
+import { montant, formatMontant, type Cadence, type Plan } from "@/lib/billing/plans"
 
 /**
  * Statuts d'abonnement qui produisent du revenu récurrent.
@@ -43,14 +43,20 @@ const STATUTS_FACTURES = ["active", "past_due"]
  * L'annuel est ramené au mois. Sans cette division, un abonné annuel
  * comptait pour douze fois sa contribution réelle dans le MRR.
  */
-function revenuMensuelCents(s: AdminSubscriptionRow | null): number {
-  if (!s || !STATUTS_FACTURES.includes(s.status) || !estPlanPayant(s.plan)) return 0
-  const total = montant(s.plan, s.cadence as Cadence, s.seats)
+function revenuMensuelCents(s: AdminSubscriptionRow | null, catalogue: Plan[]): number {
+  if (!s || !STATUTS_FACTURES.includes(s.status)) return 0
+  // Le forfait est cherché dans le catalogue en base : un palier ajouté depuis
+  // la console entre dans le calcul sans qu'on touche à ce fichier.
+  const p = catalogue.find((x) => x.key === s.plan)
+  if (!p || p.monthly === null) return 0
+  const total = montant(p, s.cadence as Cadence, s.seats)
   return s.cadence === "annual" ? Math.round(total / 12) : total
 }
 
 interface FinancialHubProps {
   firms: AdminFirmRow[]
+  /** Catalogue lu en base par la page serveur. */
+  catalogue: Plan[]
 }
 
 export interface CouponItem {
@@ -68,7 +74,7 @@ export interface PlanItem {
   isSystem?: boolean
 }
 
-export function FinancialHub({ firms }: FinancialHubProps) {
+export function FinancialHub({ firms, catalogue }: FinancialHubProps) {
   // Config dynamique et modifiable des forfaits (Ajout, Modification, Suppression)
   const [plans, setPlans] = React.useState<PlanItem[]>([
     { id: "p-solo", key: "solo", name: "Forfait Solo", price: 49, isSystem: true },
@@ -108,9 +114,9 @@ export function FinancialHub({ firms }: FinancialHubProps) {
   // « cabinet » jusqu'au prochain événement Stripe et continuait de compter
   // 79 $ ; un cabinet suspendu aussi. Le revenu affiché ne pouvait que
   // surestimer, et jamais se corriger de lui-même.
-  const mrr = firms.reduce((sum, f) => sum + revenuMensuelCents(f.subscription), 0)
+  const mrr = firms.reduce((sum, f) => sum + revenuMensuelCents(f.subscription, catalogue), 0)
   const arr = mrr * 12
-  const paidFirms = firms.filter((f) => revenuMensuelCents(f.subscription) > 0)
+  const paidFirms = firms.filter((f) => revenuMensuelCents(f.subscription, catalogue) > 0)
   const arpu = paidFirms.length > 0 ? Math.round(mrr / paidFirms.length) : 0
 
   const trialFirms = firms.filter((f) => f.plan === "trial")

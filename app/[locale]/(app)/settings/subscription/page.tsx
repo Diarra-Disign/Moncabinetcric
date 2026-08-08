@@ -2,6 +2,7 @@ import { setRequestLocale } from "next-intl/server"
 import { getCurrentMember } from "@/lib/supabase/session"
 import { getAbonnement } from "@/lib/data/subscription"
 import { stripeConfigure } from "@/lib/billing/stripe"
+import { getForfaitsSouscriptibles } from "@/lib/billing/catalogue"
 import { SubscriptionClient } from "./subscription-client"
 
 /**
@@ -21,13 +22,18 @@ export default async function SubscriptionPage({
   const { locale } = await params
   setRequestLocale(locale)
 
-  const [membre, abonnement] = await Promise.all([getCurrentMember(), getAbonnement()])
+  const [membre, abonnement, plans] = await Promise.all([
+    getCurrentMember(),
+    getAbonnement(),
+    getForfaitsSouscriptibles(),
+  ])
 
   return (
     <SubscriptionClient
       estProprietaire={membre?.ciccRole === "owner"}
       paiementConfigure={stripeConfigure()}
       abonnement={abonnement}
+      plans={plans}
     />
   )
 }

@@ -701,6 +701,7 @@
     "cabinet5": "Soutien prioritaire",
     "methodsNote": "Carte de crédit ou prélèvement préautorisé sur compte bancaire canadien. Le prélèvement bancaire coûte moins cher au cabinet et n'expire pas.",
     "taxNote": "Les taxes applicables s'ajoutent au moment du paiement.",
-    "dataNote": "Les numéros de carte et de compte ne sont jamais reçus ni conservés par moncabinetcric : ils sont saisis sur une page hébergée par Stripe."
+    "dataNote": "Les numéros de carte et de compte ne sont jamais reçus ni conservés par moncabinetcric : ils sont saisis sur une page hébergée par Stripe.",
+    "seatsIncluded": "{n} accès inclus"
   }
 }

@@ -1,95 +1,64 @@
 /**
- * Catalogue des abonnements.
+ * Forme d'un forfait, et calculs qui s'y appliquent.
  *
- * Source unique des prix, des places et des avantages. La page publique, la
- * console d'exploitation et l'écran d'abonnement du cabinet lisent tous ici :
- * un prix affiché à un endroit et facturé à un autre est le genre d'écart
- * qu'on ne découvre que par une réclamation.
+ * Ce module ne contient PLUS aucun prix. Ils vivaient ici, en dur, et le
+ * catalogue Stripe comme la page publique en dépendaient : changer un tarif
+ * demandait un déploiement, et ajouter un palier demandait de modifier une
+ * contrainte SQL en plus. Les montants sont désormais dans `plan_limits`, en
+ * base, modifiables depuis la console d'exploitation — voir `catalogue.ts`,
+ * qui les lit.
  *
- * Ce module ne fait pas autorité sur les droits. Les limites qui comptent —
- * places, connecteur — sont dans `plan_limits`, en base, parce qu'elles sont
- * appliquées par des déclencheurs SQL. Ce qui suit sert à afficher et à
- * facturer ; ce qui refuse est ailleurs. Les deux doivent concorder, et la
- * migration 20260807100000 porte les mêmes valeurs.
- *
- * Règle tenue depuis la reprise de la page publique : rien n'est annoncé ici
- * qui ne soit ni construit ni appliqué. Pas de quota de stockage, pas de
- * plafond de dossiers, pas d'« intégration fiscale » — ces promesses ont été
- * retirées faute d'existence, et n'y reviendront qu'avec le code qui les tient.
+ * Ce qui reste ici est volontairement pur : aucune entrée-sortie, donc
+ * utilisable des deux côtés de la frontière serveur/client. Un composant
+ * client reçoit ses forfaits en propriétés et se sert des mêmes fonctions que
+ * le serveur pour les afficher — c'est ce qui garantit qu'un montant affiché
+ * et un montant facturé sont calculés par le même code.
  */
 
-export type PlanId = "solo" | "cabinet"
 export type Cadence = "monthly" | "annual"
 
 export interface Plan {
-  id: PlanId
-  /** Montants en cents CAD : la devise n'a pas de fractions plus fines, et
-   *  Stripe ne parle qu'en plus petite unité. Aucun flottant nulle part. */
-  monthly: number
-  annual: number
-  /** Place supplémentaire, en cents par mois. Zéro quand le plan n'en vend pas. */
+  key: string
+  labelFr: string
+  labelEn: string
+  taglineFr: string
+  taglineEn: string
+  rank: number
+  /** Souscriptible par le cabinet lui-même. Faux pour essai, courtoisie, entreprise. */
+  purchasable: boolean
+  /** Cents CAD. null = pas de tarif public (sur mesure ou accordé à la main). */
+  monthly: number | null
+  annual: number | null
   extraSeatMonthly: number
   extraSeatAnnual: number
-  /** Places comprises dans le prix de base. */
   seatsIncluded: number
-  /** null = sans limite. Doit refléter plan_limits.max_seats. */
+  /** null = sans limite. */
   maxSeats: number | null
   aiConnector: boolean
 }
 
 export const DEVISE = "cad"
 
-/**
- * Douze mois payés dix. Le rabais annuel n'est pas une générosité : un
- * prélèvement annuel coûte une commission au lieu de douze, et supprime onze
- * occasions qu'une carte expire au mauvais moment.
- */
-const MOIS_OFFERTS = 2
-
-export const PLANS: Record<PlanId, Plan> = {
-  solo: {
-    id: "solo",
-    monthly: 4900,
-    annual: 4900 * (12 - MOIS_OFFERTS),
-    extraSeatMonthly: 0,
-    extraSeatAnnual: 0,
-    seatsIncluded: 1,
-    maxSeats: 1,
-    aiConnector: false,
-  },
-  cabinet: {
-    id: "cabinet",
-    monthly: 7900,
-    annual: 7900 * (12 - MOIS_OFFERTS),
-    extraSeatMonthly: 2500,
-    extraSeatAnnual: 2500 * (12 - MOIS_OFFERTS),
-    seatsIncluded: 3,
-    maxSeats: null,
-    aiConnector: true,
-  },
-}
-
-export function estPlanPayant(plan: string): plan is PlanId {
-  return plan === "solo" || plan === "cabinet"
+/** Le forfait porte-t-il un tarif public ? */
+export function estTarife(p: Plan): boolean {
+  return p.monthly !== null && p.annual !== null
 }
 
 /**
  * Prix total d'un abonnement, places supplémentaires comprises.
  *
- * `places` est le nombre total de comptes, pas le nombre d'extras : c'est ce
- * que compte `firm_seats_taken()`, et raisonner sur deux unités différentes
- * de part et d'autre du paiement finit toujours par produire un écart d'une
- * place.
+ * `places` est le nombre TOTAL de comptes, pas le nombre d'extras : c'est ce
+ * que compte firm_seats_taken(), et raisonner sur deux unités différentes de
+ * part et d'autre du paiement finit toujours par produire un écart d'une place.
  */
-export function montant(plan: PlanId, cadence: Cadence, places: number): number {
-  const p = PLANS[plan]
-  const base = cadence === "annual" ? p.annual : p.monthly
+export function montant(p: Plan, cadence: Cadence, places: number): number {
+  const base = (cadence === "annual" ? p.annual : p.monthly) ?? 0
   const extraUnitaire = cadence === "annual" ? p.extraSeatAnnual : p.extraSeatMonthly
   const extras = Math.max(0, places - p.seatsIncluded)
   return base + extras * extraUnitaire
 }
 
-/** « 49,00 $ » en français, « $49.00 » en anglais. */
+/** « 49 $ » en français, « $49 » en anglais. */
 export function formatMontant(cents: number, locale: string): string {
   return new Intl.NumberFormat(locale === "en" ? "en-CA" : "fr-CA", {
     style: "currency",
@@ -99,15 +68,24 @@ export function formatMontant(cents: number, locale: string): string {
 }
 
 /**
- * Prix mensuel équivalent d'un abonnement annuel, pour l'afficher en regard
- * du mensuel. Sans lui, on compare 490 $ à 49 $ et la comparaison ne veut
- * rien dire.
+ * Prix mensuel équivalent d'un abonnement annuel.
+ *
+ * Sans lui, l'œil compare 490 $ à 49 $ et la comparaison ne veut rien dire.
  */
-export function equivalentMensuel(plan: PlanId): number {
-  return Math.round(PLANS[plan].annual / 12)
+export function equivalentMensuel(p: Plan): number {
+  return Math.round((p.annual ?? 0) / 12)
 }
 
 /** Économie annuelle, en cents. */
-export function economieAnnuelle(plan: PlanId): number {
-  return PLANS[plan].monthly * 12 - PLANS[plan].annual
+export function economieAnnuelle(p: Plan): number {
+  return (p.monthly ?? 0) * 12 - (p.annual ?? 0)
+}
+
+/** Libellé dans la langue de l'utilisateur. */
+export function libelle(p: Plan, locale: string): string {
+  return locale === "en" ? p.labelEn : p.labelFr
+}
+
+export function accroche(p: Plan, locale: string): string {
+  return locale === "en" ? p.taglineEn : p.taglineFr
 }

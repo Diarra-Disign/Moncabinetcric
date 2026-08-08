@@ -15,6 +15,7 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import { getAbonnement } from "@/lib/data/subscription"
 import { stripeConfigure } from "@/lib/billing/stripe"
+import { getForfaitsSouscriptibles } from "@/lib/billing/catalogue"
 import { SubscriptionClient } from "./settings/subscription/subscription-client"
 
 export default async function AppLayout({
@@ -83,7 +84,10 @@ export default async function AppLayout({
     // permettrait de payer. Sans cette greffe, un cabinet dont l'essai vient
     // d'échoir devrait écrire un courriel et attendre une réponse pour un
     // geste qui prend trente secondes.
-    const abonnement = await getAbonnement()
+    const [abonnement, plans] = await Promise.all([
+      getAbonnement(),
+      getForfaitsSouscriptibles(),
+    ])
 
     return (
       <AccessClosed
@@ -106,6 +110,7 @@ export default async function AppLayout({
               estProprietaire
               paiementConfigure={stripeConfigure()}
               abonnement={abonnement}
+              plans={plans}
             />
           </Suspense>
         )}

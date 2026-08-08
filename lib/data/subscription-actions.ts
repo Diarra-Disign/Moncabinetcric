@@ -3,7 +3,8 @@
 import { createClient } from "@supabase/supabase-js"
 import { getCurrentMember } from "@/lib/supabase/session"
 import { clientStripe, sessionPaiement, sessionPortail, stripeConfigure } from "@/lib/billing/stripe"
-import { PLANS, estPlanPayant, type Cadence, type PlanId } from "@/lib/billing/plans"
+import { type Cadence } from "@/lib/billing/plans"
+import { getPlan } from "@/lib/billing/catalogue"
 
 /**
  * Souscription et gestion de l'abonnement, côté cabinet.
@@ -73,11 +74,23 @@ export async function ouvrirPaiement(formData: FormData): Promise<ResultatPaieme
     }
 
     const membre = await exigerProprietaire()
-    const plan = String(formData.get("plan") ?? "")
+    const cle = String(formData.get("plan") ?? "")
     const cadence: Cadence = String(formData.get("cadence") ?? "monthly") === "annual" ? "annual" : "monthly"
     const langue = String(formData.get("langue") ?? "fr") === "en" ? "en" : "fr"
 
-    if (!estPlanPayant(plan)) return { ok: false, message: "Plan inconnu." }
+    // Le forfait vient du catalogue en base, jamais d'une liste figée dans le
+    // code : c'est ce qui permet d'en ajouter un depuis la console sans
+    // déploiement. Et `purchasable` est vérifié ICI, côté serveur — l'essai,
+    // la courtoisie et l'entreprise ne doivent jamais entrer dans un tunnel de
+    // paiement, quel que soit ce que le formulaire affirme.
+    const plan = await getPlan(cle)
+    if (!plan) return { ok: false, message: "Forfait inconnu." }
+    if (!plan.purchasable) {
+      return {
+        ok: false,
+        message: `Le forfait « ${plan.labelFr} » ne se souscrit pas en ligne. Écrivez-nous pour en convenir.`,
+      }
+    }
 
     const supabase = serviceClient()
 
@@ -91,12 +104,13 @@ export async function ouvrirPaiement(formData: FormData): Promise<ResultatPaieme
       supabase.rpc("firm_seats_taken", { f_id: membre.firmId }),
     ])
 
-    const places = Math.max(PLANS[plan as PlanId].seatsIncluded, Number(occupees ?? 1))
-    const maxPlan = PLANS[plan as PlanId].maxSeats
-    if (maxPlan !== null && places > maxPlan) {
+    const places = Math.max(plan.seatsIncluded, Number(occupees ?? 1))
+    if (plan.maxSeats !== null && places > plan.maxSeats) {
       return {
         ok: false,
-        message: `Le plan Solo n'admet qu'une place et le cabinet en occupe ${places}. Choisissez Cabinet Pro, ou retirez des membres et des invitations en attente.`,
+        message:
+          `Le forfait « ${plan.labelFr} » n'admet que ${plan.maxSeats} place(s) et le cabinet en occupe ${places}. ` +
+          `Choisissez un forfait supérieur, ou suspendez des membres et révoquez les invitations en attente.`,
       }
     }
 
@@ -114,7 +128,7 @@ export async function ouvrirPaiement(formData: FormData): Promise<ResultatPaieme
       {
         firm_id: membre.firmId,
         stripe_customer_id: customerId,
-        plan,
+        plan: plan.key,
         cadence,
         seats: places,
         updated_at: new Date().toISOString(),
@@ -124,7 +138,7 @@ export async function ouvrirPaiement(formData: FormData): Promise<ResultatPaieme
 
     const url = await sessionPaiement({
       customerId,
-      plan: plan as PlanId,
+      plan,
       cadence,
       places,
       firmId: membre.firmId,

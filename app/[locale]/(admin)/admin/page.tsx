@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { getTranslations } from "next-intl/server"
 import { Building2, Users, AlertTriangle, Terminal, Lock, Ban } from "lucide-react"
 import { getAdminFirms, getDemoRequests, summarise, type AdminMemberRow } from "@/lib/data/admin"
+import { getCatalogue } from "@/lib/billing/catalogue"
 import { CreerCabinet, ActionsCabinet } from "./firm-actions"
 import { DemoRequests } from "./demo-requests"
 import { FinancialHub } from "./financial-hub"
@@ -54,7 +55,11 @@ function MemberList({
 
 export default async function AdminPage() {
   const t = await getTranslations("Admin")
-  const [firms, demandes] = await Promise.all([getAdminFirms(), getDemoRequests()])
+  const [firms, demandes, catalogue] = await Promise.all([
+    getAdminFirms(),
+    getDemoRequests(),
+    getCatalogue(),
+  ])
   const stats = summarise(firms)
 
   // Les libellés traversent la frontière serveur/client : un composant
@@ -109,7 +114,7 @@ export default async function AdminPage() {
         <h2 className="text-base font-black tracking-tight text-foreground mb-4">
           💳 Hub Financier SaaS & Performance Stripe
         </h2>
-        <FinancialHub firms={firms} />
+        <FinancialHub firms={firms} catalogue={catalogue} />
       </section>
 
       {/* Les demandes viennent avant la liste des cabinets : c'est ce qui

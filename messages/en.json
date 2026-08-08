@@ -701,6 +701,7 @@
     "cabinet5": "Priority support",
     "methodsNote": "Credit card or pre-authorised debit from a Canadian bank account. Bank debit costs the firm less and never expires.",
     "taxNote": "Applicable taxes are added at checkout.",
-    "dataNote": "Card and account numbers are never received or stored by moncabinetcric: they are entered on a page hosted by Stripe."
+    "dataNote": "Card and account numbers are never received or stored by moncabinetcric: they are entered on a page hosted by Stripe.",
+    "seatsIncluded": "{n} seat(s) included"
   }
 }

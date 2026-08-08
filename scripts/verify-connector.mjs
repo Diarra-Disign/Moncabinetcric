@@ -159,6 +159,41 @@ async function main() {
       .from("firm_subscriptions")
       .insert({ firm_id: cabinets.A.id, plan: "cabinet", status: "active", seats: 3 })
 
+    // L'exception accordée par l'exploitant doit primer sur le forfait, sinon
+    // le bouton « activer pour ce cabinet » de la console ne ferait rien et
+    // l'exploitant croirait l'avoir actionné. Elle doit aussi primer dans
+    // l'autre sens : retirer une fonctionnalité que le forfait comprend.
+    console.log("\nExceptions accordées par l'exploitant")
+    await changerAbonnement({ plan: "solo", seats: 1 })
+    verifier("forfait Solo, sans exception", await appel(cabinets.A.cle), 401, "UNAUTHORIZED")
+
+    await sb.from("firm_feature_overrides").insert({
+      firm_id: cabinets.A.id,
+      feature: "ai_connector",
+      enabled: true,
+      reason: "Épreuve automatisée",
+    })
+    verifier("Solo + exception ouvrante", await appel(cabinets.A.cle), 200, "OK")
+
+    // Une faveur sans échéance devient un droit acquis que personne ne pense
+    // à retirer : celle-ci est datée, et sa date est respectée.
+    await sb
+      .from("firm_feature_overrides")
+      .update({ expires_at: new Date(Date.now() - 3600000).toISOString() })
+      .eq("firm_id", cabinets.A.id)
+    verifier("exception échue", await appel(cabinets.A.cle), 401, "UNAUTHORIZED")
+
+    await sb.from("firm_feature_overrides").delete().eq("firm_id", cabinets.A.id)
+    await changerAbonnement({ plan: "cabinet", seats: 3 })
+    await sb.from("firm_feature_overrides").insert({
+      firm_id: cabinets.A.id,
+      feature: "ai_connector",
+      enabled: false,
+      reason: "Épreuve automatisée — retrait",
+    })
+    verifier("Cabinet Pro + exception fermante", await appel(cabinets.A.cle), 401, "UNAUTHORIZED")
+    await sb.from("firm_feature_overrides").delete().eq("firm_id", cabinets.A.id)
+
     console.log("\nRévocation et suspension")
     await sb.from("ai_api_keys").update({ revoked_at: new Date().toISOString() }).eq("firm_id", cabinets.A.id)
     verifier("clé révoquée", await appel(cabinets.A.cle), 401, "UNAUTHORIZED")
