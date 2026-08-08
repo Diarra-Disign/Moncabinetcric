@@ -641,6 +641,8 @@
     "subtitle": "Le paiement du cabinet, son moyen de paiement et ses factures.",
     "ownerOnly": "Seul le propriétaire du cabinet peut souscrire ou modifier l'abonnement.",
     "notConfigured": "Le paiement n'est pas encore configuré sur cette installation.",
+    "unavailable": "Indisponible : le paiement n'est pas encore configuré sur cette installation.",
+    "changeTitle": "Changer de formule",
     "currentTitle": "Votre abonnement",
     "none": "Aucun abonnement en cours",
     "noneBody": "Choisissez une formule ci-dessous. Le paiement se fait sur une page hébergée par Stripe : aucune coordonnée bancaire ne transite par cette application.",

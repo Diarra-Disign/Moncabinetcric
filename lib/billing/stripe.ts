@@ -306,70 +306,83 @@ export async function abonnementActifStripe(
 /**
  * Change le forfait d'un abonnement Stripe existant.
  *
- * Au lieu de créer une nouvelle session Checkout (ce que Stripe refuse quand
- * le client a déjà un abonnement), on remplace les lignes de facturation
- * directement. Le prorata est appliqué par défaut : Stripe émet un avoir
- * pour la période restante de l'ancien forfait et facture immédiatement la
- * différence du nouveau.
+ * Stripe refuse un second abonnement pour le même client : passer d'un forfait
+ * à l'autre se fait donc en remplaçant les lignes de facturation, et non par
+ * une nouvelle session Checkout. Le prorata est appliqué — Stripe crédite la
+ * période restante de l'ancien forfait et facture la différence du nouveau.
  *
- * Renvoie l'URL du portail client pour que le propriétaire puisse vérifier
- * le changement et ses factures.
+ * ---------------------------------------------------------------------------
+ * TROIS CHOSES QUE CETTE FONCTION NE FAIT PLUS
+ * ---------------------------------------------------------------------------
+ *
+ * 1. Elle ne finit plus par une redirection vers le portail client. Le portail
+ *    exige une configuration enregistrée dans le tableau de bord Stripe ;
+ *    tant qu'elle n'existe pas, cet appel LÈVE. Le changement de forfait,
+ *    lui, avait déjà eu lieu — l'écran annonçait donc un échec sur une
+ *    opération réussie et facturée. C'est exactement ce que voyait
+ *    l'utilisateur qui tentait de revenir à un autre forfait.
+ *
+ * 2. Elle ne supprime plus aveuglément tout ce qui suit la première ligne. Ce
+ *    balayage emportait les lignes de places par rôle, qu'une synchronisation
+ *    ultérieure recréait : deux écritures, donc deux proratisations sur la
+ *    facture, pour une seule décision du cabinet. Les lignes voulues sont
+ *    maintenant calculées par l'appelant et posées dans la MÊME écriture.
+ *
+ * 3. Elle ne devine plus la ligne de base par sa position. `items.data[0]`
+ *    n'est pas garanti d'être le forfait : c'est la clé de recherche qui le
+ *    dit, une ligne de place contenant toujours `_place`.
+ *
+ * Renvoie l'abonnement tel que Stripe le rend après modification : c'est lui
+ * qui fait foi, pas ce que l'écran avait demandé.
  */
 export async function changerForfait(params: {
-  customerId: string
   subscriptionId: string
   plan: Plan
   cadence: Cadence
-  places: number
   firmId: string
-  retour: string
-  langue: string
-}): Promise<string> {
+  /** Lignes de places voulues, calculées par `calculerLignesPlaces()`. */
+  lignesPlaces: { price: string; quantity: number }[]
+}): Promise<Stripe.Subscription> {
   const sdk = stripe()
   const sub = await sdk.subscriptions.retrieve(params.subscriptionId)
   const p = params.plan
 
-  // Construire les nouvelles lignes de tarification
-  const ligneBase = {
-    price: await tarif(p, params.cadence, false),
-    quantity: 1,
-  }
-
-  const extras = Math.max(0, params.places - p.seatsIncluded)
+  const prixBase = await tarif(p, params.cadence, false)
   const items: Stripe.SubscriptionUpdateParams.Item[] = []
 
-  // Remplacer la première ligne existante par le nouveau forfait de base
-  if (sub.items.data[0]) {
-    items.push({ id: sub.items.data[0].id, ...ligneBase })
+  const estPlace = (i: Stripe.SubscriptionItem) => (i.price?.lookup_key ?? "").includes("_place")
+  const ligneBase = sub.items.data.find((i) => !estPlace(i))
+
+  if (ligneBase) {
+    items.push({ id: ligneBase.id, price: prixBase, quantity: 1 })
   } else {
-    items.push(ligneBase)
+    items.push({ price: prixBase, quantity: 1 })
   }
 
-  // Supprimer les lignes supplémentaires restantes de l'ancien forfait
-  for (let i = 1; i < sub.items.data.length; i++) {
-    items.push({ id: sub.items.data[i].id, deleted: true })
+  // Les places voulues sont rapprochées par identifiant de tarif. Une ligne
+  // déjà correcte n'est pas réécrite : chaque écriture ajoute une ligne de
+  // proratisation à la facture du cabinet.
+  const voulues = new Map(params.lignesPlaces.map((l) => [l.price, l.quantity]))
+
+  for (const item of sub.items.data) {
+    if (!estPlace(item)) continue
+    const priceId = item.price?.id ?? ""
+    const quantite = voulues.get(priceId)
+
+    if (quantite === undefined) {
+      // Appartient à l'ancien forfait, ou n'a plus lieu d'être.
+      items.push({ id: item.id, deleted: true })
+      continue
+    }
+    if (item.quantity !== quantite) items.push({ id: item.id, quantity: quantite })
+    voulues.delete(priceId)
   }
 
-  // Ajouter la ligne de places supplémentaires si nécessaire
-  if (extras > 0 && p.extraSeatMonthly > 0) {
-    items.push({
-      price: await tarif(p, params.cadence, true),
-      quantity: extras,
-    })
-  }
+  for (const [price, quantity] of voulues) items.push({ price, quantity })
 
-  await sdk.subscriptions.update(params.subscriptionId, {
+  return sdk.subscriptions.update(params.subscriptionId, {
     items,
-    // Prorata : le client paie la différence immédiatement
     proration_behavior: "create_prorations",
     metadata: { firm_id: params.firmId, plan: p.key, cadence: params.cadence },
   })
-
-  // Rediriger vers le portail pour que le propriétaire constate le changement
-  const session = await sdk.billingPortal.sessions.create({
-    customer: params.customerId,
-    return_url: params.retour,
-    locale: params.langue === "en" ? "en" : "fr-CA",
-  })
-  return session.url
 }

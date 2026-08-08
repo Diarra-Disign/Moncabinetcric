@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 import { stripe, stripeConfigure } from "./stripe"
 import { getPlan } from "./catalogue"
 import { repartirSieges, cleTarifSiege, type PrixParRole, type ComptesParRole } from "./seats"
-import { DEVISE, type Cadence } from "./plans"
+import { DEVISE, type Cadence, type Plan } from "./plans"
 
 /**
  * Réconciliation des places facturées avec Stripe.
@@ -100,6 +100,64 @@ async function tarifSiege(
   return prix.id
 }
 
+/** Une ligne de places telle que Stripe l'attend. */
+export interface LignePlaceStripe {
+  price: string
+  quantity: number
+}
+
+/**
+ * Les lignes de places que ce cabinet devrait avoir sous ce forfait.
+ *
+ * Extrait de la synchronisation pour qu'un CHANGEMENT DE FORFAIT puisse s'en
+ * servir aussi. Sans cela, le changement supprimait les lignes par rôle et une
+ * synchronisation ultérieure les recréait : deux écritures chez Stripe, donc
+ * deux proratisations sur la facture, pour une seule décision du cabinet.
+ *
+ * Lève si la base est injoignable — l'appelant décide, parce que les deux
+ * appelants n'ont pas la même tolérance : une synchronisation de fond doit
+ * échouer en silence, un changement de forfait doit s'arrêter net.
+ */
+export async function calculerLignesPlaces(params: {
+  firmId: string
+  plan: Plan
+  cadence: Cadence
+}): Promise<{ lignes: LignePlaceStripe[]; occupees: number }> {
+  const { firmId, plan, cadence } = params
+  const supabase = serviceClient()
+
+  const [{ data: comptesBruts }, { data: grilleBrute }] = await Promise.all([
+    supabase.rpc("firm_seat_counts", { f_id: firmId }),
+    supabase.from("plan_seat_prices").select("plan, cicc_role, monthly_cents, annual_cents"),
+  ])
+
+  const comptes: ComptesParRole = {}
+  for (const c of (comptesBruts as { cicc_role: string; n: number }[] | null) ?? []) {
+    comptes[c.cicc_role] = c.n
+  }
+
+  const grille: PrixParRole = {}
+  for (const g of grilleBrute ?? []) {
+    if (g.plan !== plan.key) continue
+    grille[g.cicc_role as string] = {
+      monthly: (g.monthly_cents as number) ?? 0,
+      annual: (g.annual_cents as number) ?? 0,
+    }
+  }
+
+  const repartition = repartirSieges({ plan, comptes, cadence, grille })
+
+  const lignes: LignePlaceStripe[] = []
+  for (const l of repartition.lignes) {
+    lignes.push({
+      price: await tarifSiege(plan.key, l.ciccRole, cadence, l.unitaire, l.ciccRole),
+      quantity: l.quantite,
+    })
+  }
+
+  return { lignes, occupees: repartition.occupees }
+}
+
 /**
  * Aligne les lignes de l'abonnement Stripe sur l'effectif réel du cabinet.
  *
@@ -113,15 +171,11 @@ export async function synchroniserSiegesStripe(firmId: string): Promise<Resultat
 
     const supabase = serviceClient()
 
-    const [{ data: abonnement }, { data: comptesBruts }, { data: grilleBrute }] = await Promise.all([
-      supabase
-        .from("firm_subscriptions")
-        .select("stripe_subscription_id, plan, cadence, status")
-        .eq("firm_id", firmId)
-        .maybeSingle(),
-      supabase.rpc("firm_seat_counts", { f_id: firmId }),
-      supabase.from("plan_seat_prices").select("plan, cicc_role, monthly_cents, annual_cents"),
-    ])
+    const { data: abonnement } = await supabase
+      .from("firm_subscriptions")
+      .select("stripe_subscription_id, plan, cadence, status")
+      .eq("firm_id", firmId)
+      .maybeSingle()
 
     if (!abonnement?.stripe_subscription_id || !AJUSTABLES.includes(abonnement.status as string)) {
       // Précaution 1 : sans abonnement en cours, il n'y a pas de quantité à
@@ -140,21 +194,7 @@ export async function synchroniserSiegesStripe(firmId: string): Promise<Resultat
 
     const cadence: Cadence = abonnement.cadence === "annual" ? "annual" : "monthly"
 
-    const comptes: ComptesParRole = {}
-    for (const c of (comptesBruts as { cicc_role: string; n: number }[] | null) ?? []) {
-      comptes[c.cicc_role] = c.n
-    }
-
-    const grille: PrixParRole = {}
-    for (const g of grilleBrute ?? []) {
-      if (g.plan !== plan.key) continue
-      grille[g.cicc_role as string] = {
-        monthly: (g.monthly_cents as number) ?? 0,
-        annual: (g.annual_cents as number) ?? 0,
-      }
-    }
-
-    const repartition = repartirSieges({ plan, comptes, cadence, grille })
+    const { lignes, occupees } = await calculerLignesPlaces({ firmId, plan, cadence })
 
     const sdk = stripe()
     const sub = await sdk.subscriptions.retrieve(abonnement.stripe_subscription_id as string)
@@ -166,37 +206,42 @@ export async function synchroniserSiegesStripe(firmId: string): Promise<Resultat
       (i.price?.lookup_key ?? "").includes("_place")
     )
 
-    const voulues = new Map(repartition.lignes.map((l) => [l.ciccRole, l]))
+    // Le rapprochement se fait sur l'IDENTIFIANT DE TARIF, et non sur le rôle
+    // déduit de la clé de recherche. Le tarif porte à la fois le forfait, la
+    // cadence et le rôle : après un changement de forfait, les anciennes
+    // lignes ne se retrouvent donc pas dans les voulues et disparaissent
+    // d'elles-mêmes. Comparer les rôles les aurait laissées en place, au prix
+    // de l'ancien forfait.
+    const voulues = new Map(lignes.map((l) => [l.price, l.quantity]))
     const modifications: { id?: string; price?: string; quantity: number; deleted?: boolean }[] = []
 
     // Ce qui existe chez Stripe et ne devrait plus, ou plus dans cette quantité.
     for (const item of lignesPlaces) {
-      const role = (item.price?.lookup_key ?? "").split("_place_")[1] ?? ""
-      const voulue = voulues.get(role)
+      const priceId = item.price?.id ?? ""
+      const quantiteVoulue = voulues.get(priceId)
 
-      if (!voulue) {
+      if (quantiteVoulue === undefined) {
         modifications.push({ id: item.id, quantity: 0, deleted: true })
         continue
       }
       // Précaution 2 : une ligne identique n'est pas réécrite. Chaque écriture
       // provoque une proratisation, donc une ligne sur la facture du client.
-      if (item.quantity !== voulue.quantite) {
-        modifications.push({ id: item.id, quantity: voulue.quantite })
+      if (item.quantity !== quantiteVoulue) {
+        modifications.push({ id: item.id, quantity: quantiteVoulue })
       }
-      voulues.delete(role)
+      voulues.delete(priceId)
     }
 
     // Ce qui devrait exister et n'existe pas encore.
-    for (const [role, l] of voulues) {
-      const price = await tarifSiege(plan.key, role, cadence, l.unitaire, role)
-      modifications.push({ price, quantity: l.quantite })
+    for (const [price, quantity] of voulues) {
+      modifications.push({ price, quantity })
     }
 
     if (modifications.length === 0) {
       return {
         applicable: true,
         modifie: false,
-        message: `Places à jour : ${repartition.occupees} occupée(s), ${repartition.lignes.reduce((t, l) => t + l.quantite, 0)} facturée(s).`,
+        message: `Places à jour : ${occupees} occupée(s), ${lignes.reduce((t, l) => t + l.quantity, 0)} facturée(s).`,
       }
     }
 
@@ -218,10 +263,15 @@ export async function synchroniserSiegesStripe(firmId: string): Promise<Resultat
 
     // La quantité en base suit, pour que les écrans n'aient pas à interroger
     // Stripe pour afficher un nombre de places.
+    //
+    // C'est la CAPACITÉ payée qui s'écrit — places comprises au forfait, ou
+    // effectif s'il les dépasse — et non l'effectif seul. Le webhook écrit
+    // cette même grandeur : deux écrivains qui n'entendent pas la même chose
+    // par « seats » se corrigeraient l'un l'autre à chaque événement.
     await supabase
       .from("firm_subscriptions")
       .update({
-        seats: repartition.occupees,
+        seats: Math.max(occupees, plan.seatsIncluded, 1),
         updated_at: new Date().toISOString(),
       })
       .eq("firm_id", firmId)

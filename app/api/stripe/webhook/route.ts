@@ -194,14 +194,24 @@ async function synchroniser(abonnement: Stripe.Subscription, supabase: Service) 
   const moyen = moyenDePaiement(abonnement)
   const statut = abonnement.status
 
+  const plan = await planDeLAbonnement(abonnement, supabase)
+  if (!plan) {
+    // Un forfait que le catalogue ne connaît pas ne s'invente pas. L'ancien
+    // code repliait tout sur « solo » : un cabinet qui souscrivait Cabinet
+    // Business à 169 $ était enregistré à 49 $, plafonné à une place, et rien
+    // ne le signalait — ni au cabinet, ni ici.
+    console.warn("[stripe] forfait inconnu du catalogue", abonnement.id, abonnement.metadata?.plan)
+    return
+  }
+
   await supabase.from("firm_subscriptions").upsert(
     {
       firm_id: firmId,
       stripe_customer_id: String(abonnement.customer),
       stripe_subscription_id: abonnement.id,
-      plan: planDeLAbonnement(abonnement),
+      plan,
       cadence: cadenceDeLAbonnement(abonnement),
-      seats: placesDeLAbonnement(abonnement),
+      seats: await placesDeLAbonnement(abonnement, plan, supabase),
       status: statut,
       current_period_end: finDePeriode(abonnement),
       cancel_at_period_end: Boolean(abonnement.cancel_at_period_end),
@@ -221,7 +231,7 @@ async function synchroniser(abonnement: Stripe.Subscription, supabase: Service) 
     await supabase
       .from("firms")
       .update({
-        plan: planDeLAbonnement(abonnement),
+        plan,
         // L'essai accordé à la main n'a plus lieu d'être : il rouvrirait
         // l'accès d'un cabinet dont l'abonnement aurait été résilié.
         trial_ends_at: null,
@@ -269,31 +279,82 @@ async function cabinetDeLaFacture(facture: Stripe.Invoice, supabase: Service): P
   return (data?.firm_id as string) ?? null
 }
 
-function planDeLAbonnement(abonnement: Stripe.Subscription): string {
+/** Une ligne de places, par opposition à la ligne du forfait lui-même. */
+function estLignePlace(item: Stripe.SubscriptionItem): boolean {
+  return (item.price?.lookup_key ?? "").includes("_place")
+}
+
+/** La ligne du forfait. Reconnue à sa clé, jamais à sa position. */
+function ligneDeBase(abonnement: Stripe.Subscription): Stripe.SubscriptionItem | undefined {
+  return abonnement.items.data.find((i) => !estLignePlace(i)) ?? abonnement.items.data[0]
+}
+
+/**
+ * Le forfait de cet abonnement, vérifié contre le catalogue.
+ *
+ * Deux sources, dans cet ordre : la métadonnée posée à la souscription, puis
+ * la clé de recherche du tarif de base (`mcc_<forfait>_<cadence>`). Ni l'une
+ * ni l'autre n'est crue sans confrontation à `plan_limits` — le catalogue
+ * s'édite depuis la console, et un forfait retiré ne doit pas continuer à
+ * s'écrire dans `firms.plan`, où une clé étrangère l'attend.
+ *
+ * Renvoie null plutôt qu'un forfait de repli. Un repli silencieux sur « solo »
+ * facturait 169 $ pour les droits d'un forfait à 49 $.
+ */
+async function planDeLAbonnement(
+  abonnement: Stripe.Subscription,
+  supabase: Service
+): Promise<string | null> {
+  const candidats: string[] = []
+
   const declare = abonnement.metadata?.plan
-  if (declare === "solo" || declare === "cabinet") return declare
-  // Repli sur le tarif : le nom du produit contient l'étiquette du plan.
-  const cle = abonnement.items.data[0]?.price?.lookup_key ?? ""
-  return cle.includes("cabinet") ? "cabinet" : "solo"
+  if (declare) candidats.push(declare)
+
+  const cle = ligneDeBase(abonnement)?.price?.lookup_key ?? ""
+  const trouve = /^mcc_(.+?)_(monthly|annual)/.exec(cle)
+  if (trouve) candidats.push(trouve[1])
+
+  const { data } = await supabase.from("plan_limits").select("plan")
+  const connus = new Set((data ?? []).map((r) => r.plan as string))
+
+  return candidats.find((c) => connus.has(c)) ?? null
 }
 
 function cadenceDeLAbonnement(abonnement: Stripe.Subscription): string {
-  const interval = abonnement.items.data[0]?.price?.recurring?.interval
+  const interval = ligneDeBase(abonnement)?.price?.recurring?.interval
   return interval === "year" ? "annual" : "monthly"
 }
 
 /**
- * Places facturées : une comprise dans la ligne de base, plus les lignes de
- * places supplémentaires. Le total doit correspondre à ce que
- * firm_seat_limit() renverra, sans quoi la facture et le droit divergent.
+ * Places facturées : celles comprises au forfait, plus les lignes de places.
+ *
+ * Le nombre compris est lu dans `plan_limits`, et non codé en dur. Il l'était :
+ * « 3 si cabinet, 1 sinon » — ce qui donnait 1 à Cabinet Business, qui en
+ * comprend 8.
+ *
+ * Le filtre des lignes de places, lui, cherchait une clé se TERMINANT par
+ * `_place`. Depuis la tarification par rôle, ces clés s'appellent
+ * `mcc_cabinet_monthly_place_staff` : aucune ne correspondait plus. Le webhook
+ * ramenait donc les places au seul nombre compris, à chaque événement
+ * d'abonnement — défaisant la synchronisation qui venait de les ajuster.
  */
-function placesDeLAbonnement(abonnement: Stripe.Subscription): number {
-  const plan = planDeLAbonnement(abonnement)
-  const comprises = plan === "cabinet" ? 3 : 1
+async function placesDeLAbonnement(
+  abonnement: Stripe.Subscription,
+  plan: string,
+  supabase: Service
+): Promise<number> {
+  const { data } = await supabase
+    .from("plan_limits")
+    .select("seats_included")
+    .eq("plan", plan)
+    .maybeSingle()
+
+  const comprises = (data?.seats_included as number | null) ?? 1
   const extras = abonnement.items.data
-    .filter((i) => (i.price?.lookup_key ?? "").endsWith("_place"))
+    .filter(estLignePlace)
     .reduce((total, i) => total + (i.quantity ?? 0), 0)
-  return comprises + extras
+
+  return Math.max(1, comprises + extras)
 }
 
 /**

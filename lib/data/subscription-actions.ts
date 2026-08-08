@@ -1,8 +1,9 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { createClient } from "@supabase/supabase-js"
-import { getCurrentMember } from "@/lib/supabase/session"
 import { abonnementActifStripe, changerForfait, clientStripe, sessionPaiement, sessionPortail, stripeConfigure } from "@/lib/billing/stripe"
+import { calculerLignesPlaces } from "@/lib/billing/seat-sync"
 import { type Cadence } from "@/lib/billing/plans"
 import { getPlan } from "@/lib/billing/catalogue"
 import { exigerPermission } from "@/lib/auth/permissions"
@@ -97,7 +98,7 @@ export async function ouvrirPaiement(formData: FormData): Promise<ResultatPaieme
       supabase.from("firms").select("name, email").eq("id", membre.firmId).maybeSingle(),
       supabase
         .from("firm_subscriptions")
-        .select("stripe_customer_id")
+        .select("id, stripe_customer_id")
         .eq("firm_id", membre.firmId)
         .maybeSingle(),
       supabase.rpc("firm_seats_taken", { f_id: membre.firmId }),
@@ -122,18 +123,27 @@ export async function ouvrirPaiement(formData: FormData): Promise<ResultatPaieme
 
     // Consigné avant la redirection : si le cabinet abandonne puis recommence,
     // il retrouve le même client Stripe, donc le même historique de factures.
-    // La ligne est créée « incomplete » — aucun accès n'en découle.
-    await supabase.from("firm_subscriptions").upsert(
-      {
+    //
+    // SEUL l'identifiant Stripe s'écrit sur une ligne existante. Le forfait, la
+    // cadence et les places n'y sont posés qu'à la CRÉATION, où le statut vaut
+    // « incomplete » et n'ouvre donc aucun droit. Les écrire sur une ligne
+    // existante revenait à changer de forfait avant tout paiement : un cabinet
+    // actif sur Cabinet Pro qui cliquait sur Solo était rétrogradé sur-le-champ
+    // par firm_effective_plan(), même si Stripe refusait ensuite l'opération.
+    if (abonnement?.id) {
+      await supabase
+        .from("firm_subscriptions")
+        .update({ stripe_customer_id: customerId, updated_at: new Date().toISOString() })
+        .eq("firm_id", membre.firmId)
+    } else {
+      await supabase.from("firm_subscriptions").insert({
         firm_id: membre.firmId,
         stripe_customer_id: customerId,
         plan: plan.key,
         cadence,
         seats: places,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "firm_id" }
-    )
+      })
+    }
 
     // ---- Changement de forfait ----
     // Si le client a déjà un abonnement Stripe actif ou en essai, on modifie
@@ -141,18 +151,46 @@ export async function ouvrirPaiement(formData: FormData): Promise<ResultatPaieme
     // Stripe refuse de créer un second abonnement pour le même client.
     const subExistant = await abonnementActifStripe(customerId)
     if (subExistant) {
-      const retourUrl = `${baseUrl()}/${langue}/settings/subscription?paiement=ok`
-      const url = await changerForfait({
-        customerId,
+      // Les places du NOUVEAU forfait sont calculées avant l'appel, pour que
+      // le changement de forfait et le réajustement des places tiennent dans
+      // une seule écriture chez Stripe — donc une seule proratisation.
+      const { lignes, occupees } = await calculerLignesPlaces({
+        firmId: membre.firmId,
+        plan,
+        cadence,
+      })
+
+      const modifie = await changerForfait({
         subscriptionId: subExistant.id,
         plan,
         cadence,
-        places,
         firmId: membre.firmId,
-        retour: retourUrl,
-        langue,
+        lignesPlaces: lignes,
       })
-      return { ok: true, message: "Forfait mis à jour. Redirection vers le récapitulatif.", url }
+
+      // Ce qui s'écrit ici vient de la RÉPONSE de Stripe, pas du formulaire.
+      // Le webhook réécrira la même chose dans la seconde qui suit ; cette
+      // écriture existe pour que l'écran dise la vérité tout de suite, y
+      // compris sur une installation où le webhook n'est pas branché.
+      await supabase
+        .from("firm_subscriptions")
+        .update({
+          plan: modifie.metadata?.plan ?? plan.key,
+          cadence: modifie.items.data[0]?.price?.recurring?.interval === "year" ? "annual" : "monthly",
+          // Même grandeur que le webhook et la synchronisation : la capacité
+          // payée, pas l'effectif seul.
+          seats: Math.max(occupees, plan.seatsIncluded, 1),
+          status: modifie.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("firm_id", membre.firmId)
+
+      revalidatePath("/[locale]/settings/subscription", "page")
+
+      return {
+        ok: true,
+        message: `Forfait modifié : ${plan.labelFr}. Stripe a calculé le crédit et le complément au prorata ; le détail figure sur votre prochaine facture.`,
+      }
     }
 
     // ---- Première souscription ----
@@ -208,6 +246,18 @@ export async function ouvrirPortail(formData: FormData): Promise<ResultatPaiemen
 
     return { ok: true, message: "Redirection vers le portail de facturation.", url }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    const brut = e instanceof Error ? e.message : "Erreur inattendue."
+    // Stripe exige qu'une configuration de portail ait été enregistrée une
+    // fois dans le tableau de bord. Son message parle de « configuration »
+    // sans dire laquelle : traduit ici, parce que la personne qui lit cet
+    // écran est un cabinet, pas l'exploitant de la plateforme.
+    if (brut.includes("configuration")) {
+      return {
+        ok: false,
+        message:
+          "Le portail de facturation n'est pas encore ouvert. Écrivez-nous : nous vous transmettons vos factures et modifions votre moyen de paiement dans l'intervalle.",
+      }
+    }
+    return { ok: false, message: brut }
   }
 }

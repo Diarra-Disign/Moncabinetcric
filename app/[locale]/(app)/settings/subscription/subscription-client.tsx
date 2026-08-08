@@ -245,9 +245,13 @@ export function SubscriptionClient({
           </div>
         )}
 
-        {resultat && !resultat.ok && (
+        {/* Le succès s'affiche aussi, et pas seulement l'échec. Un changement
+            de forfait ne redirige plus vers Stripe : sans cet avis, l'écran
+            ne renvoyait plus rien du tout, et l'opération réussie passait
+            pour une opération sans effet. */}
+        {resultat && !resultat.url && (
           <div className="mt-4">
-            <Avis ton="error" texte={resultat.message} />
+            <Avis ton={resultat.ok ? "success" : "error"} texte={resultat.message} />
           </div>
         )}
       </section>
@@ -259,7 +263,7 @@ export function SubscriptionClient({
         <section>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-black tracking-tight text-foreground">
-              {abonnement.existe ? t("changePlan") : t("subscribe")}
+              {aUnAbonnementValide ? t("changeTitle") : t("subscribe")}
             </h2>
 
             <div
@@ -303,7 +307,16 @@ export function SubscriptionClient({
                 key={p.key}
                 plan={p}
                 cadence={cadence}
-                actuel={aUnAbonnementValide && abonnement.plan === p.key}
+                // La CADENCE entre dans la comparaison. Sans elle, un cabinet
+                // au mensuel voyait sa propre carte désactivée après avoir
+                // basculé sur « Annuel » : le seul bouton menant à l'annuel
+                // était celui qu'on venait de lui interdire.
+                actuel={
+                  aUnAbonnementValide &&
+                  abonnement.plan === p.key &&
+                  abonnement.cadence === cadence
+                }
+                dejaAbonne={aUnAbonnementValide}
                 enCours={enCours}
                 desactive={!paiementConfigure}
                 prix={prix}
@@ -354,6 +367,7 @@ function CartePlan({
   plan,
   cadence,
   actuel,
+  dejaAbonne,
   enCours,
   desactive,
   prix,
@@ -362,7 +376,10 @@ function CartePlan({
 }: {
   plan: Plan
   cadence: Cadence
+  /** Ce forfait ET cette cadence sont ceux en cours. */
   actuel: boolean
+  /** Le cabinet a un abonnement : le bouton propose un changement, pas un achat. */
+  dejaAbonne: boolean
   enCours: boolean
   desactive: boolean
   prix: (cents: number) => string
@@ -440,20 +457,16 @@ function CartePlan({
         ))}
       </ul>
 
+      {/* Le bouton soumet le formulaire, toujours. Il ouvrait auparavant, quand
+          le paiement n'était pas configuré, une adresse buy.stripe.com
+          fabriquée de toutes pièces — qui n'existait sur aucun compte Stripe.
+          Le formulaire n'était alors jamais soumis : aucun forfait ne pouvait
+          être choisi, dans un sens comme dans l'autre, et l'onglet ouvert
+          affichait une page introuvable sans explication. */}
       <button
-        type={desactive ? "button" : "submit"}
-        disabled={enCours || actuel}
-        onClick={
-          desactive
-            ? () => {
-                const targetUrl =
-                  plan.key === "cabinet" || plan.key === "business"
-                    ? "https://buy.stripe.com/test_moncabinetcric_cabinet"
-                    : "https://buy.stripe.com/test_moncabinetcric_solo"
-                window.open(targetUrl, "_blank")
-              }
-            : undefined
-        }
+        type="submit"
+        disabled={enCours || actuel || desactive}
+        title={desactive ? t("unavailable") : undefined}
         className={cn(
           "mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-bold transition-all cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 shadow-xs",
           actuel
@@ -463,7 +476,13 @@ function CartePlan({
               : "border border-border text-foreground hover:bg-muted"
         )}
       >
-        {enCours ? t("opening") : actuel ? t("currentBadge") : t("subscribe")}
+        {enCours
+          ? t("opening")
+          : actuel
+            ? t("currentBadge")
+            : dejaAbonne
+              ? t("changePlan")
+              : t("subscribe")}
       </button>
     </form>
   )

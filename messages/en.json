@@ -641,6 +641,8 @@
     "subtitle": "Your firm's payment, payment method and invoices.",
     "ownerOnly": "Only the firm owner can subscribe or change the subscription.",
     "notConfigured": "Payment is not configured on this installation yet.",
+    "unavailable": "Unavailable: payment is not configured on this installation yet.",
+    "changeTitle": "Change plan",
     "currentTitle": "Your subscription",
     "none": "No active subscription",
     "noneBody": "Pick a plan below. Payment happens on a page hosted by Stripe: no banking details ever pass through this application.",
