@@ -101,6 +101,13 @@ export function SubscriptionClient({
 
   const prix = (cents: number) => formatMontant(cents, locale)
 
+  // Un abonnement n'est considéré valide et en cours que si Stripe l'a confirmé
+  // (status = active, trialing, past_due, unpaid, paused). Les statuts incomplete,
+  // incomplete_expired ou canceled ne bloquent pas le choix des formules.
+  const aUnAbonnementValide =
+    abonnement.existe &&
+    ["active", "trialing", "past_due", "unpaid", "paused"].includes(abonnement.statut)
+
   // Une action qui renvoie une adresse Stripe ne rend pas la main : la page
   // suivante est hébergée chez eux. La redirection est faite ici plutôt que
   // par redirect() côté serveur, afin que l'échec s'affiche sur cet écran
@@ -132,7 +139,7 @@ export function SubscriptionClient({
             <span
               className={cn(
                 "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
-                abonnement.existe && abonnement.statut === "active"
+                aUnAbonnementValide && abonnement.statut === "active"
                   ? "bg-success/15 text-success"
                   : "bg-muted text-muted-foreground"
               )}
@@ -141,11 +148,11 @@ export function SubscriptionClient({
             </span>
             <div>
               <h2 className="text-sm font-black text-foreground">
-                {abonnement.existe && abonnement.statut !== "incomplete"
+                {aUnAbonnementValide
                   ? t("currentTitle")
                   : t("none")}
               </h2>
-              {abonnement.existe && abonnement.statut !== "incomplete" ? (
+              {aUnAbonnementValide ? (
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span className="font-bold text-foreground">
                     {libelle(
@@ -174,7 +181,7 @@ export function SubscriptionClient({
             </div>
           </div>
 
-          {estProprietaire && abonnement.existe && (
+          {estProprietaire && aUnAbonnementValide && (
             <form action={lancer(ouvrirPortail)}>
               <button
                 type="submit"
@@ -188,7 +195,7 @@ export function SubscriptionClient({
           )}
         </div>
 
-        {abonnement.existe && abonnement.statut !== "incomplete" && (
+        {aUnAbonnementValide && (
           <dl className="mt-5 grid gap-4 border-t border-border pt-4 sm:grid-cols-3">
             <Donnee
               libelle={t("nextCharge")}
@@ -296,7 +303,7 @@ export function SubscriptionClient({
                 key={p.key}
                 plan={p}
                 cadence={cadence}
-                actuel={abonnement.plan === p.key && abonnement.statut !== "canceled"}
+                actuel={aUnAbonnementValide && abonnement.plan === p.key}
                 enCours={enCours}
                 desactive={!paiementConfigure}
                 prix={prix}
