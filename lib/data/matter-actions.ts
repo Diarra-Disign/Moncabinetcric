@@ -530,3 +530,143 @@ export async function deposerFormulaire(formData: FormData): Promise<Resultat> {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Pièces : téléverser, consulter, retirer
+// ---------------------------------------------------------------------------
+
+/**
+ * Dépose un fichier POUR une pièce exigée.
+ *
+ * Le rattachement à l'exigence est fait par le déclencheur en base
+ * (link_upload_to_requirement) : c'est lui qui marque la pièce reçue, note la
+ * provenance et REMET LA VÉRIFICATION À ZÉRO. Le faire ici en plus donnerait
+ * deux endroits où cette règle vit, et l'un des deux finirait par diverger —
+ * le portail client passe par le même déclencheur.
+ */
+export async function deposerPourExigence(formData: FormData): Promise<Resultat> {
+  try {
+    const membre = await moi()
+    const sb = await getSessionSupabase()
+
+    const fichier = formData.get("fichier")
+    if (!(fichier instanceof File) || fichier.size === 0) {
+      return { ok: false, message: "Choisissez un fichier." }
+    }
+
+    const exigenceId = String(formData.get("exigenceId") ?? "")
+    const matterId = String(formData.get("matterId") ?? "")
+    const clientId = String(formData.get("clientId") ?? "") || null
+
+    const { data: exigence } = await sb
+      .from("matter_requirements").select("label_fr").eq("id", exigenceId).maybeSingle()
+    if (!exigence) return { ok: false, message: "Pièce exigée introuvable." }
+
+    const { data: doc, error } = await sb.from("documents").insert({
+      firm_id: membre.firmId,
+      client_id: clientId,
+      matter_id: matterId,
+      requirement_id: exigenceId,
+      name: fichier.name,
+      type: exigence.label_fr,
+      category: "consultant_upload",
+      uploaded_by: membre.fullName || membre.email,
+      uploaded_by_user_id: membre.userId,
+      source: "cabinet",
+      status: "pending_review",
+      mime_type: fichier.type || null,
+      size_bytes: fichier.size,
+    }).select("id").single()
+
+    if (error || !doc) return { ok: false, message: lisible(error) }
+
+    const { deposerFichier } = await import("./storage")
+    const depot = await deposerFichier(doc.id as string, clientId ?? membre.firmId, fichier)
+
+    if (!depot.ok) {
+      await sb.from("documents").delete().eq("id", doc.id)
+      return { ok: false, message: depot.erreur ?? "Dépôt impossible." }
+    }
+
+    revalidatePath("/[locale]/matters/[id]", "page")
+    return {
+      ok: true,
+      message: `« ${fichier.name} » déposé. La pièce est reçue et reste à vérifier.`,
+    }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Adresse d'aperçu d'un document, valable une heure.
+ *
+ * Signée et temporaire : le compartiment de stockage reste fermé. Un lien
+ * permanent circulerait par courriel bien après que l'accès aurait dû être
+ * retiré.
+ */
+export async function apercuDocument(formData: FormData): Promise<Resultat & { url?: string }> {
+  try {
+    await moi()
+    const sb = await getSessionSupabase()
+    const id = String(formData.get("documentId") ?? "")
+
+    const { data: doc } = await sb
+      .from("documents").select("storage_path, name").eq("id", id).maybeSingle()
+
+    if (!doc?.storage_path) {
+      return { ok: false, message: "Aucun fichier rattaché à ce document." }
+    }
+
+    const { lienTelechargement } = await import("./storage")
+    const lien = await lienTelechargement(doc.storage_path as string)
+    if (!lien.url) return { ok: false, message: lien.erreur ?? "Aperçu indisponible." }
+
+    return { ok: true, message: `Ouverture de « ${doc.name} »…`, url: lien.url }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Retire un document déposé par erreur.
+ *
+ * La pièce exigée retourne à « non reçue » : réception ET vérification sont
+ * effacées. Laisser la réception après avoir retiré le fichier produirait une
+ * pièce marquée reçue que plus aucun document ne justifie — exactement le
+ * genre d'écart qu'on ne découvre qu'en cherchant la pièce au moment de
+ * soumettre.
+ */
+export async function retirerDocument(formData: FormData): Promise<Resultat> {
+  try {
+    await moi()
+    const sb = await getSessionSupabase()
+    const id = String(formData.get("documentId") ?? "")
+
+    const { data: doc } = await sb
+      .from("documents").select("id, name, requirement_id").eq("id", id).maybeSingle()
+    if (!doc) return { ok: false, message: "Document introuvable." }
+
+    if (doc.requirement_id) {
+      const { error: eMaj } = await sb.from("matter_requirements").update({
+        document_id: null,
+        received_at: null, received_by: null, received_from: null,
+        verified_at: null, verified_by: null,
+      }).eq("id", doc.requirement_id)
+      if (eMaj) return { ok: false, message: lisible(eMaj) }
+    }
+
+    const { error } = await sb.from("documents").delete().eq("id", id)
+    if (error) return { ok: false, message: lisible(error) }
+
+    revalidatePath("/[locale]/matters/[id]", "page")
+    return {
+      ok: true,
+      message: doc.requirement_id
+        ? `« ${doc.name} » retiré. La pièce redevient non reçue.`
+        : `« ${doc.name} » retiré.`,
+    }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}

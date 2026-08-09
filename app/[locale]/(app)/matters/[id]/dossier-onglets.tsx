@@ -3,14 +3,16 @@
 import * as React from "react"
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
-  Clock, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Upload, Users, X,
+  Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
+  Upload, Users, X,
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
 import {
   ajouterEcheance, changerEtatEcheance, declarerDossier, demanderValidation,
   enregistrerPaiement, marquerRecue, marquerVerifiee, ouvrirFormulaire,
   renvoyerACorriger, virerHonoraires, rattacherClient, inviterClientAuPortail,
-  deposerFormulaire, type Resultat,
+  deposerFormulaire, deposerPourExigence, apercuDocument, retirerDocument,
+  type Resultat,
 } from "@/lib/data/matter-actions"
 import { cn } from "@/lib/utils"
 
@@ -95,6 +97,33 @@ export function DossierOnglets({
 
   const lancer = (action: (fd: FormData) => Promise<Resultat>) => (fd: FormData) =>
     demarrer(async () => setResultat(await action(fd)))
+
+  /**
+   * Pour les actions qui rendent une adresse : l'onglet s'ouvre.
+   *
+   * L'ouverture a lieu APRÈS l'appel, donc hors du geste de l'utilisateur —
+   * certains navigateurs la bloquent alors comme une fenêtre surgissante. Le
+   * message le dit plutôt que de laisser croire à une panne.
+   */
+  const ouvrir =
+    (action: (fd: FormData) => Promise<Resultat & { url?: string }>) => (fd: FormData) =>
+      demarrer(async () => {
+        const r = await action(fd)
+        if (r.ok && r.url) {
+          const onglet = window.open(r.url, "_blank", "noopener")
+          setResultat(
+            onglet
+              ? { ok: true, message: r.message }
+              : {
+                  ok: false,
+                  message:
+                    "L'aperçu a été bloqué par le navigateur. Autorisez les fenêtres pour ce site.",
+                }
+          )
+          return
+        }
+        setResultat(r)
+      })
 
   const d = dossier
   // Un dossier peut n'être rattaché à aucun client. Les pièces, les
@@ -307,7 +336,7 @@ export function DossierOnglets({
                     {!e.receivedAt && (
                       <form action={lancer(marquerRecue)}>
                         <input type="hidden" name="id" value={e.id} />
-                        <BoutonPetit disabled={enCours}>Marquer reçue</BoutonPetit>
+                        <BoutonPetit disabled={enCours} ton="neutre">Marquer reçue</BoutonPetit>
                       </form>
                     )}
                     {e.receivedAt && e.status !== "verified" && (
@@ -315,6 +344,22 @@ export function DossierOnglets({
                         <input type="hidden" name="id" value={e.id} />
                         <BoutonPetit disabled={enCours} ton="success">Vérifier</BoutonPetit>
                       </form>
+                    )}
+                    {e.documentId && (
+                      <>
+                        <form action={ouvrir(apercuDocument)}>
+                          <input type="hidden" name="documentId" value={e.documentId} />
+                          <BoutonPetit disabled={enCours} ton="neutre">
+                            <Eye aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Aperçu
+                          </BoutonPetit>
+                        </form>
+                        <form action={lancer(retirerDocument)}>
+                          <input type="hidden" name="documentId" value={e.documentId} />
+                          <BoutonPetit disabled={enCours} ton="error">
+                            <Trash2 aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Retirer
+                          </BoutonPetit>
+                        </form>
+                      </>
                     )}
                     {e.receivedAt && (
                       <form action={lancer(renvoyerACorriger)} className="flex items-center gap-1.5">
@@ -325,6 +370,38 @@ export function DossierOnglets({
                     )}
                   </div>
                 </div>
+
+                {/* Le téléversement est SOUS la ligne plutôt qu'à côté : un
+                    sélecteur de fichier serré entre quatre boutons devient le
+                    plus discret de tous, alors que c'est le geste principal. */}
+                <form
+                  action={lancer(deposerPourExigence)}
+                  className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3"
+                >
+                  <input type="hidden" name="exigenceId" value={e.id} />
+                  <input type="hidden" name="matterId" value={matterId} />
+                  <input type="hidden" name="clientId" value={clientId ?? ""} />
+                  <input
+                    type="file"
+                    name="fichier"
+                    required
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+                    className={cn(CHAMP, "max-w-xs file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-bold")}
+                  />
+                  <BoutonPetit disabled={enCours}>
+                    <Upload aria-hidden className="mr-1.5 h-3.5 w-3.5" />
+                    {e.documentId ? "Remplacer" : "Téléverser"}
+                  </BoutonPetit>
+                  {e.documentNom && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {e.documentNom} · déposé le{" "}
+                      {new Date(e.documentDepotLe!).toLocaleString("fr-CA", {
+                        dateStyle: "short", timeStyle: "short",
+                      })}
+                      {e.documentDeposePar && ` par ${e.documentDeposePar}`}
+                    </span>
+                  )}
+                </form>
               </div>
             )
           })}
@@ -378,7 +455,47 @@ export function DossierOnglets({
             <BoutonPetit disabled={enCours} className="mt-3">Ouvrir un exemplaire</BoutonPetit>
           </form>
 
-          {d.formulaires.length === 0 && <Vide texte="Aucun exemplaire ouvert pour ce dossier." />}
+          {d.formulairesDeposes.length > 0 && (
+            <div className="space-y-2">
+              {d.formulairesDeposes.map((f) => (
+                <div
+                  key={f.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4"
+                >
+                  <div className="min-w-0">
+                    <h4 className="truncate text-sm font-bold text-foreground">{f.nom}</h4>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Déposé le{" "}
+                      {new Date(f.deposeLe).toLocaleString("fr-CA", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                      {f.deposePar ? ` par ${f.deposePar}` : ""}
+                      {f.taille ? ` · ${Math.round(f.taille / 1024)} Ko` : ""}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <form action={ouvrir(apercuDocument)}>
+                      <input type="hidden" name="documentId" value={f.id} />
+                      <BoutonPetit disabled={enCours} ton="neutre">
+                        <Eye aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Aperçu
+                      </BoutonPetit>
+                    </form>
+                    <form action={lancer(retirerDocument)}>
+                      <input type="hidden" name="documentId" value={f.id} />
+                      <BoutonPetit disabled={enCours} ton="error">
+                        <Trash2 aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Retirer
+                      </BoutonPetit>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {d.formulaires.length === 0 && d.formulairesDeposes.length === 0 && (
+            <Vide texte="Aucun formulaire au dossier." />
+          )}
           {d.formulaires.map((f) => (
             <div key={f.id} className={cn("rounded-2xl border border-border bg-card p-4", f.archived && "opacity-60")}>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -760,7 +877,7 @@ function BoutonPetit({
 }: {
   children: React.ReactNode
   disabled?: boolean
-  ton?: "success" | "error"
+  ton?: "success" | "error" | "neutre"
   className?: string
   name?: string
   value?: string
@@ -775,6 +892,9 @@ function BoutonPetit({
         "inline-flex min-h-9 shrink-0 items-center rounded-xl px-3 py-2 text-xs font-bold transition-colors disabled:opacity-50",
         ton === "success" ? "bg-success text-white hover:bg-success/90"
           : ton === "error" ? "border border-error/30 text-error hover:bg-error/10"
+          // Neutre : pour que « Téléverser » reste le geste mis en avant et
+          // que les autres ne se disputent pas l'attention.
+          : ton === "neutre" ? "border border-border text-foreground hover:bg-muted"
           : "bg-primary text-primary-foreground hover:bg-primary/90",
         className
       )}

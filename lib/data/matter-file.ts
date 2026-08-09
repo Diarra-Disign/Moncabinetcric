@@ -27,6 +27,10 @@ export interface ExigenceVue {
   verifiedAt: string | null
   expiresOn: string | null
   rejectionReason: string | null
+  /** Le fichier rattaché, quand il y en a un. */
+  documentNom: string | null
+  documentDepotLe: string | null
+  documentDeposePar: string | null
 }
 
 export interface EcheanceVue {
@@ -53,6 +57,15 @@ export interface FormulaireVue {
   sentAt: string | null
   signedAt: string | null
   archived: boolean
+}
+
+export interface FormulaireDepose {
+  id: string
+  nom: string
+  type: string | null
+  deposeLe: string
+  deposePar: string | null
+  taille: number | null
 }
 
 export interface FactureVue {
@@ -104,6 +117,7 @@ export interface DossierComplet {
   bloquantes: { code: string; label: string; status: string }[]
   echeances: EcheanceVue[]
   formulaires: FormulaireVue[]
+  formulairesDeposes: FormulaireDepose[]
   factures: FactureVue[]
   paiements: PaiementVue[]
 
@@ -170,7 +184,7 @@ export async function getDossierComplet(
 
   // Lancées ensemble : ces lectures ne dépendent pas les unes des autres, et
   // les enchaîner ajouterait autant d'allers-retours que d'onglets.
-  const [exig, bloq, ech, form, fact, paie, cu, docsClient, revues, soldeFid] =
+  const [exig, bloq, ech, form, fact, paie, cu, docsClient, revues, soldeFid, docs] =
     await Promise.all([
       sb.rpc("matter_requirements_view", { m_id: matterId }),
       sb.rpc("matter_blocking_requirements", { m_id: matterId }),
@@ -201,7 +215,18 @@ export async function getDossierComplet(
       clientId
         ? sb.rpc("client_trust_balance", { c_id: clientId })
         : Promise.resolve({ data: 0 }),
+      sb.from("documents")
+        .select("id, name, type, category, created_at, uploaded_by, size_bytes, requirement_id, storage_path")
+        .eq("matter_id", matterId)
+        .is("archived_at", null)
+        .order("created_at", { ascending: false }),
     ])
+
+  // Les documents indexés par leur identifiant, pour joindre nom et date à
+  // chaque pièce sans refaire une requête par ligne.
+  const parId = new Map(
+    (docs.data ?? []).map((d) => [String(d.id), d as Record<string, unknown>])
+  )
 
   const exigences: ExigenceVue[] = (exig.data ?? []).map((r: Record<string, unknown>) => ({
     id: String(r.id),
@@ -215,6 +240,9 @@ export async function getDossierComplet(
     verifiedAt: (r.verified_at as string) ?? null,
     expiresOn: (r.expires_on as string) ?? null,
     rejectionReason: (r.rejection_reason as string) ?? null,
+    documentNom: (parId.get(String(r.document_id))?.name as string) ?? null,
+    documentDepotLe: (parId.get(String(r.document_id))?.created_at as string) ?? null,
+    documentDeposePar: (parId.get(String(r.document_id))?.uploaded_by as string) ?? null,
   }))
 
   // Le statut et le montant réglé de chaque facture viennent de la base, pas
@@ -304,6 +332,16 @@ export async function getDossierComplet(
       signedAt: (f.signed_at as string) ?? null,
       archived: f.status === "archived",
     })),
+    formulairesDeposes: (docs.data ?? [])
+      .filter((d) => d.category === "ircc_form")
+      .map((d) => ({
+        id: String(d.id),
+        nom: String(d.name ?? ""),
+        type: (d.type as string) ?? null,
+        deposeLe: String(d.created_at),
+        deposePar: (d.uploaded_by as string) ?? null,
+        taille: (d.size_bytes as number) ?? null,
+      })),
     factures,
     paiements,
     finances: {
