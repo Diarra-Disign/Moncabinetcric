@@ -79,28 +79,54 @@ export default async function LandingPage() {
       // affichés en français sur la page anglaise.
       includedLabel: tLanding("pricing.includedLabel"),
       plusProLabel: tLanding("pricing.plusProLabel"),
+      plusBusinessLabel: tLanding("pricing.plusBusinessLabel"),
       plusEnterpriseLabel: tLanding("pricing.plusEnterpriseLabel"),
-      basic: {
-        name: tLanding("pricing.basic.name"),
+      // Chaque bloc porte désormais la CLÉ DU FORFAIT qu'il décrit. Ils
+      // s'appelaient « basic » et « business » alors qu'ils désignaient Solo
+      // et Cabinet Pro : ajouter le vrai forfait Business par-dessus aurait
+      // laissé « pricing.business » pointer sur un autre forfait que celui de
+      // son nom — le genre de piège qui se paie une seule fois, très cher.
+      solo: {
+        name: tLanding("pricing.solo.name"),
         price: prix(plan('solo').monthly ?? 0),
         annual: tLanding("pricing.annualNote", { price: prix(plan('solo').annual ?? 0) }),
-        desc: tLanding("pricing.basic.desc"),
-        f1: tLanding("pricing.basic.f1"),
-        f2: tLanding("pricing.basic.f2"),
-        f3: tLanding("pricing.basic.f3"),
-        f4: tLanding("pricing.basic.f4"),
-        btn: tLanding("pricing.basic.btn"),
+        desc: tLanding("pricing.solo.desc"),
+        f1: tLanding("pricing.solo.f1"),
+        f2: tLanding("pricing.solo.f2"),
+        f3: tLanding("pricing.solo.f3"),
+        f4: tLanding("pricing.solo.f4"),
+        btn: tLanding("pricing.solo.btn"),
       },
-      business: {
-        name: tLanding("pricing.business.name"),
+      cabinet: {
+        name: tLanding("pricing.cabinet.name"),
         price: prix(plan('cabinet').monthly ?? 0),
         annual: tLanding("pricing.annualNote", { price: prix(plan('cabinet').annual ?? 0) }),
+        desc: tLanding("pricing.cabinet.desc"),
+        f1: tLanding("pricing.cabinet.f1", { price: prix(plan('cabinet').extraSeatMonthly) }),
+        f2: tLanding("pricing.cabinet.f2"),
+        f3: tLanding("pricing.cabinet.f3"),
+        f4: tLanding("pricing.cabinet.f4"),
+        badge: tLanding("pricing.cabinet.badge", { defaultValue: "RECOMMANDÉ" }),
+        btn: tLanding("pricing.cabinet.btn"),
+      },
+      // Cabinet Business était vendable et vendu dans l'application depuis la
+      // refonte du catalogue, sans figurer nulle part sur la page publique :
+      // un visiteur ne pouvait pas le découvrir. C'est ./cric facturation qui
+      // l'a signalé, une fois réparé.
+      //
+      // Ses fonctions sont EXACTEMENT celles de Cabinet Pro — vérifié dans
+      // plan_features. L'écart est économique : huit places au lieu de trois,
+      // et des places moins chères. La carte ne promet donc aucune fonction
+      // supplémentaire, parce qu'il n'y en a aucune.
+      business: {
+        name: tLanding("pricing.business.name"),
+        price: prix(plan('business').monthly ?? 0),
+        annual: tLanding("pricing.annualNote", { price: prix(plan('business').annual ?? 0) }),
         desc: tLanding("pricing.business.desc"),
-        f1: tLanding("pricing.business.f1", { price: prix(plan('cabinet').extraSeatMonthly) }),
-        f2: tLanding("pricing.business.f2"),
+        f1: tLanding("pricing.business.f1"),
+        f2: tLanding("pricing.business.f2", { price: prix(plan('business').extraSeatMonthly) }),
         f3: tLanding("pricing.business.f3"),
         f4: tLanding("pricing.business.f4"),
-        badge: tLanding("pricing.business.badge", { defaultValue: "RECOMMANDÉ" }),
         btn: tLanding("pricing.business.btn"),
       },
       enterprise: {

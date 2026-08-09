@@ -123,12 +123,25 @@
     },
     "pricing": {
       "badge": "PRICING",
-      "title": "Two plans, one variable",
+      "title": "Three plans, one criterion",
       "subtitle": "Price follows how many people work at the firm, not how many files you open.",
       "period": "per month",
       "annualNote": "or {price} per year — two months free",
       "taxNote": "Amounts in Canadian dollars, taxes extra. Pay by credit card or pre-authorised debit from a Canadian bank account. Cancel any time, no penalty.",
-      "basic": {
+      "enterprise": {
+        "name": "Networks and large firms",
+        "price": "Custom",
+        "desc": "For multi-branch firms, or those whose needs fall outside the three plans.",
+        "f1": "Seat count and billing agreed case by case",
+        "f2": "Migration of your existing data",
+        "f3": "A single point of contact for setup",
+        "f4": "Negotiated contract terms",
+        "btn": "Get in touch"
+      },
+      "includedLabel": "Included in this plan:",
+      "plusProLabel": "Solo, plus:",
+      "plusEnterpriseLabel": "Firm Business, plus:",
+      "solo": {
         "name": "Solo",
         "desc": "For the regulated consultant practising alone.",
         "f1": "One consultant seat",
@@ -137,7 +150,7 @@
         "f4": "Client portal and tamper-evident audit log",
         "btn": "Request access"
       },
-      "business": {
+      "cabinet": {
         "name": "Firm Pro",
         "desc": "For firms working as a team.",
         "f1": "Three seats included, then {price} per month per member",
@@ -147,19 +160,16 @@
         "badge": "RECOMMENDED",
         "btn": "Request access"
       },
-      "enterprise": {
-        "name": "Networks and large firms",
-        "price": "Custom",
-        "desc": "For multi-branch firms, or needs that fall outside the two plans.",
-        "f1": "Seat count and billing agreed case by case",
-        "f2": "Migration of your existing data",
-        "f3": "A single point of contact for setup",
-        "f4": "Negotiated contract terms",
-        "btn": "Get in touch"
+      "business": {
+        "name": "Firm Business",
+        "desc": "For established firms with several consultants and staff.",
+        "f1": "Eight seats included instead of three",
+        "f2": "Additional consultant at {price} per month",
+        "f3": "Support staff and read-only access at a reduced rate",
+        "f4": "Billing adjusts as people join and leave",
+        "btn": "Request access"
       },
-      "includedLabel": "Included in this plan:",
-      "plusProLabel": "Solo, plus:",
-      "plusEnterpriseLabel": "Firm Pro, plus:"
+      "plusBusinessLabel": "Firm Pro, plus:"
     },
     "finalCta": {
       "title": "Ready to grow your immigration practice?",

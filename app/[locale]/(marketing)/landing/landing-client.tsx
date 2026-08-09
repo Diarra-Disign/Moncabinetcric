@@ -40,8 +40,13 @@ interface LandingClientProps {
       taxNote: string
       includedLabel: string
       plusProLabel: string
+      plusBusinessLabel: string
       plusEnterpriseLabel: string
-      basic: Record<string, string>
+      // Une clé par forfait, portant son nom. « basic » et « business »
+      // désignaient Solo et Cabinet Pro : le vrai forfait Business n'aurait pas
+      // pu s'ajouter sans ambiguïté.
+      solo: Record<string, string>
+      cabinet: Record<string, string>
       business: Record<string, string>
       enterprise: Record<string, string>
     }
@@ -638,31 +643,31 @@ export function LandingClient({ t }: LandingClientProps) {
             plus aucun prix affiché est un bouton mort de plus, et le rabais
             annoncé porterait sur un tarif qui n'est pas publié. */}
 
-        {/* 3 Pricing Cards */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch w-full max-w-6xl">
+        {/* 4 Pricing Cards */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch w-full max-w-7xl">
           
           {/* Solo Card */}
           <div className="bg-white rounded-3xl p-8 shadow-xs border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-shadow">
             <div>
-              <h3 className="text-xl font-extrabold text-slate-900 mb-2">{t.pricing.basic.name}</h3>
-              <p className="text-xs text-slate-500 mb-6 min-h-[32px]">{t.pricing.basic.desc}</p>
+              <h3 className="text-xl font-extrabold text-slate-900 mb-2">{t.pricing.solo.name}</h3>
+              <p className="text-xs text-slate-500 mb-6 min-h-[32px]">{t.pricing.solo.desc}</p>
               {/* Le code affichait 89$ et 69$, le fichier de traduction
                   99$ et 79$ : deux tarifs publics contradictoires, dont un
                   seul était traduit. Le montant vient désormais du catalogue
                   qui sert aussi à facturer — il ne peut plus diverger. */}
               <div className="mb-8">
                 <div className="text-3xl sm:text-4xl font-black text-slate-900 flex items-baseline gap-1.5">
-                  {t.pricing.basic.price}
+                  {t.pricing.solo.price}
                   <span className="text-sm font-bold text-slate-400">{t.pricing.period}</span>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{t.pricing.basic.annual}</p>
+                <p className="mt-1 text-xs text-slate-500">{t.pricing.solo.annual}</p>
               </div>
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{t.pricing.includedLabel}</div>
               <ul className="flex flex-col gap-4 text-sm font-medium text-slate-700 mb-8">
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.basic.f1}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.basic.f2}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.basic.f3}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.basic.f4}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.solo.f1}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.solo.f2}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.solo.f3}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.solo.f4}</span></li>
               </ul>
             </div>
             {/* Les trois boutons de cette section étaient des <button> sans
@@ -674,38 +679,72 @@ export function LandingClient({ t }: LandingClientProps) {
               href="/demo"
               className="w-full inline-flex items-center justify-center rounded-full border border-slate-300 py-3.5 text-sm font-bold text-slate-800 hover:bg-slate-50 transition-colors"
             >
-              {t.pricing.basic.btn}
+              {t.pricing.solo.btn}
             </Link>
           </div>
 
-          {/* Business Pro Card */}
-          <div className="relative bg-gradient-to-b from-[#2563eb] to-[#1e40af] text-white rounded-3xl p-8 sm:p-10 shadow-[0_20px_50px_rgba(37,99,235,0.35)] border border-blue-400/30 flex flex-col justify-between transform md:-translate-y-4">
+          {/* Cabinet Pro Card */}
+          <div className="relative bg-gradient-to-b from-[#2563eb] to-[#1e40af] text-white rounded-3xl p-8 sm:p-10 shadow-[0_20px_50px_rgba(37,99,235,0.35)] border border-blue-400/30 flex flex-col justify-between xl:-translate-y-4">
             <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-amber-400 text-slate-950 text-[11px] font-black uppercase tracking-wider px-4 py-1 rounded-full shadow-md">
-              {t.pricing.business.badge || "RECOMMANDÉ"}
+              {t.pricing.cabinet.badge || "RECOMMANDÉ"}
             </div>
 
             <div>
-              <h3 className="text-xl font-extrabold text-white mb-2">{t.pricing.business.name}</h3>
-              <p className="text-xs text-white/80 mb-6 min-h-[32px]">{t.pricing.business.desc}</p>
+              <h3 className="text-xl font-extrabold text-white mb-2">{t.pricing.cabinet.name}</h3>
+              <p className="text-xs text-white/80 mb-6 min-h-[32px]">{t.pricing.cabinet.desc}</p>
               <div className="mb-8">
                 <div className="text-3xl sm:text-4xl font-black text-white flex items-baseline gap-1.5">
-                  {t.pricing.business.price}
+                  {t.pricing.cabinet.price}
                   <span className="text-sm font-bold text-white/60">{t.pricing.period}</span>
                 </div>
-                <p className="mt-1 text-xs text-white/70">{t.pricing.business.annual}</p>
+                <p className="mt-1 text-xs text-white/70">{t.pricing.cabinet.annual}</p>
               </div>
               <div className="h-px w-full bg-white/20 mb-6" />
               <div className="text-xs font-bold uppercase tracking-wider text-white/70 mb-4">{t.pricing.plusProLabel}</div>
               <ul className="flex flex-col gap-4 text-sm font-medium text-white mb-8">
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.business.f1}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.business.f2}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.business.f3}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.business.f4}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.cabinet.f1}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.cabinet.f2}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.cabinet.f3}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.cabinet.f4}</span></li>
               </ul>
             </div>
             <Link
               href="/demo"
               className="w-full inline-flex items-center justify-center rounded-full bg-white text-[#1e40af] py-4 text-sm font-black shadow-xl hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+            >
+              {t.pricing.cabinet.btn}
+            </Link>
+          </div>
+
+          {/* Cabinet Business Card */}
+          {/* Ses fonctions sont EXACTEMENT celles de Cabinet Pro — vérifié
+              dans plan_features. L'écart est économique : huit places au lieu
+              de trois, et des places moins chères. Cette carte ne promet donc
+              aucune fonction supplémentaire, parce qu'il n'y en a aucune. Un
+              argumentaire inventé pour équilibrer visuellement trois colonnes
+              se retourne à la première question d'un client. */}
+          <div className="bg-white rounded-3xl p-8 shadow-xs border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-shadow">
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-900 mb-2">{t.pricing.business.name}</h3>
+              <p className="text-xs text-slate-500 mb-6 min-h-[32px]">{t.pricing.business.desc}</p>
+              <div className="mb-8">
+                <div className="text-3xl sm:text-4xl font-black text-slate-900 flex items-baseline gap-1.5">
+                  {t.pricing.business.price}
+                  <span className="text-sm font-bold text-slate-400">{t.pricing.period}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">{t.pricing.business.annual}</p>
+              </div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{t.pricing.plusBusinessLabel}</div>
+              <ul className="flex flex-col gap-4 text-sm font-medium text-slate-700 mb-8">
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.business.f1}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.business.f2}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.business.f3}</span></li>
+                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.business.f4}</span></li>
+              </ul>
+            </div>
+            <Link
+              href="/demo"
+              className="w-full inline-flex items-center justify-center rounded-full border border-slate-300 py-3.5 text-sm font-bold text-slate-800 hover:bg-slate-50 transition-colors"
             >
               {t.pricing.business.btn}
             </Link>

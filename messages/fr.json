@@ -123,12 +123,25 @@
     },
     "pricing": {
       "badge": "TARIFICATION",
-      "title": "Deux formules, un seul critère",
+      "title": "Trois formules, un seul critère",
       "subtitle": "Le prix suit le nombre de personnes qui travaillent dans le cabinet, pas le nombre de dossiers que vous ouvrez.",
       "period": "par mois",
       "annualNote": "ou {price} par année — deux mois offerts",
       "taxNote": "Montants en dollars canadiens, taxes en sus. Paiement par carte de crédit ou par prélèvement préautorisé sur compte bancaire canadien. Résiliable en tout temps, sans pénalité.",
-      "basic": {
+      "enterprise": {
+        "name": "Réseaux et grands cabinets",
+        "price": "Sur mesure",
+        "desc": "Pour les cabinets multi-succursales, ou dont les besoins sortent du cadre des trois formules.",
+        "f1": "Nombre d'accès et facturation convenus au cas par cas",
+        "f2": "Reprise de vos données existantes",
+        "f3": "Un interlocuteur unique pour la mise en route",
+        "f4": "Conditions contractuelles négociées",
+        "btn": "Nous écrire"
+      },
+      "includedLabel": "Inclus dans l'offre :",
+      "plusProLabel": "Solo, plus :",
+      "plusEnterpriseLabel": "Cabinet Business, plus :",
+      "solo": {
         "name": "Solo",
         "desc": "Pour le consultant réglementé qui exerce seul.",
         "f1": "Un accès consultant",
@@ -137,7 +150,7 @@
         "f4": "Portail client et journal d'audit inaltérable",
         "btn": "Demander un accès"
       },
-      "business": {
+      "cabinet": {
         "name": "Cabinet Pro",
         "desc": "Pour le cabinet qui travaille à plusieurs.",
         "f1": "Trois accès compris, puis {price} par mois et par membre",
@@ -147,19 +160,16 @@
         "badge": "RECOMMANDÉ",
         "btn": "Demander un accès"
       },
-      "enterprise": {
-        "name": "Réseaux et grands cabinets",
-        "price": "Sur mesure",
-        "desc": "Pour les cabinets multi-succursales, ou dont les besoins sortent du cadre des deux formules.",
-        "f1": "Nombre d'accès et facturation convenus au cas par cas",
-        "f2": "Reprise de vos données existantes",
-        "f3": "Un interlocuteur unique pour la mise en route",
-        "f4": "Conditions contractuelles négociées",
-        "btn": "Nous écrire"
+      "business": {
+        "name": "Cabinet Business",
+        "desc": "Pour le cabinet établi, plusieurs consultants et du personnel.",
+        "f1": "Huit accès compris au lieu de trois",
+        "f2": "Consultant supplémentaire à {price} par mois",
+        "f3": "Personnel de soutien et accès en lecture seule à tarif réduit",
+        "f4": "Facturation ajustée à chaque arrivée et à chaque départ",
+        "btn": "Demander un accès"
       },
-      "includedLabel": "Inclus dans l'offre :",
-      "plusProLabel": "Solo, plus :",
-      "plusEnterpriseLabel": "Cabinet Pro, plus :"
+      "plusBusinessLabel": "Cabinet Pro, plus :"
     },
     "finalCta": {
       "title": "Prêt à faire évoluer votre cabinet d'immigration ?",
