@@ -80,12 +80,14 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [portalError, setPortalError] = React.useState<string | null>(null)
   const [openingPortal, setOpeningPortal] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
+  const [emailCopied, setEmailCopied] = React.useState(false)
 
   const handleSelectPortalClient = (client: ClientRecord | null) => {
     setSelectedPortalClient(client)
     setTempPassword("")
     setPortalError(null)
     setCopied(false)
+    setEmailCopied(false)
   }
 
   const handleOuvrirAcces = async () => {
@@ -894,13 +896,29 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                     courriel annonçant un accès, avec le champ vide. Tant que
                     l'accès n'est pas ouvert, ce n'est pas un lien. */}
                 {tempPassword ? (
-                  <a
-                    href={mailtoUrl}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-center text-xs transition-all flex items-center justify-center gap-2"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // 1. Tenter d'ouvrir l'application de messagerie par défaut
+                      if (typeof window !== "undefined") {
+                        window.location.href = mailtoUrl
+                      }
+                      // 2. Copier également le courriel rédigé dans le presse-papiers
+                      // comme alternative en cas d'absence de client mail par défaut.
+                      const portalUrl = `${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`
+                      const friendlyMessage = `Bonjour ${selectedPortalClient.name},\n\nVoici vos accès sécurisés à votre Portail Client CRIC :\n\nLien d'accès : ${portalUrl}\nIdentifiant courriel : ${selectedPortalClient.email}\nMot de passe temporaire : ${tempPassword}\n\nNOTE : Lors de votre première connexion, vous devrez obligatoirement définir votre nouveau mot de passe personnel.\n\nCordialement,\n${firm.name}`
+                      navigator.clipboard.writeText(friendlyMessage)
+                      setEmailCopied(true)
+                      setTimeout(() => setEmailCopied(false), 4000)
+                    }}
+                    className={cn(
+                      "flex-1 px-4 py-2.5 rounded-xl text-white font-bold text-center text-xs transition-all flex items-center justify-center gap-2 cursor-pointer",
+                      emailCopied ? "bg-emerald-600 hover:bg-emerald-700" : "bg-slate-900 hover:bg-slate-950"
+                    )}
                   >
                     <Mail className="w-4 h-4 text-slate-300" />
-                    <span>Envoyer par courriel</span>
-                  </a>
+                    <span>{emailCopied ? "✓ Ouvrir & Copié !" : "Envoyer par courriel"}</span>
+                  </button>
                 ) : (
                   <span className="flex-1 px-4 py-2.5 rounded-xl bg-slate-200 text-slate-500 font-bold text-center text-xs flex items-center justify-center gap-2 cursor-not-allowed">
                     <Mail className="w-4 h-4 text-slate-400" />
