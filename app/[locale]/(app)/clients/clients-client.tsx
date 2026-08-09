@@ -204,6 +204,15 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
     return name.substring(0, 2).toUpperCase()
   }
 
+  // Variables de courriel URL-encodées pour le portail client
+  let mailtoUrl = ""
+  if (selectedPortalClient && tempPassword) {
+    const portalUrl = `${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`
+    const mailtoSubject = encodeURIComponent(`Accès à votre Portail Client CRIC — ${selectedPortalClient.fileNumber}`)
+    const mailtoBody = encodeURIComponent(`Bonjour ${selectedPortalClient.name},\n\nVoici vos accès sécurisés à votre Portail Client CRIC :\n\nLien d'accès : ${portalUrl}\nIdentifiant courriel : ${selectedPortalClient.email}\nMot de passe temporaire : ${tempPassword}\n\nNOTE : Lors de votre première connexion, vous devrez obligatoirement définir votre nouveau mot de passe personnel.\n\nCordialement,\n${firm.name}`)
+    mailtoUrl = `mailto:${selectedPortalClient.email}?subject=${mailtoSubject}&body=${mailtoBody}`
+  }
+
   return (
     <div className="flex flex-col gap-8 pb-16">
       
@@ -881,7 +890,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                     l'accès n'est pas ouvert, ce n'est pas un lien. */}
                 {tempPassword ? (
                   <a
-                    href={`mailto:${selectedPortalClient.email}?subject=Accès à votre Portail Client CRIC — ${selectedPortalClient.fileNumber}&body=Bonjour ${selectedPortalClient.name},%0D%0A%0D%0AVoici vos accès sécurisés à votre Portail Client CRIC :%0D%0A%0D%0ALien d'accès : ${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal%0D%0AIdentifiant courriel : ${selectedPortalClient.email}%0D%0AMot de passe temporaire : ${tempPassword}%0D%0A%0D%0ANOTE : Lors de votre première connexion, vous devrez obligatoirement définir votre nouveau mot de passe personnel.%0D%0A%0D%0ACordialement,%0D%0A${firm.name}`}
+                    href={mailtoUrl}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-center text-xs transition-all flex items-center justify-center gap-2"
                   >
                     <Mail className="w-4 h-4 text-slate-300" />
