@@ -49,11 +49,32 @@ if (!cle) {
 const appliquer = process.argv.includes("--appliquer")
 const faireWebhook = process.argv.includes("--webhook")
 const faireLiens = process.argv.includes("--liens")
+const faireFiscal = process.argv.includes("--fiscal")
 
-if (!faireWebhook && !faireLiens) {
-  console.error("Rien à faire. Préciser --webhook et/ou --liens.")
+if (!faireWebhook && !faireLiens && !faireFiscal) {
+  console.error("Rien à faire. Préciser --webhook, --liens et/ou --fiscal.")
   process.exit(1)
 }
+
+/**
+ * Code fiscal du produit vendu ici.
+ *
+ * « Software as a service (SaaS) - business use ». Le compte portait
+ * txcd_10000000, « General - Electronically Supplied Services », que Stripe
+ * lui-même décrit comme un fourre-tout : « Consider more specific categories
+ * like software, digital goods, cloud services ».
+ *
+ * Au Canada, les deux sont taxés de la même façon — ce changement ne modifie
+ * aucune facture canadienne. Il compte ailleurs : plusieurs États américains
+ * taxent le logiciel infonuagique autrement qu'un bien numérique, et certains
+ * l'exonèrent quand l'acheteur est une entreprise. Le poser maintenant, alors
+ * qu'aucun abonnement n'existe, coûte une écriture ; le poser après coup
+ * demanderait de reprendre des factures déjà émises.
+ *
+ * « business use » et non « personal use » : ce produit se vend à des cabinets
+ * de consultants réglementés, jamais à des particuliers.
+ */
+const CODE_FISCAL = "txcd_10103001"
 
 const argSite = process.argv.find((a) => a.startsWith("--site="))
 const SITE = (argSite ? argSite.slice(7) : (env.APP_URL ?? "")).trim().replace(/\/+$/, "")
@@ -222,6 +243,52 @@ if (faireLiens) {
         console.log(`  ⚠ ${p.id} non archivé : ${e.message}`)
       }
     }
+  }
+  console.log()
+}
+
+// ---------------------------------------------------------------------------
+// Code fiscal
+// ---------------------------------------------------------------------------
+if (faireFiscal) {
+  console.log("── CODE FISCAL ──")
+
+  const reglages = await sdk.tax.settings.retrieve()
+  const actuel = reglages.defaults?.tax_code
+
+  const nom = async (c) => {
+    try {
+      return (await sdk.taxCodes.retrieve(c)).name
+    } catch {
+      return "(inconnu)"
+    }
+  }
+
+  console.log(`  statut Stripe Tax  ${reglages.status}`)
+  console.log(`  actuel             ${actuel} — ${await nom(actuel)}`)
+  console.log(`  voulu              ${CODE_FISCAL} — ${await nom(CODE_FISCAL)}`)
+
+  // Les produits créés par cette application ne portent pas de code fiscal
+  // propre : ils héritent du défaut du compte. Changer le défaut les corrige
+  // donc tous d'un coup — mais seulement ceux qui n'en portent pas. On le
+  // vérifie plutôt que de le supposer.
+  const { data: produits } = await sdk.products.list({ limit: 100, active: true })
+  const avecCodePropre = produits.filter((p) => p.tax_code)
+  if (avecCodePropre.length > 0) {
+    console.log(`\n  ⚠ ${avecCodePropre.length} produit(s) portent leur PROPRE code fiscal :`)
+    for (const p of avecCodePropre) {
+      console.log(`      ${p.name} → ${typeof p.tax_code === "string" ? p.tax_code : p.tax_code?.id}`)
+    }
+    console.log(`    Le défaut du compte ne les concerne pas.`)
+  } else {
+    console.log(`\n  ${produits.length} produit(s) actifs héritent du défaut : tous seront corrigés.`)
+  }
+
+  if (actuel === CODE_FISCAL) {
+    console.log("\n  Déjà en place, rien à faire.")
+  } else if (appliquer) {
+    const maj = await sdk.tax.settings.update({ defaults: { tax_code: CODE_FISCAL } })
+    console.log(`\n  ✓ défaut du compte : ${maj.defaults?.tax_code}`)
   }
   console.log()
 }
