@@ -158,10 +158,18 @@ export default async function AppLayout({
     })),
   ]
 
+  // La boîte de notifications du membre. Lue ici, dans la coque, parce que la
+  // cloche est présente sur toutes les pages : la charger page par page
+  // l'aurait fait disparaître de celles qui auraient oublié de la demander.
+  const { listerNotifications } = await import("@/lib/data/notifications")
+  const boite = await listerNotifications()
+
   return (
     <FirmProvider firm={firm}>
       <AppShellContainer
         searchDb={searchDb}
+        notifications={boite.liste}
+        nonLues={boite.nonLues}
         member={{
           fullName: member.fullName,
           email: member.email,

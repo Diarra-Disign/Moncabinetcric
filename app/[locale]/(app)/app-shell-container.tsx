@@ -4,15 +4,18 @@ import * as React from "react"
 import { SidebarProvider, useSidebar } from "@/components/app-shell/sidebar-context"
 import { Sidebar } from "@/components/app-shell/sidebar"
 import { Topbar, SearchItem, TopbarMember } from "@/components/app-shell/topbar"
+import type { NotificationVue } from "@/components/app-shell/notifications-cloche"
 import { cn } from "@/lib/utils"
 
 interface AppShellContainerProps {
   searchDb: SearchItem[]
   member: TopbarMember
+  notifications?: NotificationVue[]
+  nonLues?: number
   children: React.ReactNode
 }
 
-function AppShellBody({ searchDb, member, children }: AppShellContainerProps) {
+function AppShellBody({ searchDb, member, notifications = [], nonLues = 0, children }: AppShellContainerProps) {
   const { isCollapsed } = useSidebar()
 
   return (
@@ -24,7 +27,7 @@ function AppShellBody({ searchDb, member, children }: AppShellContainerProps) {
           isCollapsed ? "lg:pl-20" : "lg:pl-72"
         )}
       >
-        <Topbar searchDb={searchDb} member={member} />
+        <Topbar searchDb={searchDb} member={member} notifications={notifications} nonLues={nonLues} />
         <main className="flex-1 py-10">
           <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {children}

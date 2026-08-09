@@ -1,13 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Search, Bell, ChevronRight, X, SlidersHorizontal } from "lucide-react"
+import { Search, ChevronRight, X, SlidersHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { LocaleSwitcher } from "./locale-switcher"
 import { ThemePicker } from "./theme-picker"
 import { MemberMenu } from "./member-menu"
 import { MobileNav } from "./mobile-nav"
+import { ClocheNotifications, type NotificationVue } from "./notifications-cloche"
 import { useTranslations } from "next-intl"
 import { useRouter } from "@/i18n/routing"
 
@@ -30,9 +31,11 @@ interface TopbarProps {
   searchDb?: SearchItem[]
   /** Membre connecté, résolu côté serveur depuis la session. */
   member?: TopbarMember | null
+  notifications?: NotificationVue[]
+  nonLues?: number
 }
 
-export function Topbar({ searchDb = [], member = null }: TopbarProps = {}) {
+export function Topbar({ searchDb = [], member = null, notifications = [], nonLues = 0 }: TopbarProps = {}) {
   const t = useTranslations("Navigation")
   const router = useRouter()
   const [query, setQuery] = React.useState("")
@@ -161,9 +164,11 @@ export function Topbar({ searchDb = [], member = null }: TopbarProps = {}) {
           <div className="hidden md:block">
             <LocaleSwitcher />
           </div>
-          <Button variant="ghost" size="icon" aria-label={t('notifications')} className="rounded-xl shrink-0">
-            <Bell className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-          </Button>
+          <ClocheNotifications
+            notifications={notifications}
+            nonLues={nonLues}
+            etiquette={t('notifications')}
+          />
 
           <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-border" aria-hidden="true" />
 

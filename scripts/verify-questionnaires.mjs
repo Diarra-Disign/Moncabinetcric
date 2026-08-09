@@ -213,6 +213,49 @@ try {
   verifier("un questionnaire rendu n'expire pas après coup", rendu, "submitted")
 
   // -------------------------------------------------------------------------
+  console.log("\nLes notifications suivent les états, sans code applicatif")
+  // -------------------------------------------------------------------------
+  // Le déclencheur est la seule source : les trois chemins qui changent l'état
+  // — le consultant, le portail, le jeton anonyme — passent tous par lui. Les
+  // événements ci-dessous ont été produits plus haut PAR L'USAGE, pas par un
+  // appel dédié.
+  const notifs = async (kind) => {
+    const { data } = await admin.from("notifications")
+      .select("id, title, body, client_id").eq("firm_id", cabinetA).eq("kind", kind)
+    return data ?? []
+  }
+
+  verifier("l'envoi vers un prospect ne notifie pas de portail", (await notifs("questionnaire_sent")).length, 0)
+  verifier("l'ouverture est notifiée au cabinet", (await notifs("questionnaire_opened")).length, 1)
+  verifier("le début de saisie aussi", (await notifs("questionnaire_started")).length, 1)
+  verifier("la transmission aussi", (await notifs("questionnaire_submitted")).length, 1)
+
+  const ouverture = (await notifs("questionnaire_opened"))[0]
+  verifier("la notification nomme la personne", /Awa Diallo/.test(ouverture?.title ?? "") ? "oui" : "non", "oui")
+  verifier("elle ne vise aucun client", ouverture?.client_id, "null")
+
+  // Un enregistrement qui ne change pas l'état ne doit RIEN produire : sans
+  // cette garde, chaque sauvegarde automatique — toutes les secondes et demie
+  // pendant la saisie — aurait sa notification.
+  const avant = (await notifs("questionnaire_started")).length
+  await admin.from("client_questionnaires")
+    .update({ answers: { firstName: "Awa" }, updated_at: new Date().toISOString() }).eq("id", envoi.id)
+  verifier("une écriture sans changement d'état ne notifie pas",
+    (await notifs("questionnaire_started")).length, avant)
+
+  // « Lu » est propre à chaque membre : l'un ne doit pas faire disparaître la
+  // notification de l'autre.
+  const { data: profilA } = await admin.from("profiles").select("id").eq("user_id", userA).single()
+  await admin.from("notification_reads").insert({ notification_id: ouverture.id, profile_id: profilA.id })
+  const { data: luesA } = await cabinet.from("notification_reads").select("notification_id")
+  verifier("le membre qui a lu voit sa marque", (luesA ?? []).length, 1)
+  const { data: luesTiers } = await tiers.from("notification_reads").select("notification_id")
+  verifier("un autre cabinet ne voit pas ses marques", (luesTiers ?? []).length, 0)
+
+  const { data: notifsTiers } = await tiers.from("notifications").select("id").eq("firm_id", cabinetA)
+  verifier("ni ses notifications", (notifsTiers ?? []).length, 0)
+
+  // -------------------------------------------------------------------------
   console.log("\nUn lien désactivé cesse d'ouvrir")
   // -------------------------------------------------------------------------
   await cabinet.from("client_questionnaires")
