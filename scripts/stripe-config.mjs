@@ -40,9 +40,18 @@ const env = Object.fromEntries(
     .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1).trim()])
 )
 
-const cle = env.STRIPE_SECRET_KEY
+// --test bascule sur le compte de MODE TEST. Les réglages d'un compte Stripe
+// sont propres à chaque mode : un moyen de paiement activé en production reste
+// éteint en test, et l'épreuve qui l'emploie échoue pour une raison étrangère
+// à ce qu'elle cherche à prouver.
+const modeTest = process.argv.includes("--test")
+const cle = modeTest ? env.STRIPE_TEST_SECRET_KEY : env.STRIPE_SECRET_KEY
 if (!cle) {
-  console.error("STRIPE_SECRET_KEY absente de .env.local.")
+  console.error(
+    modeTest
+      ? "STRIPE_TEST_SECRET_KEY absente de .env.local. La poser avec : ./cric cle-test"
+      : "STRIPE_SECRET_KEY absente de .env.local."
+  )
   process.exit(1)
 }
 
@@ -51,9 +60,12 @@ const faireWebhook = process.argv.includes("--webhook")
 const faireLiens = process.argv.includes("--liens")
 const faireFiscal = process.argv.includes("--fiscal")
 const faireAcss = process.argv.includes("--acss")
+const faireCheckout = process.argv.includes("--checkout")
 
-if (!faireWebhook && !faireLiens && !faireFiscal && !faireAcss) {
-  console.error("Rien à faire. Préciser --webhook, --liens, --fiscal et/ou --acss.")
+if (!faireWebhook && !faireLiens && !faireFiscal && !faireAcss && !faireCheckout) {
+  console.error(
+    "Rien à faire. Préciser --webhook, --liens, --fiscal, --acss et/ou --checkout."
+  )
   process.exit(1)
 }
 
@@ -348,6 +360,91 @@ if (faireAcss) {
         } else {
           console.log(`\n  Poser maintenant STRIPE_ACSS_DEBIT=1 en local et sur Vercel.`)
         }
+      }
+    }
+  }
+  console.log()
+}
+
+// ---------------------------------------------------------------------------
+// La session de paiement s'ouvre-t-elle vraiment ?
+// ---------------------------------------------------------------------------
+// LA question qu'aucune lecture de configuration ne tranche.
+//
+// Stripe valide la liste des moyens de paiement D'UN BLOC, au moment où la
+// session se crée. Un seul moyen non agréé fait échouer la session entière —
+// carte comprise, alors que la carte, elle, fonctionne. C'est la panne qui a
+// rendu tout paiement impossible, et elle ne se voit nulle part ailleurs :
+// ni dans les capacités du compte, ni dans la configuration d'affichage, qui
+// annonçaient toutes deux « actif ».
+//
+// Le mode test ne peut pas répondre à cette question : Stripe n'y accorde pas
+// la capacité acss_debit. La vérification a donc lieu en production — mais
+// elle n'y crée RIEN de durable :
+//
+//   · aucun client : en mode « subscription », Stripe ne crée le client qu'à
+//     l'ACHÈVEMENT de la session, jamais à son ouverture ;
+//   · aucun abonnement, aucune facture, aucun débit ;
+//   · la session est expirée immédiatement après, donc inutilisable.
+//
+// Il reste un objet Session périmé dans le journal. C'est le prix, et il est
+// sans commune mesure avec celui d'un tunnel de paiement cassé qu'on découvre
+// par le premier cabinet qui essaie de payer.
+if (faireCheckout) {
+  console.log("── SESSION DE PAIEMENT ──")
+
+  const avecPrelevement = process.env.STRIPE_ACSS_DEBIT === "1" || process.argv.includes("--acss-on")
+  const moyens = avecPrelevement ? ["card", "acss_debit"] : ["card"]
+  console.log(`  moyens demandés      ${moyens.join(", ")}`)
+
+  const tarifs = await sdk.prices.list({ limit: 10, active: true })
+  const base = tarifs.data.find((p) => /^mcc_[a-z]+_monthly$/.test(p.lookup_key ?? ""))
+  if (!base) {
+    console.log("  ⚠ Aucun tarif mensuel du catalogue chez Stripe. Rien à essayer.")
+  } else {
+    console.log(`  tarif employé        ${base.lookup_key} — ${((base.unit_amount ?? 0) / 100).toFixed(2)} ${base.currency.toUpperCase()}`)
+
+    if (!appliquer) {
+      console.log("\n  Essai à blanc : la session n'est pas ouverte.")
+    } else {
+      try {
+        const session = await sdk.checkout.sessions.create({
+          mode: "subscription",
+          line_items: [{ price: base.id, quantity: 1 }],
+          locale: "fr-CA",
+          payment_method_types: moyens,
+          ...(avecPrelevement
+            ? {
+                payment_method_options: {
+                  acss_debit: {
+                    mandate_options: {
+                      payment_schedule: "interval",
+                      interval_description: "Une fois par mois",
+                      transaction_type: "business",
+                    },
+                    verification_method: "automatic",
+                  },
+                },
+              }
+            : {}),
+          success_url: `${SITE || "https://moncabinetcric.com"}/fr/settings/subscription?paiement=ok`,
+          cancel_url: `${SITE || "https://moncabinetcric.com"}/fr/settings/subscription?paiement=annule`,
+          metadata: { epreuve: "verification-moyens-de-paiement" },
+        })
+
+        console.log(`\n  ✓ session ouverte : ${session.id}`)
+        console.log(`    moyens acceptés par Stripe : ${(session.payment_method_types ?? []).join(", ")}`)
+
+        await sdk.checkout.sessions.expire(session.id)
+        const apres = await sdk.checkout.sessions.retrieve(session.id)
+        console.log(`  ✓ session expirée : ${apres.status}`)
+
+        const clients = await sdk.customers.list({ limit: 1 })
+        console.log(`  ✓ aucun client créé (le compte en compte toujours ${clients.data.length === 1 ? "1" : String(clients.data.length)})`)
+      } catch (e) {
+        console.log(`\n  ✗ Stripe REFUSE la session : ${e.message}`)
+        console.log(`    Le paiement est cassé en production tant que ceci n'est pas résolu.`)
+        process.exitCode = 1
       }
     }
   }

@@ -52,25 +52,37 @@ function taxeAutomatique(): boolean {
 }
 
 /**
- * Le prélèvement préautorisé canadien est-il proposé ?
+ * LE PRÉLÈVEMENT PRÉAUTORISÉ N'EST PAS POSSIBLE ICI, ET CE N'EST PAS UN OUBLI
  *
- * Même précaution que pour la taxe, et pour un motif constaté : `acss_debit`
- * doit être ACTIVÉ dans le tableau de bord Stripe, et il ne l'est pas encore
- * sur ce compte. Le demander malgré tout fait échouer la création de la
- * session — donc tout paiement, y compris par carte, puisque la liste des
- * moyens est validée d'un bloc.
+ * `acss_debit` a longtemps figuré dans cette fonction, puis derrière une
+ * variable d'environnement. Les deux étaient faux. Stripe le refuse
+ * catégoriquement dans une session Checkout en mode « subscription » :
  *
- * Par défaut absent, donc désactivé : le paiement par carte fonctionne seul.
- * On pose STRIPE_ACSS_DEBIT=1 le jour où Stripe a validé le mandat, sans
- * déploiement.
+ *   The payment method `acss_debit` cannot be used in `subscription` mode.
  *
- * Ce moyen mérite d'être activé : 1 % plafonné contre 2,9 % + 0,30 $, et un
- * compte bancaire n'expire pas, là où une carte expire tous les trois ans,
- * toujours un jour où personne ne surveille.
+ * Vérifié le 2026-08-09 contre le compte de production, sur quatre
+ * combinaisons : seul, avec la carte, avec mandat complet, avec mandat
+ * minimal, et avec les deux valeurs de payment_schedule. Le refus est
+ * identique dans les cinq cas. Il ne dépend donc NI de l'agrément du compte —
+ * la capacité acss_debit_payments y est « active » — NI de la configuration
+ * d'affichage, qui répond « on ».
+ *
+ * C'est ce qui rend le piège dangereux : tout ce qu'on peut LIRE de la
+ * configuration dit que ça marche. Seule la tentative dit le contraire. Et
+ * comme Stripe valide la liste des moyens d'un bloc, le refus emporte AUSSI
+ * la carte : le tunnel de paiement entier devient inutilisable.
+ *
+ * La voie qui existe réellement pour le prélèvement passe par une session en
+ * mode « setup », qui recueille le mandat, puis par la création de
+ * l'abonnement sur le moyen ainsi enregistré. Ce n'est pas un réglage, c'est
+ * un second parcours à construire — et il vaut la peine : 1 % plafonné contre
+ * 2,9 % + 0,30 $, et un compte bancaire n'expire pas, là où une carte expire
+ * tous les trois ans, toujours un jour où personne ne surveille.
+ *
+ * Aucune variable d'environnement ne rouvre ce chemin. Une intégration qu'on
+ * peut réactiver par erreur depuis une console d'hébergement, et qui casse
+ * alors tout encaissement, ne doit pas rester derrière un interrupteur.
  */
-function prelevementBancaire(): boolean {
-  return process.env.STRIPE_ACSS_DEBIT === "1"
-}
 
 /**
  * Montant catalogue d'une ligne de facturation, en cents.
@@ -227,41 +239,18 @@ export async function sessionPaiement(params: {
     locale: params.langue === "en" ? "en" : "fr-CA",
     currency: DEVISE,
 
-    payment_method_types: prelevementBancaire() ? ["card", "acss_debit"] : ["card"],
-    ...(prelevementBancaire()
-      ? {
-          payment_method_options: {
-            acss_debit: {
-              mandate_options: {
-                // Prélèvement récurrent d'un cabinet : « business », et non
-                // « personal ». La distinction figure sur le mandat que Stripe
-                // fait signer, et les règles de Paiements Canada n'y attachent
-                // pas les mêmes délais de contestation.
-                payment_schedule: "interval" as const,
-                interval_description:
-                  params.cadence === "annual" ? "Une fois par année" : "Une fois par mois",
-                transaction_type: "business" as const,
-              },
-              verification_method: "automatic" as const,
-            },
-          },
-        }
-      : {}),
+    // Carte seule. Voir l'explication au-dessus de cette fonction : Stripe
+    // refuse tout autre moyen en mode « subscription », et le refus emporte
+    // la carte avec lui.
+    payment_method_types: ["card"],
 
     subscription_data: {
       metadata: { firm_id: params.firmId, plan: p.key, cadence: params.cadence },
-      // Le prélèvement préautorisé met jusqu'à cinq jours ouvrables à se
-      // confirmer la première fois. Sans ces quelques jours, l'abonnement
-      // resterait « incomplete » et le cabinet, qui vient pourtant de signer
-      // son mandat, se verrait refuser l'entrée toute une semaine.
-      //
-      // Ce délai ne s'accorde QUE si le prélèvement est proposé : offrir une
-      // semaine gratuite à un paiement par carte, qui se confirme en deux
-      // secondes, serait une semaine donnée sans raison.
-      ...(prelevementBancaire() ? { trial_period_days: 7 } : {}),
+      // Aucune période d'essai. Elle n'existait que pour couvrir les cinq
+      // jours ouvrables de confirmation d'un mandat bancaire ; une carte se
+      // confirme en deux secondes, et l'accorder serait une semaine donnée
+      // sans raison.
     },
-    // Le moyen de paiement se recueille malgré la période d'essai : c'est tout
-    // l'objet de la manœuvre.
     payment_method_collection: "always",
 
     ...(taxeAutomatique()

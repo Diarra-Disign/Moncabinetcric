@@ -127,7 +127,7 @@
       "subtitle": "Le prix suit le nombre de personnes qui travaillent dans le cabinet, pas le nombre de dossiers que vous ouvrez.",
       "period": "par mois",
       "annualNote": "ou {price} par année — deux mois offerts",
-      "taxNote": "Montants en dollars canadiens, taxes en sus. Paiement par carte de crédit ou par prélèvement préautorisé sur compte bancaire canadien. Résiliable en tout temps, sans pénalité.",
+      "taxNote": "Montants en dollars canadiens, taxes en sus. Paiement par carte de crédit. Résiliable en tout temps, sans pénalité.",
       "enterprise": {
         "name": "Réseaux et grands cabinets",
         "price": "Sur mesure",
@@ -711,7 +711,7 @@
     "cabinet3": "Tout ce que comprend la formule Solo",
     "cabinet4": "Connecteur d'intelligence artificielle, cloisonné au cabinet",
     "cabinet5": "Soutien prioritaire",
-    "methodsNote": "Carte de crédit ou prélèvement préautorisé sur compte bancaire canadien. Le prélèvement bancaire coûte moins cher au cabinet et n'expire pas.",
+    "methodsNote": "Paiement par carte de crédit, sur une page hébergée par Stripe.",
     "taxNote": "Les taxes applicables s'ajoutent au moment du paiement.",
     "dataNote": "Les numéros de carte et de compte ne sont jamais reçus ni conservés par moncabinetcric : ils sont saisis sur une page hébergée par Stripe.",
     "seatsIncluded": "{n} accès inclus"

@@ -127,7 +127,7 @@
       "subtitle": "Price follows how many people work at the firm, not how many files you open.",
       "period": "per month",
       "annualNote": "or {price} per year — two months free",
-      "taxNote": "Amounts in Canadian dollars, taxes extra. Pay by credit card or pre-authorised debit from a Canadian bank account. Cancel any time, no penalty.",
+      "taxNote": "Amounts in Canadian dollars, taxes extra. Payment by credit card. Cancel anytime, no penalty.",
       "enterprise": {
         "name": "Networks and large firms",
         "price": "Custom",
@@ -711,7 +711,7 @@
     "cabinet3": "Everything in Solo",
     "cabinet4": "AI connector, walled off to your firm",
     "cabinet5": "Priority support",
-    "methodsNote": "Credit card or pre-authorised debit from a Canadian bank account. Bank debit costs the firm less and never expires.",
+    "methodsNote": "Payment by credit card, on a page hosted by Stripe.",
     "taxNote": "Applicable taxes are added at checkout.",
     "dataNote": "Card and account numbers are never received or stored by moncabinetcric: they are entered on a page hosted by Stripe.",
     "seatsIncluded": "{n} seat(s) included"
