@@ -41,6 +41,8 @@ export function SettingsClient() {
   const [address, setAddress] = React.useState(firm.address)
   const [phone, setPhone] = React.useState(firm.phone)
   const [email, setEmail] = React.useState(firm.email)
+  const [replyToEmail, setReplyToEmail] = React.useState(firm.replyToEmail)
+  const [emailSenderName, setEmailSenderName] = React.useState(firm.emailSenderName)
   const [logoUrl, setLogoUrl] = React.useState(firm.logoUrl)
 
   // Logo error & file upload state
@@ -57,6 +59,8 @@ export function SettingsClient() {
     setAddress(firm.address)
     setPhone(firm.phone)
     setEmail(firm.email)
+    setReplyToEmail(firm.replyToEmail)
+    setEmailSenderName(firm.emailSenderName)
     setLogoUrl(firm.logoUrl)
   }
 
@@ -111,6 +115,8 @@ export function SettingsClient() {
       address,
       phone,
       email,
+      replyToEmail,
+      emailSenderName,
       logoUrl,
     }
 
@@ -123,6 +129,8 @@ export function SettingsClient() {
         address,
         phone,
         email,
+        replyToEmail,
+        emailSenderName,
         logoUrl,
       }))
       window.dispatchEvent(new Event("cric-firm-updated"))
@@ -358,6 +366,81 @@ export function SettingsClient() {
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
                 />
+              </div>
+
+              {/* ---------------------------------------------------------
+                  L'IDENTITÉ DES COURRIELS ENVOYÉS AUX CLIENTS
+                  --------------------------------------------------------- */}
+              <div className="flex flex-col gap-3 sm:col-span-2 border-t border-slate-100 pt-4">
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Courriels envoyés à vos clients
+                  </h3>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    Ce que voit le destinataire d&apos;un questionnaire, d&apos;un rappel ou d&apos;une
+                    invitation au portail.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                      Nom affiché
+                    </label>
+                    <input
+                      type="text"
+                      value={emailSenderName}
+                      onChange={(e) => setEmailSenderName(e.target.value)}
+                      placeholder={companyName}
+                      className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    />
+                    <span className="text-[11px] text-slate-400">
+                      Vide : votre raison sociale, « {companyName || "—"} ».
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                      Adresse de réponse
+                    </label>
+                    <input
+                      type="email"
+                      value={replyToEmail}
+                      onChange={(e) => setReplyToEmail(e.target.value)}
+                      placeholder={email || "vous@votrecabinet.ca"}
+                      className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    />
+                    <span className="text-[11px] text-slate-400">
+                      Vide : votre courriel professionnel ci-dessus.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Ce que le destinataire verra, avec les valeurs saisies —
+                    montré plutôt que décrit : la cascade « nom affiché, sinon
+                    raison sociale » se comprend d'un coup d'œil, là où une
+                    phrase l'aurait fait deviner. */}
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    Aperçu dans la boîte de réception
+                  </span>
+                  <p className="text-xs font-bold text-slate-900 mt-1">
+                    {emailSenderName || companyName || "Votre cabinet"}
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Répondre à : {replyToEmail || email || "—"}
+                  </p>
+                </div>
+
+                <p className="text-[11px] text-slate-500 leading-relaxed rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                  <strong>L&apos;adresse d&apos;expédition technique reste celle de la plateforme.</strong>{" "}
+                  Un fournisseur de courriel n&apos;expédie que depuis un domaine dont la propriété est
+                  prouvée par des enregistrements DNS : expédier directement depuis votre domaine
+                  ferait rejeter le message, ou le classerait en indésirable sans que personne ne
+                  l&apos;apprenne. Votre nom et votre adresse de réponse, eux, sont bien les vôtres —
+                  c&apos;est ce que votre client voit et ce à quoi sa réponse parviendra. Pour expédier
+                  depuis votre propre domaine, écrivez-nous : cela demande de vérifier ce domaine.
+                </p>
               </div>
 
               {/* GESTIONNAIRE DE LOGO DU CABINET */}

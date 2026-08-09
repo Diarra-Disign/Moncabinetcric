@@ -19,6 +19,10 @@ export interface FirmIdentity {
   address: string
   phone: string
   email: string
+  /** Adresse qui reçoit les réponses aux courriels envoyés aux clients. */
+  replyToEmail: string
+  /** Nom affiché dans la boîte du destinataire. */
+  emailSenderName: string
   website: string
   logoLetter: string
   logoUrl: string
@@ -45,6 +49,8 @@ export const EMPTY_FIRM: FirmIdentity = {
   address: "",
   phone: "",
   email: "",
+  replyToEmail: "",
+  emailSenderName: "",
   website: "",
   logoLetter: "",
   logoUrl: "",
@@ -63,6 +69,8 @@ export interface FirmRow {
   address: string | null
   phone: string | null
   email: string | null
+  reply_to_email?: string | null
+  email_sender_name?: string | null
   website: string | null
   logo_letter: string | null
   logo_url: string | null
@@ -81,6 +89,8 @@ export function mapFirmRow(row: FirmRow): FirmIdentity {
     address: row.address ?? "",
     phone: row.phone ?? "",
     email: row.email ?? "",
+    replyToEmail: row.reply_to_email ?? "",
+    emailSenderName: row.email_sender_name ?? "",
     website: row.website ?? "",
     // À défaut d'initiale explicite, la première lettre de la raison sociale.
     logoLetter: row.logo_letter || name.trim().charAt(0).toUpperCase() || "",

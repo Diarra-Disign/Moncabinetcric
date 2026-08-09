@@ -45,6 +45,7 @@ case "$commande" in
   fiche)        exec node scripts/verify-matter-page.mjs "$@" ;;
   questionnaires) exec node scripts/verify-questionnaires.mjs "$@" ;;
   repondre)     exec node scripts/verify-questionnaire-page.mjs "$@" ;;
+  courriel)     exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-courriel.mjs "$@" ;;
   modeles)      exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/generer-modeles-questionnaires.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
   facturation-sieges) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-seat-billing.mjs "$@" ;;
@@ -137,6 +138,10 @@ Usage : ./cric <commande> [options]
                rende : cela ne se verrait qu'à l'usage.
                  ./cric repondre
                  ./cric repondre --url=http://localhost:3001
+
+  courriel     Éprouve la fabrication de l'en-tête « De » : nom du cabinet
+               recollé sur l'adresse d'expédition sans la casser
+                 ./cric courriel
 
   modeles      Régénère l'amorçage des modèles depuis le catalogue
                TypeScript. Écrit sur la sortie standard.

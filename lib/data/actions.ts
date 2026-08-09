@@ -309,6 +309,8 @@ export async function searchLegislationAction(
 }
 
 export async function updateFirmSettings(data: {
+  replyToEmail?: string
+  emailSenderName?: string
   name?: string
   rcicNumber?: string
   rcicName?: string

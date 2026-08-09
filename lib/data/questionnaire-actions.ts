@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
 import { envoyerCourriel, envoiConfigure, adresseDeReponse } from "@/lib/email/send"
 import { siteUrl } from "@/lib/site-url"
+import { identiteCourriel } from "./questionnaires"
 
 /**
  * Actions de la bibliothèque de questionnaires.
@@ -177,7 +178,8 @@ export async function envoyerQuestionnaire(formData: FormData): Promise<Resultat
     if (error) return { ok: false, message: lisible(error) }
 
     const lien = lienDuJeton(jeton, locale)
-    const envoi = await courrielDInvitation({ courriel, nom: prenom, titre, message, lien, dueDate, membre })
+    const identite = await identiteCourriel()
+    const envoi = await courrielDInvitation({ courriel, nom: prenom, titre, message, lien, dueDate, identite })
 
     revalidatePath(`/${locale}/questionnaires`)
     if (matterId) revalidatePath(`/${locale}/matters`)
@@ -204,25 +206,27 @@ async function courrielDInvitation(o: {
   message: string
   lien: string
   dueDate: string
-  membre: { firmName: string; email: string }
+  identite: { nom: string; nomExpediteur: string; repondreA: string | null }
 }) {
   if (!o.courriel) return { envoye: false, configure: envoiConfigure() }
 
   const echeance = o.dueDate
     ? `<p style="font-size:14px;color:#b45309"><strong>À compléter avant le ${o.dueDate}.</strong></p>`
     : ""
-  const repondreA = adresseDeReponse() ?? o.membre.email
+  const repondreA = o.identite.repondreA ?? adresseDeReponse() ?? ""
 
   return envoyerCourriel({
     destinataire: o.courriel,
-    sujet: `${o.titre} — ${o.membre.firmName}`,
+    nomExpediteur: o.identite.nomExpediteur,
+    repondreA: o.identite.repondreA,
+    sujet: `${o.titre} — ${o.identite.nom}`,
     texte:
       `${o.message}\n\n${o.titre}\n${o.lien}\n\n` +
       (o.dueDate ? `À compléter avant le ${o.dueDate}.\n\n` : "") +
-      `${o.membre.firmName}\n${repondreA}`,
+      `${o.identite.nom}\n${repondreA}`,
     html: `
       <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
-        <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">${o.membre.firmName}</p>
+        <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">${o.identite.nom}</p>
         <h1 style="font-size:20px;margin:0 0 16px">${o.titre}</h1>
         <div style="font-size:15px;line-height:1.6;white-space:pre-wrap">${o.message}</div>
         ${echeance}
@@ -232,7 +236,7 @@ async function courrielDInvitation(o: {
           </a>
         </p>
         <p style="font-size:12px;color:#64748b">Ce lien vous est personnel : ne le transmettez à personne.</p>
-        <p style="font-size:12px;color:#64748b">${o.membre.firmName} — ${repondreA}</p>
+        <p style="font-size:12px;color:#64748b">${o.identite.nom} — ${repondreA}</p>
       </div>`,
   })
 }
@@ -279,10 +283,13 @@ export async function envoyerRappel(formData: FormData): Promise<Resultat> {
       "Date limite": echeance,
     })
 
+    const identite = await identiteCourriel()
     const envoi = await envoyerCourriel({
       destinataire: courriel,
+      nomExpediteur: identite.nomExpediteur,
+      repondreA: identite.repondreA,
       sujet: `Rappel — ${q.title}`,
-      texte: `${message}\n\n${lien}\n\n${membre.firmName}`,
+      texte: `${message}\n\n${lien}\n\n${identite.nom}`,
       html: `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
         <div style="font-size:15px;line-height:1.6;white-space:pre-wrap">${message}</div>
         <p style="margin:28px 0">
@@ -291,7 +298,7 @@ export async function envoyerRappel(formData: FormData): Promise<Resultat> {
           </a>
         </p>
         <p style="font-size:12px;color:#64748b">Ce nouveau lien remplace le précédent, qui ne fonctionne plus.</p>
-        <p style="font-size:12px;color:#64748b;margin-top:24px">${membre.firmName}</p>
+        <p style="font-size:12px;color:#64748b;margin-top:24px">${identite.nom}</p>
       </div>`,
     })
 

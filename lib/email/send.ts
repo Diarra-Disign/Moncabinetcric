@@ -39,16 +39,56 @@ export function adresseDeReponse(): string | null {
   return process.env.EMAIL_REPLY_TO?.trim() || null
 }
 
+/**
+ * L'adresse d'expédition, sans son éventuel nom d'affichage.
+ *
+ * EMAIL_FROM peut valoir « moncabinetcric <acces@moncabinetcric.com> » ou
+ * simplement « acces@moncabinetcric.com ». Pour y substituer le nom d'un
+ * cabinet, il faut d'abord isoler l'adresse : recoller un nom devant une
+ * chaîne qui en contient déjà un produirait un en-tête que les serveurs
+ * refusent, et le refus n'apparaîtrait qu'au premier envoi réel.
+ */
+function adresseNue(brut: string): string {
+  const entreChevrons = brut.match(/<([^>]+)>/)
+  return (entreChevrons ? entreChevrons[1] : brut).replace(/["']/g, "").trim()
+}
+
+/**
+ * L'en-tête « De », au nom du cabinet quand il en a donné un.
+ *
+ * Le DOMAINE d'expédition ne change pas, et ce n'est pas un oubli : un
+ * fournisseur n'expédie que depuis un domaine dont la propriété est prouvée
+ * par DNS. Laisser un cabinet expédier depuis le sien ferait refuser l'envoi,
+ * ou pire, le ferait classer en pourriel sans que personne ne l'apprenne. Le
+ * nom affiché, lui, est libre — et c'est lui que le destinataire lit dans sa
+ * boîte.
+ */
+export function enTeteDe(nomCabinet?: string | null): string {
+  const brut = process.env.EMAIL_FROM ?? ""
+  const adresse = adresseNue(brut)
+  const nom = nomCabinet?.trim()
+  if (!nom) return brut
+  // Les guillemets sont doublés d'un échappement : une raison sociale
+  // contenant un guillemet casserait l'en-tête sans cela.
+  return `"${nom.replace(/"/g, "'")}" <${adresse}>`
+}
+
 export async function envoyerCourriel(opts: {
   destinataire: string
   sujet: string
   html: string
   texte: string
+  /** Nom affiché à la place de celui de la plateforme. */
+  nomExpediteur?: string | null
+  /** Adresse qui recevra les réponses ; à défaut, celle de la plateforme. */
+  repondreA?: string | null
 }): Promise<ResultatEnvoi> {
   const cle = process.env.RESEND_API_KEY
-  const expediteur = process.env.EMAIL_FROM
+  const expediteurBrut = process.env.EMAIL_FROM
 
-  if (!cle || !expediteur) return { envoye: false, configure: false }
+  if (!cle || !expediteurBrut) return { envoye: false, configure: false }
+  const expediteur = enTeteDe(opts.nomExpediteur)
+  const repondreA = opts.repondreA?.trim() || adresseDeReponse()
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -60,7 +100,7 @@ export async function envoyerCourriel(opts: {
       body: JSON.stringify({
         from: expediteur,
         to: [opts.destinataire],
-        ...(adresseDeReponse() ? { reply_to: adresseDeReponse() } : {}),
+        ...(repondreA ? { reply_to: repondreA } : {}),
         subject: opts.sujet,
         html: opts.html,
         // Toujours accompagner le HTML de sa version texte : sans elle,

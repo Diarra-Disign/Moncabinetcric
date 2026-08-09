@@ -166,16 +166,45 @@ export async function listerDestinataires(): Promise<Destinataire[]> {
   return [...cs, ...ps]
 }
 
-/** Le cabinet du membre connecté, pour signer les courriels. */
-export async function cabinetCourant(): Promise<{ id: string; nom: string; courriel: string; telephone: string }> {
+export interface IdentiteCourriel {
+  id: string
+  nom: string
+  /** Nom affiché dans la boîte du destinataire. */
+  nomExpediteur: string
+  /** Adresse qui reçoit les réponses. */
+  repondreA: string | null
+  telephone: string
+}
+
+/**
+ * L'identité sous laquelle le cabinet écrit.
+ *
+ * L'adresse de réponse suit une cascade : celle explicitement paramétrée,
+ * sinon l'adresse générale du cabinet, sinon celle du membre qui envoie.
+ * Renvoyer null aurait fait retomber l'envoi sur l'adresse de la plateforme,
+ * qui n'est écoutée par personne — répondre y serait revenu à écrire dans le
+ * vide, ce qui est pire que de ne pas proposer de répondre.
+ */
+export async function identiteCourriel(): Promise<IdentiteCourriel> {
   const membre = await getCurrentMember()
   if (!membre) throw new Error("Session expirée.")
   const sb = await getSessionSupabase()
-  const { data } = await sb.from("firms").select("id, name, email, phone").eq("id", membre.firmId).maybeSingle()
+  const { data } = await sb
+    .from("firms")
+    .select("id, name, email, phone, reply_to_email, email_sender_name")
+    .eq("id", membre.firmId)
+    .maybeSingle()
+
+  const nom = String(data?.name ?? membre.firmName ?? "")
   return {
     id: membre.firmId,
-    nom: String(data?.name ?? membre.firmName ?? ""),
-    courriel: String(data?.email ?? ""),
+    nom,
+    nomExpediteur: String(data?.email_sender_name ?? "").trim() || nom,
+    repondreA:
+      String(data?.reply_to_email ?? "").trim() ||
+      String(data?.email ?? "").trim() ||
+      membre.email ||
+      null,
     telephone: String(data?.phone ?? ""),
   }
 }

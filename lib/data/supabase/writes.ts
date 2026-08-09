@@ -345,6 +345,8 @@ export async function updateFirmSettings(data: {
   phone?: string
   email?: string
   logoUrl?: string
+  replyToEmail?: string
+  emailSenderName?: string
 }): Promise<boolean> {
   const firmId = await currentFirmId()
   const payload: Record<string, unknown> = {
@@ -357,6 +359,12 @@ export async function updateFirmSettings(data: {
   if (data.phone !== undefined) payload.phone = data.phone
   if (data.email !== undefined) payload.email = data.email
   if (data.logoUrl !== undefined) payload.logo_url = data.logoUrl
+  // Une chaîne vide vaut « pas d'adresse » et NON une adresse vide : la
+  // contrainte de la base refuserait '' comme adresse invalide, et le
+  // consultant qui efface le champ verrait un refus au lieu d'un retour au
+  // comportement par défaut.
+  if (data.replyToEmail !== undefined) payload.reply_to_email = data.replyToEmail.trim() || null
+  if (data.emailSenderName !== undefined) payload.email_sender_name = data.emailSenderName.trim() || null
 
   const { error } = await (await db())
     .from("firms")
