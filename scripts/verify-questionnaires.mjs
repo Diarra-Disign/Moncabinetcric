@@ -114,6 +114,49 @@ try {
   void eEcrire
 
   // -------------------------------------------------------------------------
+  console.log("\nCe que reçoit un cabinet NEUF, sans rien configurer")
+  // -------------------------------------------------------------------------
+  // La question n'est pas « le cloisonnement tient-il » — c'est vérifié plus
+  // bas — mais « le deuxième cabinet qui s'abonne trouve-t-il quelque chose ».
+  const { data: sysPourB } = await tiers
+    .from("questionnaire_templates").select("id, slug").is("firm_id", null)
+  verifier("il voit les 8 modèles fournis", (sysPourB ?? []).length, 8)
+
+  const { data: sesModeles } = await tiers
+    .from("questionnaire_templates").select("id").eq("firm_id", cabinetB)
+  verifier("et aucun modèle à lui, tant qu'il n'en crée pas", (sesModeles ?? []).length, 0)
+
+  const { data: defautB } = await tiers
+    .from("questionnaire_templates").select("slug")
+    .eq("is_default_preconsultation", true).eq("active", true)
+  verifier("un questionnaire lui est proposé par défaut", (defautB ?? [])[0]?.slug, "preconsultation")
+
+  const modeleSysB = (sysPourB ?? []).find((m) => m.slug === "preconsultation")
+  const { data: src } = await admin.from("questionnaire_templates")
+    .select("sections, message_fr, message_en, description_fr, description_en")
+    .eq("id", modeleSysB.id).single()
+  const { error: eDup } = await tiers.from("questionnaire_templates").insert({
+    firm_id: cabinetB, slug: "preconsultation", title_fr: "Préconsultation — ma version",
+    title_en: "Pre-consultation — my version", sections: src.sections,
+    description_fr: src.description_fr, description_en: src.description_en,
+    message_fr: src.message_fr, message_en: src.message_en,
+  })
+  verifier("il duplique sous son propre slug", eDup ? eDup.message : "ok", "ok")
+
+  const { data: sysApres } = await admin.from("questionnaire_templates")
+    .select("title_fr").eq("id", modeleSysB.id).single()
+  verifier("l'original fourni n'a pas bougé", sysApres.title_fr, "Questionnaire de préconsultation")
+
+  const { data: vuParA } = await cabinet
+    .from("questionnaire_templates").select("id").eq("firm_id", cabinetB)
+  verifier("le premier cabinet ne voit pas sa copie", (vuParA ?? []).length, 0)
+
+  const { data: idB } = await admin.from("firms")
+    .select("name, email, reply_to_email, email_sender_name").eq("id", cabinetB).single()
+  verifier("aucune identité courriel imposée", String(idB.reply_to_email), "null")
+  verifier("le repli existe : son courriel de cabinet", Boolean(idB.email), true)
+
+  // -------------------------------------------------------------------------
   console.log("\nUn envoi à un PROSPECT — sans client, sans dossier")
   // -------------------------------------------------------------------------
   const { data: prospect, error: eProspect } = await admin.from("leads").insert({
