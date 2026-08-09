@@ -40,6 +40,7 @@ case "$commande" in
   documents)    exec node scripts/verify-requirements.mjs "$@" ;;
   echeances)    exec node scripts/verify-deadlines.mjs "$@" ;;
   portail-client) exec node scripts/verify-portal.mjs "$@" ;;
+  formulaires)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-forms.mjs "$@" ;;
   mobile)       exec node scripts/verify-mobile.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
   facturation-sieges) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-seat-billing.mjs "$@" ;;
@@ -107,6 +108,8 @@ Usage : ./cric <commande> [options]
   fideicommis  Éprouve les paiements et le registre de fidéicommis
   echeances    Éprouve les échéances du dossier et les alertes du cabinet
   portail-client  Éprouve le dépôt de pièces par le client et la validation
+  formulaires  Éprouve les formulaires officiels : pré-remplissage, versions,
+               et remplissage d’un PDF à champs
   documents    Éprouve les pièces exigées : reçu ≠ vérifié, et le blocage
                d’un dossier incomplet
   mobile       Éprouve le rendu sur écran de téléphone : tiroir de navigation
