@@ -27,7 +27,25 @@ import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
-import { PLANS, formatMontant, DEVISE } from "../lib/billing/plans.ts"
+import { formatMontant, DEVISE } from "../lib/billing/plans.ts"
+import { getCatalogue, getForfaitsSouscriptibles } from "../lib/billing/catalogue.ts"
+
+/**
+ * Le catalogue, chargé une fois au démarrage.
+ *
+ * Il vivait dans une constante PLANS de plans.ts. Il vit maintenant dans
+ * plan_limits, en base, et se modifie depuis la console d'exploitation sans
+ * déploiement. Ce script a cessé de fonctionner le jour de ce déplacement, et
+ * personne ne l'a vu : la commande existait toujours, elle échouait seulement
+ * à l'import — ce qui rappelle qu'une suite qu'on ne lance pas ne protège
+ * rien.
+ *
+ * Il est lu par getCatalogue(), c'est-à-dire par le MÊME code que la page
+ * publique. Relire plan_limits à la main ici éprouverait la base, pas le
+ * chemin qu'emprunte réellement un client.
+ */
+let CATALOGUE = {}
+let SOUSCRIPTIBLES = []
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 
@@ -62,15 +80,16 @@ function ignorer(intitule, raison) {
 /** Les quatre lignes de facturation possibles, telles que Stripe les nomme. */
 function lignesCatalogue() {
   const lignes = []
-  for (const plan of ["solo", "cabinet"]) {
+  for (const p of SOUSCRIPTIBLES) {
+    const plan = p.key
     for (const cadence of ["monthly", "annual"]) {
       lignes.push({
         cle: `mcc_${plan}_${cadence}`,
         intitule: `${plan} ${cadence}`,
-        montant: cadence === "annual" ? PLANS[plan].annual : PLANS[plan].monthly,
+        montant: cadence === "annual" ? p.annual : p.monthly,
         intervalle: cadence === "annual" ? "year" : "month",
       })
-      const extra = cadence === "annual" ? PLANS[plan].extraSeatAnnual : PLANS[plan].extraSeatMonthly
+      const extra = cadence === "annual" ? p.extraSeatAnnual : p.extraSeatMonthly
       if (extra > 0) {
         lignes.push({
           cle: `mcc_${plan}_${cadence}_place`,
@@ -101,7 +120,24 @@ async function main() {
   const arg = process.argv.find((a) => a.startsWith("--url="))
   const base = (arg ? arg.slice(6) : env.APP_URL || "http://localhost:3000").replace(/\/+$/, "")
 
-  console.log(`\nPage éprouvée : ${base}/fr/landing\n`)
+  // getCatalogue() lit ses identifiants dans process.env, comme en
+  // production. Le script, lui, charge .env.local dans un objet local : sans
+  // ce report, le lecteur du catalogue ne trouve rien et échoue sur une
+  // « configuration Supabase incomplète » qui ne dit pas d'où vient le manque.
+  process.env.NEXT_PUBLIC_SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL
+  process.env.SUPABASE_SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY
+
+  const tous = await getCatalogue()
+  CATALOGUE = Object.fromEntries(tous.map((p) => [p.key, p]))
+  SOUSCRIPTIBLES = await getForfaitsSouscriptibles()
+
+  if (SOUSCRIPTIBLES.length === 0) {
+    console.error("Catalogue vide : aucun forfait souscriptible en base. Rien à éprouver.")
+    process.exit(1)
+  }
+
+  console.log(`\nPage éprouvée : ${base}/fr/landing`)
+  console.log(`Catalogue     : ${SOUSCRIPTIBLES.map((p) => p.labelFr).join(", ")}\n`)
 
   // -------------------------------------------------------------------------
   console.log("1. Ce que le client lit sur la page publique")
@@ -115,22 +151,35 @@ async function main() {
   }
 
   if (html) {
-    for (const [plan, etiquette] of [["solo", "Solo"], ["cabinet", "Cabinet Pro"]]) {
-      const affiche = normaliser(formatMontant(PLANS[plan].monthly, "fr"))
-      const present = html.includes(affiche)
-      if (!present) echecs++
-      console.log(
-        `  ${present ? "✓" : "✗"} ${`${etiquette} — mensuel affiché`.padEnd(46)} ${affiche}` +
-          (present ? "" : "   INTROUVABLE dans la page")
-      )
+    // Un forfait peut être vendable sans être ANNONCÉ : la page publique est
+    // un choix commercial, et rien n'oblige à y montrer toute la gamme. Ce
+    // script ne tranche donc pas cette question — il tranche la seule qui
+    // engage : un forfait annoncé l'est-il au bon prix ?
+    //
+    // Confondre les deux rendrait la suite bruyante, et une suite bruyante
+    // finit ignorée. C'est exactement ce qui est arrivé à celle-ci : elle
+    // échouait à l'import depuis des semaines sans que personne ne le voie.
+    for (const p of SOUSCRIPTIBLES) {
+      const etiquette = p.labelFr
+      const annonce = html.includes(normaliser(etiquette))
 
-      const annuel = normaliser(formatMontant(PLANS[plan].annual, "fr"))
-      const presentAn = html.includes(annuel)
-      if (!presentAn) echecs++
-      console.log(
-        `  ${presentAn ? "✓" : "✗"} ${`${etiquette} — annuel affiché`.padEnd(46)} ${annuel}` +
-          (presentAn ? "" : "   INTROUVABLE dans la page")
-      )
+      if (!annonce) {
+        ignores++
+        console.log(
+          `  · ${`${etiquette} — non annoncé publiquement`.padEnd(46)} ${normaliser(formatMontant(p.monthly, "fr"))} en interne`
+        )
+        continue
+      }
+
+      for (const [quoi, cents] of [["mensuel", p.monthly], ["annuel", p.annual]]) {
+        const affiche = normaliser(formatMontant(cents, "fr"))
+        const present = html.includes(affiche)
+        if (!present) echecs++
+        console.log(
+          `  ${present ? "✓" : "✗"} ${`${etiquette} — ${quoi} affiché`.padEnd(46)} ${affiche}` +
+            (present ? "" : "   INTROUVABLE dans la page")
+        )
+      }
     }
 
     // La page annonce « taxes en sus » : le tarif Stripe doit donc être
@@ -187,24 +236,34 @@ async function main() {
     const { data } = await sb.from("plan_limits").select("plan, max_seats, ai_connector")
     const parPlan = Object.fromEntries((data ?? []).map((l) => [l.plan, l]))
 
-    for (const plan of ["solo", "cabinet"]) {
-      const ligne = parPlan[plan]
+    // plan_limits EST devenue la source du catalogue : la comparer à
+    // getCatalogue() reviendrait à comparer la base à elle-même. Ce qui reste
+    // à prouver, c'est que le lecteur employé par l'application rapporte
+    // fidèlement ce que la table contient — un forfait perdu en route ne
+    // s'afficherait nulle part, et ne se vendrait plus.
+    for (const p of SOUSCRIPTIBLES) {
+      const ligne = parPlan[p.key]
       if (!ligne) {
         echecs++
-        console.log(`  ✗ ${plan.padEnd(46)} absent de plan_limits`)
+        console.log(`  ✗ ${p.key.padEnd(46)} absent de plan_limits`)
         continue
       }
-      verifier(`${plan} — places autorisées`, PLANS[plan].maxSeats ?? "sans limite", ligne.max_seats ?? "sans limite")
-      verifier(`${plan} — connecteur IA`, PLANS[plan].aiConnector, ligne.ai_connector)
+      verifier(`${p.key} — places autorisées`, p.maxSeats ?? "sans limite", ligne.max_seats ?? "sans limite")
+      verifier(`${p.key} — connecteur IA`, p.aiConnector, ligne.ai_connector)
     }
+    const manquants = Object.keys(parPlan).filter((k) => !(k in CATALOGUE))
+    verifier("aucun forfait perdu entre la table et le lecteur", manquants.length, 0)
   }
 
   // -------------------------------------------------------------------------
   console.log("\n4. Cohérence interne du catalogue")
   // -------------------------------------------------------------------------
-  for (const plan of ["solo", "cabinet"]) {
+  for (const p of SOUSCRIPTIBLES) {
     // Deux mois offerts : la page l'annonce, le montant annuel doit le tenir.
-    verifier(`${plan} — annuel = 10 × mensuel`, PLANS[plan].monthly * 10, PLANS[plan].annual)
+    verifier(`${p.key} — annuel = 10 × mensuel`, p.monthly * 10, p.annual)
+    // Un forfait vendable sans prix se glisserait dans le tunnel de paiement
+    // et y produirait une ligne à zéro.
+    verifier(`${p.key} — a bien un prix`, p.monthly > 0 && p.annual > 0, true)
   }
 
   console.log(

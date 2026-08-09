@@ -36,7 +36,8 @@ case "$commande" in
   membres)      exec node scripts/verify-members.mjs "$@" ;;
   permissions)  exec node scripts/verify-permissions.mjs "$@" ;;
   sieges)       exec node scripts/verify-seats.mjs "$@" ;;
-  facturation)  exec node --experimental-strip-types scripts/verify-billing.mjs "$@" ;;
+  facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
+  facturation-sieges) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-seat-billing.mjs "$@" ;;
   portail)      exec node scripts/portail-stripe.mjs "$@" ;;
   stripe-config) exec node scripts/stripe-config.mjs "$@" ;;
   migration)    exec node scripts/apply-migration.mjs "$@" ;;
