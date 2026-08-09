@@ -83,7 +83,7 @@ export function DossierOnglets({
 }: {
   dossier: DossierComplet
   matterId: string
-  clientId: string
+  clientId: string | null
   statutDossier: string
 }) {
   const [onglet, setOnglet] = React.useState<Onglet>("apercu")
@@ -94,6 +94,10 @@ export function DossierOnglets({
     demarrer(async () => setResultat(await action(fd)))
 
   const d = dossier
+  // Un dossier peut n'être rattaché à aucun client. Les pièces, les
+  // formulaires et les échéances tiennent au DOSSIER et restent utilisables ;
+  // tout ce qui touche à l'argent et au portail suppose un client.
+  const sansClient = clientId === null
 
   return (
     <div className="flex flex-col gap-5">
@@ -102,7 +106,7 @@ export function DossierOnglets({
           illisibles, et un menu déroulant cacherait ce qu'on cherche. */}
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div role="tablist" className="flex w-max gap-1 rounded-2xl border border-border bg-card p-1">
-          {ONGLETS.map(({ cle, libelle, icone: Icone }) => (
+          {ONGLETS.filter((o) => !sansClient || !["paiements", "portail"].includes(o.cle)).map(({ cle, libelle, icone: Icone }) => (
             <button
               key={cle}
               role="tab"
@@ -121,6 +125,15 @@ export function DossierOnglets({
           ))}
         </div>
       </div>
+
+      {sansClient && (
+        <p className="flex items-start gap-2 rounded-xl bg-warning/10 px-4 py-3 text-xs font-bold leading-relaxed text-warning">
+          <AlertTriangle aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
+          Ce dossier n'est rattaché à aucun client. Les pièces, les formulaires et les échéances
+          fonctionnent ; les paiements, le fidéicommis et le portail resteront indisponibles tant
+          que le rattachement n'est pas fait.
+        </p>
+      )}
 
       {resultat && (
         <p
@@ -391,7 +404,7 @@ export function DossierOnglets({
       {onglet === "paiements" && (
         <div className="space-y-4">
           <form action={lancer(enregistrerPaiement)} className="rounded-2xl border border-border bg-card p-5">
-            <input type="hidden" name="clientId" value={clientId} />
+            <input type="hidden" name="clientId" value={clientId ?? ""} />
             <input type="hidden" name="matterId" value={matterId} />
             <h3 className="text-sm font-black text-foreground">Enregistrer un paiement</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -454,7 +467,7 @@ export function DossierOnglets({
 
           {d.finances.soldeFideicommisClient > 0 && (
             <form action={lancer(virerHonoraires)} className="rounded-2xl border border-border bg-muted/30 p-5">
-              <input type="hidden" name="clientId" value={clientId} />
+              <input type="hidden" name="clientId" value={clientId ?? ""} />
               <input type="hidden" name="matterId" value={matterId} />
               <h3 className="text-sm font-black text-foreground">Virer des honoraires gagnés</h3>
               <p className="mt-1 max-w-prose text-xs text-muted-foreground">
@@ -591,7 +604,7 @@ export function DossierOnglets({
           </div>
 
           <form action={lancer(demanderValidation)} className="rounded-2xl border border-border bg-card p-5">
-            <input type="hidden" name="clientId" value={clientId} />
+            <input type="hidden" name="clientId" value={clientId ?? ""} />
             <input type="hidden" name="matterId" value={matterId} />
             <h3 className="text-sm font-black text-foreground">Demander la validation du client</h3>
             <p className="mt-1 max-w-prose text-xs text-muted-foreground">

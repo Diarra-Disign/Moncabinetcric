@@ -90,7 +90,15 @@ export interface DossierComplet {
    * Ils sont donc résolus une fois, ici, et redescendus aux formulaires.
    */
   matterId: string
-  clientId: string
+  /**
+   * Nul quand le dossier n'est rattaché à aucun client.
+   *
+   * Ce cas EXISTE dans les données réelles, et le premier jet refusait alors
+   * d'afficher quoi que ce soit : les cinq pièces exigées du dossier étaient
+   * bien en base, et l'écran restait vide. Un dossier incomplet doit se
+   * montrer avec ce qui manque, pas disparaître.
+   */
+  clientId: string | null
 
   exigences: ExigenceVue[]
   bloquantes: { code: string; label: string; status: string }[]
@@ -152,10 +160,13 @@ export async function getDossierComplet(
     .limit(1)
     .maybeSingle()
 
-  if (!dossierRow?.id || !dossierRow.client_id) return null
+  if (!dossierRow?.id) return null
 
   const matterId = dossierRow.id as string
-  const clientId = dossierRow.client_id as string
+  // Sans client, tout ce qui touche à l'argent et au portail est hors de
+  // portée — mais les pièces, les formulaires et les échéances tiennent au
+  // DOSSIER, pas au client. Ils restent donc visibles.
+  const clientId = (dossierRow.client_id as string | null) ?? null
 
   // Lancées ensemble : ces lectures ne dépendent pas les unes des autres, et
   // les enchaîner ajouterait autant d'allers-retours que d'onglets.
@@ -172,14 +183,24 @@ export async function getDossierComplet(
         .select("id, invoice_number, service_description, amount, date, due_on, status")
         .eq("matter_id", matterId)
         .order("date", { ascending: false }),
-      sb.from("payments")
-        .select("id, amount, paid_on, method, reference, destination, notes, invoice_id")
-        .eq("client_id", clientId)
-        .order("paid_on", { ascending: false }),
-      sb.from("client_users").select("user_id, created_at").eq("client_id", clientId).maybeSingle(),
-      sb.from("documents").select("id").eq("client_id", clientId).eq("category", "client_upload"),
-      sb.from("document_reviews").select("id").eq("client_id", clientId).eq("status", "pending"),
-      sb.rpc("client_trust_balance", { c_id: clientId }),
+      clientId
+        ? sb.from("payments")
+            .select("id, amount, paid_on, method, reference, destination, notes, invoice_id")
+            .eq("client_id", clientId)
+            .order("paid_on", { ascending: false })
+        : Promise.resolve({ data: [] }),
+      clientId
+        ? sb.from("client_users").select("user_id, created_at").eq("client_id", clientId).maybeSingle()
+        : Promise.resolve({ data: null }),
+      clientId
+        ? sb.from("documents").select("id").eq("client_id", clientId).eq("category", "client_upload")
+        : Promise.resolve({ data: [] }),
+      clientId
+        ? sb.from("document_reviews").select("id").eq("client_id", clientId).eq("status", "pending")
+        : Promise.resolve({ data: [] }),
+      clientId
+        ? sb.rpc("client_trust_balance", { c_id: clientId })
+        : Promise.resolve({ data: 0 }),
     ])
 
   const exigences: ExigenceVue[] = (exig.data ?? []).map((r: Record<string, unknown>) => ({
