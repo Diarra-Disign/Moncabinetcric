@@ -1,7 +1,7 @@
 "use server"
 
 import { isSupabaseSource } from "./source"
-import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, CalendarEvent, ResearchWorkspace, ResearchSource, LegislationProvision } from "./types"
+import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, CalendarEvent, ResearchWorkspace, ResearchSource, LegislationProvision, ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "./types"
 // Import depuis ./stores et non ./queries : ce module est "use server" mais
 // des composants clients l'importent, et passer par queries.ts entraînerait
 // supabase/reads.ts (server-only) dans le bundle navigateur.
@@ -319,5 +319,178 @@ export async function updateFirmSettings(data: {
 }): Promise<boolean> {
   if (isSupabaseSource()) return (await sbWrites()).updateFirmSettings(data)
   return true
+}
+
+// --- Questionnaires Clients -------------------------------------------
+
+export async function assignQuestionnaire(
+  matterId: string,
+  clientId: string,
+  formType: "study_permit" | "work_permit" | "pr"
+): Promise<ClientQuestionnaire> {
+  if (isSupabaseSource()) return (await sbWrites()).assignQuestionnaire(matterId, clientId, formType)
+
+  const stores = _getStores()
+  let title = "Questionnaire — Demande de permis d'études"
+  if (formType === "work_permit") title = "Questionnaire — Demande de permis de travail"
+  else if (formType === "pr") title = "Questionnaire — Résidence permanente"
+
+  const newQ: ClientQuestionnaire = {
+    id: `q-${Date.now()}`,
+    firmId: "firm-1",
+    clientId,
+    matterId,
+    title,
+    formType,
+    status: "draft",
+    progress: 0,
+    answers: {},
+    corrections: [],
+    history: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+
+  stores.setClientQuestionnairesStore([newQ, ...stores.clientQuestionnairesStore])
+  return newQ
+}
+
+export async function saveQuestionnaireProgress(
+  id: string,
+  answers: Record<string, unknown>,
+  progress: number
+): Promise<ClientQuestionnaire> {
+  if (isSupabaseSource()) return (await sbWrites()).saveQuestionnaireProgress(id, answers, progress)
+
+  const stores = _getStores()
+  const idx = stores.clientQuestionnairesStore.findIndex(q => q.id === id)
+  if (idx === -1) throw new Error("Questionnaire introuvable.")
+
+  const current = stores.clientQuestionnairesStore[idx]
+  const status = current.status === "draft" ? "in_progress" : current.status
+
+  const updated: ClientQuestionnaire = {
+    ...current,
+    answers,
+    progress,
+    status,
+    lastSavedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+
+  const newArr = [...stores.clientQuestionnairesStore]
+  newArr[idx] = updated
+  stores.setClientQuestionnairesStore(newArr)
+  return updated
+}
+
+export async function submitQuestionnaire(id: string): Promise<ClientQuestionnaire> {
+  if (isSupabaseSource()) return (await sbWrites()).updateQuestionnaireStatus(id, "submitted")
+
+  const stores = _getStores()
+  const idx = stores.clientQuestionnairesStore.findIndex(q => q.id === id)
+  if (idx === -1) throw new Error("Questionnaire introuvable.")
+
+  const current = stores.clientQuestionnairesStore[idx]
+  const updated: ClientQuestionnaire = {
+    ...current,
+    status: "submitted",
+    updatedAt: new Date().toISOString()
+  }
+
+  const newArr = [...stores.clientQuestionnairesStore]
+  newArr[idx] = updated
+  stores.setClientQuestionnairesStore(newArr)
+  return updated
+}
+
+export async function requestQuestionnaireCorrections(
+  id: string,
+  corrections: QuestionnaireCorrection[]
+): Promise<ClientQuestionnaire> {
+  if (isSupabaseSource()) return (await sbWrites()).updateQuestionnaireStatus(id, "to_correct", { corrections })
+
+  const stores = _getStores()
+  const idx = stores.clientQuestionnairesStore.findIndex(q => q.id === id)
+  if (idx === -1) throw new Error("Questionnaire introuvable.")
+
+  const current = stores.clientQuestionnairesStore[idx]
+  const updated: ClientQuestionnaire = {
+    ...current,
+    status: "to_correct",
+    corrections,
+    updatedAt: new Date().toISOString()
+  }
+
+  const newArr = [...stores.clientQuestionnairesStore]
+  newArr[idx] = updated
+  stores.setClientQuestionnairesStore(newArr)
+  return updated
+}
+
+export async function updateQuestionnaireByConsultant(
+  id: string,
+  answers: Record<string, unknown>,
+  historyLog: QuestionnaireHistoryEntry[]
+): Promise<ClientQuestionnaire> {
+  if (isSupabaseSource()) return (await sbWrites()).updateQuestionnaireStatus(id, "corrected", { answers, history: historyLog })
+
+  const stores = _getStores()
+  const idx = stores.clientQuestionnairesStore.findIndex(q => q.id === id)
+  if (idx === -1) throw new Error("Questionnaire introuvable.")
+
+  const current = stores.clientQuestionnairesStore[idx]
+  const updated: ClientQuestionnaire = {
+    ...current,
+    answers,
+    history: [...current.history, ...historyLog],
+    status: current.status === "to_correct" ? "corrected" : current.status,
+    updatedAt: new Date().toISOString()
+  }
+
+  const newArr = [...stores.clientQuestionnairesStore]
+  newArr[idx] = updated
+  stores.setClientQuestionnairesStore(newArr)
+  return updated
+}
+
+export async function validateQuestionnaire(id: string): Promise<ClientQuestionnaire> {
+  if (isSupabaseSource()) return (await sbWrites()).updateQuestionnaireStatus(id, "validated")
+
+  const stores = _getStores()
+  const idx = stores.clientQuestionnairesStore.findIndex(q => q.id === id)
+  if (idx === -1) throw new Error("Questionnaire introuvable.")
+
+  const current = stores.clientQuestionnairesStore[idx]
+  const updated: ClientQuestionnaire = {
+    ...current,
+    status: "validated",
+    updatedAt: new Date().toISOString()
+  }
+
+  const newArr = [...stores.clientQuestionnairesStore]
+  newArr[idx] = updated
+  stores.setClientQuestionnairesStore(newArr)
+  return updated
+}
+
+export async function lockQuestionnaire(id: string): Promise<ClientQuestionnaire> {
+  if (isSupabaseSource()) return (await sbWrites()).updateQuestionnaireStatus(id, "locked")
+
+  const stores = _getStores()
+  const idx = stores.clientQuestionnairesStore.findIndex(q => q.id === id)
+  if (idx === -1) throw new Error("Questionnaire introuvable.")
+
+  const current = stores.clientQuestionnairesStore[idx]
+  const updated: ClientQuestionnaire = {
+    ...current,
+    status: "locked",
+    updatedAt: new Date().toISOString()
+  }
+
+  const newArr = [...stores.clientQuestionnairesStore]
+  newArr[idx] = updated
+  stores.setClientQuestionnairesStore(newArr)
+  return updated
 }
 

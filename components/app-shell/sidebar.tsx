@@ -52,13 +52,27 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ease-in-out",
+        "hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ease-in-out relative",
         isCollapsed ? "lg:w-20" : "lg:w-72"
       )}
     >
+      {/* Bouton de Rétraction Flottant sur la bordure droite */}
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        title={isCollapsed ? "Agrandir le menu latéral (Afficher les titres)" : "Réduire le menu latéral (Icônes uniquement)"}
+        className="absolute top-5 -right-3 z-[100] h-6 w-6 rounded-full border border-border bg-card shadow-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-all cursor-pointer"
+      >
+        {isCollapsed ? (
+          <ChevronRight className="h-4 w-4 text-primary" />
+        ) : (
+          <ChevronLeft className="h-4 w-4" />
+        )}
+      </button>
+
       <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-card px-4 pb-4 shadow-sm">
-        {/* En-tête de la Sidebar avec Logo & Bouton de Rétraction */}
-        <div className={cn("flex h-16 shrink-0 items-center justify-between border-b border-border/50", isCollapsed && "justify-center")}>
+        {/* En-tête de la Sidebar avec Logo uniquement */}
+        <div className="flex h-16 shrink-0 items-center justify-center border-b border-border/50">
           <div className="flex items-center gap-2.5 text-primary font-extrabold text-xl tracking-tight overflow-hidden">
             <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-black text-lg shadow-sm shrink-0">
               M
@@ -67,22 +81,6 @@ export function Sidebar() {
               <span className="truncate">moncabinetcric</span>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            title={isCollapsed ? "Agrandir le menu latéral (Afficher les titres)" : "Réduire le menu latéral (Icônes uniquement)"}
-            className={cn(
-              "p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-muted transition-colors cursor-pointer flex items-center justify-center",
-              isCollapsed && "mt-2"
-            )}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-5 w-5 text-primary animate-pulse" />
-            ) : (
-              <ChevronLeft className="h-5 w-5" />
-            )}
-          </button>
         </div>
 
         {/* Navigation Principale */}

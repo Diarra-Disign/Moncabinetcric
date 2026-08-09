@@ -1,4 +1,4 @@
-import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, FolderRecord, ImmigrationProgram, CalendarEvent, AuditLogRecord, ActionApprovalRecord, DeadlineRule, CiccComplianceScore, DeadlineRecord, LegislationProvision, ResearchWorkspace } from "./types"
+import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, FolderRecord, ImmigrationProgram, CalendarEvent, AuditLogRecord, ActionApprovalRecord, DeadlineRule, CiccComplianceScore, DeadlineRecord, LegislationProvision, ResearchWorkspace, ClientQuestionnaire } from "./types"
 import { MOCK_MATTERS } from "./mock/matters"
 import { MOCK_LEADS } from "./mock/leads"
 import { MOCK_INVOICES } from "./mock/invoices"
@@ -243,6 +243,27 @@ export async function getResearchWorkspaces(): Promise<ResearchWorkspace[]> {
 
 export async function getResearchWorkspaceById(id: string): Promise<ResearchWorkspace | undefined> {
   return _mockStores.researchWorkspaces.find(w => w.id === id)
+}
+
+// --- Questionnaires Clients -------------------------------------------
+
+export async function getClientQuestionnairesByMatterId(matterId: string): Promise<ClientQuestionnaire[]> {
+  if (isSupabaseSource()) return (await sbReads()).getClientQuestionnairesByMatterId(matterId)
+  const decoded = decodeURIComponent(matterId)
+  const bare = decoded.replace("#", "")
+  return _mockStores.clientQuestionnaires.filter(
+    (q) => q.matterId === decoded || q.matterId === `#${bare}` || q.matterId.replace("#", "") === bare
+  )
+}
+
+export async function getClientQuestionnairesByClientId(clientId: string): Promise<ClientQuestionnaire[]> {
+  if (isSupabaseSource()) return (await sbReads()).getClientQuestionnairesByClientId(clientId)
+  return _mockStores.clientQuestionnaires.filter((q) => q.clientId === clientId)
+}
+
+export async function getClientQuestionnaireById(id: string): Promise<ClientQuestionnaire | undefined> {
+  if (isSupabaseSource()) return (await sbReads()).getClientQuestionnaireById(id)
+  return _mockStores.clientQuestionnaires.find((q) => q.id === id)
 }
 
 

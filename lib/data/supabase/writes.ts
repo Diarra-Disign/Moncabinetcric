@@ -9,6 +9,7 @@ import type {
   DocumentRecord,
   AuditLogRecord,
   CalendarEvent,
+  ClientQuestionnaire,
 } from "../types"
 import {
   toMatter,
@@ -17,6 +18,7 @@ import {
   toInvoice,
   toDocument,
   toCalendarEvent,
+  toQuestionnaire,
 } from "./mappers"
 
 function fail(entity: string, message: string): never {
@@ -536,4 +538,117 @@ export async function createEvent(
 
   if (error) fail("createEvent", error.message)
   return toCalendarEvent(inserted)
+}
+
+// --- Questionnaires Clients -------------------------------------------
+
+export async function assignQuestionnaire(
+  matterId: string,
+  clientId: string,
+  formType: "study_permit" | "work_permit" | "pr"
+): Promise<ClientQuestionnaire> {
+  const firmId = await currentFirmId()
+  const supabase = await db()
+
+  // 1. Résoudre le matter uuid
+  const bareMatter = decodeURIComponent(matterId).replace("#", "")
+  const { data: m } = await supabase
+    .from("matters")
+    .select("id")
+    .eq("firm_id", firmId)
+    .in("reference", [matterId, `#${bareMatter}`, bareMatter])
+    .maybeSingle()
+  if (!m) fail("assignQuestionnaire", `Dossier ${matterId} introuvable.`)
+
+  // 2. Résoudre le client uuid
+  const { data: c } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("firm_id", firmId)
+    .eq("legacy_id", clientId)
+    .maybeSingle()
+  if (!c) fail("assignQuestionnaire", `Client ${clientId} introuvable.`)
+
+  let title = "Questionnaire — Demande de permis d'études"
+  if (formType === "work_permit") title = "Questionnaire — Demande de permis de travail"
+  else if (formType === "pr") title = "Questionnaire — Résidence permanente"
+
+  const payload = {
+    firm_id: firmId,
+    client_id: c.id,
+    matter_id: m.id,
+    title,
+    form_type: formType,
+    status: "draft",
+    progress: 0,
+    answers: {},
+    corrections: [],
+    history: [],
+  }
+
+  const { data: inserted, error } = await supabase
+    .from("client_questionnaires")
+    .insert(payload)
+    .select("*, matters(reference), clients(legacy_id)")
+    .single()
+
+  if (error) fail("assignQuestionnaire", error.message)
+  return toQuestionnaire(inserted)
+}
+
+export async function saveQuestionnaireProgress(
+  id: string,
+  answers: Record<string, unknown>,
+  progress: number
+): Promise<ClientQuestionnaire> {
+  const firmId = await currentFirmId()
+  const supabase = await db()
+
+  // 1. Lire le questionnaire pour vérifier son statut
+  const { data: current, error: readErr } = await supabase
+    .from("client_questionnaires")
+    .select("status")
+    .eq("id", id)
+    .maybeSingle()
+
+  if (readErr || !current) fail("saveQuestionnaireProgress", "Questionnaire introuvable.")
+
+  const status = current.status === "draft" ? "in_progress" : current.status
+
+  const { data: updated, error } = await supabase
+    .from("client_questionnaires")
+    .update({
+      answers,
+      progress,
+      status,
+      last_saved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("*, matters(reference), clients(legacy_id)")
+    .single()
+
+  if (error) fail("saveQuestionnaireProgress", error.message)
+  return toQuestionnaire(updated)
+}
+
+export async function updateQuestionnaireStatus(
+  id: string,
+  status: string,
+  extraUpdates: Record<string, unknown> = {}
+): Promise<ClientQuestionnaire> {
+  const supabase = await db()
+  const { data: updated, error } = await supabase
+    .from("client_questionnaires")
+    .update({
+      status,
+      ...extraUpdates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select("*, matters(reference), clients(legacy_id)")
+    .single()
+
+  if (error) fail("updateQuestionnaireStatus", error.message)
+  return toQuestionnaire(updated)
 }

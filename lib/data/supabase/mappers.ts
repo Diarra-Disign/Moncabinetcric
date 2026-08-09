@@ -6,6 +6,7 @@ import type {
   DocumentRecord,
   CalendarEvent,
   AuditLogRecord,
+  ClientQuestionnaire,
 } from "../types"
 
 /**
@@ -176,5 +177,26 @@ export function toAuditLog(r: Row): AuditLogRecord {
     userAgent: str(r.user_agent),
     prevHash: str(r.prev_hash),
     rowHash: str(r.row_hash),
+  }
+}
+
+export function toQuestionnaire(r: Row): ClientQuestionnaire {
+  return {
+    id: str(r.id),
+    firmId: str(r.firm_id),
+    clientId: optStr((r.clients as Row | null)?.legacy_id) || str(r.client_id),
+    matterId: optStr((r.matters as Row | null)?.reference) || str(r.matter_id),
+    title: str(r.title),
+    description: optStr(r.description),
+    formType: r.form_type as ClientQuestionnaire["formType"],
+    status: r.status as ClientQuestionnaire["status"],
+    progress: num(r.progress),
+    dueDate: optStr(r.due_date),
+    createdAt: str(r.created_at),
+    updatedAt: str(r.updated_at),
+    lastSavedAt: optStr(r.last_saved_at),
+    answers: (r.answers as Record<string, unknown>) ?? {},
+    corrections: (r.corrections as QuestionnaireCorrection[]) ?? [],
+    history: (r.history as QuestionnaireHistoryEntry[]) ?? [],
   }
 }

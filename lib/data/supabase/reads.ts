@@ -9,6 +9,7 @@ import type {
   DocumentRecord,
   CalendarEvent,
   AuditLogRecord,
+  ClientQuestionnaire,
 } from "../types"
 import {
   toMatter,
@@ -18,6 +19,7 @@ import {
   toDocument,
   toCalendarEvent,
   toAuditLog,
+  toQuestionnaire,
 } from "./mappers"
 
 /**
@@ -223,4 +225,43 @@ export async function getDocumentAuditLog(): Promise<AuditLogRecord[]> {
   if (error) return []
   const mapped = (data ?? []).map(toAuditLog)
   return mapped.filter(log => log.entityType === "document" || log.action?.includes("document") || log.action?.includes("doc"))
+}
+
+// --- Questionnaires Clients -------------------------------------------
+
+export async function getClientQuestionnairesByMatterId(matterId: string): Promise<ClientQuestionnaire[]> {
+  const decoded = decodeURIComponent(matterId)
+  const bare = decoded.replace("#", "")
+  
+  const { data, error } = await (await db())
+    .from("client_questionnaires")
+    .select("*, matters!inner(reference), clients(legacy_id)")
+    .eq("firm_id", await currentFirmId())
+    .in("matters.reference", [decoded, `#${bare}`, bare])
+
+  if (error) fail("clientQuestionnairesByMatterId", error.message)
+  return (data ?? []).map(toQuestionnaire)
+}
+
+export async function getClientQuestionnairesByClientId(clientId: string): Promise<ClientQuestionnaire[]> {
+  const { data, error } = await (await db())
+    .from("client_questionnaires")
+    .select("*, matters(reference), clients!inner(legacy_id)")
+    .eq("firm_id", await currentFirmId())
+    .eq("clients.legacy_id", clientId)
+
+  if (error) fail("clientQuestionnairesByClientId", error.message)
+  return (data ?? []).map(toQuestionnaire)
+}
+
+export async function getClientQuestionnaireById(id: string): Promise<ClientQuestionnaire | undefined> {
+  const { data, error } = await (await db())
+    .from("client_questionnaires")
+    .select("*, matters(reference), clients(legacy_id)")
+    .eq("firm_id", await currentFirmId())
+    .eq("id", id)
+    .limit(1)
+
+  if (error) fail("clientQuestionnaireById", error.message)
+  return data && data.length ? toQuestionnaire(data[0]) : undefined
 }

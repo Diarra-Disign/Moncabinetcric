@@ -1,11 +1,14 @@
 import { getTranslations, setRequestLocale } from "next-intl/server"
 import { Card, CardContent } from "@/components/ui/card"
-import { FileText, Info, PenLine } from "lucide-react"
+import { FileText, Info, PenLine, Check } from "lucide-react"
 import { getCurrentMember, getCurrentPortalClient, getSessionSupabase } from "@/lib/supabase/session"
 import { VirtualMeetingCard } from "./virtual-meeting-card"
 import { ActionsFichier } from "@/components/documents/file-actions"
 import { SignatureBloc } from "@/components/documents/signature-bloc"
 import { tableauSignatures } from "@/lib/data/signatures"
+import { cn } from "@/lib/utils"
+import { getClientQuestionnairesByClientId } from "@/lib/data/queries"
+import type { ClientQuestionnaire } from "@/lib/data/types"
 
 /**
  * Portail client.
@@ -68,6 +71,29 @@ export default async function PortalPage({
     dossiers = mattersRes.data ?? []
     pieces = docsRes.data ?? []
     cabinet = firmRes.data ?? {}
+  }
+
+  let questionnaires: ClientQuestionnaire[] = []
+  if (apercu) {
+    questionnaires = [
+      {
+        id: "q-demo-1",
+        firmId: firmId || "firm-1",
+        clientId: "client-1",
+        matterId: "matter-1",
+        title: "Questionnaire — Demande de permis d'études",
+        formType: "study_permit",
+        status: "in_progress",
+        progress: 45,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        answers: {},
+        corrections: [],
+        history: [],
+      }
+    ]
+  } else if (firmId && realClient) {
+    questionnaires = await getClientQuestionnairesByClientId(realClient.clientId)
   }
 
   // Aucun repli fabriqué : quand il n'y a rien, les états vides le disent.
@@ -171,6 +197,86 @@ export default async function PortalPage({
           )}
         </CardContent>
       </Card>
+
+      {/* ============================================================
+          SECTION : MES QUESTIONNAIRES (FORMULAIRES DYNAMIQUES)
+          ============================================================ */}
+      <section id="questionnaires" className="space-y-3">
+        <h2 className="text-base font-black tracking-tight text-foreground flex items-center gap-2">
+          <FileText className="h-5 w-5 text-primary" />
+          Mes questionnaires
+        </h2>
+        {questionnaires.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border px-6 py-10 text-center text-sm text-muted-foreground bg-card">
+            Aucun questionnaire ne vous est attribué pour le moment.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {questionnaires.map((q) => (
+              <Card key={q.id} className="border border-border bg-card overflow-hidden hover:shadow-sm transition-shadow">
+                <CardContent className="p-5 flex flex-col justify-between h-full gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={cn(
+                        "rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-wider",
+                        q.status === "validated" || q.status === "locked"
+                          ? "bg-success/15 text-success"
+                          : q.status === "submitted" || q.status === "corrected"
+                            ? "bg-primary/15 text-primary"
+                            : q.status === "to_correct"
+                              ? "bg-error/15 text-error"
+                              : "bg-muted text-muted-foreground"
+                      )}>
+                        {q.status === "draft" && "Brouillon"}
+                        {q.status === "in_progress" && "En cours"}
+                        {q.status === "submitted" && "Soumis"}
+                        {q.status === "to_correct" && "À corriger"}
+                        {q.status === "corrected" && "Corrigé"}
+                        {q.status === "validated" && "Validé"}
+                        {q.status === "locked" && "Verrouillé"}
+                      </span>
+
+                      <span className="text-xs font-bold text-muted-foreground">{q.progress}%</span>
+                    </div>
+
+                    <h3 className="text-sm font-black text-foreground">{q.title}</h3>
+                    
+                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div className="bg-primary h-full" style={{ width: `${q.progress}%` }} />
+                    </div>
+
+                    {q.status === "to_correct" && q.corrections.length > 0 && (
+                      <div className="mt-2 p-2.5 bg-error/15 text-error text-[11px] rounded-lg border border-error/20 flex flex-col gap-1">
+                        <span className="font-bold">Corrections demandées :</span>
+                        <p>{q.corrections[0].comment}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-border/60 pt-3 mt-1">
+                    <span className="text-[10px] text-muted-foreground">
+                      Mise à jour : {new Date(q.updatedAt).toLocaleDateString("fr-CA")}
+                    </span>
+
+                    {q.status === "locked" || q.status === "validated" ? (
+                      <span className="text-xs text-muted-foreground font-bold flex items-center gap-1">
+                        <Check className="h-4 w-4 text-success" /> Validé
+                      </span>
+                    ) : (
+                      <a
+                        href={`/${locale}/portal/questionnaires/${q.id}`}
+                        className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold text-xs transition-colors flex items-center gap-1"
+                      >
+                        {q.status === "draft" || q.progress === 0 ? "Remplir" : "Continuer"} →
+                      </a>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section id="pieces">
         <h2 className="mb-3 text-base font-black tracking-tight text-foreground">

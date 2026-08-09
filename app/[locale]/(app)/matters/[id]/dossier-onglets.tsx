@@ -4,7 +4,7 @@ import * as React from "react"
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
-  Upload, Users, X,
+  Upload, Users, X, Edit3, MessageSquare, History, Plus
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
 import {
@@ -15,6 +15,15 @@ import {
   type Resultat,
 } from "@/lib/data/matter-actions"
 import { cn } from "@/lib/utils"
+import {
+  assignQuestionnaire,
+  requestQuestionnaireCorrections,
+  updateQuestionnaireByConsultant,
+  validateQuestionnaire,
+  lockQuestionnaire,
+} from "@/lib/data/actions"
+import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
+import { getTemplateByType } from "@/lib/data/questionnaire-templates"
 
 /**
  * Le dossier client, en onglets.
@@ -82,7 +91,7 @@ const CHAMP =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 
 export function DossierOnglets({
-  dossier, matterId, clientId, statutDossier, clientsDuCabinet,
+  dossier, matterId, clientId, statutDossier, clientsDuCabinet, clientQuestionnaires: initialQuestionnaires = [], consultant,
 }: {
   dossier: DossierComplet
   matterId: string
@@ -90,10 +99,33 @@ export function DossierOnglets({
   statutDossier: string
   /** Les clients du cabinet, pour rattacher un dossier qui n'en a pas. */
   clientsDuCabinet: { id: string; nom: string; dossier: string }[]
+  clientQuestionnaires?: ClientQuestionnaire[]
+  consultant: { id: string; name: string }
 }) {
   const [onglet, setOnglet] = React.useState<Onglet>("apercu")
   const [resultat, setResultat] = React.useState<Resultat | null>(null)
   const [enCours, demarrer] = React.useTransition()
+
+  // Liste des questionnaires locaux
+  const [prevInitialQuestionnaires, setPrevInitialQuestionnaires] = React.useState(initialQuestionnaires)
+  const [questionnaires, setQuestionnaires] = React.useState(initialQuestionnaires)
+
+  if (initialQuestionnaires !== prevInitialQuestionnaires) {
+    setPrevInitialQuestionnaires(initialQuestionnaires)
+    setQuestionnaires(initialQuestionnaires)
+  }
+
+  // Modales overlays
+  const [selectedReviewQ, setSelectedReviewQ] = React.useState<ClientQuestionnaire | null>(null)
+  const [selectedEditQ, setSelectedEditQ] = React.useState<ClientQuestionnaire | null>(null)
+  const [selectedCorrectionQ, setSelectedCorrectionQ] = React.useState<ClientQuestionnaire | null>(null)
+
+  // États pour modifications dans la modale d'édition
+  const [editAnswers, setEditAnswers] = React.useState<Record<string, unknown>>({})
+
+  // États pour corrections dans la modale de corrections
+  const [newCorrectionComment, setNewCorrectionComment] = React.useState("")
+  const [selectedCorrectionSection, setSelectedCorrectionSection] = React.useState("")
 
   const lancer = (action: (fd: FormData) => Promise<Resultat>) => (fd: FormData) =>
     demarrer(async () => setResultat(await action(fd)))
@@ -289,7 +321,7 @@ export function DossierOnglets({
         <p className="flex items-start gap-2 rounded-xl bg-warning/10 px-4 py-3 text-xs font-bold leading-relaxed text-warning">
           <AlertTriangle aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
           <span>
-            Ce dossier n'est rattaché à aucun client. Les pièces, les formulaires et les échéances
+            Ce dossier n&apos;est rattaché à aucun client. Les pièces, les formulaires et les échéances
             fonctionnent ; les paiements et le fidéicommis attendent le rattachement.{" "}
             <button type="button" onClick={() => setOnglet("portail")} className="underline underline-offset-2">
               Rattacher un client
@@ -456,7 +488,7 @@ export function DossierOnglets({
               Déposer un formulaire
             </h3>
             <p className="mt-1 max-w-prose text-xs text-muted-foreground">
-              N'importe quel formulaire utile au dossier — IRCC, provincial, consulaire. Il se
+              N&apos;importe quel formulaire utile au dossier — IRCC, provincial, consulaire. Il se
               range au dossier, se consulte et se télécharge. PDF, image ou document, 20 Mo au plus.
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -477,13 +509,13 @@ export function DossierOnglets({
             <input type="hidden" name="matterId" value={matterId} />
             <input type="hidden" name="code" value="IMM5476" />
             <h3 className="text-sm font-black text-foreground">
-              IMM 5476 — Recours aux services d'un représentant
+              IMM 5476 — Recours aux services d&apos;un représentant
             </h3>
             <p className="mt-1 max-w-prose text-xs text-muted-foreground">
               Pré-remplissage depuis le dossier — client, représentant, numéro de permis. Une
               correction ouvre une nouvelle version, les précédentes sont conservées.
-              <strong className="text-foreground"> Le PDF officiel n'est pas encore intégré :</strong>{" "}
-              l'exemplaire porte les données, pas encore le document. En attendant, dépose le
+              <strong className="text-foreground"> Le PDF officiel n&apos;est pas encore intégré :</strong>{" "}
+              l&apos;exemplaire porte les données, pas encore le document. En attendant, dépose le
               formulaire rempli par le champ ci-dessus.
             </p>
             <BoutonPetit disabled={enCours} className="mt-3">Ouvrir un exemplaire</BoutonPetit>
@@ -532,6 +564,179 @@ export function DossierOnglets({
             formulairesRequis.length === 0 && (
               <Vide texte="Aucun formulaire au dossier." />
             )}
+
+          {/* ============================================================
+              PANNEAU : QUESTIONNAIRES CLIENTS INTÉGRÉS
+              ============================================================ */}
+          <div className="rounded-2xl border border-border bg-card p-5 space-y-4 mt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                  <FileSignature aria-hidden className="h-4 w-4 text-primary" />
+                  Questionnaires Clients Remplis en Ligne
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Attribuez un formulaire dynamique que le client pourra remplir directement depuis son portail sécurisé.
+                </p>
+              </div>
+
+              {clientId ? (
+                <div className="flex items-center gap-2">
+                  <select
+                    id="select-assign-form"
+                    className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    defaultValue=""
+                    onChange={async (e) => {
+                      const val = e.target.value
+                      if (!val) return
+                      e.target.value = "" // Reset
+                      demarrer(async () => {
+                        try {
+                          const newQ = await assignQuestionnaire(matterId, clientId, val as "study_permit" | "work_permit" | "pr")
+                          setQuestionnaires((prev) => [newQ, ...prev])
+                          setResultat({ ok: true, message: "Questionnaire attribué avec succès." })
+                        } catch (err: unknown) {
+                          const msg = err instanceof Error ? err.message : String(err)
+                          setResultat({ ok: false, message: msg || "Erreur lors de l&apos;attribution." })
+                        }
+                      })
+                    }}
+                  >
+                    <option value="" disabled>+ Attribuer un questionnaire</option>
+                    <option value="study_permit">Permis d&apos;études</option>
+                    <option value="work_permit">Permis de travail</option>
+                    <option value="pr">Résidence permanente</option>
+                  </select>
+                </div>
+              ) : (
+                <span className="text-xs text-error font-bold bg-error/10 px-2 py-1 rounded">Rattachez un client pour attribuer un questionnaire</span>
+              )}
+            </div>
+
+            {questionnaires.length === 0 ? (
+              <p className="text-center py-6 text-xs text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                Aucun questionnaire en ligne n&apos;est attribué à ce dossier.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {questionnaires.map((q) => (
+                  <div key={q.id} className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3 hover:shadow-sm transition-shadow">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-bold text-foreground">{q.title}</h4>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Dernière modification : {new Date(q.updatedAt).toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "short" })}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                          <div className="w-20 bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div className="bg-primary h-full" style={{ width: `${q.progress}%` }} />
+                          </div>
+                          <span>{q.progress}%</span>
+                        </div>
+
+                        <span className={cn(
+                          "rounded px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider",
+                          q.status === "validated" || q.status === "locked"
+                            ? "bg-success/15 text-success"
+                            : q.status === "submitted" || q.status === "corrected"
+                              ? "bg-primary/15 text-primary"
+                              : q.status === "to_correct"
+                                ? "bg-error/15 text-error"
+                                : "bg-muted text-muted-foreground"
+                        )}>
+                          {q.status === "draft" && "Brouillon"}
+                          {q.status === "in_progress" && "En cours"}
+                          {q.status === "submitted" && "Soumis"}
+                          {q.status === "to_correct" && "À corriger"}
+                          {q.status === "corrected" && "Corrigé"}
+                          {q.status === "validated" && "Validé"}
+                          {q.status === "locked" && "Verrouillé"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border/60">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReviewQ(q)}
+                        className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted font-bold text-xs transition-colors cursor-pointer text-foreground flex items-center gap-1.5"
+                      >
+                        <Eye className="h-3.5 w-3.5 text-muted-foreground" /> Voir les réponses
+                      </button>
+
+                      {q.status !== "locked" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedEditQ(q)
+                              setEditAnswers({ ...q.answers })
+                            }}
+                            className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted font-bold text-xs transition-colors cursor-pointer text-foreground flex items-center gap-1.5"
+                          >
+                            <Edit3 className="h-3.5 w-3.5 text-muted-foreground" /> Modifier
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCorrectionQ(q)}
+                            className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted font-bold text-xs transition-colors cursor-pointer text-error flex items-center gap-1.5"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5 text-error/70" /> Demander corrections
+                          </button>
+
+                          {q.status === "submitted" && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                demarrer(async () => {
+                                  try {
+                                    const updated = await validateQuestionnaire(q.id)
+                                    setQuestionnaires((prev) => prev.map((item) => item.id === q.id ? updated : item))
+                                    setResultat({ ok: true, message: "Questionnaire validé avec succès." })
+                                  } catch (err: unknown) {
+                                    const msg = err instanceof Error ? err.message : String(err)
+                                    setResultat({ ok: false, message: msg || "Erreur de validation." })
+                                  }
+                                })
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-success hover:bg-success/90 text-white font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 ml-auto"
+                            >
+                              <Check className="h-3.5 w-3.5" /> Valider
+                            </button>
+                          )}
+                        </>
+                      )}
+
+                      {q.status === "validated" && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            demarrer(async () => {
+                              try {
+                                const updated = await lockQuestionnaire(q.id)
+                                setQuestionnaires((prev) => prev.map((item) => item.id === q.id ? updated : item))
+                                setResultat({ ok: true, message: "Questionnaire verrouillé avec succès." })
+                              } catch (err: unknown) {
+                                const msg = err instanceof Error ? err.message : String(err)
+                                setResultat({ ok: false, message: msg || "Erreur de verrouillage." })
+                              }
+                            })
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 ml-auto"
+                        >
+                          <ShieldCheck className="h-3.5 w-3.5" /> Verrouiller
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           {d.formulaires.map((f) => (
             <div key={f.id} className={cn("rounded-2xl border border-border bg-card p-4", f.archived && "opacity-60")}>
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -661,7 +866,7 @@ export function DossierOnglets({
               <input type="hidden" name="matterId" value={matterId} />
               <h3 className="text-sm font-black text-foreground">Virer des honoraires gagnés</h3>
               <p className="mt-1 max-w-prose text-xs text-muted-foreground">
-                Du fidéicommis vers le compte de l'entreprise. Solde disponible :{" "}
+                Du fidéicommis vers le compte de l&apos;entreprise. Solde disponible :{" "}
                 <strong className="text-foreground">{argent(d.finances.soldeFideicommisClient)}</strong>.
                 Un virement supérieur au solde est refusé par la base.
               </p>
@@ -691,7 +896,7 @@ export function DossierOnglets({
                   )}>
                     {p.destination === "trust"
                       ? <><Landmark aria-hidden className="h-3 w-3" /> Fidéicommis</>
-                      : <><Banknote aria-hidden className="h-3 w-3" /> Compte de l'entreprise</>}
+                      : <><Banknote aria-hidden className="h-3 w-3" /> Compte de l&apos;entreprise</>}
                   </span>
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -798,7 +1003,7 @@ export function DossierOnglets({
               </div>
               {clientsDuCabinet.length === 0 && (
                 <p className="mt-2 text-[11px] italic text-muted-foreground">
-                  Aucun client au cabinet. Créez-en un depuis l'écran Clients.
+                  Aucun client au cabinet. Créez-en un depuis l&apos;écran Clients.
                 </p>
               )}
             </form>
@@ -873,6 +1078,429 @@ export function DossierOnglets({
           )}
         </div>
       )}
+
+      {/* ============================================================
+          MODALES DE QUESTIONNAIRES CLIENTS
+          ============================================================ */}
+      
+      {/* 1. Modale de visualisation (Aperçu) */}
+      {selectedReviewQ && (() => {
+        const tpl = getTemplateByType(selectedReviewQ.formType)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-card w-full max-w-4xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="p-5 border-b border-border flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-black text-foreground">{selectedReviewQ.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Visualisation des réponses soumises par le candidat.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReviewQ(null)}
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto space-y-6 flex-1">
+                {tpl?.sections.map((section) => (
+                  <div key={section.id} className="space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-primary border-b pb-1">
+                      {section.titleFr}
+                    </h4>
+                    
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {section.fields.map((field) => {
+                        const answer = selectedReviewQ.answers[field.key]
+                        if (field.type === "repeater") {
+                          const items = (answer as Record<string, unknown>[]) || []
+                          return (
+                            <div key={field.key} className="sm:col-span-2 space-y-2">
+                              <span className="text-[11px] font-bold text-muted-foreground block">{field.labelFr}</span>
+                              {items.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic bg-muted/20 p-3 rounded-xl border border-dashed">Aucun élément fourni.</p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {items.map((item, itemIdx) => (
+                                    <div key={itemIdx} className="p-3 border border-border rounded-xl bg-muted/20 space-y-1.5">
+                                      {field.fields?.map((sub) => (
+                                        <div key={sub.key} className="flex justify-between text-xs">
+                                          <span className="text-muted-foreground">{sub.labelFr} :</span>
+                                          <span className="font-bold text-foreground">{String(item[sub.key] || "—")}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <div key={field.key} className="space-y-1">
+                            <span className="text-[11px] font-bold text-muted-foreground block">{field.labelFr}</span>
+                            <span className="text-sm font-bold text-foreground">
+                              {answer === true ? "Oui" : answer === false ? "Non" : String(answer || "—")}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Historique des modifications */}
+                {selectedReviewQ.history.length > 0 && (
+                  <div className="pt-6 border-t border-border space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-foreground flex items-center gap-2">
+                      <History className="h-4 w-4 text-muted-foreground" />
+                      Historique des modifications par le cabinet
+                    </h4>
+                    <div className="space-y-2.5">
+                      {selectedReviewQ.history.map((h, hIdx) => (
+                        <div key={hIdx} className="text-xs p-3 rounded-xl border border-border bg-muted/20 flex flex-col gap-1">
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
+                            <span>Modifié par : <strong>{h.userName}</strong> ({h.userType === "consultant" ? "Cabinet" : "Portail"})</span>
+                            <span>{new Date(h.changedAt).toLocaleString("fr-CA")}</span>
+                          </div>
+                          <p className="text-foreground mt-0.5">
+                            Champ « <strong>{h.fieldName}</strong> » changé de <span className="line-through text-muted-foreground font-mono">{JSON.stringify(h.oldValue)}</span> à <span className="font-bold text-foreground font-mono">{JSON.stringify(h.newValue)}</span>.
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 border-t border-border flex justify-end gap-2 bg-muted/10">
+                <button
+                  type="button"
+                  onClick={() => setSelectedReviewQ(null)}
+                  className="px-4 py-2 rounded-xl border border-border hover:bg-muted font-bold text-xs transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* 2. Modale d'édition par le consultant */}
+      {selectedEditQ && (() => {
+        const tpl = getTemplateByType(selectedEditQ.formType)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-card w-full max-w-4xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="p-5 border-b border-border flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-black text-foreground">Modifier : {selectedEditQ.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Modifiez directement les réponses. Toute modification sera journalisée.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedEditQ(null)}
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto space-y-6 flex-1">
+                {tpl?.sections.map((section) => (
+                  <div key={section.id} className="space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-primary border-b pb-1">
+                      {section.titleFr}
+                    </h4>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {section.fields.map((field) => {
+                        const val = editAnswers[field.key]
+                        if (field.type === "repeater") {
+                          const items = (val as Record<string, unknown>[]) || []
+                          return (
+                            <div key={field.key} className="sm:col-span-2 space-y-2">
+                              <span className="text-[11px] font-bold text-muted-foreground block">{field.labelFr}</span>
+                              
+                              <div className="space-y-3">
+                                {items.map((item, itemIdx) => (
+                                  <div key={itemIdx} className="p-4 border border-border rounded-xl bg-muted/20 relative space-y-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newList = [...items]
+                                        newList.splice(itemIdx, 1)
+                                        setEditAnswers(prev => ({ ...prev, [field.key]: newList }))
+                                      }}
+                                      className="absolute top-3 right-3 text-error hover:text-error/80 text-xs font-bold transition-colors cursor-pointer"
+                                    >
+                                      Retirer
+                                    </button>
+
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                      {field.fields?.map((sub) => (
+                                        <label key={sub.key} className="block text-[11px] font-bold text-muted-foreground">
+                                          {sub.labelFr} {sub.required && <span className="text-error">*</span>}
+                                          <input
+                                            type={sub.type === "date" ? "date" : sub.type === "number" ? "number" : "text"}
+                                            value={item[sub.key] || ""}
+                                            onChange={(e) => {
+                                              const newList = [...items]
+                                              newList[itemIdx] = { ...newList[itemIdx], [sub.key]: e.target.value }
+                                              setEditAnswers(prev => ({ ...prev, [field.key]: newList }))
+                                            }}
+                                            className={cn(CHAMP, "mt-1")}
+                                          />
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newList = [...items, {}]
+                                    setEditAnswers(prev => ({ ...prev, [field.key]: newList }))
+                                  }}
+                                  className="px-3 py-2 rounded-xl border border-border hover:bg-muted font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer text-foreground"
+                                >
+                                  <Plus className="h-3.5 w-3.5" /> Ajouter un élément
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        }
+
+                        if (field.type === "select") {
+                          return (
+                            <label key={field.key} className="block text-[11px] font-bold text-muted-foreground">
+                              {field.labelFr} {field.required && <span className="text-error">*</span>}
+                              <select
+                                value={String(val || "")}
+                                onChange={(e) => setEditAnswers(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                className={cn(CHAMP, "mt-1")}
+                              >
+                                <option value="">Choisir...</option>
+                                {field.options?.map(o => (
+                                  <option key={o.value} value={o.value}>{o.labelFr}</option>
+                                ))}
+                              </select>
+                            </label>
+                          )
+                        }
+
+                        if (field.type === "radio") {
+                          return (
+                            <div key={field.key} className="space-y-1">
+                              <span className="text-[11px] font-bold text-muted-foreground block">
+                                {field.labelFr} {field.required && <span className="text-error">*</span>}
+                              </span>
+                              <div className="flex gap-4 mt-1">
+                                {field.options?.map(o => (
+                                  <label key={o.value} className="flex items-center gap-2 text-xs text-foreground font-bold cursor-pointer">
+                                    <input
+                                      type="radio"
+                                      name={field.key}
+                                      value={o.value}
+                                      checked={val === o.value}
+                                      onChange={() => setEditAnswers(prev => ({ ...prev, [field.key]: o.value }))}
+                                      className="accent-primary"
+                                    />
+                                    {o.labelFr}
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <label key={field.key} className="block text-[11px] font-bold text-muted-foreground">
+                            {field.labelFr} {field.required && <span className="text-error">*</span>}
+                            <input
+                              type={field.type === "date" ? "date" : field.type === "number" ? "number" : "text"}
+                              value={String(val || "")}
+                              onChange={(e) => setEditAnswers(prev => ({ ...prev, [field.key]: e.target.value }))}
+                              className={cn(CHAMP, "mt-1")}
+                            />
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-5 border-t border-border flex justify-end gap-2 bg-muted/10">
+                <button
+                  type="button"
+                  onClick={() => setSelectedEditQ(null)}
+                  className="px-4 py-2 rounded-xl border border-border hover:bg-muted font-bold text-xs transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    demarrer(async () => {
+                      try {
+                        const oldAnswers = selectedEditQ.answers
+                        const historyLog: QuestionnaireHistoryEntry[] = []
+                        
+                        if (tpl) {
+                          for (const section of tpl.sections) {
+                            for (const field of section.fields) {
+                              const oldVal = oldAnswers[field.key]
+                              const newVal = editAnswers[field.key]
+                              if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                                historyLog.push({
+                                  userId: consultant.id,
+                                  userName: consultant.name,
+                                  userType: "consultant",
+                                  changedAt: new Date().toISOString(),
+                                  sectionId: section.id,
+                                  fieldKey: field.key,
+                                  fieldName: field.labelFr,
+                                  oldValue: oldVal ?? null,
+                                  newValue: newVal ?? null
+                                })
+                              }
+                            }
+                          }
+                        }
+
+                        const updated = await updateQuestionnaireByConsultant(selectedEditQ.id, editAnswers, historyLog)
+                        setQuestionnaires((prev) => prev.map((item) => item.id === selectedEditQ.id ? updated : item))
+                        setSelectedEditQ(null)
+                        setResultat({ ok: true, message: "Questionnaire modifié avec succès par le consultant." })
+                      } catch (err: unknown) {
+                        const msg = err instanceof Error ? err.message : String(err)
+                        setResultat({ ok: false, message: msg || "Erreur de modification." })
+                      }
+                    })
+                  }}
+                  className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/95 text-white font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Enregistrer les modifications
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* 3. Modale de demande de corrections */}
+      {selectedCorrectionQ && (() => {
+        const tpl = getTemplateByType(selectedCorrectionQ.formType)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl flex flex-col">
+              <div className="p-5 border-b border-border flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-black text-foreground">Demander des corrections</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Spécifiez la section et le motif de la correction demandée au candidat.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCorrectionQ(null)}
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <label className="block text-[11px] font-bold text-muted-foreground">
+                  Section concernée
+                  <select
+                    value={selectedCorrectionSection}
+                    onChange={(e) => setSelectedCorrectionSection(e.target.value)}
+                    className={cn(CHAMP, "mt-1")}
+                  >
+                    <option value="">Sélectionner une section...</option>
+                    {tpl?.sections.map(s => (
+                      <option key={s.id} value={s.id}>{s.titleFr}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block text-[11px] font-bold text-muted-foreground">
+                  Commentaire / Instructions pour le client
+                  <textarea
+                    value={newCorrectionComment}
+                    onChange={(e) => setNewCorrectionComment(e.target.value)}
+                    placeholder="Ex: Le relevé bancaire fourni est expiré ou le nom de famille est mal orthographié."
+                    rows={4}
+                    className={cn(CHAMP, "mt-1 h-auto py-2")}
+                  />
+                </label>
+
+                {/* Historique des corrections en suspens */}
+                {selectedCorrectionQ.corrections.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold text-muted-foreground block">Demandes en attente :</span>
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                      {selectedCorrectionQ.corrections.map((c, cIdx) => (
+                        <div key={cIdx} className="text-xs p-2.5 rounded-lg border border-border bg-error/5 text-error flex justify-between items-start">
+                          <div>
+                            <span className="font-bold">[{c.sectionId}]</span> {c.comment}
+                          </div>
+                          <span className="text-[9px] uppercase font-black bg-error/15 px-1.5 py-0.5 rounded shrink-0">
+                            {c.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 border-t border-border flex justify-end gap-2 bg-muted/10">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCorrectionQ(null)}
+                  className="px-4 py-2 rounded-xl border border-border hover:bg-muted font-bold text-xs transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!selectedCorrectionSection || !newCorrectionComment.trim()) return
+                    demarrer(async () => {
+                      try {
+                        const newCorr: QuestionnaireCorrection = {
+                          sectionId: selectedCorrectionSection,
+                          comment: newCorrectionComment.trim(),
+                          status: "pending",
+                          requestedAt: new Date().toISOString()
+                        }
+                        const updated = await requestQuestionnaireCorrections(selectedCorrectionQ.id, [newCorr, ...selectedCorrectionQ.corrections])
+                        setQuestionnaires((prev) => prev.map((item) => item.id === selectedCorrectionQ.id ? updated : item))
+                        setSelectedCorrectionQ(null)
+                        setNewCorrectionComment("")
+                        setSelectedCorrectionSection("")
+                        setResultat({ ok: true, message: "Demande de correction envoyée au client." })
+                      } catch (err: unknown) {
+                        const msg = err instanceof Error ? err.message : String(err)
+                        setResultat({ ok: false, message: msg || "Erreur lors de la demande." })
+                      }
+                    })
+                  }}
+                  className="px-4 py-2 rounded-xl bg-error hover:bg-error/95 text-white font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Envoyer la demande
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
     </div>
   )
 }

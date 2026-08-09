@@ -421,3 +421,42 @@ export interface ResearchWorkspace {
   notes?: string
 }
 
+export interface QuestionnaireCorrection {
+  sectionId: string
+  fieldKey?: string
+  comment: string
+  status: "pending" | "resolved"
+  requestedAt: string
+}
+
+export interface QuestionnaireHistoryEntry {
+  userId: string
+  userName: string
+  userType: "consultant" | "client"
+  changedAt: string
+  sectionId: string
+  fieldKey: string
+  fieldName: string
+  oldValue: unknown
+  newValue: unknown
+}
+
+export interface ClientQuestionnaire {
+  id: string
+  firmId: string
+  clientId: string
+  matterId: string
+  title: string
+  description?: string
+  formType: "study_permit" | "work_permit" | "pr"
+  status: "draft" | "in_progress" | "submitted" | "to_correct" | "corrected" | "validated" | "locked"
+  progress: number // de 0 à 100
+  dueDate?: string
+  createdAt: string
+  updatedAt: string
+  lastSavedAt?: string
+  answers: Record<string, unknown>
+  corrections: QuestionnaireCorrection[]
+  history: QuestionnaireHistoryEntry[]
+}
+

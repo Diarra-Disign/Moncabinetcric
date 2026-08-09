@@ -9,7 +9,8 @@ import {
   calculateCompletionPercentage, 
   getDocumentsByMatterId, 
   getInvoicesByMatterId, 
-  getAuditLogsForMatter 
+  getAuditLogsForMatter,
+  getClientQuestionnairesByMatterId
 } from "@/lib/data"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -56,9 +57,14 @@ export default async function MatterDetailPage({
 
   // Les clients du cabinet, pour rattacher un dossier qui n'en a pas. Lus
   // sous RLS : la liste ne peut contenir que des clients du même cabinet.
-  const { getSessionSupabase } = await import("@/lib/supabase/session")
-  const { data: clientsBruts } = await (await getSessionSupabase())
-    .from("clients").select("id, name, file_number").order("name")
+  const { getSessionSupabase, getCurrentMember } = await import("@/lib/supabase/session")
+  const [member, clientsRes] = await Promise.all([
+    getCurrentMember(),
+    (await getSessionSupabase()).from("clients").select("id, name, file_number").order("name")
+  ])
+  const clientsBruts = clientsRes.data
+  const consultant = member ? { id: member.id, name: member.fullName || member.email } : { id: "user-1", name: "Consultant" }
+
   const clientsDuCabinet = (clientsBruts ?? []).map((c) => ({
     id: String(c.id),
     nom: String(c.name ?? ""),
@@ -75,6 +81,7 @@ export default async function MatterDetailPage({
   const docs = await getDocumentsByMatterId(matter.id)
   const invoices = await getInvoicesByMatterId(matter.id)
   const auditLogs = getAuditLogsForMatter(matter.id)
+  const clientQuestionnaires = dossier ? await getClientQuestionnairesByMatterId(dossier.matterId) : []
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -237,6 +244,8 @@ export default async function MatterDetailPage({
               clientId={dossier.clientId}
               statutDossier={matter.status}
               clientsDuCabinet={clientsDuCabinet}
+              clientQuestionnaires={clientQuestionnaires}
+              consultant={consultant}
             />
           )}
 

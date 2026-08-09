@@ -10,6 +10,7 @@ import {
   DeadlineRecord,
   LegislationProvision,
   ResearchWorkspace,
+  ClientQuestionnaire,
 } from "./types"
 import { MOCK_MATTERS } from "./mock/matters"
 import { MOCK_LEADS } from "./mock/leads"
@@ -49,6 +50,7 @@ let agreementsStore: AgreementRecord[] = [...MOCK_AGREEMENTS]
 let deadlinesStore: DeadlineRecord[] = [...MOCK_DEADLINE_RECORDS]
 let legislationProvisionsStore: LegislationProvision[] = [...MOCK_LEGISLATION_PROVISIONS]
 let researchWorkspacesStore: ResearchWorkspace[] = [...MOCK_RESEARCH_WORKSPACES]
+let clientQuestionnairesStore: ClientQuestionnaire[] = []
 
 // Les trois variables du connecteur qui vivaient ici étaient partagées par
 // tout le processus, donc par tous les cabinets. Elles sont en base,
@@ -67,6 +69,7 @@ export function _getStores() {
     foldersStore,
     agreementsStore,
     deadlinesStore,
+    clientQuestionnairesStore,
     setMattersStore: (newVal: Matter[]) => { mattersStore = newVal },
     setLeadsStore: (newVal: Lead[]) => { leadsStore = newVal },
     setInvoicesStore: (newVal: InvoiceRecord[]) => { invoicesStore = newVal },
@@ -74,6 +77,7 @@ export function _getStores() {
     setDocumentsStore: (newVal: DocumentRecord[]) => { documentsStore = newVal },
     setAgreementsStore: (newVal: AgreementRecord[]) => { agreementsStore = newVal },
     setDeadlinesStore: (newVal: DeadlineRecord[]) => { deadlinesStore = newVal },
+    setClientQuestionnairesStore: (newVal: ClientQuestionnaire[]) => { clientQuestionnairesStore = newVal },
   }
 }
 
@@ -104,4 +108,5 @@ export const _mockStores = {
   get deadlines() { return deadlinesStore },
   get legislationProvisions() { return legislationProvisionsStore },
   get researchWorkspaces() { return researchWorkspacesStore },
+  get clientQuestionnaires() { return clientQuestionnairesStore },
 }
