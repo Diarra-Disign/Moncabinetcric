@@ -44,6 +44,7 @@ case "$commande" in
   mobile)       exec node scripts/verify-mobile.mjs "$@" ;;
   fiche)        exec node scripts/verify-matter-page.mjs "$@" ;;
   questionnaires) exec node scripts/verify-questionnaires.mjs "$@" ;;
+  repondre)     exec node scripts/verify-questionnaire-page.mjs "$@" ;;
   modeles)      exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/generer-modeles-questionnaires.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
   facturation-sieges) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-seat-billing.mjs "$@" ;;
@@ -129,6 +130,13 @@ Usage : ./cric <commande> [options]
                prospect sans compte, lien sécurisé, statut calculé,
                cloisonnement entre cabinets
                  ./cric questionnaires
+
+  repondre     Ouvre un vrai questionnaire par son lien dans un navigateur et
+               compte les zones de réponse, section par section. Un champ
+               peut exister en base sans qu'aucune branche du composant ne le
+               rende : cela ne se verrait qu'à l'usage.
+                 ./cric repondre
+                 ./cric repondre --url=http://localhost:3001
 
   modeles      Régénère l'amorçage des modèles depuis le catalogue
                TypeScript. Écrit sur la sortie standard.
