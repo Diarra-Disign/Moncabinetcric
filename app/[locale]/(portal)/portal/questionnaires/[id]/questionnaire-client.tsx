@@ -250,7 +250,9 @@ export function QuestionnaireClient({
               }}
               className="text-xs text-muted-foreground file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 file:cursor-pointer"
             />
-            {val && (
+            {/* La réponse est typée `unknown` : ramener la condition à un
+                booléen, faute de quoi c'est `unknown` que React reçoit. */}
+            {Boolean(val) && (
               <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-success" /> {String(val)}
               </span>

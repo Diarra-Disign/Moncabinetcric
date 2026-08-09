@@ -7,6 +7,8 @@ import type {
   CalendarEvent,
   AuditLogRecord,
   ClientQuestionnaire,
+  QuestionnaireCorrection,
+  QuestionnaireHistoryEntry,
 } from "../types"
 
 /**

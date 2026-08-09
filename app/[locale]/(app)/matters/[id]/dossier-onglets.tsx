@@ -1246,7 +1246,11 @@ export function DossierOnglets({
                                           {sub.labelFr} {sub.required && <span className="text-error">*</span>}
                                           <input
                                             type={sub.type === "date" ? "date" : sub.type === "number" ? "number" : "text"}
-                                            value={item[sub.key] || ""}
+                                            // Une valeur de répéteur est typée `unknown` : la
+                                            // convertir explicitement, et avec ?? plutôt que ||,
+                                            // sans quoi un 0 saisi dans un champ numérique
+                                            // s'effacerait à l'affichage.
+                                            value={String(item[sub.key] ?? "")}
                                             onChange={(e) => {
                                               const newList = [...items]
                                               newList[itemIdx] = { ...newList[itemIdx], [sub.key]: e.target.value }

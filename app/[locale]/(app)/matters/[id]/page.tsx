@@ -63,7 +63,11 @@ export default async function MatterDetailPage({
     (await getSessionSupabase()).from("clients").select("id, name, file_number").order("name")
   ])
   const clientsBruts = clientsRes.data
-  const consultant = member ? { id: member.id, name: member.fullName || member.email } : { id: "user-1", name: "Consultant" }
+  // profileId et non userId : c'est le profil qui désigne l'auteur d'une
+  // action dans tout le reste de l'application (received_by, verified_by,
+  // recorded_by). Le journal des questionnaires doit parler la même langue,
+  // sans quoi deux identifiants coexisteraient pour la même personne.
+  const consultant = member ? { id: member.profileId, name: member.fullName || member.email } : { id: "user-1", name: "Consultant" }
 
   const clientsDuCabinet = (clientsBruts ?? []).map((c) => ({
     id: String(c.id),
