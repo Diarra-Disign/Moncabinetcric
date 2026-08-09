@@ -679,7 +679,6 @@
     "extraSeat": "then {price} per month per additional member",
     "paymentMethod": "Payment method",
     "methodCard": "Card ending in {last4}",
-    "methodAcss": "Bank debit, account ending in {last4}",
     "methodPending": "Awaiting confirmation",
     "manage": "Manage payment and invoices",
     "opening": "Opening…",

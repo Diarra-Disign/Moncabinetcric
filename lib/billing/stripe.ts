@@ -52,36 +52,20 @@ function taxeAutomatique(): boolean {
 }
 
 /**
- * LE PRÉLÈVEMENT PRÉAUTORISÉ N'EST PAS POSSIBLE ICI, ET CE N'EST PAS UN OUBLI
+ * NE PAS AJOUTER acss_debit NI AUCUN AUTRE MOYEN ICI.
  *
- * `acss_debit` a longtemps figuré dans cette fonction, puis derrière une
- * variable d'environnement. Les deux étaient faux. Stripe le refuse
- * catégoriquement dans une session Checkout en mode « subscription » :
+ * Stripe le refuse en mode « subscription » :
+ *   « The payment method `acss_debit` cannot be used in `subscription` mode. »
  *
- *   The payment method `acss_debit` cannot be used in `subscription` mode.
+ * Vérifié le 2026-08-09 sur cinq combinaisons, contre le compte de production.
+ * Le refus ne dépend ni de l'agrément du compte, ni de la configuration
+ * d'affichage : les deux annonçaient « actif ». Seule la tentative le révèle.
  *
- * Vérifié le 2026-08-09 contre le compte de production, sur quatre
- * combinaisons : seul, avec la carte, avec mandat complet, avec mandat
- * minimal, et avec les deux valeurs de payment_schedule. Le refus est
- * identique dans les cinq cas. Il ne dépend donc NI de l'agrément du compte —
- * la capacité acss_debit_payments y est « active » — NI de la configuration
- * d'affichage, qui répond « on ».
+ * Et comme Stripe valide la liste des moyens D'UN BLOC, le refus emporte la
+ * carte avec lui : le tunnel de paiement entier devient inutilisable, sans
+ * qu'aucun message ne parle du moyen fautif.
  *
- * C'est ce qui rend le piège dangereux : tout ce qu'on peut LIRE de la
- * configuration dit que ça marche. Seule la tentative dit le contraire. Et
- * comme Stripe valide la liste des moyens d'un bloc, le refus emporte AUSSI
- * la carte : le tunnel de paiement entier devient inutilisable.
- *
- * La voie qui existe réellement pour le prélèvement passe par une session en
- * mode « setup », qui recueille le mandat, puis par la création de
- * l'abonnement sur le moyen ainsi enregistré. Ce n'est pas un réglage, c'est
- * un second parcours à construire — et il vaut la peine : 1 % plafonné contre
- * 2,9 % + 0,30 $, et un compte bancaire n'expire pas, là où une carte expire
- * tous les trois ans, toujours un jour où personne ne surveille.
- *
- * Aucune variable d'environnement ne rouvre ce chemin. Une intégration qu'on
- * peut réactiver par erreur depuis une console d'hébergement, et qui casse
- * alors tout encaissement, ne doit pas rester derrière un interrupteur.
+ * Avant d'en ajouter un, l'éprouver :  ./cric stripe-config --checkout --appliquer
  */
 
 /**
@@ -203,11 +187,8 @@ export async function clientStripe(params: {
 /**
  * Ouvre une session de paiement hébergée par Stripe.
  *
- * Carte ET prélèvement préautorisé canadien. Le second est proposé parce
- * qu'il coûte 1 % plafonné plutôt que 2,9 % + 0,30 $ — sur un abonnement
- * mensuel, l'écart n'est pas anecdotique — et parce qu'un compte bancaire
- * n'expire pas, là où une carte expire tous les trois ans, toujours un jour
- * où personne ne surveille.
+ * Carte de crédit uniquement — voir la note ci-dessus, qui explique pourquoi
+ * et comment le vérifier avant d'en ajouter un autre.
  */
 export async function sessionPaiement(params: {
   customerId: string

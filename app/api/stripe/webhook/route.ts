@@ -382,6 +382,10 @@ function moyenDePaiement(abonnement: Stripe.Subscription): {
   if (!moyen || typeof moyen === "string") return { type: null, last4: null }
 
   if (moyen.type === "card") return { type: "card", last4: moyen.card?.last4 ?? null }
-  if (moyen.type === "acss_debit") return { type: "acss_debit", last4: moyen.acss_debit?.last4 ?? null }
+  // Tout autre type est enregistré sans ses quatre derniers chiffres : la
+  // souscription se fait par carte, et un moyen arrivé autrement — ajouté
+  // depuis le portail Stripe, par exemple — doit être CONSIGNÉ plutôt
+  // qu'ignoré. Un abonnement dont le moyen de paiement s'afficherait vide
+  // serait pris pour un abonnement sans moyen de paiement.
   return { type: moyen.type, last4: null }
 }

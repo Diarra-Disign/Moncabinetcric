@@ -83,11 +83,9 @@ if (!CLE.startsWith("sk_test_")) {
 process.env.STRIPE_SECRET_KEY = CLE
 process.env.NEXT_PUBLIC_SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL
 process.env.SUPABASE_SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY
-// La taxe et le prélèvement bancaire n'ont pas d'inscription en mode test :
-// les demander ferait échouer des appels pour une raison étrangère à ce qu'on
-// cherche à prouver.
+// La taxe n'a pas d'inscription fiscale en mode test : la demander ferait
+// échouer des appels pour une raison étrangère à ce qu'on cherche à prouver.
 delete process.env.STRIPE_AUTOMATIC_TAX
-delete process.env.STRIPE_ACSS_DEBIT
 
 const { calculerLignesPlaces, synchroniserSiegesStripe } = await import(
   "../lib/billing/seat-sync.ts"

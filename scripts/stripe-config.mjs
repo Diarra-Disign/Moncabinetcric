@@ -59,12 +59,11 @@ const appliquer = process.argv.includes("--appliquer")
 const faireWebhook = process.argv.includes("--webhook")
 const faireLiens = process.argv.includes("--liens")
 const faireFiscal = process.argv.includes("--fiscal")
-const faireAcss = process.argv.includes("--acss")
 const faireCheckout = process.argv.includes("--checkout")
 
-if (!faireWebhook && !faireLiens && !faireFiscal && !faireAcss && !faireCheckout) {
+if (!faireWebhook && !faireLiens && !faireFiscal && !faireCheckout) {
   console.error(
-    "Rien à faire. Préciser --webhook, --liens, --fiscal, --acss et/ou --checkout."
+    "Rien à faire. Préciser --webhook, --liens, --fiscal et/ou --checkout."
   )
   process.exit(1)
 }
@@ -307,66 +306,6 @@ if (faireFiscal) {
 }
 
 // ---------------------------------------------------------------------------
-// Prélèvement préautorisé canadien
-// ---------------------------------------------------------------------------
-if (faireAcss) {
-  console.log("── PRÉLÈVEMENT PRÉAUTORISÉ (acss_debit) ──")
-
-  // Deux choses distinctes, qu'on confond facilement :
-  //
-  //   · la CAPACITÉ du compte — Stripe a-t-il agréé le moyen ? C'est la
-  //     démarche longue, avec formulaire et vérification.
-  //   · la PRÉFÉRENCE d'affichage — le moyen est-il proposé au paiement ?
-  //     C'est un interrupteur, et il reste sur « off » après l'agrément.
-  //
-  // On lit la première avant de toucher la seconde : allumer l'interrupteur
-  // d'un moyen non agréé ferait échouer toute session de paiement, carte
-  // comprise, puisque Stripe valide la liste des moyens d'un bloc.
-  const compte = await sdk.accounts.retrieve()
-  const capacite = compte.capabilities?.acss_debit_payments ?? "absente"
-  console.log(`  capacité du compte   ${capacite}`)
-
-  const { data: configs } = await sdk.paymentMethodConfigurations.list({ limit: 5 })
-  const config = configs.find((c) => c.is_default) ?? configs[0]
-
-  if (!config) {
-    console.log("  Aucune configuration de moyens de paiement. Rien à faire.")
-  } else {
-    const avant = config.acss_debit?.display_preference?.preference ?? "(non défini)"
-    console.log(`  préférence actuelle  ${avant}`)
-    console.log(`  configuration        ${config.id}`)
-
-    if (capacite !== "active") {
-      console.log(
-        `\n  ⚠ La capacité n'est pas active. Rien ne sera tenté : proposer un moyen\n` +
-          `    non agréé fait échouer TOUTE session de paiement, carte comprise.\n` +
-          `    Passer par Stripe > Paramètres > Moyens de paiement.`
-      )
-    } else if (avant === "on") {
-      console.log("\n  Déjà proposé, rien à faire.")
-    } else {
-      console.log(`\n  à faire : préférence → on`)
-      if (appliquer) {
-        const maj = await sdk.paymentMethodConfigurations.update(config.id, {
-          acss_debit: { display_preference: { preference: "on" } },
-        })
-        const apres = maj.acss_debit?.display_preference
-        console.log(`  ✓ préférence : ${apres?.preference} · proposé : ${apres?.value}`)
-        if (apres?.value !== "on") {
-          console.log(
-            `  ⚠ Stripe l'a accepté mais ne le propose pas encore (value: ${apres?.value}).\n` +
-              `    NE PAS poser STRIPE_ACSS_DEBIT=1 tant que ce n'est pas « on ».`
-          )
-        } else {
-          console.log(`\n  Poser maintenant STRIPE_ACSS_DEBIT=1 en local et sur Vercel.`)
-        }
-      }
-    }
-  }
-  console.log()
-}
-
-// ---------------------------------------------------------------------------
 // La session de paiement s'ouvre-t-elle vraiment ?
 // ---------------------------------------------------------------------------
 // LA question qu'aucune lecture de configuration ne tranche.
@@ -378,9 +317,8 @@ if (faireAcss) {
 // ni dans les capacités du compte, ni dans la configuration d'affichage, qui
 // annonçaient toutes deux « actif ».
 //
-// Le mode test ne peut pas répondre à cette question : Stripe n'y accorde pas
-// la capacité acss_debit. La vérification a donc lieu en production — mais
-// elle n'y crée RIEN de durable :
+// La vérification a lieu en production, seul endroit où la configuration
+// réelle s'applique — mais elle n'y crée RIEN de durable :
 //
 //   · aucun client : en mode « subscription », Stripe ne crée le client qu'à
 //     l'ACHÈVEMENT de la session, jamais à son ouverture ;
@@ -393,8 +331,9 @@ if (faireAcss) {
 if (faireCheckout) {
   console.log("── SESSION DE PAIEMENT ──")
 
-  const avecPrelevement = process.env.STRIPE_ACSS_DEBIT === "1" || process.argv.includes("--acss-on")
-  const moyens = avecPrelevement ? ["card", "acss_debit"] : ["card"]
+  // Exactement les moyens que sessionPaiement() demande. Les recopier
+  // ailleurs ferait éprouver autre chose que ce qui encaisse.
+  const moyens = ["card"]
   console.log(`  moyens demandés      ${moyens.join(", ")}`)
 
   const tarifs = await sdk.prices.list({ limit: 10, active: true })
@@ -413,20 +352,7 @@ if (faireCheckout) {
           line_items: [{ price: base.id, quantity: 1 }],
           locale: "fr-CA",
           payment_method_types: moyens,
-          ...(avecPrelevement
-            ? {
-                payment_method_options: {
-                  acss_debit: {
-                    mandate_options: {
-                      payment_schedule: "interval",
-                      interval_description: "Une fois par mois",
-                      transaction_type: "business",
-                    },
-                    verification_method: "automatic",
-                  },
-                },
-              }
-            : {}),
+
           success_url: `${SITE || "https://moncabinetcric.com"}/fr/settings/subscription?paiement=ok`,
           cancel_url: `${SITE || "https://moncabinetcric.com"}/fr/settings/subscription?paiement=annule`,
           metadata: { epreuve: "verification-moyens-de-paiement" },

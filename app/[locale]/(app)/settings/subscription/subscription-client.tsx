@@ -207,17 +207,9 @@ export function SubscriptionClient({
               valeur={
                 abonnement.moyenPaiement === "card"
                   ? t("methodCard", { last4: abonnement.quatreDerniers || "••••" })
-                  : abonnement.moyenPaiement === "acss_debit"
-                    ? t("methodAcss", { last4: abonnement.quatreDerniers || "••••" })
-                    : t("methodPending")
+                  : t("methodPending")
               }
-              icone={
-                abonnement.moyenPaiement === "acss_debit" ? (
-                  <Landmark aria-hidden className="h-3.5 w-3.5" />
-                ) : (
-                  <CreditCard aria-hidden className="h-3.5 w-3.5" />
-                )
-              }
+              icone={<CreditCard aria-hidden className="h-3.5 w-3.5" />}
             />
             <Donnee
               libelle={t("seats")}

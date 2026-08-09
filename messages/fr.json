@@ -679,7 +679,6 @@
     "extraSeat": "puis {price} par mois et par membre supplémentaire",
     "paymentMethod": "Moyen de paiement",
     "methodCard": "Carte se terminant par {last4}",
-    "methodAcss": "Prélèvement bancaire, compte se terminant par {last4}",
     "methodPending": "En attente de confirmation",
     "manage": "Gérer le paiement et les factures",
     "opening": "Ouverture…",
