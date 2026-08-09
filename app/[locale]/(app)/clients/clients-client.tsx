@@ -78,11 +78,13 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [tempPassword, setTempPassword] = React.useState("")
   const [portalError, setPortalError] = React.useState<string | null>(null)
   const [openingPortal, setOpeningPortal] = React.useState(false)
+  const [copied, setCopied] = React.useState(false)
 
   const handleSelectPortalClient = (client: ClientRecord | null) => {
     setSelectedPortalClient(client)
     setTempPassword("")
     setPortalError(null)
+    setCopied(false)
   }
 
   const handleOuvrirAcces = async () => {
@@ -863,13 +865,15 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                       const portalUrl = `${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`
                       const fullText = `PORTAIL CLIENT CRIC — ACCÈS DU CANDIDAT\nLien : ${portalUrl}\nCourriel : ${selectedPortalClient.email}\nMot de passe temporaire : ${tempPassword}\n\nNote: Changement de mot de passe obligatoire dès la 1ère connexion.`
                       navigator.clipboard.writeText(fullText)
-                      setActionNotice(`🔑 Accès et mot de passe temporaire copiés pour ${selectedPortalClient.name} !`)
-                      setSelectedPortalClient(null)
-                      setTimeout(() => setActionNotice(null), 5000)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 3000)
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs transition-all shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    className={cn(
+                      "px-4 py-2.5 rounded-xl text-white font-bold text-xs transition-all shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed",
+                      copied ? "bg-emerald-600 hover:bg-emerald-700" : "bg-indigo-900 hover:bg-indigo-950"
+                    )}
                   >
-                    Copier Tout
+                    {copied ? "✓ Copié !" : "Copier Tout"}
                   </button>
                 </div>
               </div>
