@@ -25,22 +25,50 @@ const CHAMP =
 /**
  * Libellé et couleur d'un statut.
  *
- * On lit statusAffiche et non status : c'est le seul des deux qui sait qu'une
- * date limite est passée. Afficher « envoyé » sur un questionnaire expiré
- * depuis trois semaines inviterait à attendre une réponse qui ne peut plus
- * arriver.
+ * On lit statusAffiche et non status : le second ignore qu'une date limite
+ * est passée. Afficher « envoyé » sur un questionnaire expiré depuis trois
+ * semaines inviterait à attendre une réponse qui ne peut plus arriver.
+ *
+ * Dix statuts, six teintes — et c'est délibéré.
+ *
+ * Le premier jet donnait à chacun sa couleur : sky, indigo, emerald, amber,
+ * slate. Deux défauts.
+ *
+ * D'abord elles étaient FIGÉES. Le cabinet peut choisir le thème « midnight »,
+ * qui rend les cartes sombres ; une pastille bg-sky-100 text-sky-800 y devenait
+ * du texte foncé sur un fond clair posé sur une carte foncée — illisible. Les
+ * teintes viennent donc des jetons du système, qui suivent le thème.
+ *
+ * Ensuite, dix teintes ne se distinguent pas. Au-delà de cinq ou six, personne
+ * ne retient laquelle veut dire quoi, et un daltonien n'en distingue aucune.
+ * La couleur ne porte donc plus le statut mais CE QUE LE CONSULTANT DOIT
+ * FAIRE :
+ *
+ *   plein          il attend quelque chose de VOUS
+ *   teinté         c'est en cours, chez le destinataire
+ *   sourd          c'est clos, ou mort
+ *
+ * Le libellé, lui, reste unique — c'est lui qui nomme précisément l'état.
  */
-const STATUTS: Record<string, { texte: string; classe: string }> = {
-  draft: { texte: "Brouillon", classe: "bg-muted text-muted-foreground" },
-  sent: { texte: "Envoyé", classe: "bg-primary/10 text-primary" },
-  opened: { texte: "Ouvert", classe: "bg-sky-100 text-sky-800" },
-  in_progress: { texte: "En cours", classe: "bg-amber-100 text-amber-800" },
-  submitted: { texte: "Soumis", classe: "bg-indigo-100 text-indigo-800" },
-  to_correct: { texte: "Correction demandée", classe: "bg-error/10 text-error" },
-  corrected: { texte: "Corrigé", classe: "bg-emerald-100 text-emerald-800" },
-  completed: { texte: "Complété", classe: "bg-success/15 text-success" },
-  expired: { texte: "Expiré", classe: "bg-slate-200 text-slate-700" },
-  cancelled: { texte: "Annulé", classe: "bg-slate-200 text-slate-600" },
+const STATUTS: Record<string, { texte: string; classe: string; pastille: string }> = {
+  draft: { texte: "Brouillon", classe: "bg-muted text-foreground/70", pastille: "bg-muted-foreground/50" },
+  sent: { texte: "Envoyé", classe: "bg-primary/10 text-primary-strong", pastille: "bg-primary/40" },
+  opened: { texte: "Ouvert", classe: "bg-primary/10 text-primary-strong", pastille: "bg-primary" },
+  in_progress: { texte: "En cours", classe: "bg-warning/15 text-warning-strong", pastille: "bg-warning" },
+  corrected: { texte: "Corrigé", classe: "bg-warning/15 text-warning-strong", pastille: "bg-warning" },
+  // Le seul qui réclame un geste du cabinet : contraste inversé, pour qu'il se
+  // détache d'une liste où tout le reste attend le destinataire.
+  //
+  // Le fond emprunte foreground et background, la paire principale du thème.
+  // Un fond bg-primary paraissait plus élégant, mais le blanc dessus tombait à
+  // 3,19:1 sous le thème ambre : une couleur d'accent n'est pas tenue d'être
+  // assez sombre pour porter du texte clair, tandis que cette paire-ci l'est
+  // par construction, sous les cinq thèmes.
+  submitted: { texte: "Soumis", classe: "bg-foreground text-background", pastille: "bg-background" },
+  to_correct: { texte: "Correction demandée", classe: "bg-error/10 text-error-strong", pastille: "bg-error" },
+  completed: { texte: "Complété", classe: "bg-success/15 text-success-strong", pastille: "bg-success" },
+  expired: { texte: "Expiré", classe: "bg-muted text-foreground/70", pastille: "bg-error/60" },
+  cancelled: { texte: "Annulé", classe: "bg-muted text-foreground/70", pastille: "bg-muted-foreground/40" },
 }
 
 const dateCourte = (v?: string) =>
@@ -103,7 +131,7 @@ export function QuestionnairesClient({
           role="status"
           className={cn(
             "rounded-xl border p-3 text-xs font-medium flex items-start justify-between gap-3",
-            resultat.ok ? "border-success/30 bg-success/10 text-success" : "border-error/30 bg-error/10 text-error"
+            resultat.ok ? "border-success/30 bg-success/10 text-success-strong" : "border-error/30 bg-error/10 text-error-strong"
           )}
         >
           <span className="flex items-start gap-2">
@@ -291,7 +319,12 @@ export function QuestionnairesClient({
                           {e.destinataireCourriel && <span>· {e.destinataireCourriel}</span>}
                         </p>
                       </div>
-                      <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black", st.classe)}>
+                      {/* La pastille double la teinte par une forme : elle
+                          reste distinguable quand la couleur ne l'est pas —
+                          en niveaux de gris, à l'impression, ou pour qui ne
+                          perçoit pas les rouges et les verts. */}
+                      <span className={cn("shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black", st.classe)}>
+                        <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", st.pastille)} />
                         {st.texte}
                       </span>
                     </div>
@@ -301,7 +334,7 @@ export function QuestionnairesClient({
                       <span>Échéance : {dateCourte(e.dueDate)}</span>
                       <span>Progression : <span className="font-bold text-foreground">{e.progress} %</span></span>
                       {e.reminderCount > 0 && <span>{e.reminderCount} rappel(s)</span>}
-                      {!e.lienActif && <span className="text-error font-bold">Lien désactivé</span>}
+                      {!e.lienActif && <span className="text-error-strong font-bold">Lien désactivé</span>}
                     </div>
 
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
@@ -575,7 +608,7 @@ function ModaleEnvoi({
           </label>
 
           {choisi && !choisi.courriel && (
-            <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-[11px] text-amber-900">
+            <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-[11px] text-warning-strong">
               Ce destinataire n&apos;a pas d&apos;adresse courriel. Le questionnaire sera créé et vous
               obtiendrez un lien à lui transmettre vous-même.
             </p>
@@ -641,7 +674,7 @@ function ModaleApercu({ modele, onFermer }: { modele: QuestionnaireTemplateRecor
                     <span className="text-muted-foreground shrink-0">•</span>
                     <span>
                       {f.labelFr}
-                      {f.required && <span className="text-error"> *</span>}
+                      {f.required && <span className="text-error-strong"> *</span>}
                       <span className="text-muted-foreground text-[10px] ml-1.5 uppercase">{f.type}</span>
                     </span>
                   </li>
@@ -776,7 +809,7 @@ function ModaleReponses({
 
           {envoi.corrections.length > 0 && (
             <section>
-              <h3 className="text-xs font-black uppercase tracking-wider text-error border-b border-border pb-1 mb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-error-strong border-b border-border pb-1 mb-2">
                 Corrections demandées
               </h3>
               <ul className="space-y-1">

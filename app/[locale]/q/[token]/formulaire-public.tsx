@@ -84,7 +84,7 @@ export function FormulairePublic({
   if (soumis) {
     return (
       <div className="rounded-2xl border border-success/30 bg-success/10 p-8 text-center space-y-3">
-        <CheckCircle2 className="h-10 w-10 text-success mx-auto" />
+        <CheckCircle2 className="h-10 w-10 text-success-strong mx-auto" />
         <h2 className="text-lg font-black text-foreground">
           {fr ? "Questionnaire transmis" : "Questionnaire submitted"}
         </h2>
@@ -106,7 +106,7 @@ export function FormulairePublic({
       )}
 
       {expire && (
-        <p className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 flex items-start gap-2">
+        <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning-strong flex items-start gap-2">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           {fr
             ? "La date limite est dépassée. Vos réponses sont conservées, mais vous ne pouvez plus les modifier. Contactez le cabinet pour qu'il prolonge le délai."
@@ -116,12 +116,12 @@ export function FormulairePublic({
 
       {questionnaire.corrections.filter((c) => c.status === "pending").length > 0 && (
         <div className="rounded-xl border border-error/30 bg-error/10 p-4 space-y-2">
-          <p className="text-xs font-black text-error uppercase tracking-wider">
+          <p className="text-xs font-black text-error-strong uppercase tracking-wider">
             {fr ? "Corrections demandées" : "Corrections requested"}
           </p>
           <ul className="space-y-1">
             {questionnaire.corrections.filter((c) => c.status === "pending").map((c, i) => (
-              <li key={i} className="text-xs text-error">• {c.comment}</li>
+              <li key={i} className="text-xs text-error-strong">• {c.comment}</li>
             ))}
           </ul>
         </div>
@@ -144,7 +144,7 @@ export function FormulairePublic({
       </div>
 
       {erreur && (
-        <p className="rounded-xl border border-error/30 bg-error/10 p-3 text-xs text-error flex items-start gap-2">
+        <p className="rounded-xl border border-error/30 bg-error/10 p-3 text-xs text-error-strong flex items-start gap-2">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" /> {erreur}
         </p>
       )}
@@ -249,7 +249,7 @@ function Champ({
   return (
     <div className="space-y-1.5 rounded-xl border border-border bg-card p-4">
       <label className="block text-xs font-bold text-foreground">
-        {libelle} {champ.required && <span className="text-error">*</span>}
+        {libelle} {champ.required && <span className="text-error-strong">*</span>}
         {intact && (
           <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
             <Info className="h-3 w-3" /> {fr ? "Déjà connu — corrigez si besoin" : "Already on file — edit if needed"}
@@ -333,7 +333,7 @@ function Repeteur({
               suite.splice(i, 1)
               onChange(champ.key, suite)
             }}
-            className="absolute top-2 right-2 text-error hover:text-error/80 cursor-pointer"
+            className="absolute top-2 right-2 text-error-strong hover:text-error/80 cursor-pointer"
             aria-label={fr ? "Retirer" : "Remove"}
           >
             <Trash2 className="h-3.5 w-3.5" />

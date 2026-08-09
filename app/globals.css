@@ -22,6 +22,24 @@
   --success: #10B981;
   --warning: #F59E0B;
   --error: #EF4444;
+
+  /* ------------------------------------------------------------------
+     Variantes LISIBLES des couleurs sémantiques.
+
+     Les jetons ci-dessus sont des couleurs de REMPLISSAGE : excellentes
+     pour une barre de progression ou une pastille pleine, elles échouent
+     comme couleur de TEXTE. Mesuré sur un fond teinté à 10 % : #10B981
+     donne 2,21:1 et #F59E0B 1,92:1, là où la lisibilité en demande 4,5.
+
+     Ces variantes-ci sont assombries pour les thèmes clairs et éclaircies
+     pour « midnight ». Elles ne remplacent pas les premières : chacune a
+     son emploi, et les confondre est précisément ce qui produisait des
+     libellés illisibles.
+     ------------------------------------------------------------------ */
+  --primary-strong: #1E40AF;
+  --success-strong: #047857;
+  --warning-strong: #B45309;
+  --error-strong: #B91C1C;
   
   /* UI/UX Pro Max Extended Design Tokens */
   --glass-bg: rgba(255, 255, 255, 0.75);
@@ -36,16 +54,19 @@
 html[data-cabinet-theme="emerald"] {
   --primary: #059669;
   --primary-hover: #047857;
+  --primary-strong: #047857;
 }
 
 html[data-cabinet-theme="amber"] {
   --primary: #D97706;
   --primary-hover: #B45309;
+  --primary-strong: #92400E;
 }
 
 html[data-cabinet-theme="purple"] {
   --primary: #7C3AED;
   --primary-hover: #6D28D9;
+  --primary-strong: #6D28D9;
 }
 
 html[data-cabinet-theme="midnight"] {
@@ -60,11 +81,19 @@ html[data-cabinet-theme="midnight"] {
   --muted-foreground: #94A3B8;
   --glass-bg: rgba(17, 24, 39, 0.85);
   --glass-border: rgba(255, 255, 255, 0.1);
+
+  /* Sur fond sombre, « lisible » veut dire CLAIR. Garder les variantes
+     assombries du thème clair y produirait l'erreur exactement inverse. */
+  --primary-strong: #93C5FD;
+  --success-strong: #6EE7B7;
+  --warning-strong: #FCD34D;
+  --error-strong: #FCA5A5;
 }
 
 html[data-cabinet-theme="sapphire"] {
   --primary: #1D4ED8;
   --primary-hover: #1E40AF;
+  --primary-strong: #1E40AF;
 }
 
 @theme inline {
@@ -82,6 +111,10 @@ html[data-cabinet-theme="sapphire"] {
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-error: var(--error);
+  --color-primary-strong: var(--primary-strong);
+  --color-success-strong: var(--success-strong);
+  --color-warning-strong: var(--warning-strong);
+  --color-error-strong: var(--error-strong);
   
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
