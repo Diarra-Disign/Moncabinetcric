@@ -43,6 +43,7 @@ case "$commande" in
   provisionner) exec node scripts/provision-project.mjs "$@" ;;
   motdepasse)   exec node scripts/set-password.mjs "$@" ;;
   cle)          exec node scripts/set-service-key.mjs "$@" ;;
+  cle-test)     exec node scripts/set-stripe-test-key.mjs "$@" ;;
   legislation)  exec node scripts/import-legislation.mjs "$@" ;;
   test)         exec pnpm test "$@" ;;
   dev)          exec npm run dev ;;
