@@ -75,9 +75,13 @@ export default async function proxy(request: NextRequest) {
 
   // Appel systématique : c'est lui qui fait tourner le jeton d'accès avant
   // expiration. Sans cela l'utilisateur serait déconnecté au bout d'une heure.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch (err) {
+    console.error("Middleware Supabase connection error:", err)
+  }
 
   const { pathname } = request.nextUrl
 

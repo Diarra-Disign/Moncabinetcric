@@ -42,6 +42,8 @@ case "$commande" in
   portail-client) exec node scripts/verify-portal.mjs "$@" ;;
   formulaires)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-forms.mjs "$@" ;;
   mobile)       exec node scripts/verify-mobile.mjs "$@" ;;
+  fiche)        exec node scripts/verify-matter-page.mjs "$@" ;;
+  questionnaires) exec node scripts/verify-questionnaires.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
   facturation-sieges) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-seat-billing.mjs "$@" ;;
   portail)      exec node scripts/portail-stripe.mjs "$@" ;;
@@ -114,6 +116,18 @@ Usage : ./cric <commande> [options]
                d’un dossier incomplet
   mobile       Éprouve le rendu sur écran de téléphone : tiroir de navigation
                et débordement de la barre supérieure
+
+  fiche        Ouvre réellement la fiche complète d'un dossier dans un
+               navigateur et refuse une page d'erreur. Une table absente en
+               base ne se voit dans aucun test unitaire : elle ne se voit
+               qu'ici.
+                 ./cric fiche
+                 ./cric fiche --url=http://localhost:3001
+
+  questionnaires  Éprouve le questionnaire client : ce que le client peut
+               répondre, et ce qu'il ne peut ni effacer ni réécrire —
+               corrections et journal des modifications
+                 ./cric questionnaires
   comptes      Met en place les cabinets et comptes de départ
   cabinet      Purge les données de démonstration, écrit l'identité réelle
   cle          Enregistre la clé de service Supabase
