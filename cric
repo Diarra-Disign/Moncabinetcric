@@ -36,6 +36,7 @@ case "$commande" in
   membres)      exec node scripts/verify-members.mjs "$@" ;;
   permissions)  exec node scripts/verify-permissions.mjs "$@" ;;
   sieges)       exec node scripts/verify-seats.mjs "$@" ;;
+  mobile)       exec node scripts/verify-mobile.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
   facturation-sieges) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-seat-billing.mjs "$@" ;;
   portail)      exec node scripts/portail-stripe.mjs "$@" ;;
@@ -99,6 +100,8 @@ Usage : ./cric <commande> [options]
   verifier     Diagnostic : clés, comptes, fermeture de la base
   roles        Éprouve la matrice des droits en base
   connecteur   Éprouve le cloisonnement du connecteur IA par cabinet
+  mobile       Éprouve le rendu sur écran de téléphone : tiroir de navigation
+               et débordement de la barre supérieure
   comptes      Met en place les cabinets et comptes de départ
   cabinet      Purge les données de démonstration, écrit l'identité réelle
   cle          Enregistre la clé de service Supabase

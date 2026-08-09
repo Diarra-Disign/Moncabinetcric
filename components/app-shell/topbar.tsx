@@ -65,8 +65,11 @@ export function Topbar({ searchDb = [], member = null }: TopbarProps = {}) {
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6 items-center" ref={topbarRef}>
         <MobileNav />
         
-        {/* BARRE DE RECHERCHE GLOBALE AVEC DROPDOWN NON ROGNÉ */}
-        <div className="relative flex flex-1 min-w-0 max-w-md items-center">
+        {/* BARRE DE RECHERCHE GLOBALE AVEC DROPDOWN NON ROGNÉ
+            Masquée sous md : à 375 px, elle et les cinq contrôles de droite
+            demandaient 504 px de large. Le tableau de bord porte déjà son
+            propre champ de recherche, visible sans défiler. */}
+        <div className="relative hidden md:flex flex-1 min-w-0 max-w-md items-center">
           <label htmlFor="search-field" className="sr-only">
             {t('search')}
           </label>
@@ -135,21 +138,30 @@ export function Topbar({ searchDb = [], member = null }: TopbarProps = {}) {
           )}
         </div>
 
-        <div className="flex items-center gap-x-3 lg:gap-x-3.5 ml-auto">
-          {/* BOUTON VUES & WIDGETS DANS LA BARRE SUPÉRIEURE À CÔTÉ DU THÈME */}
+        {/* `shrink-0` : sans lui, ce groupe se comprimait au lieu de rester
+            entier, et ses derniers éléments sortaient de l'écran. */}
+        <div className="flex shrink-0 items-center gap-x-2 sm:gap-x-3 lg:gap-x-3.5 ml-auto">
+          {/* Ces trois contrôles disparaissent sous md et réapparaissent dans
+              le tiroir de navigation. Ils n'y sont pas SUPPRIMÉS : un réglage
+              qu'on retire d'un écran sans le remettre ailleurs devient
+              introuvable, ce qui est pire qu'encombré. */}
           <button
             type="button"
             onClick={handleOpenCustomizeModal}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-muted/60 hover:bg-muted border border-border/80 px-3 py-1.5 text-xs font-bold text-foreground transition-all cursor-pointer shadow-2xs"
+            className="hidden md:inline-flex items-center gap-1.5 rounded-xl bg-muted/60 hover:bg-muted border border-border/80 px-3 py-1.5 text-xs font-bold text-foreground transition-all cursor-pointer shadow-2xs"
             title="Personnaliser les vues & widgets du tableau de bord"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
             <span className="hidden sm:inline">Vues & Widgets</span>
           </button>
 
-          <ThemePicker />
-          <LocaleSwitcher />
-          <Button variant="ghost" size="icon" aria-label={t('notifications')} className="rounded-xl">
+          <div className="hidden md:block">
+            <ThemePicker />
+          </div>
+          <div className="hidden md:block">
+            <LocaleSwitcher />
+          </div>
+          <Button variant="ghost" size="icon" aria-label={t('notifications')} className="rounded-xl shrink-0">
             <Bell className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
           </Button>
 

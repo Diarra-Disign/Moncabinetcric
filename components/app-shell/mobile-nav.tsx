@@ -1,16 +1,42 @@
 "use client"
 
 import * as React from "react"
-import { Menu, X } from "lucide-react"
+import { createPortal } from "react-dom"
+import { Menu, SlidersHorizontal, X } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Link, usePathname } from "@/lib/i18n/routing"
 import { cn } from "@/lib/utils"
 import { MAIN_NAV, OTHER_NAV } from "./nav-items"
+import { ThemePicker } from "./theme-picker"
+import { LocaleSwitcher } from "./locale-switcher"
 
 export function MobileNav() {
   const t = useTranslations("Navigation")
   const pathname = usePathname()
   const [isOpen, setIsOpen] = React.useState(false)
+
+  // Le tiroir est posé dans <body>, et non là où ce composant est rendu.
+  //
+  // LA RAISON, ET ELLE EST INVISIBLE À LA LECTURE DU JSX
+  // La barre supérieure porte `backdrop-blur-md`. Un `backdrop-filter` fait de
+  // l'élément un BLOC CONTENEUR pour ses descendants en `position: fixed` — au
+  // même titre qu'un `transform`. Le tiroir, rendu à l'intérieur de la barre,
+  // voyait donc son `inset-0` résolu contre les 64 pixels de la barre, et non
+  // contre l'écran.
+  //
+  // Ce qu'on obtenait : un panneau haut de 64 pixels montrant le logo et la
+  // croix, sans un seul lien de navigation. Les quatorze liens étaient bien
+  // dans le DOM — un contrôle automatisé les comptait — simplement rognés hors
+  // d'un conteneur trop court. C'est le genre de défaut qu'aucune relecture de
+  // ce fichier ne révèle : la cause est dans un AUTRE fichier, sur un élément
+  // ancêtre, et elle porte sur un effet visuel dont personne n'attend qu'il
+  // déplace un positionnement.
+  //
+  // Le portail rend le tiroir immunisé : posé sous <body>, aucun ancêtre ne
+  // peut plus le contenir, quel que soit l'effet qu'on ajoutera un jour à la
+  // barre.
+  const [monte, setMonte] = React.useState(false)
+  React.useEffect(() => setMonte(true), [])
 
   // Ferme le tiroir à chaque changement de page
   const prevPathname = React.useRef(pathname)
@@ -70,17 +96,20 @@ export function MobileNav() {
 
   return (
     <>
+      {/* `shrink-0` : la barre supérieure est un conteneur flexible, et sans
+          lui ce bouton se comprimait avec le reste au lieu de garder ses
+          quarante pixels. */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
         aria-label={t("openMenu")}
         aria-expanded={isOpen}
-        className="lg:hidden -ml-1 inline-flex h-10 w-10 items-center justify-center rounded-xl text-foreground hover:bg-muted transition-colors"
+        className="lg:hidden -ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-foreground hover:bg-muted transition-colors"
       >
         <Menu className="h-5 w-5" aria-hidden="true" />
       </button>
 
-      {isOpen && (
+      {isOpen && monte && createPortal(
         <div className="lg:hidden fixed inset-0 z-[200]">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
@@ -115,8 +144,37 @@ export function MobileNav() {
                 {renderGroup(OTHER_NAV, t("other"))}
               </ul>
             </nav>
+
+            {/* Thème, langue et personnalisation des vues.
+                Ils vivaient dans la barre supérieure, qui débordait de 74 à
+                184 pixels selon le téléphone — et c'est le menu du membre,
+                donc la déconnexion, qui en sortait. Retirés de la barre sous
+                md, ils se retrouvent ici : un réglage qu'on masque sans le
+                remettre ailleurs devient introuvable, ce qui est pire
+                qu'encombré. */}
+            <div className="mt-6 shrink-0 space-y-3 border-t border-border pt-4 md:hidden">
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t("preferences")}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <ThemePicker />
+                <LocaleSwitcher />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false)
+                  window.dispatchEvent(new CustomEvent("cric_open_widgets_modal"))
+                }}
+                className="inline-flex w-full items-center gap-2 rounded-xl border border-border bg-muted/60 px-3 py-2.5 text-xs font-bold text-foreground transition-colors hover:bg-muted"
+              >
+                <SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                {t("customizeViews")}
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
