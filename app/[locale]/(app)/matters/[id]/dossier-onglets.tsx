@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
@@ -16,14 +17,12 @@ import {
 } from "@/lib/data/matter-actions"
 import { cn } from "@/lib/utils"
 import {
-  assignQuestionnaire,
   requestQuestionnaireCorrections,
   updateQuestionnaireByConsultant,
   validateQuestionnaire,
-  lockQuestionnaire,
 } from "@/lib/data/actions"
 import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
-import { getTemplateByType } from "@/lib/data/questionnaire-templates"
+import { envoyerQuestionnaire } from "@/lib/data/questionnaire-actions"
 import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
 /**
@@ -93,15 +92,18 @@ const CHAMP =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 
 export function DossierOnglets({
-  dossier, matterId, clientId, statutDossier, clientsDuCabinet, clientQuestionnaires: initialQuestionnaires = [], consultant, clientName, programName,
+  dossier, matterId, clientId, statutDossier, clientsDuCabinet, clientQuestionnaires: initialQuestionnaires = [], modeles = [], consultant, clientName, programName,
 }: {
   dossier: DossierComplet
   matterId: string
+  /** L'uuid du client — celui qu'attendent les clés étrangères. */
   clientId: string | null
   statutDossier: string
   /** Les clients du cabinet, pour rattacher un dossier qui n'en a pas. */
   clientsDuCabinet: { id: string; nom: string; dossier: string }[]
   clientQuestionnaires?: ClientQuestionnaire[]
+  /** La bibliothèque du cabinet, pour l'envoi contextuel. */
+  modeles?: { id: string; titleFr: string }[]
   consultant: { id: string; name: string }
   /** Nom du client, pour la lettre IA d'argumentaire. */
   clientName: string
@@ -111,6 +113,11 @@ export function DossierOnglets({
   const [onglet, setOnglet] = React.useState<Onglet>("apercu")
   const [resultat, setResultat] = React.useState<Resultat | null>(null)
   const [enCours, demarrer] = React.useTransition()
+  const routeur = useRouter()
+  const rafraichir = () => routeur.refresh()
+
+  /** Le lien du dernier envoi, à copier quand le courriel n'est pas parti. */
+  const [lienEnvoi, setLienEnvoi] = React.useState<string | null>(null)
 
   // Liste des questionnaires locaux
   const [prevInitialQuestionnaires, setPrevInitialQuestionnaires] = React.useState(initialQuestionnaires)
@@ -575,36 +582,44 @@ export function DossierOnglets({
                 </p>
               </div>
 
+              {/* Envoi contextuel (§8) : le destinataire n'est pas demandé,
+                  puisqu'on est déjà dans son dossier. Le consultant ne choisit
+                  que le questionnaire. */}
               {clientId ? (
                 <div className="flex items-center gap-2">
                   <select
                     id="select-assign-form"
                     className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     defaultValue=""
+                    disabled={modeles.length === 0}
                     onChange={async (e) => {
-                      const val = e.target.value
-                      if (!val) return
-                      e.target.value = "" // Reset
+                      const templateId = e.target.value
+                      if (!templateId) return
+                      e.target.value = ""
                       demarrer(async () => {
-                        try {
-                          const newQ = await assignQuestionnaire(matterId, clientId, val as "study_permit" | "work_permit" | "pr")
-                          setQuestionnaires((prev) => [newQ, ...prev])
-                          setResultat({ ok: true, message: "Questionnaire attribué avec succès." })
-                        } catch (err: unknown) {
-                          const msg = err instanceof Error ? err.message : String(err)
-                          setResultat({ ok: false, message: msg || "Erreur lors de l&apos;attribution." })
+                        const fd = new FormData()
+                        fd.set("templateId", templateId)
+                        fd.set("destinataireType", "client")
+                        fd.set("destinataireId", clientId ?? "")
+                        fd.set("matterId", matterId)
+                        fd.set("locale", "fr")
+                        const r = await envoyerQuestionnaire(fd)
+                        setResultat(r)
+                        if (r.ok) {
+                          setLienEnvoi(r.lien ?? null)
+                          rafraichir()
                         }
                       })
                     }}
                   >
-                    <option value="" disabled>+ Attribuer un questionnaire</option>
-                    <option value="study_permit">Permis d&apos;études</option>
-                    <option value="work_permit">Permis de travail</option>
-                    <option value="pr">Résidence permanente</option>
+                    <option value="" disabled>+ Envoyer un questionnaire</option>
+                    {modeles.map((m) => (
+                      <option key={m.id} value={m.id}>{m.titleFr}</option>
+                    ))}
                   </select>
                 </div>
               ) : (
-                <span className="text-xs text-error font-bold bg-error/10 px-2 py-1 rounded">Rattachez un client pour attribuer un questionnaire</span>
+                <span className="text-xs text-error font-bold bg-error/10 px-2 py-1 rounded">Rattachez un client pour envoyer un questionnaire</span>
               )}
             </div>
 
@@ -634,7 +649,7 @@ export function DossierOnglets({
 
                         <span className={cn(
                           "rounded px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider",
-                          q.status === "validated" || q.status === "locked"
+                          q.status === "completed" || q.status === "cancelled"
                             ? "bg-success/15 text-success"
                             : q.status === "submitted" || q.status === "corrected"
                               ? "bg-primary/15 text-primary"
@@ -647,8 +662,8 @@ export function DossierOnglets({
                           {q.status === "submitted" && "Soumis"}
                           {q.status === "to_correct" && "À corriger"}
                           {q.status === "corrected" && "Corrigé"}
-                          {q.status === "validated" && "Validé"}
-                          {q.status === "locked" && "Verrouillé"}
+                          {q.status === "completed" && "Clos"}
+                          {q.status === "cancelled" && "Annulé"}
                         </span>
                       </div>
                     </div>
@@ -662,7 +677,7 @@ export function DossierOnglets({
                         <Eye className="h-3.5 w-3.5 text-muted-foreground" /> Voir les réponses
                       </button>
 
-                      {q.status !== "locked" && (
+                      {q.status !== "cancelled" && (
                         <>
                           <button
                             type="button"
@@ -706,26 +721,14 @@ export function DossierOnglets({
                         </>
                       )}
 
-                      {q.status === "validated" && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            demarrer(async () => {
-                              try {
-                                const updated = await lockQuestionnaire(q.id)
-                                setQuestionnaires((prev) => prev.map((item) => item.id === q.id ? updated : item))
-                                setResultat({ ok: true, message: "Questionnaire verrouillé avec succès." })
-                              } catch (err: unknown) {
-                                const msg = err instanceof Error ? err.message : String(err)
-                                setResultat({ ok: false, message: msg || "Erreur de verrouillage." })
-                              }
-                            })
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5 ml-auto"
-                        >
-                          <ShieldCheck className="h-3.5 w-3.5" /> Verrouiller
-                        </button>
-                      )}
+                      {/* « Verrouiller » a disparu, et ce n'est pas un oubli.
+                          L'ancien modèle distinguait « validé » de
+                          « verrouillé » : deux états dont le second n'ajoutait
+                          rien que le premier ne garantissait pas. Clore un
+                          questionnaire le ferme désormais pour tout le monde —
+                          le cabinet comme le destinataire — et la base le fait
+                          respecter. Un bouton de plus n'aurait fermé que ce
+                          qui l'était déjà. */}
                     </div>
                   </div>
                 ))}
@@ -1092,7 +1095,7 @@ export function DossierOnglets({
       
       {/* 1. Modale de visualisation (Aperçu) */}
       {selectedReviewQ && (() => {
-        const tpl = getTemplateByType(selectedReviewQ.formType)
+        const tpl = { sections: selectedReviewQ.sections }
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-card w-full max-w-4xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[90vh]">
@@ -1198,7 +1201,7 @@ export function DossierOnglets({
 
       {/* 2. Modale d'édition par le consultant */}
       {selectedEditQ && (() => {
-        const tpl = getTemplateByType(selectedEditQ.formType)
+        const tpl = { sections: selectedEditQ.sections }
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-card w-full max-w-4xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[90vh]">
@@ -1406,7 +1409,7 @@ export function DossierOnglets({
 
       {/* 3. Modale de demande de corrections */}
       {selectedCorrectionQ && (() => {
-        const tpl = getTemplateByType(selectedCorrectionQ.formType)
+        const tpl = { sections: selectedCorrectionQ.sections }
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-card w-full max-w-lg rounded-2xl border border-border shadow-2xl flex flex-col">

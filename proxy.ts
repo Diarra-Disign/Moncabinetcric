@@ -16,6 +16,10 @@ const PROTECTED_SEGMENTS = [
   'calendar',
   'deadlines',
   'agreements',
+  // La bibliothèque du cabinet. « q » — la page qu'ouvre un destinataire avec
+  // son jeton — n'y figure délibérément PAS : elle doit rester accessible
+  // sans compte, et c'est le jeton qui y tient lieu de clé.
+  'questionnaires',
   'pipeline',
   'research',
   'settings',

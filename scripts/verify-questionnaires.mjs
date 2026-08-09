@@ -1,17 +1,25 @@
 #!/usr/bin/env node
 /**
- * Éprouve le questionnaire client contre la base réelle.
+ * Éprouve la bibliothèque de questionnaires contre la base réelle.
  *
- * Deux questions, et une seule compte vraiment : le client du portail
- * peut-il réécrire ce qui ne lui appartient pas ? Row Level Security
- * n'attribue que des LIGNES ; les colonnes sont gardées par un déclencheur,
- * et un corps PL/pgSQL n'est analysé qu'à sa PREMIÈRE EXÉCUTION — le voir
- * créé sans erreur ne prouve rien du tout.
+ * Ce que ce script cherche à prendre en défaut, dans l'ordre :
+ *
+ * 1. L'EMPREINTE. Le jeton est haché par Node à l'envoi et par Postgres à
+ *    l'ouverture. Si les deux calculs divergent d'un octet, TOUS les liens
+ *    émis sont refusés — et rien d'autre ne le signalerait, puisque chaque
+ *    moitié fonctionne parfaitement de son côté.
+ *
+ * 2. Ce qu'un destinataire ne peut pas faire. Row Level Security n'attribue
+ *    que des lignes ; les colonnes sont gardées par un déclencheur, dont le
+ *    corps PL/pgSQL n'est analysé qu'à sa PREMIÈRE EXÉCUTION.
+ *
+ * 3. Le cloisonnement. Un jeton n'ouvre qu'un questionnaire ; un cabinet ne
+ *    voit pas les envois d'un autre.
  */
 import { readFileSync } from "node:fs"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
-import { randomBytes } from "node:crypto"
+import { randomBytes, createHash } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
@@ -22,6 +30,7 @@ const env = Object.fromEntries(
 
 const url = env.NEXT_PUBLIC_SUPABASE_URL
 const admin = createClient(url, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
+const anon = createClient(url, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } })
 
 const session = async (courriel, mdp) => {
   const c = createClient(url, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false } })
@@ -34,147 +43,196 @@ let echecs = 0
 const verifier = (intitule, obtenu, attendu) => {
   const ok = String(obtenu) === String(attendu)
   if (!ok) echecs++
-  console.log(`  ${ok ? "✓" : "✗"} ${intitule.padEnd(48)} ${String(obtenu).slice(0, 40).padEnd(14)}` +
+  console.log(`  ${ok ? "✓" : "✗"} ${intitule.padEnd(50)} ${String(obtenu).slice(0, 38).padEnd(12)}` +
     (ok ? "" : ` ATTENDU ${attendu}`))
 }
 
 const marque = Date.now()
 const mdp = "Epreuve-" + randomBytes(9).toString("base64url")
-let cabinetId, userConsultant, userClient
+let cabinetA, cabinetB, userA, userB, userPortail
+
+const jeton = () => {
+  const j = randomBytes(32).toString("base64url")
+  return { j, h: createHash("sha256").update(j).digest("hex") }
+}
+
+const creerCabinet = async (nom, suffixe) => {
+  const { data: f, error } = await admin.from("firms").insert({
+    name: `${nom} ${marque}`, rcic_license_number: `R${suffixe}${String(marque).slice(-4)}`,
+    owner_name: "Épreuve", email: `${suffixe}-${marque}@example.invalid`,
+    plan: "cabinet", status: "active",
+  }).select("id").single()
+  if (error) throw new Error(`Cabinet : ${error.message}`)
+  await admin.from("firm_subscriptions").insert({
+    firm_id: f.id, plan: "cabinet", cadence: "monthly", seats: 3,
+    status: "active", stripe_customer_id: `cus_q${suffixe}_${marque}`,
+  })
+  return f.id
+}
+
+const creerConsultant = async (firmId, etiquette) => {
+  const courriel = `${etiquette}-${marque}@example.invalid`
+  const { data: u, error } = await admin.auth.admin.createUser({
+    email: courriel, password: mdp, email_confirm: true,
+  })
+  if (error) throw new Error(`Compte : ${error.message}`)
+  await admin.from("profiles").insert({
+    firm_id: firmId, user_id: u.user.id, email: courriel,
+    full_name: `${etiquette} d'épreuve`, cicc_role: "rcic",
+  })
+  return { userId: u.user.id, courriel }
+}
 
 try {
-  const { data: cab } = await admin.from("firms").insert({
-    name: `Cabinet questionnaire ${marque}`,
-    rcic_license_number: `R666${String(marque).slice(-4)}`,
-    owner_name: "Épreuve", email: `q-${marque}@example.invalid`,
-    plan: "cabinet", status: "active",
+  cabinetA = await creerCabinet("Cabinet questionnaires", "666")
+  cabinetB = await creerCabinet("Cabinet tiers", "555")
+  const consultantA = await creerConsultant(cabinetA, "consultant")
+  const consultantB = await creerConsultant(cabinetB, "tiers")
+  userA = consultantA.userId
+  userB = consultantB.userId
+
+  const cabinet = await session(consultantA.courriel, mdp)
+  const tiers = await session(consultantB.courriel, mdp)
+
+  // -------------------------------------------------------------------------
+  console.log("\nLa bibliothèque")
+  // -------------------------------------------------------------------------
+  const { data: systeme } = await cabinet
+    .from("questionnaire_templates").select("id, slug, is_default_preconsultation").is("firm_id", null)
+  verifier("les modèles fournis sont visibles", (systeme ?? []).length, 8)
+  verifier("un seul est proposé par défaut aux prospects",
+    (systeme ?? []).filter((m) => m.is_default_preconsultation).length, 1)
+
+  const modelePre = (systeme ?? []).find((m) => m.slug === "preconsultation")
+
+  const { error: eEcrire } = await cabinet
+    .from("questionnaire_templates").update({ title_fr: "Détourné" }).eq("id", modelePre.id)
+  const { data: apresTentative } = await admin
+    .from("questionnaire_templates").select("title_fr").eq("id", modelePre.id).single()
+  verifier("un modèle fourni ne peut pas être réécrit",
+    apresTentative.title_fr === "Détourné" ? "RÉÉCRIT" : "intact", "intact")
+  void eEcrire
+
+  // -------------------------------------------------------------------------
+  console.log("\nUn envoi à un PROSPECT — sans client, sans dossier")
+  // -------------------------------------------------------------------------
+  const { data: prospect, error: eProspect } = await admin.from("leads").insert({
+    firm_id: cabinetA, name: "Awa Diallo", email: `awa-${marque}@example.invalid`,
+    phone: "+1 514 555 0199", type: "b2c", visa_type: "Permis d'études",
+    estimated_value: 2500, score: 70, score_label: "med", stage: "newLead",
+    last_contact: new Date().toISOString().slice(0, 10), notes: "",
   }).select("id").single()
-  cabinetId = cab.id
+  if (eProspect) throw new Error(`Prospect : ${eProspect.message}`)
 
-  await admin.from("firm_subscriptions").insert({
-    firm_id: cabinetId, plan: "cabinet", cadence: "monthly", seats: 3,
-    status: "active", stripe_customer_id: `cus_q_${marque}`,
-  })
-
-  const courrielConsultant = `consultant-${marque}@example.invalid`
-  const { data: uc } = await admin.auth.admin.createUser({
-    email: courrielConsultant, password: mdp, email_confirm: true,
-  })
-  userConsultant = uc.user.id
-  await admin.from("profiles").insert({
-    firm_id: cabinetId, user_id: userConsultant, email: courrielConsultant,
-    full_name: "Consultant d'épreuve", cicc_role: "rcic",
-  })
-
-  const courrielClient = `client-${marque}@example.invalid`
-  const { data: cl } = await admin.from("clients").insert({
-    firm_id: cabinetId, name: "Tremblay", email: courrielClient,
-    file_number: `DOS-${String(marque).slice(-6)}`, program: "Express Entry",
-    status: "active", client_type: "individual",
+  const { j, h } = jeton()
+  const { data: envoi, error: eEnvoi } = await cabinet.from("client_questionnaires").insert({
+    firm_id: cabinetA, lead_id: prospect.id, client_id: null, matter_id: null,
+    template_id: modelePre.id, title: "Questionnaire de préconsultation",
+    sections: [{ id: "s1", titleFr: "Vous", titleEn: "You", fields: [
+      { key: "firstName", labelFr: "Prénom", labelEn: "First name", type: "text", required: true },
+      { key: "projectType", labelFr: "Projet", labelEn: "Project", type: "text", required: true },
+    ] }],
+    prefill: { firstName: "Awa" },
+    status: "sent", sent_at: new Date().toISOString(), token_hash: h,
   }).select("id").single()
-  const { data: uu } = await admin.auth.admin.createUser({
-    email: courrielClient, password: mdp, email_confirm: true,
+  verifier("le questionnaire part vers un prospect", eEnvoi ? eEnvoi.message : "ok", "ok")
+
+  const { error: eDeux } = await cabinet.from("client_questionnaires").insert({
+    firm_id: cabinetA, lead_id: prospect.id, client_id: prospect.id,
+    template_id: modelePre.id, title: "Deux destinataires", sections: [], token_hash: jeton().h,
   })
-  userClient = uu.user.id
-  await admin.from("client_users").insert({
-    user_id: userClient, client_id: cl.id, firm_id: cabinetId, email: courrielClient,
+  verifier("un client ET un prospect à la fois : REFUSÉ", eDeux ? "refusé" : "ACCEPTÉ", "refusé")
+
+  const { error: eAucun } = await cabinet.from("client_questionnaires").insert({
+    firm_id: cabinetA, title: "Sans destinataire", sections: [], token_hash: jeton().h,
   })
-
-  const { data: m } = await admin.from("matters").insert({
-    firm_id: cabinetId, client_id: cl.id, reference: `M-${marque}`,
-    client_name: "Tremblay", program: "Express Entry", category: "pr",
-    rcic: "Épreuve", status: "pending", client_type: "b2c",
-  }).select("id").single()
-
-  const { data: q, error: eq } = await admin.from("client_questionnaires").insert({
-    firm_id: cabinetId, client_id: cl.id, matter_id: m.id,
-    title: "Questionnaire de permis d'études", form_type: "study_permit",
-    status: "in_progress",
-    corrections: [{ sectionId: "identite", comment: "Date de naissance à revoir", status: "pending", requestedAt: new Date().toISOString() }],
-    history: [{ userId: "consultant-1", userName: "Consultant", userType: "consultant", changedAt: new Date().toISOString(), sectionId: "identite", fieldKey: "nom", fieldName: "Nom", oldValue: "", newValue: "Tremblay" }],
-  }).select("id").single()
-  if (eq) throw new Error(`Questionnaire : ${eq.message}`)
-
-  const portail = await session(courrielClient, mdp)
-  const cabinet = await session(courrielConsultant, mdp)
+  verifier("aucun destinataire : REFUSÉ", eAucun ? "refusé" : "ACCEPTÉ", "refusé")
 
   // -------------------------------------------------------------------------
-  console.log("\nLa table existe et la fiche peut la lire")
+  console.log("\nLe lien sécurisé — Node et Postgres doivent s'accorder")
   // -------------------------------------------------------------------------
-  const { data: vuCabinet, error: eLecture } = await cabinet
-    .from("client_questionnaires").select("id, title").eq("id", q.id)
-  verifier("le cabinet lit le questionnaire", eLecture ? eLecture.message : vuCabinet.length, 1)
+  const { data: empreinteSql } = await admin.rpc("questionnaire_empreinte", { p_token: j })
+  verifier("l'empreinte SQL égale l'empreinte Node", empreinteSql === h ? "identiques" : "DIVERGENTES", "identiques")
 
-  const { data: vuClient } = await portail
-    .from("client_questionnaires").select("id").eq("id", q.id)
-  verifier("le client voit le sien", vuClient?.length ?? 0, 1)
+  const { data: ouvert, error: eOuvrir } = await anon.rpc("questionnaire_ouvrir", { p_token: j })
+  verifier("le jeton ouvre le questionnaire", eOuvrir ? eOuvrir.message : ouvert?.title, "Questionnaire de préconsultation")
+  verifier("le pré-remplissage voyage à part", ouvert?.prefill?.firstName, "Awa")
+  verifier("les réponses sont encore vides", JSON.stringify(ouvert?.answers ?? {}), "{}")
 
-  // -------------------------------------------------------------------------
-  console.log("\nCe que le client PEUT faire")
-  // -------------------------------------------------------------------------
-  const { error: eRep } = await portail.from("client_questionnaires")
-    .update({ answers: { nom: "Tremblay", prenom: "Marie" }, progress: 40 }).eq("id", q.id)
-  verifier("répondre aux questions", eRep ? eRep.message : "ok", "ok")
+  const { data: apresOuverture } = await admin
+    .from("client_questionnaires").select("status, opened_at").eq("id", envoi.id).single()
+  verifier("l'ouverture est datée", apresOuverture.opened_at ? "oui" : "non", "oui")
+  verifier("le statut passe à « ouvert »", apresOuverture.status, "opened")
 
-  // -------------------------------------------------------------------------
-  console.log("\nCe que le client NE PEUT PAS faire")
-  // -------------------------------------------------------------------------
-  const refus = async (intitule, patch) => {
-    const { error } = await portail.from("client_questionnaires").update(patch).eq("id", q.id)
-    verifier(intitule, error ? "refusé" : "ACCEPTÉ", "refusé")
-  }
+  const { error: eFaux } = await anon.rpc("questionnaire_ouvrir", { p_token: randomBytes(32).toString("base64url") })
+  verifier("un jeton inventé n'ouvre rien", eFaux ? "refusé" : "ACCEPTÉ", "refusé")
 
-  await refus("effacer les demandes de correction", { corrections: [] })
-  await refus("réécrire le journal des modifications", { history: [] })
-  await refus("changer le titre du questionnaire", { title: "Autre chose" })
-  await refus("changer le type de formulaire", { form_type: "pr" })
-  await refus("se déclarer validé", { status: "validated" })
-  await refus("verrouiller son questionnaire", { status: "locked" })
-
-  const { data: apres } = await admin.from("client_questionnaires")
-    .select("corrections, history, title, status, answers").eq("id", q.id).single()
-  verifier("les corrections sont intactes", apres.corrections.length, 1)
-  verifier("le journal est intact", apres.history.length, 1)
-  verifier("le titre est intact", apres.title, "Questionnaire de permis d'études")
-  verifier("les réponses, elles, ont bien été enregistrées", apres.answers.prenom, "Marie")
+  const { error: eCourt } = await anon.rpc("questionnaire_ouvrir", { p_token: "" })
+  verifier("un jeton vide n'ouvre rien", eCourt ? "refusé" : "ACCEPTÉ", "refusé")
 
   // -------------------------------------------------------------------------
-  console.log("\nCe que le cabinet, lui, peut faire")
+  console.log("\nCe que le rôle anonyme ne peut PAS faire")
   // -------------------------------------------------------------------------
-  const { error: eVal } = await cabinet.from("client_questionnaires")
-    .update({ status: "validated", corrections: [] }).eq("id", q.id)
-  verifier("valider et solder les corrections", eVal ? eVal.message : "ok", "ok")
+  const { data: volTable, error: eTable } = await anon.from("client_questionnaires").select("id, answers")
+  verifier("lire la table directement", (volTable ?? []).length === 0 || eTable ? "refusé" : "ACCEPTÉ", "refusé")
+
+  const { data: volModeles } = await anon.from("questionnaire_templates").select("id")
+  verifier("lire la bibliothèque directement", (volModeles ?? []).length, 0)
 
   // -------------------------------------------------------------------------
-  console.log("\nCloisonnement")
+  console.log("\nLe prospect répond, puis transmet")
   // -------------------------------------------------------------------------
-  const { data: cabB } = await admin.from("firms").insert({
-    name: `Cabinet tiers ${marque}`, rcic_license_number: `R555${String(marque).slice(-4)}`,
-    owner_name: "Tiers", email: `tiers-${marque}@example.invalid`,
-    plan: "cabinet", status: "active",
-  }).select("id").single()
-  await admin.from("firm_subscriptions").insert({
-    firm_id: cabB.id, plan: "cabinet", cadence: "monthly", seats: 3,
-    status: "active", stripe_customer_id: `cus_tiers_${marque}`,
+  const { error: eEnr } = await anon.rpc("questionnaire_enregistrer", {
+    p_token: j, p_answers: { firstName: "Awa", projectType: "Permis d'études" }, p_progress: 100,
   })
-  const courrielTiers = `tiers-c-${marque}@example.invalid`
-  const { data: ut } = await admin.auth.admin.createUser({
-    email: courrielTiers, password: mdp, email_confirm: true,
-  })
-  await admin.from("profiles").insert({
-    firm_id: cabB.id, user_id: ut.user.id, email: courrielTiers,
-    full_name: "Tiers", cicc_role: "rcic",
-  })
-  const tiers = await session(courrielTiers, mdp)
-  const { data: vuTiers } = await tiers.from("client_questionnaires").select("id").eq("id", q.id)
-  verifier("un autre cabinet ne voit rien", vuTiers?.length ?? 0, 0)
+  verifier("enregistrer ses réponses", eEnr ? eEnr.message : "ok", "ok")
 
-  await admin.from("firms").delete().eq("id", cabB.id)
-  await admin.auth.admin.deleteUser(ut.user.id)
+  const { data: enCours } = await admin
+    .from("client_questionnaires").select("status, progress, answers").eq("id", envoi.id).single()
+  verifier("le statut suit le geste", enCours.status, "in_progress")
+  verifier("la progression est retenue", enCours.progress, 100)
+
+  const { error: eSoum } = await anon.rpc("questionnaire_soumettre", { p_token: j })
+  verifier("transmettre au cabinet", eSoum ? eSoum.message : "ok", "ok")
+
+  const { data: soumis } = await admin
+    .from("client_questionnaires").select("status, submitted_at").eq("id", envoi.id).single()
+  verifier("le questionnaire est soumis", soumis.status, "submitted")
+
+  // -------------------------------------------------------------------------
+  console.log("\nLe statut « expiré » se calcule, il ne se stocke pas")
+  // -------------------------------------------------------------------------
+  const { data: statuts } = await admin.rpc("questionnaire_status", {
+    p_status: "sent", p_due_date: new Date(Date.now() - 86400000).toISOString(), p_token_revoked_at: null,
+  })
+  verifier("une date limite passée rend « expiré »", statuts, "expired")
+
+  const { data: rendu } = await admin.rpc("questionnaire_status", {
+    p_status: "submitted", p_due_date: new Date(Date.now() - 86400000).toISOString(), p_token_revoked_at: null,
+  })
+  verifier("un questionnaire rendu n'expire pas après coup", rendu, "submitted")
+
+  // -------------------------------------------------------------------------
+  console.log("\nUn lien désactivé cesse d'ouvrir")
+  // -------------------------------------------------------------------------
+  await cabinet.from("client_questionnaires")
+    .update({ token_revoked_at: new Date().toISOString() }).eq("id", envoi.id)
+  const { error: eRevoque } = await anon.rpc("questionnaire_ouvrir", { p_token: j })
+  verifier("le lien révoqué est refusé", eRevoque ? "refusé" : "ACCEPTÉ", "refusé")
+  verifier("et le refus nomme la raison", /désactivé/i.test(eRevoque?.message ?? "") ? "oui" : "non", "oui")
+
+  // -------------------------------------------------------------------------
+  console.log("\nCloisonnement entre cabinets")
+  // -------------------------------------------------------------------------
+  const { data: vuTiers } = await tiers.from("client_questionnaires").select("id").eq("id", envoi.id)
+  verifier("un autre cabinet ne voit pas l'envoi", (vuTiers ?? []).length, 0)
+
+  const { data: modelesTiers } = await tiers
+    .from("questionnaire_templates").select("id").eq("firm_id", cabinetA)
+  verifier("ni les modèles du premier", (modelesTiers ?? []).length, 0)
 } finally {
-  if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
-  if (userConsultant) await admin.auth.admin.deleteUser(userConsultant)
-  if (userClient) await admin.auth.admin.deleteUser(userClient)
+  for (const id of [cabinetA, cabinetB]) if (id) await admin.from("firms").delete().eq("id", id)
+  for (const id of [userA, userB, userPortail]) if (id) await admin.auth.admin.deleteUser(id)
   console.log("\nCabinets et comptes d'épreuve supprimés.")
 }
 

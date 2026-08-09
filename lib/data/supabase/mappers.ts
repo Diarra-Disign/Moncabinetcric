@@ -9,6 +9,7 @@ import type {
   ClientQuestionnaire,
   QuestionnaireCorrection,
   QuestionnaireHistoryEntry,
+  QuestionnaireTemplateRecord,
 } from "../types"
 
 /**
@@ -182,23 +183,75 @@ export function toAuditLog(r: Row): AuditLogRecord {
   }
 }
 
+/**
+ * Statut affiché, calculé ici comme il l'est en base.
+ *
+ * La règle est écrite deux fois — dans questionnaire_status() et ici — parce
+ * qu'un questionnaire lu par un chemin qui n'appelle pas la fonction doit
+ * quand même s'afficher « expiré ». Les deux versions doivent donc rester
+ * d'accord ; ./cric questionnaires les confronte sur les mêmes cas.
+ */
+function statutAffiche(r: Row): ClientQuestionnaire["statusAffiche"] {
+  const stocke = r.status as ClientQuestionnaire["status"]
+  if (["completed", "cancelled", "submitted", "corrected"].includes(stocke)) return stocke
+  if (r.token_revoked_at) return "cancelled"
+  if (r.due_date && new Date(String(r.due_date)) < new Date()) return "expired"
+  return stocke
+}
+
 export function toQuestionnaire(r: Row): ClientQuestionnaire {
+  const client = r.clients as Row | null
+  const lead = r.leads as Row | null
+
   return {
     id: str(r.id),
     firmId: str(r.firm_id),
-    clientId: optStr((r.clients as Row | null)?.legacy_id) || str(r.client_id),
-    matterId: optStr((r.matters as Row | null)?.reference) || str(r.matter_id),
+    clientId: r.client_id ? optStr(client?.legacy_id) || str(r.client_id) : undefined,
+    leadId: r.lead_id ? optStr(lead?.legacy_id) || str(r.lead_id) : undefined,
+    matterId: r.matter_id ? optStr((r.matters as Row | null)?.reference) || str(r.matter_id) : undefined,
+    templateId: optStr(r.template_id),
     title: str(r.title),
     description: optStr(r.description),
-    formType: r.form_type as ClientQuestionnaire["formType"],
+    sections: (r.sections as ClientQuestionnaire["sections"]) ?? [],
+    message: str(r.message),
     status: r.status as ClientQuestionnaire["status"],
+    statusAffiche: statutAffiche(r),
     progress: num(r.progress),
     dueDate: optStr(r.due_date),
+    sentAt: optStr(r.sent_at),
+    openedAt: optStr(r.opened_at),
+    submittedAt: optStr(r.submitted_at),
+    completedAt: optStr(r.completed_at),
+    remindedAt: optStr(r.reminded_at),
+    reminderCount: num(r.reminder_count),
     createdAt: str(r.created_at),
     updatedAt: str(r.updated_at),
     lastSavedAt: optStr(r.last_saved_at),
     answers: (r.answers as Record<string, unknown>) ?? {},
+    prefill: (r.prefill as Record<string, unknown>) ?? {},
     corrections: (r.corrections as QuestionnaireCorrection[]) ?? [],
     history: (r.history as QuestionnaireHistoryEntry[]) ?? [],
+    lienActif: Boolean(r.token_hash) && !r.token_revoked_at,
+    destinataireNom: optStr(client?.name) || optStr(lead?.name),
+    destinataireCourriel: optStr(client?.email) || optStr(lead?.email),
+  }
+}
+
+export function toQuestionnaireTemplate(r: Row): QuestionnaireTemplateRecord {
+  return {
+    id: str(r.id),
+    firmId: r.firm_id ? str(r.firm_id) : null,
+    slug: str(r.slug),
+    titleFr: str(r.title_fr),
+    titleEn: str(r.title_en),
+    descriptionFr: str(r.description_fr),
+    descriptionEn: str(r.description_en),
+    sections: (r.sections as QuestionnaireTemplateRecord["sections"]) ?? [],
+    messageFr: str(r.message_fr),
+    messageEn: str(r.message_en),
+    isDefaultPreconsultation: r.is_default_preconsultation === true,
+    active: r.active !== false,
+    updatedAt: str(r.updated_at),
+    usageCount: num(r.usage_count),
   }
 }

@@ -44,6 +44,7 @@ case "$commande" in
   mobile)       exec node scripts/verify-mobile.mjs "$@" ;;
   fiche)        exec node scripts/verify-matter-page.mjs "$@" ;;
   questionnaires) exec node scripts/verify-questionnaires.mjs "$@" ;;
+  modeles)      exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/generer-modeles-questionnaires.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
   facturation-sieges) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-seat-billing.mjs "$@" ;;
   portail)      exec node scripts/portail-stripe.mjs "$@" ;;
@@ -124,10 +125,14 @@ Usage : ./cric <commande> [options]
                  ./cric fiche
                  ./cric fiche --url=http://localhost:3001
 
-  questionnaires  Éprouve le questionnaire client : ce que le client peut
-               répondre, et ce qu'il ne peut ni effacer ni réécrire —
-               corrections et journal des modifications
+  questionnaires  Éprouve la bibliothèque de questionnaires : envoi à un
+               prospect sans compte, lien sécurisé, statut calculé,
+               cloisonnement entre cabinets
                  ./cric questionnaires
+
+  modeles      Régénère l'amorçage des modèles depuis le catalogue
+               TypeScript. Écrit sur la sortie standard.
+                 ./cric modeles > supabase/migrations/…_seed.sql
   comptes      Met en place les cabinets et comptes de départ
   cabinet      Purge les données de démonstration, écrit l'identité réelle
   cle          Enregistre la clé de service Supabase

@@ -247,23 +247,21 @@ export async function getResearchWorkspaceById(id: string): Promise<ResearchWork
 
 // --- Questionnaires Clients -------------------------------------------
 
+// Sans branche « mock » : voir la note de lib/data/actions.ts. Un
+// questionnaire porte désormais un jeton, une date limite et un destinataire
+// qui peut n'être qu'un prospect — rien de tout cela ne se simule en mémoire
+// sans réécrire les règles une seconde fois.
+
 export async function getClientQuestionnairesByMatterId(matterId: string): Promise<ClientQuestionnaire[]> {
-  if (isSupabaseSource()) return (await sbReads()).getClientQuestionnairesByMatterId(matterId)
-  const decoded = decodeURIComponent(matterId)
-  const bare = decoded.replace("#", "")
-  return _mockStores.clientQuestionnaires.filter(
-    (q) => q.matterId === decoded || q.matterId === `#${bare}` || q.matterId.replace("#", "") === bare
-  )
+  return (await sbReads()).getClientQuestionnairesByMatterId(matterId)
 }
 
 export async function getClientQuestionnairesByClientId(clientId: string): Promise<ClientQuestionnaire[]> {
-  if (isSupabaseSource()) return (await sbReads()).getClientQuestionnairesByClientId(clientId)
-  return _mockStores.clientQuestionnaires.filter((q) => q.clientId === clientId)
+  return (await sbReads()).getClientQuestionnairesByClientId(clientId)
 }
 
 export async function getClientQuestionnaireById(id: string): Promise<ClientQuestionnaire | undefined> {
-  if (isSupabaseSource()) return (await sbReads()).getClientQuestionnaireById(id)
-  return _mockStores.clientQuestionnaires.find((q) => q.id === id)
+  return (await sbReads()).getClientQuestionnaireById(id)
 }
 
 

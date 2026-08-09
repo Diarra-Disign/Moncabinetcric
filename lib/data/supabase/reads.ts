@@ -133,7 +133,7 @@ export async function getLeadById(id: string): Promise<Lead | undefined> {
 export async function getInvoices(): Promise<InvoiceRecord[]> {
   const { data, error } = await (await db())
     .from("invoices")
-    .select("*, matters(reference), clients(legacy_id)")
+    .select("*, matters(reference), clients(legacy_id, name, email), leads(legacy_id, name, email)")
     .eq("firm_id", await currentFirmId())
     .order("date", { ascending: false })
 
@@ -146,7 +146,7 @@ export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRe
   const bare = decoded.replace("#", "")
   const { data, error } = await (await db())
     .from("invoices")
-    .select("*, matters!inner(reference), clients(legacy_id)")
+    .select("*, matters!inner(reference), clients(legacy_id, name, email), leads(legacy_id, name, email)")
     .eq("firm_id", await currentFirmId())
     .in("matters.reference", [decoded, `#${bare}`, bare])
 
@@ -157,7 +157,7 @@ export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRe
 export async function getInvoicesByClientId(clientId: string): Promise<InvoiceRecord[]> {
   const { data, error } = await (await db())
     .from("invoices")
-    .select("*, matters(reference), clients!inner(legacy_id)")
+    .select("*, matters(reference), clients!inner(legacy_id, name, email), leads(legacy_id, name, email)")
     .eq("firm_id", await currentFirmId())
     .eq("clients.legacy_id", clientId)
 
@@ -170,7 +170,7 @@ export async function getInvoicesByClientId(clientId: string): Promise<InvoiceRe
 export async function getDocuments(): Promise<DocumentRecord[]> {
   const { data, error } = await (await db())
     .from("documents")
-    .select("*, matters(reference), clients(legacy_id)")
+    .select("*, matters(reference), clients(legacy_id, name, email), leads(legacy_id, name, email)")
     .eq("firm_id", await currentFirmId())
     .order("date", { ascending: false })
 
@@ -183,7 +183,7 @@ export async function getDocumentsByMatterId(matterId: string): Promise<Document
   const bare = decoded.replace("#", "")
   const { data, error } = await (await db())
     .from("documents")
-    .select("*, matters!inner(reference), clients(legacy_id)")
+    .select("*, matters!inner(reference), clients(legacy_id, name, email), leads(legacy_id, name, email)")
     .eq("firm_id", await currentFirmId())
     .in("matters.reference", [decoded, `#${bare}`, bare])
 
@@ -235,7 +235,7 @@ export async function getClientQuestionnairesByMatterId(matterId: string): Promi
   
   const { data, error } = await (await db())
     .from("client_questionnaires")
-    .select("*, matters!inner(reference), clients(legacy_id)")
+    .select("*, matters!inner(reference), clients(legacy_id, name, email), leads(legacy_id, name, email)")
     .eq("firm_id", await currentFirmId())
     .in("matters.reference", [decoded, `#${bare}`, bare])
 
@@ -246,7 +246,7 @@ export async function getClientQuestionnairesByMatterId(matterId: string): Promi
 export async function getClientQuestionnairesByClientId(clientId: string): Promise<ClientQuestionnaire[]> {
   const { data, error } = await (await db())
     .from("client_questionnaires")
-    .select("*, matters(reference), clients!inner(legacy_id)")
+    .select("*, matters(reference), clients!inner(legacy_id, name, email), leads(legacy_id, name, email)")
     .eq("firm_id", await currentFirmId())
     .eq("clients.legacy_id", clientId)
 
@@ -257,7 +257,7 @@ export async function getClientQuestionnairesByClientId(clientId: string): Promi
 export async function getClientQuestionnaireById(id: string): Promise<ClientQuestionnaire | undefined> {
   const { data, error } = await (await db())
     .from("client_questionnaires")
-    .select("*, matters(reference), clients(legacy_id)")
+    .select("*, matters(reference), clients(legacy_id, name, email), leads(legacy_id, name, email)")
     .eq("firm_id", await currentFirmId())
     .eq("id", id)
     .limit(1)

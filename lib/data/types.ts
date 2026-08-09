@@ -441,22 +441,101 @@ export interface QuestionnaireHistoryEntry {
   newValue: unknown
 }
 
+/** Statuts réellement stockés. « expiré » n'en fait pas partie : il se calcule. */
+export type QuestionnaireStatus =
+  | "draft" | "sent" | "opened" | "in_progress" | "submitted"
+  | "to_correct" | "corrected" | "completed" | "cancelled"
+
+/** Ce que voit l'écran : les statuts stockés, plus celui que le temps produit. */
+export type QuestionnaireStatusAffiche = QuestionnaireStatus | "expired"
+
+export interface QuestionnaireTemplateRecord {
+  id: string
+  /** Nul pour un modèle fourni avec le logiciel, partagé et non modifiable. */
+  firmId: string | null
+  slug: string
+  titleFr: string
+  titleEn: string
+  descriptionFr: string
+  descriptionEn: string
+  sections: FormSectionShape[]
+  messageFr: string
+  messageEn: string
+  isDefaultPreconsultation: boolean
+  active: boolean
+  updatedAt: string
+  /** Nombre d'envois faits depuis ce modèle : compté, jamais incrémenté à la main. */
+  usageCount: number
+}
+
+/**
+ * Forme d'une section telle qu'elle voyage en base.
+ *
+ * Volontairement structurelle et non importée de questionnaire-templates.ts :
+ * ce fichier décrit le catalogue de DÉPART, alors qu'une section peut venir
+ * d'un modèle que le consultant a créé lui-même et que le code n'a jamais vu.
+ */
+export interface FormSectionShape {
+  id: string
+  titleFr: string
+  titleEn: string
+  fields: FormFieldShape[]
+}
+
+export interface FormFieldShape {
+  key: string
+  labelFr: string
+  labelEn: string
+  type: string
+  required: boolean
+  options?: { value: string; labelFr: string; labelEn: string }[]
+  fields?: FormFieldShape[]
+  instructionsFr?: string
+  instructionsEn?: string
+}
+
 export interface ClientQuestionnaire {
   id: string
   firmId: string
-  clientId: string
-  matterId: string
+  /** Le destinataire est un client OU un prospect, jamais les deux. */
+  clientId?: string
+  leadId?: string
+  matterId?: string
+  templateId?: string
   title: string
   description?: string
-  formType: "study_permit" | "work_permit" | "pr"
-  status: "draft" | "in_progress" | "submitted" | "to_correct" | "corrected" | "validated" | "locked"
+  /**
+   * Les questions telles qu'elles étaient À L'ENVOI.
+   *
+   * Pas une référence au modèle : si le consultant remanie le modèle pendant
+   * qu'un client remplit, les réponses déjà saisies désigneraient des champs
+   * disparus.
+   */
+  sections: FormSectionShape[]
+  message: string
+  status: QuestionnaireStatus
+  /** Statut calculé, celui qu'il faut afficher : ajoute « expiré ». */
+  statusAffiche: QuestionnaireStatusAffiche
   progress: number // de 0 à 100
   dueDate?: string
+  sentAt?: string
+  openedAt?: string
+  submittedAt?: string
+  completedAt?: string
+  remindedAt?: string
+  reminderCount: number
   createdAt: string
   updatedAt: string
   lastSavedAt?: string
   answers: Record<string, unknown>
+  /** Ce que le cabinet savait déjà (§25), gardé à part des réponses. */
+  prefill: Record<string, unknown>
   corrections: QuestionnaireCorrection[]
   history: QuestionnaireHistoryEntry[]
+  /** Vrai si un lien d'accès existe et n'a pas été révoqué. */
+  lienActif: boolean
+  /** Nom du destinataire, résolu à la lecture pour la liste des envois. */
+  destinataireNom?: string
+  destinataireCourriel?: string
 }
 

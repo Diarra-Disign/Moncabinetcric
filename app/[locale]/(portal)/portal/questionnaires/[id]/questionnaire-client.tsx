@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import type { ClientQuestionnaire, QuestionnaireCorrection } from "@/lib/data/types"
-import type { QuestionnaireTemplate, FormSection, FormField } from "@/lib/data/questionnaire-templates"
+import type { FormSectionShape, FormFieldShape } from "@/lib/data/types"
 import { saveQuestionnaireProgress, submitQuestionnaire } from "@/lib/data/actions"
 import { cn } from "@/lib/utils"
 import { CheckCircle2, AlertCircle, Save, Send, Plus, Trash2, ArrowRight, ArrowLeft } from "lucide-react"
@@ -12,15 +12,17 @@ import { useRouter } from "next/navigation"
 
 export function QuestionnaireClient({
   questionnaire: initialQ,
-  template,
   locale,
   isApercu,
 }: {
   questionnaire: ClientQuestionnaire
-  template: QuestionnaireTemplate
   locale: string
   isApercu: boolean
 }) {
+  // Les questions viennent de l'envoi lui-même : c'est l'instantané pris au
+  // moment où il est parti. Relire le modèle ici ferait bouger les champs
+  // sous les réponses le jour où le cabinet le remanie.
+  const sections = initialQ.sections
   const router = useRouter()
   const [answers, setAnswers] = React.useState<Record<string, unknown>>(initialQ.answers)
   const [activeSectionIdx, setActiveSectionIdx] = React.useState(0)
@@ -34,7 +36,7 @@ export function QuestionnaireClient({
   const computeProgress = (currentAnswers: Record<string, unknown>) => {
     let filled = 0
     let total = 0
-    for (const section of template.sections) {
+    for (const section of sections) {
       for (const field of section.fields) {
         total++
         const val = currentAnswers[field.key]
@@ -83,16 +85,16 @@ export function QuestionnaireClient({
   }, [])
 
   const handleFieldChange = (key: string, value: unknown) => {
-    if (status === "locked" || status === "validated") return
+    if (status === "cancelled" || status === "completed") return
     const nextAnswers = { ...answers, [key]: value }
     setAnswers(nextAnswers)
     triggerAutoSave(nextAnswers)
   }
 
-  const activeSection = template.sections[activeSectionIdx]
+  const activeSection = sections[activeSectionIdx]
 
   // Rendu de chaque type de champ
-  const renderField = (field: FormField, correction?: QuestionnaireCorrection) => {
+  const renderField = (field: FormFieldShape, correction?: QuestionnaireCorrection) => {
     const val = answers[field.key]
     const label = locale === "en" ? field.labelEn : field.labelFr
     const placeholder = locale === "en" ? "Enter value..." : "Saisir la réponse..."
@@ -172,7 +174,7 @@ export function QuestionnaireClient({
           <select
             value={String(val || "")}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
-            disabled={status === "locked" || status === "validated"}
+            disabled={status === "cancelled" || status === "completed"}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="">{locale === "en" ? "Select..." : "Choisir..."}</option>
@@ -193,7 +195,7 @@ export function QuestionnaireClient({
                   name={field.key}
                   value={o.value}
                   checked={val === o.value}
-                  disabled={status === "locked" || status === "validated"}
+                  disabled={status === "cancelled" || status === "completed"}
                   onChange={() => handleFieldChange(field.key, o.value)}
                   className="accent-primary"
                 />
@@ -208,7 +210,7 @@ export function QuestionnaireClient({
             type="text"
             value={String(val || "")}
             placeholder={placeholder}
-            disabled={status === "locked" || status === "validated"}
+            disabled={status === "cancelled" || status === "completed"}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
@@ -219,7 +221,7 @@ export function QuestionnaireClient({
             type="number"
             value={String(val || "")}
             placeholder="0"
-            disabled={status === "locked" || status === "validated"}
+            disabled={status === "cancelled" || status === "completed"}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
@@ -229,7 +231,7 @@ export function QuestionnaireClient({
           <input
             type="date"
             value={String(val || "")}
-            disabled={status === "locked" || status === "validated"}
+            disabled={status === "cancelled" || status === "completed"}
             onChange={(e) => handleFieldChange(field.key, e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
           />
@@ -240,7 +242,7 @@ export function QuestionnaireClient({
             <input
               type="file"
               accept=".pdf,.png,.jpg,.jpeg"
-              disabled={status === "locked" || status === "validated"}
+              disabled={status === "cancelled" || status === "completed"}
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 if (file) {
@@ -326,7 +328,7 @@ export function QuestionnaireClient({
 
         <div className="space-y-1">
           <span className="text-[10px] uppercase font-black tracking-wider text-muted-foreground block mb-2">Sections</span>
-          {template.sections.map((sec, idx) => {
+          {sections.map((sec, idx) => {
             const hasCorrection = initialQ.corrections.some((c) => c.sectionId === sec.id && c.status === "pending")
             return (
               <button
@@ -388,7 +390,7 @@ export function QuestionnaireClient({
               <ArrowLeft className="h-4 w-4" /> {locale === "en" ? "Previous" : "Précédent"}
             </button>
 
-            {activeSectionIdx < template.sections.length - 1 ? (
+            {activeSectionIdx < sections.length - 1 ? (
               <button
                 type="button"
                 onClick={() => setActiveSectionIdx((prev) => prev + 1)}
@@ -399,7 +401,7 @@ export function QuestionnaireClient({
             ) : (
               <button
                 type="button"
-                disabled={status === "locked" || status === "validated"}
+                disabled={status === "cancelled" || status === "completed"}
                 onClick={handleFinalSubmit}
                 className="px-4 py-2 rounded-xl bg-success hover:bg-success/90 text-white font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
               >

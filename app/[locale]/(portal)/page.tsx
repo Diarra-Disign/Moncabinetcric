@@ -80,16 +80,20 @@ export default async function PortalPage({
         id: "q-demo-1",
         firmId: firmId || "firm-1",
         clientId: "client-1",
-        matterId: "matter-1",
         title: "Questionnaire — Demande de permis d'études",
-        formType: "study_permit",
+        sections: [],
+        message: "",
         status: "in_progress",
+        statusAffiche: "in_progress",
         progress: 45,
+        reminderCount: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         answers: {},
+        prefill: {},
         corrections: [],
         history: [],
+        lienActif: false,
       }
     ]
   } else if (firmId && realClient) {
@@ -219,7 +223,7 @@ export default async function PortalPage({
                     <div className="flex items-center justify-between gap-2">
                       <span className={cn(
                         "rounded px-2 py-0.5 text-[9px] font-black uppercase tracking-wider",
-                        q.status === "validated" || q.status === "locked"
+                        q.status === "completed" || q.status === "cancelled"
                           ? "bg-success/15 text-success"
                           : q.status === "submitted" || q.status === "corrected"
                             ? "bg-primary/15 text-primary"
@@ -232,8 +236,8 @@ export default async function PortalPage({
                         {q.status === "submitted" && "Soumis"}
                         {q.status === "to_correct" && "À corriger"}
                         {q.status === "corrected" && "Corrigé"}
-                        {q.status === "validated" && "Validé"}
-                        {q.status === "locked" && "Verrouillé"}
+                        {q.status === "completed" && "Clos"}
+                        {q.status === "cancelled" && "Annulé"}
                       </span>
 
                       <span className="text-xs font-bold text-muted-foreground">{q.progress}%</span>
@@ -258,7 +262,7 @@ export default async function PortalPage({
                       Mise à jour : {new Date(q.updatedAt).toLocaleDateString("fr-CA")}
                     </span>
 
-                    {q.status === "locked" || q.status === "validated" ? (
+                    {q.status === "cancelled" || q.status === "completed" ? (
                       <span className="text-xs text-muted-foreground font-bold flex items-center gap-1">
                         <Check className="h-4 w-4 text-success" /> Validé
                       </span>

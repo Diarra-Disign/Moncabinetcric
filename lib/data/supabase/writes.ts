@@ -541,70 +541,21 @@ export async function createEvent(
 }
 
 // --- Questionnaires Clients -------------------------------------------
+//
+// L'ATTRIBUTION d'un questionnaire n'est plus ici : elle est devenue un ENVOI,
+// avec destinataire, jeton, date limite et instantané des questions, dans
+// lib/data/questionnaire-actions.ts. Ce qui reste ici, ce sont les
+// transitions d'état déclenchées depuis le portail ou depuis le dossier.
 
-export async function assignQuestionnaire(
-  matterId: string,
-  clientId: string,
-  formType: "study_permit" | "work_permit" | "pr"
-): Promise<ClientQuestionnaire> {
-  const firmId = await currentFirmId()
-  const supabase = await db()
-
-  // 1. Résoudre le matter uuid
-  const bareMatter = decodeURIComponent(matterId).replace("#", "")
-  const { data: m } = await supabase
-    .from("matters")
-    .select("id")
-    .eq("firm_id", firmId)
-    .in("reference", [matterId, `#${bareMatter}`, bareMatter])
-    .maybeSingle()
-  if (!m) fail("assignQuestionnaire", `Dossier ${matterId} introuvable.`)
-
-  // 2. Résoudre le client uuid
-  const { data: c } = await supabase
-    .from("clients")
-    .select("id")
-    .eq("firm_id", firmId)
-    .eq("legacy_id", clientId)
-    .maybeSingle()
-  if (!c) fail("assignQuestionnaire", `Client ${clientId} introuvable.`)
-
-  let title = "Questionnaire — Demande de permis d'études"
-  if (formType === "work_permit") title = "Questionnaire — Demande de permis de travail"
-  else if (formType === "pr") title = "Questionnaire — Résidence permanente"
-
-  const payload = {
-    firm_id: firmId,
-    client_id: c.id,
-    matter_id: m.id,
-    title,
-    form_type: formType,
-    status: "draft",
-    progress: 0,
-    answers: {},
-    corrections: [],
-    history: [],
-  }
-
-  const { data: inserted, error } = await supabase
-    .from("client_questionnaires")
-    .insert(payload)
-    .select("*, matters(reference), clients(legacy_id)")
-    .single()
-
-  if (error) fail("assignQuestionnaire", error.message)
-  return toQuestionnaire(inserted)
-}
+const CHAMPS = "*, matters(reference), clients(legacy_id, name, email), leads(legacy_id, name, email)"
 
 export async function saveQuestionnaireProgress(
   id: string,
   answers: Record<string, unknown>,
   progress: number
 ): Promise<ClientQuestionnaire> {
-  const firmId = await currentFirmId()
   const supabase = await db()
 
-  // 1. Lire le questionnaire pour vérifier son statut
   const { data: current, error: readErr } = await supabase
     .from("client_questionnaires")
     .select("status")
@@ -613,7 +564,16 @@ export async function saveQuestionnaireProgress(
 
   if (readErr || !current) fail("saveQuestionnaireProgress", "Questionnaire introuvable.")
 
-  const status = current.status === "draft" ? "in_progress" : current.status
+  // Le statut suit le geste : commencer à répondre met « en cours », répondre
+  // à une demande de correction met « corrigé ». Un questionnaire déjà soumis
+  // que l'on reprend redevient « en cours » — sans quoi il resterait affiché
+  // comme rendu alors qu'il ne l'est plus.
+  const status =
+    current.status === "draft" || current.status === "sent" || current.status === "opened"
+      ? "in_progress"
+      : current.status === "to_correct"
+        ? "corrected"
+        : current.status
 
   const { data: updated, error } = await supabase
     .from("client_questionnaires")
@@ -625,7 +585,7 @@ export async function saveQuestionnaireProgress(
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .select("*, matters(reference), clients(legacy_id)")
+    .select(CHAMPS)
     .single()
 
   if (error) fail("saveQuestionnaireProgress", error.message)
@@ -646,7 +606,7 @@ export async function updateQuestionnaireStatus(
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .select("*, matters(reference), clients(legacy_id)")
+    .select(CHAMPS)
     .single()
 
   if (error) fail("updateQuestionnaireStatus", error.message)

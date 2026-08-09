@@ -1,7 +1,8 @@
 import { getTranslations, setRequestLocale } from "next-intl/server"
 import { getClientQuestionnaireById } from "@/lib/data/queries"
-import { getTemplateByType } from "@/lib/data/questionnaire-templates"
+import { getTemplateBySlug } from "@/lib/data/questionnaire-templates"
 import { getCurrentPortalClient } from "@/lib/supabase/session"
+import type { ClientQuestionnaire } from "@/lib/data/types"
 import { QuestionnaireClient } from "./questionnaire-client"
 import { ArrowLeft } from "lucide-react"
 
@@ -19,23 +20,30 @@ export default async function QuestionnaireDetailPage({
   const portalClient = await getCurrentPortalClient()
   const isApercu = !portalClient
 
-  let q = null
+  // L'aperçu du consultant emprunte le catalogue de départ : c'est le seul
+  // endroit où le code a encore le droit de connaître un modèle par son nom,
+  // parce qu'aucun envoi réel ne lui correspond.
+  let q: ClientQuestionnaire | null | undefined = null
   if (isApercu && id.startsWith("q-demo-")) {
-    // Mode démo / aperçu pour le consultant
+    const modele = getTemplateBySlug("study_permit")
     q = {
       id,
       firmId: "firm-1",
       clientId: "client-1",
-      matterId: "matter-1",
-      title: "Questionnaire — Demande de permis d'études (Aperçu)",
-      formType: "study_permit" as const,
-      status: "in_progress" as const,
+      title: `${modele?.titleFr ?? "Questionnaire"} (Aperçu)`,
+      sections: (modele?.sections ?? []) as ClientQuestionnaire["sections"],
+      message: "",
+      status: "in_progress",
+      statusAffiche: "in_progress",
       progress: 45,
+      reminderCount: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       answers: {},
+      prefill: {},
       corrections: [],
       history: [],
+      lienActif: false,
     }
   } else {
     q = await getClientQuestionnaireById(id)
@@ -53,13 +61,14 @@ export default async function QuestionnaireDetailPage({
     )
   }
 
-  const template = getTemplateByType(q.formType)
-
-  if (!template) {
+  // Les questions viennent du questionnaire lui-même, pas d'un modèle relu
+  // maintenant : c'est ce qui garantit qu'un remaniement du modèle ne déplace
+  // pas les champs sous les réponses déjà saisies.
+  if (q.sections.length === 0) {
     return (
       <div className="max-w-md mx-auto py-16 text-center space-y-4">
-        <h1 className="text-xl font-black text-foreground">Modèle introuvable</h1>
-        <p className="text-sm text-muted-foreground">La structure de ce formulaire n&apos;est pas supportée.</p>
+        <h1 className="text-xl font-black text-foreground">Questionnaire vide</h1>
+        <p className="text-sm text-muted-foreground">Ce questionnaire ne comporte aucune question. Contactez votre cabinet.</p>
         <a href={`/${locale}`} className="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:underline">
           <ArrowLeft className="h-4 w-4" /> Retour au portail
         </a>
@@ -84,7 +93,6 @@ export default async function QuestionnaireDetailPage({
 
       <QuestionnaireClient
         questionnaire={q}
-        template={template}
         locale={locale}
         isApercu={isApercu}
       />

@@ -65,6 +65,12 @@ export default async function MatterDetailPage({
   const auditLogs = getAuditLogsForMatter(matter.id)
   const clientQuestionnaires = dossier ? await getClientQuestionnairesByMatterId(dossier.matterId) : []
 
+  // La bibliothèque du cabinet, pour envoyer un questionnaire sans quitter le
+  // dossier (§8). Les modèles système y figurent aussi : un cabinet qui n'a
+  // rien créé doit tout de même avoir quelque chose à envoyer.
+  const { listerModeles } = await import("@/lib/data/questionnaires")
+  const modeles = (await listerModeles()).map((m) => ({ id: m.id, titleFr: m.titleFr }))
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "valid":
@@ -174,6 +180,7 @@ export default async function MatterDetailPage({
           statutDossier={matter.status}
           clientsDuCabinet={clientsDuCabinet}
           clientQuestionnaires={clientQuestionnaires}
+          modeles={modeles}
           consultant={consultant}
           clientName={matter.clientName}
           programName={matter.program}
