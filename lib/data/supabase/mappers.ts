@@ -51,7 +51,7 @@ export function toMatter(r: Row): Matter {
     urgencyDays: optNum(r.urgency_days),
     notes: optStr(r.notes),
     isPriority: bool(r.is_priority),
-    clientId: optStr((r.clients as Row | null)?.legacy_id),
+    clientId: optStr((r.clients as Row | null)?.legacy_id || r.client_id),
   }
 }
 
