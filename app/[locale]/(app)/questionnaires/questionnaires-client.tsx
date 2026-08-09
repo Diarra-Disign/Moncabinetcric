@@ -402,7 +402,17 @@ export function QuestionnairesClient({
           onEnvoyer={(fd) => {
             agir(async () => {
               const r = await envoyerQuestionnaire(fd)
-              if (r.ok) setEnvoiPour(null)
+              if (r.ok) {
+                setEnvoiPour(null)
+                // Fermer la fenêtre ne suffisait pas. La confirmation
+                // s'affiche en haut de page, alors que l'œil est au milieu de
+                // l'écran, là où était la fenêtre : rien ne bougeait à
+                // l'endroit regardé, et l'envoi paraissait n'avoir pas eu
+                // lieu — au point qu'on recommençait. On bascule donc sur la
+                // preuve, l'onglet des envois, où la ligne vient d'apparaître.
+                setOnglet("envoyes")
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }
               return r
             })
           }}
