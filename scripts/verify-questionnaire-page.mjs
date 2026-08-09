@@ -47,7 +47,8 @@ const verifier = (intitule, obtenu, attendu) => {
 }
 
 const marque = Date.now()
-let cabinetId, navigateur
+const mdp = "Epreuve-" + randomBytes(9).toString("base64url")
+let cabinetId, userId, navigateur
 
 try {
   const { data: cab, error: e1 } = await admin.from("firms").insert({
@@ -87,6 +88,23 @@ try {
     prefill: { firstName: "Awa", email: `awa-${marque}@example.invalid` },
     status: "sent", sent_at: new Date().toISOString(), token_hash: empreinte,
   }).select("id").single()
+
+  // Un consultant, pour éprouver l'autre bout du parcours : ce qui est
+  // transmis doit être LISIBLE, faute de quoi tout ce qui précède n'aurait
+  // servi à rien.
+  const courrielConsultant = `consultant-${marque}@example.invalid`
+  const { data: u } = await admin.auth.admin.createUser({
+    email: courrielConsultant, password: mdp, email_confirm: true,
+  })
+  userId = u.user.id
+  await admin.from("profiles").insert({
+    firm_id: cabinetId, user_id: userId, email: courrielConsultant,
+    full_name: "Consultant d'épreuve", cicc_role: "owner",
+  })
+  await admin.from("firm_subscriptions").insert({
+    firm_id: cabinetId, plan: "cabinet", cadence: "monthly", seats: 3,
+    status: "active", stripe_customer_id: `cus_rep_${marque}`,
+  })
 
   navigateur = await chromium.launch({ channel: "chrome" })
   const page = await (await navigateur.newContext({ viewport: { width: 1280, height: 900 } })).newPage()
@@ -159,13 +177,71 @@ try {
   })
   verifier("le prénom pré-rempli est présent", champPrenom, true)
 
+  // ---------------------------------------------------------------------
+  console.log("\nIl transmet — et le formulaire va quelque part")
+  // ---------------------------------------------------------------------
+  await page.click('button:has-text("Transmettre au cabinet")')
+  await page.waitForTimeout(2500)
+
+  const confirmation = await page.textContent("body")
+  verifier("le destinataire voit une confirmation",
+    /Questionnaire transmis/i.test(confirmation ?? "") ? "oui" : "non", "oui")
+
+  const { data: apresEnvoi } = await admin
+    .from("client_questionnaires").select("status, submitted_at").eq("id", envoi.id).single()
+  verifier("le statut devient « soumis »", apresEnvoi.status, "submitted")
+  verifier("la transmission est datée", apresEnvoi.submitted_at ? "oui" : "non", "oui")
+
+  const { data: notif } = await admin.from("notifications")
+    .select("title").eq("firm_id", cabinetId).eq("kind", "questionnaire_submitted")
+  verifier("le cabinet est notifié", (notif ?? []).length, 1)
+
+  // ---------------------------------------------------------------------
+  console.log("\nLe consultant lit les réponses depuis son écran")
+  // ---------------------------------------------------------------------
+  const pageCab = await (await navigateur.newContext({ viewport: { width: 1440, height: 950 } })).newPage()
+  await pageCab.goto(`${BASE}/fr/connexion`, { waitUntil: "domcontentloaded" })
+  await pageCab.waitForSelector('input[type="email"]', { timeout: 30000 })
+  await pageCab.fill('input[type="email"]', courrielConsultant)
+  await pageCab.fill('input[type="password"]', mdp)
+  await pageCab.click('button[type="submit"]')
+  await pageCab.waitForURL(/\/fr(\/|$)/, { timeout: 30000 }).catch(() => {})
+  await pageCab.waitForTimeout(2500)
+
+  await pageCab.goto(`${BASE}/fr/questionnaires`, { waitUntil: "domcontentloaded" })
+  await pageCab.waitForSelector('h1', { timeout: 30000 })
+  await pageCab.waitForTimeout(1500)
+
+  await pageCab.click('button:has-text("Envoyés")')
+  await pageCab.waitForTimeout(700)
+
+  const listeEnvois = await pageCab.textContent("body")
+  verifier("l'envoi figure dans « Envoyés »",
+    /Awa Diallo/.test(listeEnvois ?? "") ? "oui" : "non", "oui")
+  verifier("avec le statut « Soumis »", /Soumis/.test(listeEnvois ?? "") ? "oui" : "non", "oui")
+
+  await pageCab.click('button:has-text("Voir les réponses")')
+  await pageCab.waitForTimeout(900)
+
+  const reponsesLues = await pageCab.evaluate(() => {
+    const d = document.querySelector('div[class*="max-w-3xl"]')
+    return d ? d.textContent ?? "" : ""
+  })
+  verifier("la réponse tapée est lisible par le consultant",
+    /Diallo-Testé/.test(reponsesLues) ? "oui" : "non", "oui")
+  verifier("les questions sans réponse sont montrées comme telles",
+    /—/.test(reponsesLues) ? "oui" : "non", "oui")
+  verifier("le pré-rempli non modifié est signalé",
+    /pré-rempli, non modifié/i.test(reponsesLues) ? "oui" : "non", "oui")
+
   const erreursDures = erreursConsole.filter((e) => !/favicon|manifest|404/i.test(e))
   verifier("aucune erreur console", erreursDures.length, 0)
   if (erreursDures.length) erreursDures.slice(0, 3).forEach((e) => console.log(`     ${e.slice(0, 150)}`))
 } finally {
   if (navigateur) await navigateur.close()
   if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
-  console.log("\nCabinet d'épreuve supprimé.")
+  if (userId) await admin.auth.admin.deleteUser(userId)
+  console.log("\nCabinet et compte d'épreuve supprimés.")
 }
 
 console.log(echecs === 0 ? "\n✓ Chaque question a sa zone de réponse, 0 échec." : `\n✗ ${echecs} échec(s).`)

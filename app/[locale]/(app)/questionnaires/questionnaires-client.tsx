@@ -11,7 +11,7 @@ import type { Destinataire } from "@/lib/data/questionnaires"
 import {
   envoyerQuestionnaire, envoyerRappel, prolongerDateLimite, revoquerLien,
   dupliquerModele, definirParDefaut, supprimerModele, enregistrerModele,
-  cloreQuestionnaire,
+  cloreQuestionnaire, demanderCorrection,
 } from "@/lib/data/questionnaire-actions"
 import { cn } from "@/lib/utils"
 
@@ -64,6 +64,7 @@ export function QuestionnairesClient({
   const [enCours, demarrer] = React.useTransition()
 
   const [envoiPour, setEnvoiPour] = React.useState<QuestionnaireTemplateRecord | null>(null)
+  const [reponsesDe, setReponsesDe] = React.useState<ClientQuestionnaire | null>(null)
   const [apercuDe, setApercuDe] = React.useState<QuestionnaireTemplateRecord | null>(null)
   const [creation, setCreation] = React.useState(false)
   const [filtre, setFiltre] = React.useState<string>("tous")
@@ -308,6 +309,18 @@ export function QuestionnairesClient({
                     </div>
 
                     <div className="flex flex-wrap gap-1.5 pt-1">
+                      {/* Lire les réponses vient EN PREMIER : c'est ce pour
+                          quoi le questionnaire a été envoyé. Les autres
+                          gestes — relancer, prolonger, clore — ne servent
+                          qu'à obtenir cette lecture ou à la conclure. */}
+                      <button
+                        type="button"
+                        onClick={() => setReponsesDe(e)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-[11px] hover:bg-primary/90 transition-colors cursor-pointer"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Voir les réponses
+                      </button>
+
                       <button
                         type="button"
                         disabled={enCours || !e.destinataireCourriel}
@@ -397,6 +410,22 @@ export function QuestionnairesClient({
       )}
 
       {apercuDe && <ModaleApercu modele={apercuDe} onFermer={() => setApercuDe(null)} />}
+
+      {reponsesDe && (
+        <ModaleReponses
+          envoi={reponsesDe}
+          locale={locale}
+          enCours={enCours}
+          onFermer={() => setReponsesDe(null)}
+          onCorriger={(fd) => {
+            agir(async () => {
+              const r = await demanderCorrection(fd)
+              if (r.ok) setReponsesDe(null)
+              return r
+            })
+          }}
+        />
+      )}
 
       {creation && (
         <ModaleCreation
@@ -611,6 +640,187 @@ function ModaleApercu({ modele, onFermer }: { modele: QuestionnaireTemplateRecor
             </section>
           ))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Lire les réponses
+// ---------------------------------------------------------------------------
+
+/**
+ * Mise en forme d'une réponse pour la lecture.
+ *
+ * Une réponse absente s'écrit « — » et non « » : une ligne vide se confondrait
+ * avec un défaut d'affichage, alors que le tiret dit que la question a bien
+ * été posée et laissée sans réponse — ce qui est une information.
+ */
+function lireReponse(valeur: unknown, champ: { type: string; options?: { value: string; labelFr: string }[]; fields?: { key: string; labelFr: string }[] }): React.ReactNode {
+  if (valeur == null || valeur === "") return <span className="text-muted-foreground">—</span>
+
+  if (champ.type === "repeater") {
+    const lignes = (valeur as Record<string, unknown>[]) ?? []
+    if (lignes.length === 0) return <span className="text-muted-foreground">—</span>
+    return (
+      <ol className="space-y-1.5">
+        {lignes.map((ligne, i) => (
+          <li key={i} className="rounded-lg border border-border bg-muted/30 p-2">
+            <dl className="grid gap-x-3 gap-y-0.5 sm:grid-cols-2">
+              {champ.fields?.map((sous) => (
+                <div key={sous.key} className="text-[11px]">
+                  <dt className="inline text-muted-foreground">{sous.labelFr} : </dt>
+                  <dd className="inline font-bold text-foreground">{String(ligne[sous.key] ?? "—")}</dd>
+                </div>
+              ))}
+            </dl>
+          </li>
+        ))}
+      </ol>
+    )
+  }
+
+  // Une liste ou un bouton radio stocke la CLÉ (« study »), pas le libellé.
+  // L'afficher brute obligerait à traduire de tête ; on retrouve le libellé.
+  if (champ.options?.length) {
+    const trouve = champ.options.find((o) => o.value === String(valeur))
+    return <span className="font-bold text-foreground">{trouve?.labelFr ?? String(valeur)}</span>
+  }
+
+  return <span className="font-bold text-foreground whitespace-pre-wrap">{String(valeur)}</span>
+}
+
+function ModaleReponses({
+  envoi, locale, enCours, onFermer, onCorriger,
+}: {
+  envoi: ClientQuestionnaire
+  locale: string
+  enCours: boolean
+  onFermer: () => void
+  onCorriger: (fd: FormData) => void
+}) {
+  const [correction, setCorrection] = React.useState("")
+  const [sectionVisee, setSectionVisee] = React.useState("")
+
+  const repondues = envoi.sections
+    .flatMap((s) => s.fields)
+    .filter((f) => {
+      const v = envoi.answers[f.key]
+      return f.type === "repeater" ? ((v as unknown[]) ?? []).length > 0 : v != null && v !== ""
+    }).length
+  const total = compterQuestions(envoi.sections)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-card w-full max-w-3xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[90vh]">
+        <header className="p-5 border-b border-border flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-black text-foreground">{envoi.title}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {envoi.destinataireNom || "Destinataire"} · {envoi.leadId ? "Prospect" : "Client"} ·{" "}
+              {repondues} / {total} questions répondues
+              {envoi.submittedAt && ` · transmis le ${dateCourte(envoi.submittedAt)}`}
+            </p>
+          </div>
+          <button type="button" onClick={onFermer} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer shrink-0">
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div className="p-5 space-y-5 overflow-y-auto flex-1">
+          {envoi.sections.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Ce questionnaire ne comporte aucune question.</p>
+          ) : (
+            envoi.sections.map((s) => (
+              <section key={s.id}>
+                <h3 className="text-xs font-black uppercase tracking-wider text-primary border-b border-border pb-1 mb-2">
+                  {s.titleFr}
+                </h3>
+                <dl className="space-y-2">
+                  {s.fields.map((f) => {
+                    const valeur = envoi.answers[f.key]
+                    // Une valeur identique au pré-remplissage n'a pas été
+                    // confirmée : elle a été laissée telle quelle. La
+                    // distinction est signalée, sinon on lirait une adresse
+                    // « fournie par le client » qu'il n'a jamais regardée.
+                    const intacte = envoi.prefill[f.key] != null &&
+                      String(envoi.prefill[f.key]) === String(valeur ?? "")
+                    return (
+                      <div key={f.key} className="text-xs">
+                        <dt className="text-muted-foreground">
+                          {f.labelFr}
+                          {intacte && (
+                            <span className="ml-1.5 text-[10px] uppercase font-bold tracking-wider">
+                              (pré-rempli, non modifié)
+                            </span>
+                          )}
+                        </dt>
+                        <dd className="mt-0.5">{lireReponse(valeur, f)}</dd>
+                      </div>
+                    )
+                  })}
+                </dl>
+              </section>
+            ))
+          )}
+
+          {envoi.corrections.length > 0 && (
+            <section>
+              <h3 className="text-xs font-black uppercase tracking-wider text-error border-b border-border pb-1 mb-2">
+                Corrections demandées
+              </h3>
+              <ul className="space-y-1">
+                {envoi.corrections.map((c, i) => (
+                  <li key={i} className="text-xs text-foreground">
+                    • {c.comment}
+                    <span className="text-muted-foreground text-[10px] ml-1.5">{dateCourte(c.requestedAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+
+        <footer className="p-5 border-t border-border space-y-2">
+          <label className="block">
+            <span className="text-[11px] font-bold text-muted-foreground">
+              Demander une correction — le destinataire la verra en rouvrant son lien
+            </span>
+            <span className="mt-1 flex flex-wrap gap-2">
+              <select
+                value={sectionVisee}
+                onChange={(e) => setSectionVisee(e.target.value)}
+                className={cn(CHAMP, "sm:w-52")}
+              >
+                <option value="">Tout le questionnaire</option>
+                {envoi.sections.map((s) => (
+                  <option key={s.id} value={s.id}>{s.titleFr}</option>
+                ))}
+              </select>
+              <input
+                value={correction}
+                onChange={(e) => setCorrection(e.target.value)}
+                placeholder="Ce qui doit être repris…"
+                className={cn(CHAMP, "flex-1 min-w-48")}
+              />
+              <button
+                type="button"
+                disabled={!correction.trim() || enCours}
+                onClick={() => {
+                  const fd = new FormData()
+                  fd.set("id", envoi.id)
+                  fd.set("commentaire", correction)
+                  fd.set("sectionId", sectionVisee)
+                  fd.set("locale", locale)
+                  onCorriger(fd)
+                }}
+                className="px-4 py-2 rounded-xl bg-error text-white font-bold text-xs hover:bg-error/90 disabled:opacity-40 cursor-pointer"
+              >
+                Demander
+              </button>
+            </span>
+          </label>
+        </footer>
       </div>
     </div>
   )
