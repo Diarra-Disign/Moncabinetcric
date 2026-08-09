@@ -36,6 +36,7 @@ case "$commande" in
   membres)      exec node scripts/verify-members.mjs "$@" ;;
   permissions)  exec node scripts/verify-permissions.mjs "$@" ;;
   sieges)       exec node scripts/verify-seats.mjs "$@" ;;
+  fideicommis)  exec node scripts/verify-trust.mjs "$@" ;;
   mobile)       exec node scripts/verify-mobile.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
   facturation-sieges) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-seat-billing.mjs "$@" ;;
@@ -100,6 +101,7 @@ Usage : ./cric <commande> [options]
   verifier     Diagnostic : clés, comptes, fermeture de la base
   roles        Éprouve la matrice des droits en base
   connecteur   Éprouve le cloisonnement du connecteur IA par cabinet
+  fideicommis  Éprouve les paiements et le registre de fidéicommis
   mobile       Éprouve le rendu sur écran de téléphone : tiroir de navigation
                et débordement de la barre supérieure
   comptes      Met en place les cabinets et comptes de départ
