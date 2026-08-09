@@ -56,7 +56,7 @@ if (!faireWebhook && !faireLiens) {
 }
 
 const argSite = process.argv.find((a) => a.startsWith("--site="))
-const SITE = (argSite ? argSite.slice(7) : (env.APP_URL ?? "")).replace(/\/+$/, "")
+const SITE = (argSite ? argSite.slice(7) : (env.APP_URL ?? "")).trim().replace(/\/+$/, "")
 
 if (faireWebhook && (!SITE || /localhost|127\.0\.0\.1/.test(SITE))) {
   console.error(

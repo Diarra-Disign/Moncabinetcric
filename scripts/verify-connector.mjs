@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url"
 import { createClient } from "@supabase/supabase-js"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
-const BASE = process.env.APP_URL || "http://localhost:3000"
+const BASE = (process.env.APP_URL || "").trim() || "http://localhost:3000"
 const API = `${BASE}/api/v1/connector/agreements`
 
 async function loadEnv() {

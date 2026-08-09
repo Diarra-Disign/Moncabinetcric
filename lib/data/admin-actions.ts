@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getCurrentPlatformAdmin, getSessionSupabase } from "@/lib/supabase/session"
 import { envoyerCourriel, adresseDeReponse } from "@/lib/email/send"
 import { courrielInvitation, type Langue } from "@/lib/email/templates"
+import { siteUrl } from "@/lib/site-url"
 
 /**
  * Actions de la console d'exploitation.
@@ -192,9 +193,14 @@ export async function creerCabinet(formData: FormData): Promise<ResultatAction> 
  *
  * Un lien relatif n'a aucun sens dans une boîte de réception : il lui faut
  * un domaine. En développement, l'adresse locale suffit.
+ *
+ * Délègue à siteUrl() plutôt que de relire APP_URL. La même expression était
+ * recopiée à trois endroits, et toutes trois oubliaient d'enlever les espaces :
+ * une adresse posée avec un retour à la ligne coupait les liens d'invitation
+ * en deux, sans qu'aucune erreur ne se produise nulle part.
  */
 function baseUrl(): string {
-  return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/+$/, "")
+  return siteUrl()
 }
 
 /** Écarte une demande sans y donner suite. */

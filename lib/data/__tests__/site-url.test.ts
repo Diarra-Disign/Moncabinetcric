@@ -36,6 +36,34 @@ describe("siteUrl", () => {
     delete process.env.APP_URL
     assert.equal(siteUrl(), "http://localhost:3000")
   })
+
+  // Ces trois contrôles viennent d'une panne réelle. APP_URL avait été posée
+  // sur Vercel avec un retour à la ligne final — ce qui arrive dès qu'on copie
+  // une adresse depuis un éditeur. robots.txt annonçait alors « Sitemap:
+  // https://moncabinetcric.com » et « /sitemap.xml » sur la ligne suivante,
+  // les adresses de retour envoyées à Stripe devenaient invalides — et Stripe
+  // REFUSE une session de paiement dont l'URL de succès l'est — et les liens
+  // d'invitation par courriel étaient coupés en deux. Aucune des trois pannes
+  // n'annonçait sa cause.
+  test("retire un retour à la ligne final", () => {
+    process.env.APP_URL = "https://moncabinetcric.com\n"
+    assert.equal(siteUrl(), "https://moncabinetcric.com")
+  })
+
+  test("retire les espaces autour", () => {
+    process.env.APP_URL = "  https://moncabinetcric.com  "
+    assert.equal(siteUrl(), "https://moncabinetcric.com")
+  })
+
+  test("une valeur faite d'espaces vaut une valeur absente", () => {
+    process.env.APP_URL = "   "
+    assert.equal(siteUrl(), "http://localhost:3000")
+  })
+
+  test("retour à la ligne ET barre oblique finale", () => {
+    process.env.APP_URL = "https://moncabinetcric.com/\n"
+    assert.equal(siteUrl(), "https://moncabinetcric.com")
+  })
 })
 
 describe("siteDefinitif", () => {

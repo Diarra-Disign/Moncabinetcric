@@ -25,7 +25,7 @@ const valueOf = (n) => {
 }
 
 const ROLES = ["owner", "rcic", "risia", "staff", "bookkeeper", "readonly"]
-const BASE_URL = process.env.APP_URL || "http://localhost:3000"
+const BASE_URL = (process.env.APP_URL || "").trim() || "http://localhost:3000"
 
 async function loadEnv() {
   const raw = await readFile(join(ROOT, ".env.local"), "utf8")

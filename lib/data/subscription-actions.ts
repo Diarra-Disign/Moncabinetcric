@@ -7,6 +7,7 @@ import { calculerLignesPlaces } from "@/lib/billing/seat-sync"
 import { type Cadence } from "@/lib/billing/plans"
 import { getPlan } from "@/lib/billing/catalogue"
 import { exigerPermission } from "@/lib/auth/permissions"
+import { siteUrl } from "@/lib/site-url"
 
 /**
  * Souscription et gestion de l'abonnement, côté cabinet.
@@ -44,8 +45,16 @@ function serviceClient() {
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
+/**
+ * Origine des adresses de retour données à Stripe.
+ *
+ * Délègue à siteUrl(), qui enlève les espaces. Ce détail décide de tout ici :
+ * Stripe REFUSE une session de paiement dont l'URL de succès est invalide, et
+ * une adresse portant un retour à la ligne l'est. Le paiement échouait donc
+ * avant même de s'ouvrir, sur un message qui ne parle pas d'APP_URL.
+ */
 function baseUrl(): string {
-  return (process.env.APP_URL ?? "http://localhost:3000").replace(/\/+$/, "")
+  return siteUrl()
 }
 
 async function exigerProprietaire() {
