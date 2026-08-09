@@ -30,6 +30,8 @@ import {
   ExternalLink
 } from "lucide-react"
 import { DirectActionsTabs } from "./direct-actions-tabs"
+import { DossierOnglets } from "./dossier-onglets"
+import { getDossierComplet } from "@/lib/data/matter-file"
 
 export default async function MatterDetailPage({
   params,
@@ -50,7 +52,15 @@ export default async function MatterDetailPage({
 
   const program = await getProgramByName(matter.program)
   const checklist = generateChecklistForProgram(matter.program)
-  const completionPct = calculateCompletionPercentage(checklist)
+  const dossier = await getDossierComplet(id, locale).catch(() => null)
+  // Le pourcentage vient des pièces RÉELLEMENT vérifiées.
+  //
+  // calculateCompletionPercentage() compte les defaultStatus du modèle de
+  // programme, qui valent « valid » pour la plupart : un dossier vide
+  // s'affichait « 71 % complété » à côté d'un encadré rouge annonçant sept
+  // pièces manquantes. Deux nombres contradictoires sur le même écran sont
+  // pires qu'un seul faux — on croit celui qui rassure.
+  const completionPct = dossier?.progression.pourcentage ?? 0
   const docs = await getDocumentsByMatterId(matter.id)
   const invoices = await getInvoicesByMatterId(matter.id)
   const auditLogs = getAuditLogsForMatter(matter.id)
@@ -207,6 +217,17 @@ export default async function MatterDetailPage({
             </CardContent>
           </Card>
 
+          {/* Le dossier comme centre de contrôle : pièces, formulaires,
+              facturation, paiements, échéances, portail. */}
+          {dossier && (
+            <DossierOnglets
+              dossier={dossier}
+              matterId={dossier.matterId}
+              clientId={dossier.clientId}
+              statutDossier={matter.status}
+            />
+          )}
+
           {/* RUBRIQUE ACTIONS DIRECTES (ONGLETS D'ACTION EXÉCUTIFS) */}
           <DirectActionsTabs 
             matterId={matter.id} 
@@ -214,69 +235,14 @@ export default async function MatterDetailPage({
             programName={matter.program} 
           />
 
-          {/* Section 2: Required Documents Checklist */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <FileCheck2 className="h-5 w-5 text-emerald-600" />
-                    {t("checklistTitle")}
-                  </CardTitle>
-                  <CardDescription>
-                    {isFr ? "Exigences documentaires obligatoires CICC pour " : "CICC mandatory documentary requirements for "}
-                    {isFr ? program?.nameFr || matter.program : program?.nameEn || matter.program}
-                  </CardDescription>
-                </div>
-                <span className="text-xs font-semibold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full">
-                  {checklist.filter(c => c.defaultStatus === "valid").length}/{checklist.length} {t("valid")}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="divide-y border rounded-xl overflow-hidden bg-card">
-                {checklist.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5">
-                        {item.defaultStatus === "valid" ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                        ) : item.defaultStatus === "expired" ? (
-                          <AlertCircle className="h-5 w-5 text-amber-500" />
-                        ) : (
-                          <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">
-                            {isFr ? item.nameFr : item.nameEn}
-                          </span>
-                          {item.isRequired && (
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-red-500 bg-red-50 px-1.5 py-0.5 rounded">
-                              {isFr ? "Requis" : "Required"}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs font-mono text-muted-foreground">
-                          Code: {item.code}
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      {item.defaultStatus === "valid" ? (
-                        <Badge variant="success" className="bg-emerald-100 text-emerald-800 border-emerald-200">{t("valid")}</Badge>
-                      ) : item.defaultStatus === "expired" ? (
-                        <Badge variant="destructive" className="bg-amber-100 text-amber-800 border-amber-200">{t("expired")}</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-muted-foreground">{t("missing")}</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* La liste de contrôle statique a été RETIRÉE, et c'est le seul
+              retrait de cette tranche.
+              
+              Elle affichait les defaultStatus du modèle de programme — « valide »
+              pour la plupart — sur des pièces qu'aucun dossier n'avait reçues.
+              Un dossier vide s'ouvrait donc en annonçant un passeport valide.
+              L'onglet Documents la remplace : mêmes pièces, statuts réels,
+              et les actions pour les faire avancer. */}
 
           {/* Section 3: Linked Documents */}
           <Card>

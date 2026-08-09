@@ -202,6 +202,15 @@ export async function getCurrentPlatformAdmin(): Promise<PlatformAdmin | null> {
 
 export interface CurrentMember {
   userId: string
+  /**
+   * Identifiant du PROFIL, distinct de celui du compte authentifié.
+   *
+   * C'est lui que référencent les colonnes qui disent qui a fait quoi —
+   * received_by, verified_by, recorded_by, assignee_id. Employer userId à sa
+   * place produirait des clés étrangères invalides, et l'erreur ne se verrait
+   * qu'au moment d'écrire.
+   */
+  profileId: string
   email: string
   fullName: string
   ciccRole: string
@@ -240,7 +249,7 @@ export async function getCurrentMember(): Promise<CurrentMember | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, cicc_role, firm_id, status, firms(name)")
+    .select("id, full_name, email, cicc_role, firm_id, status, firms(name)")
     .eq("user_id", user.id)
     .maybeSingle()
 
@@ -250,6 +259,7 @@ export async function getCurrentMember(): Promise<CurrentMember | null> {
 
   return {
     userId: user.id,
+    profileId: profile.id as string,
     email: profile.email ?? user.email ?? "",
     fullName: profile.full_name ?? "",
     ciccRole: profile.cicc_role ?? "staff",
