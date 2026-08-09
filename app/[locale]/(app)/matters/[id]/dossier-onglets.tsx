@@ -4,12 +4,12 @@ import * as React from "react"
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
-  Upload, Users, X, Edit3, MessageSquare, History, Plus
+  Upload, Users, X, Edit3, MessageSquare, History, Plus, Sparkles
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
 import {
   ajouterEcheance, changerEtatEcheance, declarerDossier, demanderValidation,
-  enregistrerPaiement, marquerRecue, marquerVerifiee, ouvrirFormulaire,
+  enregistrerPaiement, marquerRecue, marquerVerifiee,
   renvoyerACorriger, virerHonoraires, rattacherClient, inviterClientAuPortail,
   deposerFormulaire, deposerPourExigence, apercuDocument, retirerDocument,
   type Resultat,
@@ -24,6 +24,7 @@ import {
 } from "@/lib/data/actions"
 import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
 import { getTemplateByType } from "@/lib/data/questionnaire-templates"
+import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
 /**
  * Le dossier client, en onglets.
@@ -39,7 +40,7 @@ import { getTemplateByType } from "@/lib/data/questionnaire-templates"
 
 type Onglet =
   | "apercu" | "documents" | "formulaires" | "facturation"
-  | "paiements" | "echeances" | "portail"
+  | "paiements" | "echeances" | "portail" | "argumentaire"
 
 const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
   { cle: "apercu", libelle: "Vue d'ensemble", icone: ShieldCheck },
@@ -49,6 +50,7 @@ const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
   { cle: "paiements", libelle: "Paiements", icone: Banknote },
   { cle: "echeances", libelle: "Échéances", icone: CalendarClock },
   { cle: "portail", libelle: "Portail client", icone: Users },
+  { cle: "argumentaire", libelle: "Argumentaire IRCC", icone: Sparkles },
 ]
 
 const STATUT_PIECE: Record<string, { texte: string; ton: string }> = {
@@ -91,7 +93,7 @@ const CHAMP =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 
 export function DossierOnglets({
-  dossier, matterId, clientId, statutDossier, clientsDuCabinet, clientQuestionnaires: initialQuestionnaires = [], consultant,
+  dossier, matterId, clientId, statutDossier, clientsDuCabinet, clientQuestionnaires: initialQuestionnaires = [], consultant, clientName, programName,
 }: {
   dossier: DossierComplet
   matterId: string
@@ -101,6 +103,10 @@ export function DossierOnglets({
   clientsDuCabinet: { id: string; nom: string; dossier: string }[]
   clientQuestionnaires?: ClientQuestionnaire[]
   consultant: { id: string; name: string }
+  /** Nom du client, pour la lettre IA d'argumentaire. */
+  clientName: string
+  /** Nom du programme, pour la lettre IA d'argumentaire. */
+  programName: string
 }) {
   const [onglet, setOnglet] = React.useState<Onglet>("apercu")
   const [resultat, setResultat] = React.useState<Resultat | null>(null)
@@ -505,21 +511,10 @@ export function DossierOnglets({
             <BoutonPetit disabled={enCours} className="mt-3">Déposer</BoutonPetit>
           </form>
 
-          <form action={lancer(ouvrirFormulaire)} className="rounded-2xl border border-border bg-card p-5">
-            <input type="hidden" name="matterId" value={matterId} />
-            <input type="hidden" name="code" value="IMM5476" />
-            <h3 className="text-sm font-black text-foreground">
-              IMM 5476 — Recours aux services d&apos;un représentant
-            </h3>
-            <p className="mt-1 max-w-prose text-xs text-muted-foreground">
-              Pré-remplissage depuis le dossier — client, représentant, numéro de permis. Une
-              correction ouvre une nouvelle version, les précédentes sont conservées.
-              <strong className="text-foreground"> Le PDF officiel n&apos;est pas encore intégré :</strong>{" "}
-              l&apos;exemplaire porte les données, pas encore le document. En attendant, dépose le
-              formulaire rempli par le champ ci-dessus.
-            </p>
-            <BoutonPetit disabled={enCours} className="mt-3">Ouvrir un exemplaire</BoutonPetit>
-          </form>
+          {/* La section IMM 5476 a été retirée : le module de génération de
+              formulaires officiels IRCC n'est pas encore intégré côté backend.
+              Le dépôt libre ci-dessus reste le geste courant pour téléverser un
+              formulaire rempli manuellement. */}
 
           {d.formulairesDeposes.length > 0 && (
             <div className="space-y-2">
@@ -1076,6 +1071,18 @@ export function DossierOnglets({
             <BoutonPetit disabled={enCours} className="mt-3">Envoyer au client</BoutonPetit>
           </form>
           )}
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------ */}
+      {onglet === "argumentaire" && (
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <SubmissionLetterBuilder
+            key={matterId}
+            matterId={matterId}
+            clientName={clientName}
+            programName={programName}
+          />
         </div>
       )}
 

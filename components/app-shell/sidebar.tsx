@@ -61,12 +61,12 @@ export function Sidebar() {
         type="button"
         onClick={toggleSidebar}
         title={isCollapsed ? "Agrandir le menu latéral (Afficher les titres)" : "Réduire le menu latéral (Icônes uniquement)"}
-        className="absolute top-5 -right-3 z-[100] h-6 w-6 rounded-full border border-border bg-card shadow-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-all cursor-pointer"
+        className="absolute top-[18px] -right-4 z-[100] h-8 w-8 rounded-full border-2 border-primary/25 bg-card shadow-lg flex items-center justify-center text-primary hover:bg-primary hover:text-primary-foreground hover:scale-110 hover:shadow-xl transition-all duration-200 cursor-pointer"
       >
         {isCollapsed ? (
-          <ChevronRight className="h-4 w-4 text-primary" />
+          <ChevronRight className="h-4.5 w-4.5" />
         ) : (
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-4.5 w-4.5" />
         )}
       </button>
 
