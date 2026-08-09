@@ -386,3 +386,147 @@ export async function demanderValidation(formData: FormData): Promise<Resultat> 
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Rattacher un client au dossier
+// ---------------------------------------------------------------------------
+
+/**
+ * Relie un dossier à un client du cabinet.
+ *
+ * Ce geste n'existait nulle part, et son absence rendait invisible tout ce qui
+ * dépend d'un client : les paiements, le fidéicommis, le portail. Un dossier
+ * réel ouvert sans client — cas constaté en base — affichait donc un écran
+ * amputé sans qu'aucun bouton ne permette d'y remédier.
+ */
+export async function rattacherClient(formData: FormData): Promise<Resultat> {
+  try {
+    await moi()
+    const sb = await getSessionSupabase()
+
+    const matterId = String(formData.get("matterId") ?? "")
+    const clientId = String(formData.get("clientId") ?? "")
+    if (!clientId) return { ok: false, message: "Choisissez un client." }
+
+    // La RLS borne déjà les deux au cabinet de la session : un identifiant
+    // emprunté ne trouve simplement aucune ligne.
+    const { data: client } = await sb
+      .from("clients").select("id, name").eq("id", clientId).maybeSingle()
+    if (!client) return { ok: false, message: "Client introuvable dans ce cabinet." }
+
+    const { error } = await sb
+      .from("matters")
+      .update({ client_id: clientId, client_name: client.name })
+      .eq("id", matterId)
+
+    if (error) return { ok: false, message: lisible(error) }
+    revalidatePath("/[locale]/matters/[id]", "page")
+    return { ok: true, message: `Dossier rattaché à ${client.name}. Les paiements et le portail sont maintenant accessibles.` }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Ouvre l'accès au portail pour le client du dossier.
+ *
+ * Enveloppe ouvrirAccesPortail(), qui existait déjà mais n'était atteignable
+ * que par une icône de clé sans libellé, dans une ligne du tableau des
+ * clients. Une fonction qu'on ne trouve pas n'existe pas.
+ *
+ * Le mot de passe temporaire est RENVOYÉ, jamais envoyé par courriel depuis
+ * ici : il se transmet de vive voix ou par un canal que le cabinet choisit.
+ */
+export async function inviterClientAuPortail(formData: FormData): Promise<Resultat> {
+  try {
+    const { ouvrirAccesPortail } = await import("./portal-access")
+    const r = await ouvrirAccesPortail(formData)
+
+    if (!r.ok) return { ok: false, message: r.message }
+    revalidatePath("/[locale]/matters/[id]", "page")
+
+    return {
+      ok: true,
+      message: r.motDePasse
+        ? `Accès ouvert. Mot de passe temporaire : ${r.motDePasse}\n` +
+          `À transmettre au client. Il devra le changer à sa première connexion.`
+        : r.message,
+    }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Formulaires téléversés par le consultant
+// ---------------------------------------------------------------------------
+
+/**
+ * Dépose au dossier un formulaire choisi par le consultant.
+ *
+ * ---------------------------------------------------------------------------
+ * POURQUOI CE CHEMIN PLUTÔT QUE LE PRÉ-REMPLISSAGE AUTOMATIQUE
+ * ---------------------------------------------------------------------------
+ * Le pré-remplissage supposait d'intégrer chaque formulaire officiel un par
+ * un : stocker le PDF vierge, relever ses champs, établir la correspondance,
+ * et refaire ce travail à chaque révision d'IRCC. Il ne vaut que pour les
+ * formulaires ainsi préparés — l'IMM 5476 aujourd'hui, et rien d'autre.
+ *
+ * Un consultant a besoin de déposer N'IMPORTE QUEL formulaire au dossier, y
+ * compris ceux qu'aucun éditeur n'a prévus : un formulaire provincial, une
+ * annexe, un document d'un consulat. Ce chemin-là ne demande aucune
+ * préparation et fonctionne dès le premier jour.
+ *
+ * Les deux coexistent : celui-ci accepte tout, l'autre pré-remplit ce qui a
+ * été préparé.
+ */
+export async function deposerFormulaire(formData: FormData): Promise<Resultat> {
+  try {
+    const membre = await moi()
+    const sb = await getSessionSupabase()
+
+    const fichier = formData.get("fichier")
+    if (!(fichier instanceof File) || fichier.size === 0) {
+      return { ok: false, message: "Choisissez un fichier." }
+    }
+
+    const matterId = String(formData.get("matterId") ?? "")
+    const clientId = String(formData.get("clientId") ?? "") || null
+    const nom = String(formData.get("nom") ?? "").trim() || fichier.name
+
+    // La ligne d'abord, le fichier ensuite : deposerFichier() a besoin de
+    // l'identifiant du document pour ranger le fichier, et un fichier déposé
+    // sans ligne serait un objet dans le stockage que rien ne référence.
+    const { data: doc, error } = await sb.from("documents").insert({
+      firm_id: membre.firmId,
+      client_id: clientId,
+      matter_id: matterId,
+      name: nom,
+      type: String(formData.get("type") ?? "Formulaire"),
+      category: "ircc_form",
+      uploaded_by: membre.fullName || membre.email,
+      uploaded_by_user_id: membre.userId,
+      source: "cabinet",
+      status: "pending_review",
+      mime_type: fichier.type || null,
+      size_bytes: fichier.size,
+    }).select("id").single()
+
+    if (error || !doc) return { ok: false, message: lisible(error) }
+
+    const { deposerFichier } = await import("./storage")
+    const depot = await deposerFichier(doc.id as string, clientId ?? membre.firmId, fichier)
+
+    if (!depot.ok) {
+      // La ligne est retirée : un document qui existe sans son fichier
+      // s'afficherait au dossier et ne s'ouvrirait jamais.
+      await sb.from("documents").delete().eq("id", doc.id)
+      return { ok: false, message: depot.erreur ?? "Dépôt impossible." }
+    }
+
+    revalidatePath("/[locale]/matters/[id]", "page")
+    return { ok: true, message: `« ${nom} » déposé au dossier.` }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}

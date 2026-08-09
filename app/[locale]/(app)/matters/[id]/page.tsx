@@ -53,6 +53,17 @@ export default async function MatterDetailPage({
   const program = await getProgramByName(matter.program)
   const checklist = generateChecklistForProgram(matter.program)
   const dossier = await getDossierComplet(id, locale).catch(() => null)
+
+  // Les clients du cabinet, pour rattacher un dossier qui n'en a pas. Lus
+  // sous RLS : la liste ne peut contenir que des clients du même cabinet.
+  const { getSessionSupabase } = await import("@/lib/supabase/session")
+  const { data: clientsBruts } = await (await getSessionSupabase())
+    .from("clients").select("id, name, file_number").order("name")
+  const clientsDuCabinet = (clientsBruts ?? []).map((c) => ({
+    id: String(c.id),
+    nom: String(c.name ?? ""),
+    dossier: String(c.file_number ?? ""),
+  }))
   // Le pourcentage vient des pièces RÉELLEMENT vérifiées.
   //
   // calculateCompletionPercentage() compte les defaultStatus du modèle de
@@ -225,6 +236,7 @@ export default async function MatterDetailPage({
               matterId={dossier.matterId}
               clientId={dossier.clientId}
               statutDossier={matter.status}
+              clientsDuCabinet={clientsDuCabinet}
             />
           )}
 

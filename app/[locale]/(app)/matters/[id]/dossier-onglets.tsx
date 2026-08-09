@@ -9,7 +9,8 @@ import type { DossierComplet } from "@/lib/data/matter-file"
 import {
   ajouterEcheance, changerEtatEcheance, declarerDossier, demanderValidation,
   enregistrerPaiement, marquerRecue, marquerVerifiee, ouvrirFormulaire,
-  renvoyerACorriger, virerHonoraires, type Resultat,
+  renvoyerACorriger, virerHonoraires, rattacherClient, inviterClientAuPortail,
+  deposerFormulaire, type Resultat,
 } from "@/lib/data/matter-actions"
 import { cn } from "@/lib/utils"
 
@@ -79,12 +80,14 @@ const CHAMP =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 
 export function DossierOnglets({
-  dossier, matterId, clientId, statutDossier,
+  dossier, matterId, clientId, statutDossier, clientsDuCabinet,
 }: {
   dossier: DossierComplet
   matterId: string
   clientId: string | null
   statutDossier: string
+  /** Les clients du cabinet, pour rattacher un dossier qui n'en a pas. */
+  clientsDuCabinet: { id: string; nom: string; dossier: string }[]
 }) {
   const [onglet, setOnglet] = React.useState<Onglet>("apercu")
   const [resultat, setResultat] = React.useState<Resultat | null>(null)
@@ -106,7 +109,7 @@ export function DossierOnglets({
           illisibles, et un menu déroulant cacherait ce qu'on cherche. */}
       <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div role="tablist" className="flex w-max gap-1 rounded-2xl border border-border bg-card p-1">
-          {ONGLETS.filter((o) => !sansClient || !["paiements", "portail"].includes(o.cle)).map(({ cle, libelle, icone: Icone }) => (
+          {ONGLETS.filter((o) => !sansClient || o.cle !== "paiements").map(({ cle, libelle, icone: Icone }) => (
             <button
               key={cle}
               role="tab"
@@ -129,9 +132,13 @@ export function DossierOnglets({
       {sansClient && (
         <p className="flex items-start gap-2 rounded-xl bg-warning/10 px-4 py-3 text-xs font-bold leading-relaxed text-warning">
           <AlertTriangle aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
-          Ce dossier n'est rattaché à aucun client. Les pièces, les formulaires et les échéances
-          fonctionnent ; les paiements, le fidéicommis et le portail resteront indisponibles tant
-          que le rattachement n'est pas fait.
+          <span>
+            Ce dossier n'est rattaché à aucun client. Les pièces, les formulaires et les échéances
+            fonctionnent ; les paiements et le fidéicommis attendent le rattachement.{" "}
+            <button type="button" onClick={() => setOnglet("portail")} className="underline underline-offset-2">
+              Rattacher un client
+            </button>
+          </span>
         </p>
       )}
 
@@ -327,6 +334,34 @@ export function DossierOnglets({
       {/* ------------------------------------------------------------ */}
       {onglet === "formulaires" && (
         <div className="space-y-3">
+          {/* Le dépôt libre passe avant le pré-remplissage : c'est le geste
+              courant. Le pré-remplissage ne vaut que pour les formulaires
+              préparés un par un, et il n'y en a encore aucun. */}
+          <form action={lancer(deposerFormulaire)} className="rounded-2xl border border-border bg-card p-5">
+            <input type="hidden" name="matterId" value={matterId} />
+            <input type="hidden" name="clientId" value={clientId ?? ""} />
+            <h3 className="flex items-center gap-2 text-sm font-black text-foreground">
+              <Upload aria-hidden className="h-4 w-4 text-muted-foreground" />
+              Déposer un formulaire
+            </h3>
+            <p className="mt-1 max-w-prose text-xs text-muted-foreground">
+              N'importe quel formulaire utile au dossier — IRCC, provincial, consulaire. Il se
+              range au dossier, se consulte et se télécharge. PDF, image ou document, 20 Mo au plus.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <label className="text-[11px] font-bold text-muted-foreground sm:col-span-2">
+                Fichier
+                <input type="file" name="fichier" required accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+                  className={cn(CHAMP, "mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-bold")} />
+              </label>
+              <label className="text-[11px] font-bold text-muted-foreground">
+                Nom au dossier
+                <input name="nom" placeholder="repris du fichier" className={cn(CHAMP, "mt-1")} />
+              </label>
+            </div>
+            <BoutonPetit disabled={enCours} className="mt-3">Déposer</BoutonPetit>
+          </form>
+
           <form action={lancer(ouvrirFormulaire)} className="rounded-2xl border border-border bg-card p-5">
             <input type="hidden" name="matterId" value={matterId} />
             <input type="hidden" name="code" value="IMM5476" />
@@ -334,9 +369,11 @@ export function DossierOnglets({
               IMM 5476 — Recours aux services d'un représentant
             </h3>
             <p className="mt-1 max-w-prose text-xs text-muted-foreground">
-              Ouvrir un exemplaire le pré-remplit depuis le dossier : le client, le représentant et son
-              numéro de permis. Une correction ouvre une nouvelle version ; les précédentes sont
-              conservées.
+              Pré-remplissage depuis le dossier — client, représentant, numéro de permis. Une
+              correction ouvre une nouvelle version, les précédentes sont conservées.
+              <strong className="text-foreground"> Le PDF officiel n'est pas encore intégré :</strong>{" "}
+              l'exemplaire porte les données, pas encore le document. En attendant, dépose le
+              formulaire rempli par le champ ci-dessus.
             </p>
             <BoutonPetit disabled={enCours} className="mt-3">Ouvrir un exemplaire</BoutonPetit>
           </form>
@@ -586,6 +623,34 @@ export function DossierOnglets({
       {/* ------------------------------------------------------------ */}
       {onglet === "portail" && (
         <div className="space-y-4">
+          {sansClient ? (
+            <form action={lancer(rattacherClient)} className="rounded-2xl border border-warning/30 bg-warning/5 p-5">
+              <input type="hidden" name="matterId" value={matterId} />
+              <h3 className="text-sm font-black text-foreground">Rattacher ce dossier à un client</h3>
+              <p className="mt-1 max-w-prose text-xs text-muted-foreground">
+                Sans client, ni les paiements ni le portail ne peuvent exister : ils appartiennent à
+                une personne, pas à un dossier.
+              </p>
+              <div className="mt-3 flex flex-wrap items-end gap-3">
+                <label className="min-w-56 flex-1 text-[11px] font-bold text-muted-foreground">
+                  Client du cabinet
+                  <select name="clientId" required className={cn(CHAMP, "mt-1")}>
+                    <option value="">Choisir…</option>
+                    {clientsDuCabinet.map((c) => (
+                      <option key={c.id} value={c.id}>{c.nom} — {c.dossier}</option>
+                    ))}
+                  </select>
+                </label>
+                <BoutonPetit disabled={enCours}>Rattacher</BoutonPetit>
+              </div>
+              {clientsDuCabinet.length === 0 && (
+                <p className="mt-2 text-[11px] italic text-muted-foreground">
+                  Aucun client au cabinet. Créez-en un depuis l'écran Clients.
+                </p>
+              )}
+            </form>
+          ) : null}
+
           <div className="rounded-2xl border border-border bg-card p-5">
             <h3 className="flex items-center gap-2 text-sm font-black text-foreground">
               <Users aria-hidden className="h-4 w-4 text-muted-foreground" />
@@ -596,13 +661,22 @@ export function DossierOnglets({
               <Ligne libelle="Documents déposés" valeur={`${d.portail.documentsDeposes}`} />
               <Ligne libelle="Validations en attente" valeur={`${d.portail.validationsEnAttente}`} accent={d.portail.validationsEnAttente > 0} />
             </dl>
-            {!d.portail.compteCree && (
-              <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-[11px] text-muted-foreground">
-                L'ouverture de l'accès se fait depuis la fiche du client.
-              </p>
+            {!sansClient && (
+              <form action={lancer(inviterClientAuPortail)} className="mt-4 border-t border-border pt-4">
+                <input type="hidden" name="clientId" value={clientId ?? ""} />
+                <p className="max-w-prose text-xs text-muted-foreground">
+                  {d.portail.compteCree
+                    ? "Régénérer un mot de passe temporaire, si le client a perdu son accès."
+                    : "Ouvrir l'accès crée le compte du client et produit un mot de passe temporaire, à lui transmettre. Il devra le changer à sa première connexion."}
+                </p>
+                <BoutonPetit disabled={enCours} className="mt-3">
+                  {d.portail.compteCree ? "Régénérer l'accès" : "Inviter le client au portail"}
+                </BoutonPetit>
+              </form>
             )}
           </div>
 
+          {!sansClient && (
           <form action={lancer(demanderValidation)} className="rounded-2xl border border-border bg-card p-5">
             <input type="hidden" name="clientId" value={clientId ?? ""} />
             <input type="hidden" name="matterId" value={matterId} />
@@ -643,6 +717,7 @@ export function DossierOnglets({
             </div>
             <BoutonPetit disabled={enCours} className="mt-3">Envoyer au client</BoutonPetit>
           </form>
+          )}
         </div>
       )}
     </div>
