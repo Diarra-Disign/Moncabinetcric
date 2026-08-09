@@ -48,6 +48,7 @@ case "$commande" in
   courriel)     exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-courriel.mjs "$@" ;;
   envoi)        exec node scripts/verify-envoi.mjs "$@" ;;
   contraste)    exec node scripts/verify-contraste.mjs "$@" ;;
+  bandeau)      exec node scripts/verify-bandeau.mjs "$@" ;;
   modeles)      exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/generer-modeles-questionnaires.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
   facturation-sieges) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-seat-billing.mjs "$@" ;;
@@ -145,6 +146,10 @@ Usage : ./cric <commande> [options]
                rapporte ce que l'écran répond, en plus de l'état de la base.
                  ./cric envoi
                  ./cric envoi --url=https://moncabinetcric.com
+
+  bandeau      Éprouve le bandeau d'échéances du tableau de bord sur trois
+               situations réelles : aucune, une à 20 jours, une à 5 jours.
+                 ./cric bandeau
 
   contraste    Mesure le contraste réel des pastilles de statut sous les
                cinq thèmes de cabinet, couleurs composées par le navigateur.

@@ -159,8 +159,16 @@ export async function getClauses(): Promise<ClauseDefinition[]> {
 import { MOCK_DEADLINE_RECORDS, OFFICIAL_DEADLINE_RULES, OFFICIAL_CICC_COMPLIANCE_SCORE } from "./mock/deadlines"
 
 
+/**
+ * Les échéances du cabinet.
+ *
+ * Elle renvoyait `[]` en dur sur Supabase. Le bandeau du tableau de bord et
+ * l'écran « Avertisseur » affichaient donc « Aucune échéance à venir » à tous
+ * les cabinets réels — rassurant, et faux. Rien ne paraissait cassé, ce qui
+ * est exactement pourquoi le défaut a duré.
+ */
 export async function getDeadlines(): Promise<DeadlineRecord[]> {
-  if (isSupabaseSource()) return []
+  if (isSupabaseSource()) return (await sbReads()).getFirmDeadlines()
   return _mockStores.deadlines
 }
 

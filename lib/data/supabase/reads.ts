@@ -10,6 +10,7 @@ import type {
   CalendarEvent,
   AuditLogRecord,
   ClientQuestionnaire,
+  DeadlineRecord,
 } from "../types"
 import {
   toMatter,
@@ -225,6 +226,37 @@ export async function getDocumentAuditLog(): Promise<AuditLogRecord[]> {
   if (error) return []
   const mapped = (data ?? []).map(toAuditLog)
   return mapped.filter(log => log.entityType === "document" || log.action?.includes("document") || log.action?.includes("doc"))
+}
+
+// --- Échéances du cabinet ---------------------------------------------
+
+/**
+ * Toutes les échéances du cabinet, jours restants et gravité compris.
+ *
+ * Le calcul de l'urgence vit dans firm_deadlines_view(), et non ici : la base
+ * connaît déjà deadline_status(), et un second calcul du même fait finit
+ * toujours par en différer — celui qui rassure étant celui qu'on croit.
+ */
+export async function getFirmDeadlines(): Promise<DeadlineRecord[]> {
+  const { data, error } = await (await db()).rpc("firm_deadlines_view", {
+    f_id: await currentFirmId(),
+  })
+  if (error) fail("firmDeadlines", error.message)
+
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    matterId: r.matter_reference ? String(r.matter_reference) : undefined,
+    clientName: String(r.client_name ?? ""),
+    program: String(r.program ?? ""),
+    title: String(r.title ?? ""),
+    dueOn: String(r.due_on ?? ""),
+    daysRemaining: Number(r.days_remaining ?? 0),
+    severity: r.severity as DeadlineRecord["severity"],
+    status: r.status as DeadlineRecord["status"],
+    assignedTo: String(r.assignee_name ?? ""),
+    authority: r.is_regulatory ? "IRCC" : "Cabinet",
+    completedAt: r.completed_at ? String(r.completed_at) : undefined,
+  }))
 }
 
 // --- Questionnaires Clients -------------------------------------------

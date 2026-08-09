@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useFirm } from "@/components/app-shell/firm-provider"
+import { cn } from "@/lib/utils"
 import { 
   FolderOpen, 
   AlertCircle, 
@@ -221,40 +222,98 @@ export function DashboardClient({
     <div className="space-y-8 pb-16">
 
       {/* BANDEAU D'ALERTES RÉGLEMENTAIRES OBLIGATOIRE EN TÊTE DE DASHBOARD (SPEC 2.5) */}
-      {widgetsState.deadlinesBanner && (
-        <div className="bg-gradient-to-r from-amber-500 via-rose-600 to-indigo-950 text-white rounded-3xl p-5 sm:p-6 shadow-xl border border-amber-400/40 relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fadeIn">
-          <div className="flex items-center gap-4 relative z-10">
-            <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black shrink-0 shadow-inner">
-              <Clock className="w-6 h-6 text-amber-300 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-black uppercase tracking-wider bg-white/20 text-amber-200 px-2.5 py-0.5 rounded-full">
-                  MOTEUR D&apos;ÉCHÉANCES CICC & LIPR
-                </span>
-                <span className="text-xs font-bold text-slate-200">Surveillance Continue</span>
-              </div>
-              <h2 className="text-base sm:text-lg font-black tracking-tight text-white mt-1">
-                {deadlines.filter(d => d.daysRemaining <= 14).length > 0
-                  ? `${deadlines.filter(d => d.daysRemaining <= 14).length} Échéance(s) Réglementaire(s) Critique(s) (< 14 jours)`
-                  : "Toutes les échéances légales LIPR/RIPR sont sous contrôle"}
-              </h2>
-              <p className="text-xs text-amber-100/90 mt-0.5">
-                Aucune échéance à venir.
-              </p>
-            </div>
-          </div>
+      {widgetsState.deadlinesBanner && (() => {
+        /**
+         * L'apparence du bandeau SUIT les échéances. Elle ne les précédait pas.
+         *
+         * Le dégradé était figé — from-amber-500 via-rose-600 — et l'horloge
+         * pulsait en permanence. Le bandeau avait donc exactement la même tête
+         * un jour à sept échéances et un jour à zéro. Ce n'est pas un défaut
+         * de goût : le rouge dépensé tous les jours ne signale plus rien le
+         * jour où une prescription légale approche vraiment.
+         *
+         * La ligne « Aucune échéance à venir. » était pire encore — écrite en
+         * dur, elle pouvait s'afficher SOUS un titre annonçant trois échéances
+         * critiques.
+         *
+         * Trois états, tirés des données, et un seul qui pulse.
+         */
+        const critiques = deadlines.filter((d) => d.daysRemaining <= 14).length
+        const proches = deadlines.filter((d) => d.daysRemaining > 14 && d.daysRemaining <= 30).length
 
-          <button
-            type="button"
-            onClick={() => router.push("/deadlines")}
-            className="px-5 py-2.5 rounded-2xl bg-white text-slate-950 hover:bg-amber-50 text-xs font-extrabold shadow-md transition-all shrink-0 cursor-pointer flex items-center gap-2"
+        const etat = critiques > 0 ? "critique" : proches > 0 ? "vigilance" : "calme"
+
+        // Teintes issues des jetons : le bandeau suit le thème du cabinet, y
+        // compris « midnight ». Les couleurs figées d'avant ne le suivaient pas.
+        const TONS = {
+          critique: {
+            fond: "bg-error/12 border-error/35",
+            icone: "bg-error text-white",
+            pastille: "bg-error/15 text-error-strong",
+            titre: `${critiques} échéance${critiques > 1 ? "s" : ""} réglementaire${critiques > 1 ? "s" : ""} critique${critiques > 1 ? "s" : ""} — moins de 14 jours`,
+            detail: "Une prescription manquée ne se rattrape pas. Traitez-les en priorité.",
+            pulse: true,
+          },
+          vigilance: {
+            fond: "bg-warning/12 border-warning/35",
+            icone: "bg-warning text-white",
+            pastille: "bg-warning/15 text-warning-strong",
+            titre: `${proches} échéance${proches > 1 ? "s" : ""} à surveiller dans les 30 jours`,
+            detail: "Rien d'urgent aujourd'hui, mais ces dossiers demandent une date de dépôt.",
+            pulse: false,
+          },
+          calme: {
+            fond: "bg-success/10 border-success/30",
+            icone: "bg-success text-white",
+            pastille: "bg-success/15 text-success-strong",
+            titre: "Toutes les échéances légales LIPR/RIPR sont sous contrôle",
+            detail:
+              deadlines.length > 0
+                ? `${deadlines.length} échéance${deadlines.length > 1 ? "s" : ""} suivie${deadlines.length > 1 ? "s" : ""}, aucune dans les 30 prochains jours.`
+                : "Aucune échéance enregistrée pour le moment.",
+            pulse: false,
+          },
+        }[etat]
+
+        return (
+          <div
+            className={cn(
+              "rounded-3xl p-5 sm:p-6 border shadow-sm relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fadeIn",
+              TONS.fond
+            )}
           >
-            <span>Ouvrir l&apos;Avertisseur ({deadlines.length})</span>
-            <ChevronRight className="w-4 h-4 text-slate-900" />
-          </button>
-        </div>
-      )}
+            <div className="flex items-center gap-4 relative z-10">
+              <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center shrink-0", TONS.icone)}>
+                {/* Seul l'état critique pulse. Une animation permanente cesse
+                    d'être remarquée en deux jours — et ne revient pas quand on
+                    en a besoin. */}
+                <Clock className={cn("w-6 h-6", TONS.pulse && "animate-pulse")} />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={cn("text-[10px] font-mono font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full", TONS.pastille)}>
+                    MOTEUR D&apos;ÉCHÉANCES CICC & LIPR
+                  </span>
+                  <span className="text-xs font-bold text-muted-foreground">Surveillance continue</span>
+                </div>
+                <h2 className="text-base sm:text-lg font-black tracking-tight text-foreground mt-1">
+                  {TONS.titre}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{TONS.detail}</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => router.push("/deadlines")}
+              className="px-5 py-2.5 rounded-2xl bg-foreground text-background hover:opacity-90 text-xs font-extrabold shadow-md transition-all shrink-0 cursor-pointer flex items-center gap-2"
+            >
+              <span>Ouvrir l&apos;avertisseur ({deadlines.length})</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        )
+      })()}
 
       {/* 1. EN-TÊTE D'ACCUEIL UI/UX PRO MAX (SANS OVERFLOW HIDDEN POUR NE PAS ROGNER LE DROPDOWN) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.03)] relative z-20">
@@ -444,7 +503,10 @@ export function DashboardClient({
           >
             <div className="flex items-center justify-between pb-4">
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />
+                {/* Même défaut que le bandeau : ce point palpitait au-dessus
+                    d'un zéro. Il ne s'anime plus que lorsqu'il y a
+                    effectivement quelque chose à signaler. */}
+                <span className={cn("w-2 h-2 rounded-full bg-amber-600", criticalDeadlines.length > 0 && "animate-ping")} />
                 <span className="text-xs font-black uppercase tracking-wider text-amber-900">ÉCHÉANCES CRITIQUES</span>
               </div>
               <div className="h-10 w-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 group-hover:scale-110 transition-transform">
