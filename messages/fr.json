@@ -688,7 +688,7 @@
     "recommendedBadge": "Recommandé",
     "cancelNotice": "Résiliation demandée. L'accès reste ouvert jusqu'au {date}, puis se ferme.",
     "graceNotice": "Le dernier prélèvement a échoué. L'accès reste ouvert jusqu'au {date}, le temps de corriger le moyen de paiement.",
-    "returnedOk": "Merci. Le paiement est enregistré ; l'abonnement s'active dès que Stripe l'a confirmé — quelques secondes par carte, jusqu'à cinq jours ouvrables par prélèvement bancaire.",
+    "returnedOk": "Merci. Le paiement est enregistré ; l'abonnement s'active dès que Stripe l'a confirmé, en quelques secondes.",
     "returnedCancelled": "Paiement interrompu. Rien n'a été facturé.",
     "commonTitle": "Compris dans les deux formules",
     "common1": "Journal d'audit inaltérable, chaîné par empreinte",

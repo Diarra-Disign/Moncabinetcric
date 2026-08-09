@@ -688,7 +688,7 @@
     "recommendedBadge": "Recommended",
     "cancelNotice": "Cancellation requested. Access stays open until {date}, then closes.",
     "graceNotice": "The last charge failed. Access stays open until {date}, giving you time to fix the payment method.",
-    "returnedOk": "Thank you. Payment is recorded; the subscription activates as soon as Stripe confirms it — seconds by card, up to five business days by bank debit.",
+    "returnedOk": "Thank you. Payment is recorded; the subscription activates as soon as Stripe confirms it, within seconds.",
     "returnedCancelled": "Payment interrupted. Nothing was charged.",
     "commonTitle": "Included in both plans",
     "common1": "Tamper-evident audit log, hash-chained",
