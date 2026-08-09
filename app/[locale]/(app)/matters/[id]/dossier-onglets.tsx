@@ -131,6 +131,133 @@ export function DossierOnglets({
   // tout ce qui touche à l'argent et au portail suppose un client.
   const sansClient = clientId === null
 
+  // Les deux onglets se partagent la même liste. Le classement vient de la
+  // base — colonne `kind` — et non d'un motif appliqué au code ici : une règle
+  // recopiée dans l'écran ne se corrige pas sans déploiement, et elle est
+  // fausse pour un formulaire provincial, dont le code ne commence pas par
+  // « IMM ».
+  const pieces = d.exigences.filter((e) => e.kind !== "form")
+  const formulairesRequis = d.exigences.filter((e) => e.kind === "form")
+
+  /**
+   * Une ligne d'exigence, avec ses quatre gestes.
+   *
+   * Extraite parce que DEUX onglets l'affichent — les pièces justificatives
+   * et les formulaires requis. Recopier ce bloc aurait garanti qu'un
+   * correctif n'atteigne qu'une des deux listes, et personne ne l'aurait vu
+   * avant de chercher pourquoi un bouton manque d'un côté.
+   */
+  const ligneExigence = (e: DossierComplet["exigences"][number]) => {
+          const s = STATUT_PIECE[e.status] ?? { texte: e.status, ton: "bg-muted" }
+          return (
+            <div key={e.id} className="rounded-2xl border border-border bg-card p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h4 className="flex flex-wrap items-center gap-2 text-sm font-bold text-foreground">
+                    {e.label}
+                    {e.mandatory && (
+                      <span className="rounded bg-error/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-error">
+                        obligatoire
+                      </span>
+                    )}
+                    <span className={cn("rounded px-2 py-0.5 text-[10px] font-bold uppercase", s.ton)}>
+                      {s.texte}
+                    </span>
+                  </h4>
+                  {/* Reçu et vérifié sont affichés SÉPARÉMENT : c'est toute
+                      la distinction, et la confondre à l'écran l'annulerait. */}
+                  <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                    <span>
+                      Reçu : {e.receivedAt
+                        ? `${new Date(e.receivedAt).toLocaleDateString("fr-CA")}${e.receivedFrom === "client" ? " — déposé par le client" : ""}`
+                        : "non"}
+                    </span>
+                    <span>
+                      Vérifié : {e.verifiedAt ? new Date(e.verifiedAt).toLocaleDateString("fr-CA") : "non"}
+                    </span>
+                    {e.expiresOn && <span>Expire le {e.expiresOn}</span>}
+                  </p>
+                  {e.rejectionReason && (
+                    <p className="mt-2 rounded-lg bg-error/10 px-3 py-2 text-[11px] italic text-error">
+                      « {e.rejectionReason} »
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {!e.receivedAt && (
+                    <form action={lancer(marquerRecue)}>
+                      <input type="hidden" name="id" value={e.id} />
+                      <BoutonPetit disabled={enCours} ton="neutre">Marquer reçue</BoutonPetit>
+                    </form>
+                  )}
+                  {e.receivedAt && e.status !== "verified" && (
+                    <form action={lancer(marquerVerifiee)}>
+                      <input type="hidden" name="id" value={e.id} />
+                      <BoutonPetit disabled={enCours} ton="success">Vérifier</BoutonPetit>
+                    </form>
+                  )}
+                  {e.documentId && (
+                    <>
+                      <form action={ouvrir(apercuDocument)}>
+                        <input type="hidden" name="documentId" value={e.documentId} />
+                        <BoutonPetit disabled={enCours} ton="neutre">
+                          <Eye aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Aperçu
+                        </BoutonPetit>
+                      </form>
+                      <form action={lancer(retirerDocument)}>
+                        <input type="hidden" name="documentId" value={e.documentId} />
+                        <BoutonPetit disabled={enCours} ton="error">
+                          <Trash2 aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Retirer
+                        </BoutonPetit>
+                      </form>
+                    </>
+                  )}
+                  {e.receivedAt && (
+                    <form action={lancer(renvoyerACorriger)} className="flex items-center gap-1.5">
+                      <input type="hidden" name="id" value={e.id} />
+                      <input name="motif" placeholder="Motif du renvoi" className={cn(CHAMP, "w-40")} />
+                      <BoutonPetit disabled={enCours} ton="error">Renvoyer</BoutonPetit>
+                    </form>
+                  )}
+                </div>
+              </div>
+
+              {/* Le téléversement est SOUS la ligne plutôt qu'à côté : un
+                  sélecteur de fichier serré entre quatre boutons devient le
+                  plus discret de tous, alors que c'est le geste principal. */}
+              <form
+                action={lancer(deposerPourExigence)}
+                className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3"
+              >
+                <input type="hidden" name="exigenceId" value={e.id} />
+                <input type="hidden" name="matterId" value={matterId} />
+                <input type="hidden" name="clientId" value={clientId ?? ""} />
+                <input
+                  type="file"
+                  name="fichier"
+                  required
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+                  className={cn(CHAMP, "max-w-xs file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-bold")}
+                />
+                <BoutonPetit disabled={enCours}>
+                  <Upload aria-hidden className="mr-1.5 h-3.5 w-3.5" />
+                  {e.documentId ? "Remplacer" : "Téléverser"}
+                </BoutonPetit>
+                {e.documentNom && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {e.documentNom} · déposé le{" "}
+                    {new Date(e.documentDepotLe!).toLocaleString("fr-CA", {
+                      dateStyle: "short", timeStyle: "short",
+                    })}
+                    {e.documentDeposePar && ` par ${e.documentDeposePar}`}
+                  </span>
+                )}
+              </form>
+            </div>
+          )
+  }
+
   return (
     <div className="flex flex-col gap-5">
       {/* Le bandeau des onglets défile horizontalement plutôt que de se
@@ -294,123 +421,30 @@ export function DossierOnglets({
       {/* ------------------------------------------------------------ */}
       {onglet === "documents" && (
         <div className="space-y-3">
-          {d.exigences.length === 0 && <Vide texte="Aucune pièce exigée pour ce programme." />}
-          {d.exigences.map((e) => {
-            const s = STATUT_PIECE[e.status] ?? { texte: e.status, ton: "bg-muted" }
-            return (
-              <div key={e.id} className="rounded-2xl border border-border bg-card p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h4 className="flex flex-wrap items-center gap-2 text-sm font-bold text-foreground">
-                      {e.label}
-                      {e.mandatory && (
-                        <span className="rounded bg-error/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-error">
-                          obligatoire
-                        </span>
-                      )}
-                      <span className={cn("rounded px-2 py-0.5 text-[10px] font-bold uppercase", s.ton)}>
-                        {s.texte}
-                      </span>
-                    </h4>
-                    {/* Reçu et vérifié sont affichés SÉPARÉMENT : c'est toute
-                        la distinction, et la confondre à l'écran l'annulerait. */}
-                    <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-                      <span>
-                        Reçu : {e.receivedAt
-                          ? `${new Date(e.receivedAt).toLocaleDateString("fr-CA")}${e.receivedFrom === "client" ? " — déposé par le client" : ""}`
-                          : "non"}
-                      </span>
-                      <span>
-                        Vérifié : {e.verifiedAt ? new Date(e.verifiedAt).toLocaleDateString("fr-CA") : "non"}
-                      </span>
-                      {e.expiresOn && <span>Expire le {e.expiresOn}</span>}
-                    </p>
-                    {e.rejectionReason && (
-                      <p className="mt-2 rounded-lg bg-error/10 px-3 py-2 text-[11px] italic text-error">
-                        « {e.rejectionReason} »
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    {!e.receivedAt && (
-                      <form action={lancer(marquerRecue)}>
-                        <input type="hidden" name="id" value={e.id} />
-                        <BoutonPetit disabled={enCours} ton="neutre">Marquer reçue</BoutonPetit>
-                      </form>
-                    )}
-                    {e.receivedAt && e.status !== "verified" && (
-                      <form action={lancer(marquerVerifiee)}>
-                        <input type="hidden" name="id" value={e.id} />
-                        <BoutonPetit disabled={enCours} ton="success">Vérifier</BoutonPetit>
-                      </form>
-                    )}
-                    {e.documentId && (
-                      <>
-                        <form action={ouvrir(apercuDocument)}>
-                          <input type="hidden" name="documentId" value={e.documentId} />
-                          <BoutonPetit disabled={enCours} ton="neutre">
-                            <Eye aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Aperçu
-                          </BoutonPetit>
-                        </form>
-                        <form action={lancer(retirerDocument)}>
-                          <input type="hidden" name="documentId" value={e.documentId} />
-                          <BoutonPetit disabled={enCours} ton="error">
-                            <Trash2 aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Retirer
-                          </BoutonPetit>
-                        </form>
-                      </>
-                    )}
-                    {e.receivedAt && (
-                      <form action={lancer(renvoyerACorriger)} className="flex items-center gap-1.5">
-                        <input type="hidden" name="id" value={e.id} />
-                        <input name="motif" placeholder="Motif du renvoi" className={cn(CHAMP, "w-40")} />
-                        <BoutonPetit disabled={enCours} ton="error">Renvoyer</BoutonPetit>
-                      </form>
-                    )}
-                  </div>
-                </div>
-
-                {/* Le téléversement est SOUS la ligne plutôt qu'à côté : un
-                    sélecteur de fichier serré entre quatre boutons devient le
-                    plus discret de tous, alors que c'est le geste principal. */}
-                <form
-                  action={lancer(deposerPourExigence)}
-                  className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3"
-                >
-                  <input type="hidden" name="exigenceId" value={e.id} />
-                  <input type="hidden" name="matterId" value={matterId} />
-                  <input type="hidden" name="clientId" value={clientId ?? ""} />
-                  <input
-                    type="file"
-                    name="fichier"
-                    required
-                    accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
-                    className={cn(CHAMP, "max-w-xs file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-bold")}
-                  />
-                  <BoutonPetit disabled={enCours}>
-                    <Upload aria-hidden className="mr-1.5 h-3.5 w-3.5" />
-                    {e.documentId ? "Remplacer" : "Téléverser"}
-                  </BoutonPetit>
-                  {e.documentNom && (
-                    <span className="text-[11px] text-muted-foreground">
-                      {e.documentNom} · déposé le{" "}
-                      {new Date(e.documentDepotLe!).toLocaleString("fr-CA", {
-                        dateStyle: "short", timeStyle: "short",
-                      })}
-                      {e.documentDeposePar && ` par ${e.documentDeposePar}`}
-                    </span>
-                  )}
-                </form>
-              </div>
-            )
-          })}
+          {pieces.length === 0 && <Vide texte="Aucune pièce justificative exigée pour ce programme." />}
+          {pieces.map(ligneExigence)}
         </div>
       )}
 
       {/* ------------------------------------------------------------ */}
       {onglet === "formulaires" && (
         <div className="space-y-3">
+          {/* Les formulaires EXIGÉS par le programme viennent en tête : ce sont
+              eux qui bloquent la validation du dossier, et c'est d'eux qu'on
+              vient s'occuper. Ils portent exactement les mêmes gestes que les
+              pièces justificatives — même fonction, une seule à corriger. */}
+          {formulairesRequis.length > 0 && (
+            <>
+              <h3 className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+                Exigés par le programme
+              </h3>
+              {formulairesRequis.map(ligneExigence)}
+              <h3 className="pt-2 text-xs font-black uppercase tracking-wide text-muted-foreground">
+                Autres formulaires
+              </h3>
+            </>
+          )}
+
           {/* Le dépôt libre passe avant le pré-remplissage : c'est le geste
               courant. Le pré-remplissage ne vaut que pour les formulaires
               préparés un par un, et il n'y en a encore aucun. */}
@@ -493,9 +527,11 @@ export function DossierOnglets({
             </div>
           )}
 
-          {d.formulaires.length === 0 && d.formulairesDeposes.length === 0 && (
-            <Vide texte="Aucun formulaire au dossier." />
-          )}
+          {d.formulaires.length === 0 &&
+            d.formulairesDeposes.length === 0 &&
+            formulairesRequis.length === 0 && (
+              <Vide texte="Aucun formulaire au dossier." />
+            )}
           {d.formulaires.map((f) => (
             <div key={f.id} className={cn("rounded-2xl border border-border bg-card p-4", f.archived && "opacity-60")}>
               <div className="flex flex-wrap items-center justify-between gap-3">

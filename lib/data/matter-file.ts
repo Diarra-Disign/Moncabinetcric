@@ -20,6 +20,8 @@ export interface ExigenceVue {
   code: string
   label: string
   mandatory: boolean
+  /** « form » ou « document » : les deux ne se rangent pas au même onglet. */
+  kind: string
   status: string
   documentId: string | null
   receivedFrom: string | null
@@ -233,6 +235,7 @@ export async function getDossierComplet(
     code: String(r.code),
     label: String(fr ? r.label_fr : r.label_en),
     mandatory: Boolean(r.mandatory),
+    kind: String(r.kind ?? "document"),
     status: String(r.status),
     documentId: (r.document_id as string) ?? null,
     receivedFrom: (r.received_from as string) ?? null,
