@@ -38,6 +38,7 @@ case "$commande" in
   sieges)       exec node scripts/verify-seats.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types scripts/verify-billing.mjs "$@" ;;
   portail)      exec node scripts/portail-stripe.mjs "$@" ;;
+  stripe-config) exec node scripts/stripe-config.mjs "$@" ;;
   migration)    exec node scripts/apply-migration.mjs "$@" ;;
   provisionner) exec node scripts/provision-project.mjs "$@" ;;
   motdepasse)   exec node scripts/set-password.mjs "$@" ;;
@@ -68,6 +69,13 @@ Usage : ./cric <commande> [options]
                Sans --appliquer, montre ce qu'il ferait sans rien écrire.
                  ./cric portail --site=https://moncabinetcric.com
                  ./cric portail --site=https://moncabinetcric.com --appliquer
+
+  stripe-config  Mise en ordre du compte Stripe. --webhook recrée le point de
+               terminaison sur l'adresse publique et pose son secret neuf dans
+               .env.local ; --liens désactive les liens de paiement et archive
+               les tarifs hors catalogue. Sans --appliquer, montre sans écrire.
+                 ./cric stripe-config --liens
+                 ./cric stripe-config --webhook --site=https://... --appliquer
 
   admin        Administrateurs de la plateforme
                  ./cric admin
