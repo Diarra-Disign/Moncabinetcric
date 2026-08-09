@@ -73,9 +73,10 @@ Usage : ./cric <commande> [options]
   stripe-config  Mise en ordre du compte Stripe. --webhook recrée le point de
                terminaison sur l'adresse publique et pose son secret neuf dans
                .env.local ; --liens désactive les liens de paiement et archive
-               les tarifs hors catalogue ; --fiscal pose le code fiscal SaaS.
+               les tarifs hors catalogue ; --fiscal pose le code fiscal SaaS ;
+               --acss propose le prélèvement préautorisé une fois agréé.
                Sans --appliquer, montre sans écrire.
-                 ./cric stripe-config --liens --fiscal
+                 ./cric stripe-config --liens --fiscal --acss
                  ./cric stripe-config --webhook --site=https://... --appliquer
 
   admin        Administrateurs de la plateforme

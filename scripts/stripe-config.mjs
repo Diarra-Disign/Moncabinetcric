@@ -50,9 +50,10 @@ const appliquer = process.argv.includes("--appliquer")
 const faireWebhook = process.argv.includes("--webhook")
 const faireLiens = process.argv.includes("--liens")
 const faireFiscal = process.argv.includes("--fiscal")
+const faireAcss = process.argv.includes("--acss")
 
-if (!faireWebhook && !faireLiens && !faireFiscal) {
-  console.error("Rien à faire. Préciser --webhook, --liens et/ou --fiscal.")
+if (!faireWebhook && !faireLiens && !faireFiscal && !faireAcss) {
+  console.error("Rien à faire. Préciser --webhook, --liens, --fiscal et/ou --acss.")
   process.exit(1)
 }
 
@@ -289,6 +290,66 @@ if (faireFiscal) {
   } else if (appliquer) {
     const maj = await sdk.tax.settings.update({ defaults: { tax_code: CODE_FISCAL } })
     console.log(`\n  ✓ défaut du compte : ${maj.defaults?.tax_code}`)
+  }
+  console.log()
+}
+
+// ---------------------------------------------------------------------------
+// Prélèvement préautorisé canadien
+// ---------------------------------------------------------------------------
+if (faireAcss) {
+  console.log("── PRÉLÈVEMENT PRÉAUTORISÉ (acss_debit) ──")
+
+  // Deux choses distinctes, qu'on confond facilement :
+  //
+  //   · la CAPACITÉ du compte — Stripe a-t-il agréé le moyen ? C'est la
+  //     démarche longue, avec formulaire et vérification.
+  //   · la PRÉFÉRENCE d'affichage — le moyen est-il proposé au paiement ?
+  //     C'est un interrupteur, et il reste sur « off » après l'agrément.
+  //
+  // On lit la première avant de toucher la seconde : allumer l'interrupteur
+  // d'un moyen non agréé ferait échouer toute session de paiement, carte
+  // comprise, puisque Stripe valide la liste des moyens d'un bloc.
+  const compte = await sdk.accounts.retrieve()
+  const capacite = compte.capabilities?.acss_debit_payments ?? "absente"
+  console.log(`  capacité du compte   ${capacite}`)
+
+  const { data: configs } = await sdk.paymentMethodConfigurations.list({ limit: 5 })
+  const config = configs.find((c) => c.is_default) ?? configs[0]
+
+  if (!config) {
+    console.log("  Aucune configuration de moyens de paiement. Rien à faire.")
+  } else {
+    const avant = config.acss_debit?.display_preference?.preference ?? "(non défini)"
+    console.log(`  préférence actuelle  ${avant}`)
+    console.log(`  configuration        ${config.id}`)
+
+    if (capacite !== "active") {
+      console.log(
+        `\n  ⚠ La capacité n'est pas active. Rien ne sera tenté : proposer un moyen\n` +
+          `    non agréé fait échouer TOUTE session de paiement, carte comprise.\n` +
+          `    Passer par Stripe > Paramètres > Moyens de paiement.`
+      )
+    } else if (avant === "on") {
+      console.log("\n  Déjà proposé, rien à faire.")
+    } else {
+      console.log(`\n  à faire : préférence → on`)
+      if (appliquer) {
+        const maj = await sdk.paymentMethodConfigurations.update(config.id, {
+          acss_debit: { display_preference: { preference: "on" } },
+        })
+        const apres = maj.acss_debit?.display_preference
+        console.log(`  ✓ préférence : ${apres?.preference} · proposé : ${apres?.value}`)
+        if (apres?.value !== "on") {
+          console.log(
+            `  ⚠ Stripe l'a accepté mais ne le propose pas encore (value: ${apres?.value}).\n` +
+              `    NE PAS poser STRIPE_ACSS_DEBIT=1 tant que ce n'est pas « on ».`
+          )
+        } else {
+          console.log(`\n  Poser maintenant STRIPE_ACSS_DEBIT=1 en local et sur Vercel.`)
+        }
+      }
+    }
   }
   console.log()
 }
