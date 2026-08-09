@@ -15,10 +15,13 @@ import { siteUrl, siteDefinitif } from "../../site-url"
  */
 
 const original = process.env.APP_URL
+const originalVercel = process.env.VERCEL_PROJECT_PRODUCTION_URL
 
 afterEach(() => {
   if (original === undefined) delete process.env.APP_URL
   else process.env.APP_URL = original
+  if (originalVercel === undefined) delete process.env.VERCEL_PROJECT_PRODUCTION_URL
+  else process.env.VERCEL_PROJECT_PRODUCTION_URL = originalVercel
 })
 
 describe("siteUrl", () => {
@@ -34,7 +37,36 @@ describe("siteUrl", () => {
 
   test("retombe sur l'adresse locale en l'absence de configuration", () => {
     delete process.env.APP_URL
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL
     assert.equal(siteUrl(), "http://localhost:3000")
+  })
+
+  // Ce repli existe parce qu'APP_URL a réellement été supprimée. En une
+  // minute, robots.txt s'est mis à répondre « Disallow: / » — le site entier
+  // interdit aux moteurs — et les adresses de retour envoyées à Stripe
+  // pointaient vers la machine du client. Une variable effacée par mégarde ne
+  // doit pas pouvoir désindexer un site.
+  describe("repli sur le domaine de production de Vercel", () => {
+    test("employé quand APP_URL est absente", () => {
+      delete process.env.APP_URL
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = "moncabinetcric.com"
+      assert.equal(siteUrl(), "https://moncabinetcric.com")
+      assert.equal(siteDefinitif(), true)
+    })
+
+    test("employé quand APP_URL ne contient que des espaces", () => {
+      process.env.APP_URL = "  \n "
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = "moncabinetcric.com"
+      assert.equal(siteUrl(), "https://moncabinetcric.com")
+    })
+
+    test("APP_URL garde la priorité quand elle est renseignée", () => {
+      // Le repli ne doit jamais primer sur une décision explicite : un
+      // domaine personnalisé posé à la main l'emporte sur celui de Vercel.
+      process.env.APP_URL = "https://cabinet.example.ca"
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = "moncabinetcric.com"
+      assert.equal(siteUrl(), "https://cabinet.example.ca")
+    })
   })
 
   // Ces trois contrôles viennent d'une panne réelle. APP_URL avait été posée

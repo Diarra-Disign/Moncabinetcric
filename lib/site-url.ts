@@ -27,8 +27,26 @@
  * se fait ici, à la source, plutôt qu'à chaque endroit qui s'en sert.
  */
 export function siteUrl(): string {
-  const brut = (process.env.APP_URL ?? "").trim()
-  return (brut || "http://localhost:3000").replace(/\/+$/, "")
+  const declare = (process.env.APP_URL ?? "").trim()
+  if (declare) return declare.replace(/\/+$/, "")
+
+  // Repli sur le domaine de production que Vercel expose de lui-même.
+  //
+  // APP_URL a été supprimée une fois. Sans repli, l'application s'est crue sur
+  // localhost : robots.txt a répondu « Disallow: / » — le site entier interdit
+  // aux moteurs — le plan de site s'est vidé, et les adresses de retour
+  // données à Stripe pointaient vers la machine du client. Une variable
+  // effacée par mégarde ne doit pas pouvoir désindexer un site.
+  //
+  // VERCEL_PROJECT_PRODUCTION_URL, et non VERCEL_URL : la seconde désigne le
+  // déploiement courant (…-abc123.vercel.app), qui change à chaque poussée et
+  // que siteDefinitif() écarte à juste titre. La première désigne le domaine
+  // de production du projet, qui est stable. Ni l'une ni l'autre ne porte de
+  // schéma.
+  const vercel = (process.env.VERCEL_PROJECT_PRODUCTION_URL ?? "").trim()
+  if (vercel) return `https://${vercel}`.replace(/\/+$/, "")
+
+  return "http://localhost:3000"
 }
 
 /**
