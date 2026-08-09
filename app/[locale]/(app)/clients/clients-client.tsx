@@ -37,6 +37,7 @@ import { ClientRecord, Matter } from "@/lib/data/types"
 import { matchesPerson } from "@/lib/utils/search"
 import { createClient } from "@/lib/data/actions"
 import { ouvrirAccesPortail } from "@/lib/data/portal-access"
+import { cn } from "@/lib/utils"
 
 export type { ClientRecord }
 
