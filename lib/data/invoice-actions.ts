@@ -335,3 +335,26 @@ export async function envoyerFactureAuClient(formData: FormData): Promise<Result
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
 }
+
+/**
+ * Les lignes d'une facture, pour les rouvrir à la modification.
+ *
+ * Elles ne voyagent pas avec la fiche du dossier : la liste des factures n'en
+ * a pas besoin, et les y joindre alourdirait chaque chargement de dossier pour
+ * un écran qu'on ouvre rarement.
+ */
+export async function lignesDeFacture(id: string): Promise<LigneFacture[]> {
+  const sb = await getSessionSupabase()
+  const { data } = await sb
+    .from("invoice_lines")
+    .select("description, quantity, unit_price, taxable, position")
+    .eq("invoice_id", id)
+    .order("position")
+
+  return (data ?? []).map((l) => ({
+    description: String(l.description),
+    quantite: Number(l.quantity),
+    prixUnitaire: Number(l.unit_price),
+    taxable: l.taxable !== false,
+  }))
+}

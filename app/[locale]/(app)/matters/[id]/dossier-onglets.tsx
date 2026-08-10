@@ -23,7 +23,7 @@ import {
 } from "@/lib/data/actions"
 import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
 import { envoyerQuestionnaire } from "@/lib/data/questionnaire-actions"
-import { creerFacture, emettreFacture, supprimerFacture, annulerFacture, envoyerFactureAuClient } from "@/lib/data/invoice-actions"
+import { creerFacture, emettreFacture, supprimerFacture, annulerFacture, envoyerFactureAuClient, modifierFacture, lignesDeFacture } from "@/lib/data/invoice-actions"
 import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
 /**
@@ -121,6 +121,8 @@ export function DossierOnglets({
   const [lienEnvoi, setLienEnvoi] = React.useState<string | null>(null)
   /** Vrai quand la fenêtre de création de facture est ouverte. */
   const [nouvelleFacture, setNouvelleFacture] = React.useState(false)
+  /** Le brouillon en cours de modification, ou null. */
+  const [factureAModifier, setFactureAModifier] = React.useState<{ id: string; numero: string; dueOn: string; description: string } | null>(null)
 
   // Liste des questionnaires locaux
   const [prevInitialQuestionnaires, setPrevInitialQuestionnaires] = React.useState(initialQuestionnaires)
@@ -876,6 +878,16 @@ export function DossierOnglets({
                         </button>
                       )}
 
+                      {f.statut === "draft" && (
+                        <button
+                          type="button"
+                          onClick={() => setFactureAModifier({ id: f.id, numero: f.numero, dueOn: f.dueOn ?? "", description: f.description ?? "" })}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" /> Modifier
+                        </button>
+                      )}
+
                       {f.statut === "draft" ? (
                         <button
                           type="button"
@@ -1559,6 +1571,15 @@ export function DossierOnglets({
         />
       )}
 
+      {factureAModifier && (
+        <ModaleNouvelleFacture
+          matterId={matterId}
+          facture={factureAModifier}
+          onFermer={() => setFactureAModifier(null)}
+          onCreee={(r) => { setFactureAModifier(null); setResultat(r); rafraichir() }}
+        />
+      )}
+
       {selectedCorrectionQ && (() => {
         const tpl = { sections: selectedCorrectionQ.sections }
         return (
@@ -1749,9 +1770,11 @@ function BoutonPetit({
  * c'est son montant que la liste affichera ensuite.
  */
 function ModaleNouvelleFacture({
-  matterId, onFermer, onCreee,
+  matterId, facture, onFermer, onCreee,
 }: {
   matterId: string
+  /** Présent = on modifie un brouillon existant plutôt que d'en créer un. */
+  facture?: { id: string; numero: string; dueOn: string; description: string }
   onFermer: () => void
   onCreee: (r: Resultat) => void
 }) {
@@ -1759,11 +1782,26 @@ function ModaleNouvelleFacture({
   const dans30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
 
   const [date, setDate] = React.useState(aujourdhui)
-  const [echeance, setEcheance] = React.useState(dans30)
-  const [notes, setNotes] = React.useState("")
+  const [echeance, setEcheance] = React.useState(facture?.dueOn || dans30)
+  const [notes, setNotes] = React.useState(facture?.description ?? "")
   const [lignes, setLignes] = React.useState([
     { description: "", quantite: 1, prixUnitaire: 0, taxable: true },
   ])
+  const [chargement, setChargement] = React.useState(Boolean(facture))
+
+  // Les lignes ne voyagent pas avec la fiche du dossier : on les demande à
+  // l'ouverture. Les joindre à chaque chargement de dossier alourdirait un
+  // écran fréquent pour un formulaire qu'on ouvre rarement.
+  React.useEffect(() => {
+    if (!facture) return
+    let vivant = true
+    lignesDeFacture(facture.id).then((l) => {
+      if (!vivant) return
+      if (l.length > 0) setLignes(l)
+      setChargement(false)
+    })
+    return () => { vivant = false }
+  }, [facture])
   const [erreur, setErreur] = React.useState<string | null>(null)
   const [enCours, demarrer] = React.useTransition()
 
@@ -1782,9 +1820,13 @@ function ModaleNouvelleFacture({
       <div className="bg-card w-full max-w-3xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[92vh]">
         <header className="p-5 border-b border-border flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-base font-black text-foreground">Créer une facture</h3>
+            <h3 className="text-base font-black text-foreground">
+              {facture ? `Modifier ${facture.numero}` : "Créer une facture"}
+            </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Le numéro est attribué à l&apos;enregistrement. La facture naît en brouillon.
+              {facture
+                ? "Un brouillon se modifie librement. Une fois émise, la facture est figée."
+                : "Le numéro est attribué à l'enregistrement. La facture naît en brouillon."}
             </p>
           </div>
           <button type="button" onClick={onFermer} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer">
@@ -1794,10 +1836,12 @@ function ModaleNouvelleFacture({
 
         <div className="p-5 space-y-4 overflow-y-auto flex-1">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-[11px] font-bold text-muted-foreground">Date de facturation</span>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={cn(CHAMP, "mt-1")} />
-            </label>
+            {!facture && (
+              <label className="block">
+                <span className="text-[11px] font-bold text-muted-foreground">Date de facturation</span>
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={cn(CHAMP, "mt-1")} />
+              </label>
+            )}
             <label className="block">
               <span className="text-[11px] font-bold text-muted-foreground">Date d&apos;échéance</span>
               <input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} className={cn(CHAMP, "mt-1")} />
@@ -1884,7 +1928,7 @@ function ModaleNouvelleFacture({
           </button>
           <button
             type="button"
-            disabled={enCours || sousTotal <= 0}
+            disabled={enCours || chargement || sousTotal <= 0}
             onClick={() => {
               setErreur(null)
               demarrer(async () => {
@@ -1895,14 +1939,17 @@ function ModaleNouvelleFacture({
                 fd.set("notes", notes)
                 fd.set("lignes", JSON.stringify(lignes))
                 fd.set("locale", "fr")
-                const r = await creerFacture(fd)
+                const r = facture
+                  ? await modifierFacture((fd.set("id", facture.id), fd))
+                  : await creerFacture(fd)
                 if (r.ok) onCreee(r)
                 else setErreur(r.message)
               })
             }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 disabled:opacity-40 cursor-pointer"
           >
-            <Receipt className="h-4 w-4" /> {enCours ? "Création…" : "Créer la facture"}
+            <Receipt className="h-4 w-4" />
+            {chargement ? "Chargement…" : enCours ? "Enregistrement…" : facture ? "Enregistrer" : "Créer la facture"}
           </button>
         </footer>
       </div>
