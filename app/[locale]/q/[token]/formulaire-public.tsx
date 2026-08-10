@@ -157,7 +157,7 @@ export function FormulairePublic({
             onClick={() => setSection(i)}
             className={cn(
               "px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer",
-              i === section ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted"
+              i === section ? "border-primary bg-primary/10 text-primary-strong" : "border-border text-muted-foreground hover:bg-muted"
             )}
           >
             {fr ? s.titleFr : s.titleEn}
@@ -281,7 +281,7 @@ function Champ({
               onClick={() => onChange(champ.key, o.value)}
               className={cn(
                 "px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors cursor-pointer",
-                valeur === o.value ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted"
+                valeur === o.value ? "border-primary bg-primary/10 text-primary-strong" : "border-border text-muted-foreground hover:bg-muted"
               )}
             >
               {fr ? o.labelFr : o.labelEn}

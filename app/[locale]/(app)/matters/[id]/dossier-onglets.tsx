@@ -56,7 +56,7 @@ const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
 
 const STATUT_PIECE: Record<string, { texte: string; ton: string }> = {
   missing:    { texte: "Non reçu",   ton: "bg-muted text-muted-foreground" },
-  requested:  { texte: "Demandé",    ton: "bg-primary/10 text-primary" },
+  requested:  { texte: "Demandé",    ton: "bg-primary/10 text-primary-strong" },
   received:   { texte: "À vérifier", ton: "bg-warning/15 text-warning" },
   verified:   { texte: "Validé",     ton: "bg-success/15 text-success" },
   to_correct: { texte: "À corriger", ton: "bg-error/15 text-error" },
@@ -65,7 +65,7 @@ const STATUT_PIECE: Record<string, { texte: string; ton: string }> = {
 
 const STATUT_ECHEANCE: Record<string, { texte: string; ton: string }> = {
   todo:        { texte: "À faire",   ton: "bg-muted text-muted-foreground" },
-  in_progress: { texte: "En cours",  ton: "bg-primary/10 text-primary" },
+  in_progress: { texte: "En cours",  ton: "bg-primary/10 text-primary-strong" },
   done:        { texte: "Terminé",   ton: "bg-success/15 text-success" },
   overdue:     { texte: "En retard", ton: "bg-error/15 text-error" },
   cancelled:   { texte: "Annulé",    ton: "bg-muted text-muted-foreground" },
@@ -73,7 +73,7 @@ const STATUT_ECHEANCE: Record<string, { texte: string; ton: string }> = {
 
 const STATUT_FACTURE: Record<string, { texte: string; ton: string }> = {
   draft:     { texte: "Brouillon",           ton: "bg-muted text-muted-foreground" },
-  issued:    { texte: "Émise",               ton: "bg-primary/10 text-primary" },
+  issued:    { texte: "Émise",               ton: "bg-primary/10 text-primary-strong" },
   partial:   { texte: "Partiellement payée", ton: "bg-warning/15 text-warning" },
   paid:      { texte: "Payée",               ton: "bg-success/15 text-success" },
   overdue:   { texte: "En retard",           ton: "bg-error/15 text-error" },
@@ -706,7 +706,7 @@ export function DossierOnglets({
                           q.status === "completed" || q.status === "cancelled"
                             ? "bg-success/15 text-success"
                             : q.status === "submitted" || q.status === "corrected"
-                              ? "bg-primary/15 text-primary"
+                              ? "bg-primary/15 text-primary-strong"
                               : q.status === "to_correct"
                                 ? "bg-error/15 text-error"
                                 : "bg-muted text-muted-foreground"
@@ -1089,7 +1089,7 @@ export function DossierOnglets({
                   {argent(p.montant)}
                   <span className={cn(
                     "inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold uppercase",
-                    p.destination === "trust" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                    p.destination === "trust" ? "bg-primary/10 text-primary-strong" : "bg-muted text-muted-foreground"
                   )}>
                     {p.destination === "trust"
                       ? <><Landmark aria-hidden className="h-3 w-3" /> Fidéicommis</>

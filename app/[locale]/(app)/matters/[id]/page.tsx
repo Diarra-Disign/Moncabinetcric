@@ -98,7 +98,7 @@ export default async function MatterDetailPage({
           {isFr ? "Retour aux dossiers" : "Back to matters"}
         </Link>
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="font-mono text-xs px-3 py-1 border-primary/20 text-primary bg-primary/5">
+          <Badge variant="outline" className="font-mono text-xs px-3 py-1 border-primary/20 text-primary-strong bg-primary/5">
             {matter.id}
           </Badge>
           {matter.isPriority && (
@@ -122,7 +122,7 @@ export default async function MatterDetailPage({
           {/* Ligne principale : nom + statut */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg shrink-0">
+              <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary-strong flex items-center justify-center font-black text-lg shrink-0">
                 <User className="h-5.5 w-5.5" />
               </div>
               <div>

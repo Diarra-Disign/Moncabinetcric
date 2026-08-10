@@ -61,7 +61,7 @@ export function Sidebar() {
         type="button"
         onClick={toggleSidebar}
         title={isCollapsed ? "Agrandir le menu latéral (Afficher les titres)" : "Réduire le menu latéral (Icônes uniquement)"}
-        className="absolute top-[18px] -right-4 z-[100] h-8 w-8 rounded-full border-2 border-primary/25 bg-card shadow-lg flex items-center justify-center text-primary hover:bg-primary hover:text-primary-foreground hover:scale-110 hover:shadow-xl transition-all duration-200 cursor-pointer"
+        className="absolute top-[18px] -right-4 z-[100] h-8 w-8 rounded-full border-2 border-primary/25 bg-card shadow-lg flex items-center justify-center text-primary-strong hover:bg-primary hover:text-primary-foreground hover:scale-110 hover:shadow-xl transition-all duration-200 cursor-pointer"
       >
         {isCollapsed ? (
           <ChevronRight className="h-4.5 w-4.5" />
@@ -112,7 +112,7 @@ export function Sidebar() {
               type="button"
               onClick={toggleSidebar}
               title="Agrandir le menu latéral"
-              className="w-full py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary flex items-center justify-center transition-colors cursor-pointer"
+              className="w-full py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary-strong flex items-center justify-center transition-colors cursor-pointer"
             >
               <PanelLeftOpen className="h-5 w-5" />
             </button>

@@ -174,7 +174,7 @@ export function QuestionnairesClient({
               className={cn(
                 "px-4 py-2.5 text-xs font-bold border-b-2 -mb-px whitespace-nowrap transition-colors cursor-pointer",
                 onglet === cle
-                  ? "border-primary text-primary"
+                  ? "border-primary text-primary-strong"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
@@ -191,7 +191,7 @@ export function QuestionnairesClient({
               <div className="flex items-start justify-between gap-2">
                 <h2 className="text-sm font-black text-foreground leading-snug">{m.titleFr}</h2>
                 {m.isDefaultPreconsultation && (
-                  <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-black">
+                  <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary-strong px-2 py-0.5 text-[10px] font-black">
                     <Star className="h-3 w-3" /> Par défaut
                   </span>
                 )}
@@ -289,7 +289,7 @@ export function QuestionnairesClient({
                 onClick={() => setFiltre(f)}
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer",
-                  filtre === f ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted"
+                  filtre === f ? "border-primary bg-primary/10 text-primary-strong" : "border-border text-muted-foreground hover:bg-muted"
                 )}
               >
                 {f === "tous" ? "Tous" : STATUTS[f]?.texte ?? f}
@@ -562,7 +562,7 @@ function ModaleEnvoi({
                 onClick={() => { setType(v); setChoisi(null) }}
                 className={cn(
                   "px-4 py-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer",
-                  type === v ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted"
+                  type === v ? "border-primary bg-primary/10 text-primary-strong" : "border-border text-muted-foreground hover:bg-muted"
                 )}
               >
                 {libelle}

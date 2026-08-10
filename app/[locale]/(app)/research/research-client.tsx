@@ -220,7 +220,7 @@ export function ResearchClient({
             href="https://laws-lois.justice.gc.ca/"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-primary-strong transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             {t("officialJusticeLink")}
@@ -329,7 +329,7 @@ export function ResearchClient({
             className={cn(
               "flex min-h-11 items-center gap-2 border-b-2 px-5 py-3 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset",
               activeTab === id
-                ? "border-primary text-primary"
+                ? "border-primary text-primary-strong"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
@@ -376,7 +376,7 @@ export function ResearchClient({
                       className={cn(
                         "rounded-md border px-2.5 py-1 text-xs font-black uppercase tracking-wide",
                         prov.instrument === "lipr"
-                          ? "border-primary/30 bg-primary/10 text-primary"
+                          ? "border-primary/30 bg-primary/10 text-primary-strong"
                           : "border-sky-200 bg-sky-50 text-sky-800"
                       )}
                     >
@@ -547,7 +547,7 @@ export function ResearchClient({
                       <span className="font-mono text-xs text-muted-foreground">
                         {t("updatedLabel")} : {ws.updatedAt}
                       </span>
-                      <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                      <span className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-bold text-primary-strong">
                         {ws.sources.length} {t("sourcesCount")}
                       </span>
                     </div>
@@ -577,7 +577,7 @@ export function ResearchClient({
                                 className={cn(
                                   "rounded px-2 py-0.5 text-xs font-black uppercase",
                                   src.instrument === "lipr"
-                                    ? "bg-primary/10 text-primary"
+                                    ? "bg-primary/10 text-primary-strong"
                                     : "bg-sky-50 text-sky-800"
                                 )}
                               >

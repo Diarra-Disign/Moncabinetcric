@@ -75,7 +75,7 @@ const AVANTAGES: Record<string, string[]> = {
 }
 
 const TON_STATUT: Record<string, string> = {
-  trialing: "bg-primary/10 text-primary",
+  trialing: "bg-primary/10 text-primary-strong",
   active: "bg-success/10 text-success",
   past_due: "bg-warning/10 text-warning",
   unpaid: "bg-error/10 text-error",
@@ -412,7 +412,7 @@ function CartePlan({
           </div>
         </div>
         {actuel && (
-          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-strong">
             {t("currentBadge")}
           </span>
         )}

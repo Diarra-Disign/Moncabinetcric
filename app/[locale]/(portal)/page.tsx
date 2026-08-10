@@ -226,7 +226,7 @@ export default async function PortalPage({
                         q.status === "completed" || q.status === "cancelled"
                           ? "bg-success/15 text-success"
                           : q.status === "submitted" || q.status === "corrected"
-                            ? "bg-primary/15 text-primary"
+                            ? "bg-primary/15 text-primary-strong"
                             : q.status === "to_correct"
                               ? "bg-error/15 text-error"
                               : "bg-muted text-muted-foreground"

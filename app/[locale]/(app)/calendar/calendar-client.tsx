@@ -791,7 +791,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                   onClick={() => setCurrentDate(new Date(d.iso + "T12:00:00"))}
                   className={`p-2 rounded-2xl transition-all cursor-pointer flex flex-col items-center gap-1 ${
                     d.isSelected
-                      ? "bg-primary/10 border border-primary/30 text-primary font-black"
+                      ? "bg-primary/10 border border-primary/30 text-primary-strong font-black"
                       : "hover:bg-muted text-foreground"
                   }`}
                 >
