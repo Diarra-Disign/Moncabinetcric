@@ -79,6 +79,11 @@ const MOTS = {
     fiducie1: "Ces fonds sont détenus en fidéicommis (art. 13) et ne seront virés au compte",
     fiducie2: "général du cabinet qu'au fur et à mesure des services rendus.",
     merci: "Merci de votre confiance.",
+    modeCol: "Mode",
+    dateCol: "Date",
+    paiement: "Paiement reçu",
+    enFiducie: "en fidéicommis",
+    compteGeneral: "compte de l'entreprise",
     modes: {
       card: "Carte", interac: "Virement Interac", bank_transfer: "Virement bancaire",
       cheque: "Chèque", cash: "Comptant", other: "Autre",
@@ -122,6 +127,11 @@ const MOTS = {
     fiducie1: "These funds are held in trust (s. 13) and will only be transferred to the",
     fiducie2: "firm's general account as services are rendered.",
     merci: "Thank you for your trust.",
+    modeCol: "Method",
+    dateCol: "Date",
+    paiement: "Payment received",
+    enFiducie: "in trust",
+    compteGeneral: "general account",
     modes: {
       card: "Card", interac: "Interac transfer", bank_transfer: "Bank transfer",
       cheque: "Cheque", cash: "Cash", other: "Other",
@@ -206,6 +216,69 @@ const pourcentDe = (langue: LanguePdf) => (taux: number) =>
     .replace(/[\u00A0\u202F]/g, " ")
 
 /**
+ * Rend un texte imprimable par une police standard de PDF.
+ *
+ * LE DÉFAUT QUE CECI CORRIGE : les polices standard ne couvrent que le
+ * WinAnsi, et pdf-lib LÈVE UNE ERREUR sur tout caractère hors de ce jeu. Une
+ * cliente nommée Nguyễn, un client nommé Wojciech ou أحمد rendaient donc leur
+ * facture impossible à produire — la route répondait 500 et le bouton
+ * « Voir le PDF » ne faisait rien. Pour un cabinet d'immigration, ces noms
+ * sont la règle, pas l'exception.
+ *
+ * On translittère plutôt que d'échouer : « ễ » se décompose en « e » plus des
+ * accents, dont on garde la base — c'est la romanisation qu'IRCC emploie déjà
+ * sur les documents de voyage. Les lettres latines qui ne se décomposent pas
+ * (ł, đ) ont leur équivalent en table.
+ *
+ * Ce qui ne se translittère pas — arabe, chinois, cyrillique — devient « ? ».
+ * C'est un compromis ASSUMÉ et il se voit : mieux vaut un nom visiblement
+ * incomplet, qu'on corrige, qu'un document qui n'existe pas. Imprimer ces
+ * écritures demanderait d'intégrer une police Unicode au PDF.
+ */
+const EQUIVALENTS: Record<string, string> = {
+  "ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ħ": "h", "Ħ": "H",
+  "ı": "i", "ŋ": "n", "Ŋ": "N", "ŧ": "t", "Ŧ": "T", "ə": "e",
+  "‑": "-", "‒": "-", "―": "-", "′": "'", "″": '"',
+  // U+2212, le vrai signe moins. Il est plus juste typographiquement que le
+  // trait d'union, et c'est celui qu'on écrit spontanément devant un montant
+  // déduit — mais WinAnsi ne le connaît pas. Sans cette ligne, « Déjà réglé »
+  // s'imprimait « ?300,00 $ » sur chaque reçu.
+  "−": "-",
+}
+
+/**
+ * Les vingt-sept caractères que WinAnsi loge entre 0x80 et 0x9F, hors du
+ * latin-1 : sans cette liste, l'apostrophe courbe et le tiret cadratin
+ * — fréquents dans un texte français — seraient translittérés pour rien.
+ */
+const WINANSI_SUP = new Set("€‚ƒ„…†‡ˆ‰Š‹ŒŽ''“”•–—˜™š›œžŸ")
+
+const encodable = (c: string) => {
+  const n = c.codePointAt(0) ?? 0
+  return (n >= 0x20 && n <= 0x7e) || (n >= 0xa0 && n <= 0xff) || WINANSI_SUP.has(c)
+}
+
+function sur(texte: string): string {
+  let sortie = ""
+  for (const c of texte) {
+    if (encodable(c)) { sortie += c; continue }
+    if (EQUIVALENTS[c]) { sortie += EQUIVALENTS[c]; continue }
+    // « ễ » se décompose en « e » suivi de deux marques : on garde la base.
+    const base = [...c.normalize("NFD")].filter((d) => encodable(d)).join("")
+    sortie += base || "?"
+  }
+  return sortie
+}
+
+/** Toute écriture passe par ici : un seul point où le texte est assaini. */
+function ecrire(
+  page: PDFPage, texte: string,
+  options: Parameters<PDFPage["drawText"]>[1]
+) {
+  page.drawText(sur(texte), options)
+}
+
+/**
  * Coupe un texte à la largeur disponible.
  *
  * Sans cela, une description un peu longue sort de la page — le texte n'est
@@ -213,7 +286,10 @@ const pourcentDe = (langue: LanguePdf) => (taux: number) =>
  * invisible à l'impression. On ne s'en apercevrait que sur la facture d'un
  * vrai client.
  */
-function couper(texte: string, police: PDFFont, taille: number, largeur: number): string {
+function couper(entree: string, police: PDFFont, taille: number, largeur: number): string {
+  // Mesuré APRÈS assainissement : « Nguyễn » et « Nguyen » n'ont pas la même
+  // largeur, et c'est le second qui sera écrit.
+  const texte = sur(entree)
   if (police.widthOfTextAtSize(texte, taille) <= largeur) return texte
   let court = texte
   while (court.length > 1 && police.widthOfTextAtSize(court + "…", taille) > largeur) {
@@ -224,12 +300,14 @@ function couper(texte: string, police: PDFFont, taille: number, largeur: number)
 
 /** Écrit une valeur alignée à DROITE sur x — les montants se lisent en colonne. */
 function droite(page: PDFPage, texte: string, x: number, y: number, police: PDFFont, taille: number, couleur = ENCRE) {
-  page.drawText(texte, { x: x - police.widthOfTextAtSize(texte, taille), y, size: taille, font: police, color: couleur })
+  const t = sur(texte)
+  page.drawText(t, { x: x - police.widthOfTextAtSize(t, taille), y, size: taille, font: police, color: couleur })
 }
 
 /** Écrit une valeur CENTRÉE sur x — utilisé par la pagination. */
 function centre(page: PDFPage, texte: string, x: number, y: number, police: PDFFont, taille: number, couleur = GRIS) {
-  page.drawText(texte, { x: x - police.widthOfTextAtSize(texte, taille) / 2, y, size: taille, font: police, color: couleur })
+  const t = sur(texte)
+  page.drawText(t, { x: x - police.widthOfTextAtSize(t, taille) / 2, y, size: taille, font: police, color: couleur })
 }
 
 async function logoEnOctets(url: string): Promise<{ octets: Uint8Array; type: "png" | "jpg" } | null> {
@@ -298,7 +376,7 @@ async function enTete(
   // Le titre vient sous le logo, à gauche : c'est le premier mot que l'œil
   // rencontre en descendant, et il dit de quelle pièce il s'agit.
   const yTitre = Math.min(yGauche - 22, yCabinet - 6)
-  page.drawText(titre, { x: G, y: yTitre, size: 26, font: gras, color: ENCRE })
+  ecrire(page, titre, { x: G, y: yTitre, size: 26, font: gras, color: ENCRE })
 
   return yTitre - 34
 }
@@ -316,8 +394,8 @@ function bloc(
     droite(page, etiquette, x, y, gras, 7.5, GRIS)
     droite(page, valeur, x, y - 15, gras, tailleValeur, couleurValeur)
   } else {
-    page.drawText(etiquette, { x, y, size: 7.5, font: gras, color: GRIS })
-    page.drawText(valeur, { x, y: y - 15, size: tailleValeur, font: gras, color: couleurValeur })
+    ecrire(page, etiquette, { x, y, size: 7.5, font: gras, color: GRIS })
+    ecrire(page, valeur, { x, y: y - 15, size: tailleValeur, font: gras, color: couleurValeur })
   }
 }
 
@@ -347,7 +425,7 @@ export async function facturePdf(f: FacturePdf, c: CabinetPdf): Promise<Uint8Arr
   let yClient = y - 28
   for (const ligne of [f.clientAdresse, f.clientCourriel]) {
     if (!ligne) continue
-    page.drawText(couper(ligne, normal, 9, 220), { x: G, y: yClient, size: 9, font: normal, color: GRIS })
+    ecrire(page, couper(ligne, normal, 9, 220), { x: G, y: yClient, size: 9, font: normal, color: GRIS })
     yClient -= 11
   }
 
@@ -362,7 +440,7 @@ export async function facturePdf(f: FacturePdf, c: CabinetPdf): Promise<Uint8Arr
 
   y = Math.min(yClient, yBas - 22) - 14
   if (f.dossierReference) {
-    page.drawText(`${m.dossier} ${f.dossierReference}${f.consultant ? ` · ${f.consultant}` : ""}`,
+    ecrire(page, `${m.dossier} ${f.dossierReference}${f.consultant ? ` · ${f.consultant}` : ""}`,
       { x: G, y: y + 8, size: 8.5, font: normal, color: GRIS })
     y -= 6
   }
@@ -373,14 +451,14 @@ export async function facturePdf(f: FacturePdf, c: CabinetPdf): Promise<Uint8Arr
   // ---- Le tableau ---------------------------------------------------------
   const xTaux = 380
   const xQte = 452
-  page.drawText(m.description, { x: G, y, size: 8, font: normal, color: GRIS })
+  ecrire(page, m.description, { x: G, y, size: 8, font: normal, color: GRIS })
   droite(page, m.taux, xTaux, y, normal, 8, GRIS)
   droite(page, m.quantite, xQte, y, normal, 8, GRIS)
   droite(page, m.montant, D, y, normal, 8, GRIS)
   y -= 22
 
   for (const l of f.lignes) {
-    page.drawText(couper(l.description, normal, 10, 300), { x: G, y, size: 10, font: normal, color: ENCRE })
+    ecrire(page, couper(l.description, normal, 10, 300), { x: G, y, size: 10, font: normal, color: ENCRE })
     droite(page, argent(l.prixUnitaire), xTaux, y, normal, 9, GRIS)
     droite(page, String(l.quantite), xQte, y, normal, 9, GRIS)
     droite(page, argent(l.quantite * l.prixUnitaire), D, y, normal, 9.5)
@@ -440,16 +518,16 @@ export async function facturePdf(f: FacturePdf, c: CabinetPdf): Promise<Uint8Arr
   // message du cabinet. Le plancher garde la place de la pagination.
   let bas = Math.max(y - 44, 132)
   if (f.notes) {
-    page.drawText(m.notes, { x: G, y: bas, size: 8, font: gras, color: GRIS })
+    ecrire(page, m.notes, { x: G, y: bas, size: 8, font: gras, color: GRIS })
     bas -= 13
-    page.drawText(couper(f.notes, normal, 9, D - G), { x: G, y: bas, size: 9, font: normal, color: ENCRE })
+    ecrire(page, couper(f.notes, normal, 9, D - G), { x: G, y: bas, size: 9, font: normal, color: ENCRE })
     bas -= 20
   }
   if (c.conditionsPaiement) {
-    page.drawText(m.conditions, { x: G, y: bas, size: 8, font: gras, color: GRIS })
+    ecrire(page, m.conditions, { x: G, y: bas, size: 8, font: gras, color: GRIS })
     bas -= 13
     for (const ligne of c.conditionsPaiement.split("\n").slice(0, 3)) {
-      page.drawText(couper(ligne, normal, 9, D - G), { x: G, y: bas, size: 9, font: normal, color: ENCRE })
+      ecrire(page, couper(ligne, normal, 9, D - G), { x: G, y: bas, size: 9, font: normal, color: ENCRE })
       bas -= 11
     }
   }
@@ -458,14 +536,14 @@ export async function facturePdf(f: FacturePdf, c: CabinetPdf): Promise<Uint8Arr
   // existent, et rien ne les invente quand ils manquent.
   const numeros = [c.numeroTps && `${m.tps} ${c.numeroTps}`, c.numeroTvq && `${m.tvq} ${c.numeroTvq}`]
     .filter(Boolean).join(" · ")
-  if (numeros) page.drawText(numeros, { x: G, y: 62, size: 8, font: normal, color: GRIS })
+  if (numeros) ecrire(page, numeros, { x: G, y: 62, size: 8, font: normal, color: GRIS })
 
   pagination(page, m, normal)
 
   // Un brouillon porte sa mention. Sans elle, une facture non émise circule et
   // se fait payer comme une vraie — puis son numéro change à l'émission.
   if (f.statut === "draft") {
-    page.drawText(m.brouillon, {
+    ecrire(page, m.brouillon, {
       x: 170, y: 400, size: 54, font: gras, color: rgb(0.93, 0.94, 0.96), rotate: { type: "degrees", angle: 32 } as never,
     })
   }
@@ -516,7 +594,7 @@ export async function recuPdf(r: RecuPdf, c: CabinetPdf): Promise<Uint8Array> {
   bloc(page, G, y, m.recuDe, couper(r.clientNom, gras, 10, 220), normal, gras)
   let yClient = y - 28
   if (r.clientCourriel) {
-    page.drawText(couper(r.clientCourriel, normal, 9, 220), { x: G, y: yClient, size: 9, font: normal, color: GRIS })
+    ecrire(page, couper(r.clientCourriel, normal, 9, 220), { x: G, y: yClient, size: 9, font: normal, color: GRIS })
     yClient -= 11
   }
 
@@ -525,32 +603,52 @@ export async function recuPdf(r: RecuPdf, c: CabinetPdf): Promise<Uint8Array> {
 
   const yBas = y - 46
   bloc(page, xMilieu, yBas, m.numeroRecu, r.numero, normal, gras, false, 9.5)
-  droite(page, m.modes[r.mode] ?? r.mode, D, yBas - 15, normal, 9, GRIS)
-  if (r.reference) droite(page, r.reference, D, yBas - 27, normal, 8.5, GRIS)
+  if (r.factureNumero) bloc(page, D, yBas, m.factureLiee, r.factureNumero, normal, gras, true, 9.5)
 
-  y = Math.min(yClient, yBas - 34) - 14
+  y = Math.min(yClient, yBas - 22) - 14
   if (r.dossierReference) {
-    page.drawText(`${m.dossier} ${r.dossierReference}`, { x: G, y: y + 8, size: 8.5, font: normal, color: GRIS })
+    ecrire(page, `${m.dossier} ${r.dossierReference}`, { x: G, y: y + 8, size: 8.5, font: normal, color: GRIS })
     y -= 6
   }
 
   page.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 1.6, color: ENCRE })
-  y -= 26
+  y -= 20
 
-  // 445 et non 470 comme sur la facture : ici la colonne de droite reçoit un
-  // NUMÉRO de facture, bien plus large qu'un montant. À 470, « Facture » et
-  // « FAC-2026-000001 » se chevauchaient et donnaient « FactuFAC-2026-000001 ».
-  const xLibelle = 445
-  const details: [string, string][] = [
-    [m.factureLiee, r.factureNumero || "—"],
-    [m.totalFacture, argent(r.factureTotal)],
-    [m.regleAJour, argent(r.dejaRegle)],
-  ]
-  for (const [libelle, valeur] of details) {
-    droite(page, libelle, xLibelle, y, normal, 9.5, GRIS)
-    droite(page, valeur, D, y, normal, 9.5)
-    y -= 16
-  }
+  // ---- Le tableau, calqué sur celui de la facture -------------------------
+  // Un reçu n'a qu'une ligne, ce qui rendait tentant de l'écrire en prose. Mais
+  // c'est la MÊME lecture pour le client — quoi, comment, quand, combien — et
+  // deux mises en page pour une même lecture obligent à réapprendre où
+  // regarder. Le reçu emprunte donc les colonnes, les filets et l'échelle de
+  // la facture ; seuls les en-têtes changent.
+  const xMode = 380
+  const xDate = 465
+  ecrire(page, m.description, { x: G, y, size: 8, font: normal, color: GRIS })
+  droite(page, m.modeCol, xMode, y, normal, 8, GRIS)
+  droite(page, m.dateCol, xDate, y, normal, 8, GRIS)
+  droite(page, m.montant, D, y, normal, 8, GRIS)
+  y -= 22
+
+  ecrire(page, couper(r.notes || m.paiement, normal, 10, 300), { x: G, y, size: 10, font: normal, color: ENCRE })
+  droite(page, m.modes[r.mode] ?? r.mode, xMode, y, normal, 9, GRIS)
+  droite(page, r.date, xDate, y, normal, 9, GRIS)
+  droite(page, argent(r.montant), D, y, normal, 9.5)
+  // À la place du « + taxes » de la facture : la destination des fonds. C'est
+  // ce qui qualifie ce paiement-ci, et le client doit pouvoir le lire sur la
+  // ligne même, pas seulement dans la mention légale du bas.
+  droite(page, r.enFideicommis ? m.enFiducie : m.compteGeneral, xMode, y - 14, normal, 8, GRIS)
+  if (r.reference) ecrire(page, r.reference, { x: G, y: y - 14, size: 8, font: normal, color: GRIS })
+  y -= 34
+
+  // ---- L'échelle des totaux, identique à celle de la facture --------------
+  const xLibelle = 470
+  y -= 6
+
+  droite(page, m.totalFacture, xLibelle, y, normal, 9.5, GRIS)
+  droite(page, argent(r.factureTotal), D, y, normal, 9.5)
+  y -= 16
+  droite(page, m.regleAJour, xLibelle, y, normal, 9.5, GRIS)
+  droite(page, `−${argent(r.dejaRegle)}`, D, y, normal, 9.5, GRIS)
+  y -= 16
 
   page.drawLine({ start: { x: 340, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 1.6, color: ENCRE })
   y -= 6
@@ -562,21 +660,22 @@ export async function recuPdf(r: RecuPdf, c: CabinetPdf): Promise<Uint8Array> {
     // Une somme en fiducie n'appartient pas encore au cabinet. Le taire sur
     // le reçu laisserait croire que les honoraires sont acquis — ce que
     // l'article 13 interdit précisément de laisser croire.
-    page.drawText(m.fiducie1, { x: G, y, size: 8.5, font: normal, color: GRIS })
+    ecrire(page, m.fiducie1, { x: G, y, size: 8.5, font: normal, color: GRIS })
     y -= 11
-    page.drawText(m.fiducie2, { x: G, y, size: 8.5, font: normal, color: GRIS })
+    ecrire(page, m.fiducie2, { x: G, y, size: 8.5, font: normal, color: GRIS })
   }
 
-  // Même raison que sur la facture : le bloc suit le corps du document plutôt
-  // que de flotter au ras du pied.
-  let bas = Math.max(y - 30, 110)
-  if (r.notes) {
-    page.drawText(m.notes, { x: G, y: bas, size: 8, font: gras, color: GRIS })
-    bas -= 13
-    page.drawText(couper(r.notes, normal, 9, D - G), { x: G, y: bas, size: 9, font: normal, color: ENCRE })
-    bas -= 18
-  }
-  page.drawText(m.merci, { x: G, y: bas, size: 9, font: normal, color: GRIS })
+  // Les notes ne sont plus répétées ici : elles servent de description à la
+  // ligne du tableau. Les imprimer deux fois ferait croire à deux mentions.
+  const bas = Math.max(y - 20, 110)
+  ecrire(page, m.merci, { x: G, y: bas, size: 9, font: normal, color: GRIS })
+
+  // Le même pied que la facture, pour la même raison : ces numéros engagent le
+  // cabinet, et un client qui compare ses deux pièces doit les retrouver au
+  // même endroit.
+  const numeros = [c.numeroTps && `${m.tps} ${c.numeroTps}`, c.numeroTvq && `${m.tvq} ${c.numeroTvq}`]
+    .filter(Boolean).join(" · ")
+  if (numeros) ecrire(page, numeros, { x: G, y: 62, size: 8, font: normal, color: GRIS })
 
   pagination(page, m, normal)
 

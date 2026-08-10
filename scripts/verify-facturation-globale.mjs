@@ -133,6 +133,26 @@ try {
   verifier("« reste à encaisser » compte la facture émise",
     (montant.match(/1 149,75/g) ?? []).length >= 2, true)
 
+  // -----------------------------------------------------------------------
+  console.log("\nLe clic réel sur « Voir le PDF »")
+  // -----------------------------------------------------------------------
+  // Interroger la route à la main prouve qu'elle répond ; cela ne prouve pas
+  // que le LIEN de l'écran pointe au bon endroit. C'est le clic qu'il faut
+  // reproduire, et l'onglet qu'il ouvre qu'il faut lire.
+  const [ongletPdf] = await Promise.all([
+    page.waitForEvent("popup", { timeout: 15000 }).catch(() => null),
+    page.click('a:has-text("Voir le PDF")'),
+  ])
+  verifier("un onglet s'ouvre", Boolean(ongletPdf), true)
+  if (ongletPdf) {
+    const rep = await ongletPdf.request.get(ongletPdf.url())
+    verifier("il sert bien un PDF", rep.headers()["content-type"], "application/pdf")
+    verifier("et non une page d'erreur", rep.status(), 200)
+    const octets = Buffer.from(await rep.body())
+    verifier("le fichier est un PDF valide", octets.subarray(0, 5).toString(), "%PDF-")
+    await ongletPdf.close()
+  }
+
   console.log("\nAucune façade : le premier clic n'envoie rien")
   await page.click('button:has-text("Envoyer au client")')
   await page.waitForTimeout(800)

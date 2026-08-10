@@ -122,7 +122,15 @@ try {
     // rempli — deux fois de suite, le contrôle avait tort et le PDF raison.
     const lisible = sortie.replace(/<([0-9A-Fa-f]{4,})>/g, (_, hex) =>
       Buffer.from(hex, "hex").toString("latin1"))
+    // Les octets bruts sont ajoutés pour rattraper ce qui n'aurait pas été
+    // décodé. C'est utile pour CHERCHER un mot, jamais pour affirmer qu'un
+    // caractère est ABSENT : le binaire d'un PDF contient de tout.
     return lisible + octets.toString("latin1")
+  }
+  /** Le seul texte décodé, sans les octets bruts. Pour les preuves d'absence. */
+  const texteSeul = (octets) => {
+    const tout = lisiblePdf(octets)
+    return tout.slice(0, tout.length - octets.length)
   }
   const texte = lisiblePdf(octets)
   for (const [quoi, motif] of [
@@ -157,6 +165,44 @@ try {
   verifier("la TVQ à trois décimales, arrondie au cent", texte.includes("64,84"), true)
   verifier("le total", texte.includes("982,34"), true)
   verifier("le débours n'est pas taxé", texte.includes("235,00"), true)
+
+  // -----------------------------------------------------------------------
+  console.log("\nUn nom que la police standard ne sait pas écrire")
+  // -----------------------------------------------------------------------
+  // C'est le défaut qui rendait le bouton « Voir le PDF » inerte : les polices
+  // standard d'un PDF ne couvrent que le WinAnsi, et pdf-lib LÈVE sur tout
+  // caractère hors de ce jeu. La route répondait 500. Pour un cabinet
+  // d'immigration, une cliente nommée Nguyễn n'est pas un cas limite.
+  const { data: c2 } = await admin.from("clients").insert({
+    firm_id: cabinetId, name: "Nguyễn Thị Hồng Đào", email: `ng-${marque}@example.invalid`,
+    file_number: "C-2", program: "PE", residence: "Hà Nội, Việt Nam",
+    status: "active", client_type: "individual",
+  }).select("id").single()
+  const num2 = (await admin.rpc("next_invoice_number", { p_firm_id: cabinetId })).data
+  const { data: inv2 } = await admin.from("invoices").insert({
+    firm_id: cabinetId, client_id: c2.id, matter_id: m.id, invoice_number: num2,
+    // BROUILLON d'abord : le verrou protect_issued_invoice refuse qu'on
+    // garnisse une facture déjà émise, et il a raison. La fixture suit donc
+    // le vrai chemin — créer, garnir, émettre.
+    client_name: "Nguyễn Thị Hồng Đào", amount: 0, status: "draft",
+    date: new Date().toISOString().slice(0, 10),
+    service_description: "Dépôt — 100 % à l'acceptation ✅",
+  }).select("id").single()
+  const { error: eL2 } = await admin.from("invoice_lines").insert([
+    { firm_id: cabinetId, invoice_id: inv2.id, description: "Honoraires — dossier Wojciechłąka", quantity: 1, unit_price: 400, taxable: true, position: 1 },
+  ])
+  if (eL2) throw new Error(`Lignes (2) : ${eL2.message}`)
+  await admin.from("invoices").update({ status: "issued" }).eq("id", inv2.id)
+
+  const repVn = await page.request.get(`${BASE}/api/invoices/${inv2.id}/pdf`)
+  verifier("la facture se produit quand même", repVn.status(), 200)
+  const texteVn = lisiblePdf(Buffer.from(await repVn.body()))
+  // La romanisation ne touche QUE ce qui n'est pas imprimable : le « à » de
+  // Dào est du latin-1, il reste tel quel. Un assainisseur qui aplatirait
+  // aussi les accents français abîmerait les noms québécois sans raison.
+  verifier("le nom est romanisé, pas perdu", texteVn.includes("Nguyen Thi Hong Dào"), true)
+  verifier("le polonais aussi", texteVn.includes("Wojciechlaka"), true)
+  verifier("le montant reste juste", texteVn.includes("459,90"), true)
 
   console.log("\nLe même document, en anglais")
   const repEn = await page.request.get(`${BASE}/api/invoices/${inv.id}/pdf?lang=en`)
@@ -209,7 +255,19 @@ try {
     ["le solde restant", "SOLDE RESTANT"],
     ["la mention de fidéicommis", "fid\u00e9icommis"],
     ["le nom du cabinet", "Zenith Immigration"],
+    // L'harmonie avec la facture : mêmes colonnes, même échelle de totaux,
+    // même pied portant les numéros de taxe.
+    ["l'en-tête de colonne Description", "Description"],
+    ["la colonne Mode", "Mode"],
+    ["la destination des fonds sur la ligne", "en fid"],
+    ["le pied porte les numéros de taxe", "RT0001"],
+    ["la pagination", "Page 1 sur 1"],
   ]) verifier(quoi, texteRecu.includes(motif), true)
+
+  // Un « ? » dans un document signifie qu'un caractère n'a pas pu s'écrire.
+  // Sur une pièce comptable, cela doit être un échec bruyant : c'est ainsi
+  // qu'on a vu « ?300,00 $ » là où le signe moins typographique était employé.
+  verifier("aucun caractère n'a été perdu", /\?/.test(texteSeul(octetsRecu)), false)
 
   writeFileSync("/tmp/recu-epreuve.pdf", octetsRecu)
   console.log("     Reçu écrit dans /tmp/recu-epreuve.pdf")
