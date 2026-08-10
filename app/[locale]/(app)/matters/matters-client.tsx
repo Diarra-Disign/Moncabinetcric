@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { cn } from "@/lib/utils"
 import { 
   FolderOpen, 
   Search, 
@@ -58,6 +59,24 @@ interface MattersClientProps {
   initialMatters: Matter[]
 }
 
+
+/** Le statut d'un dossier, en un seul endroit. */
+function StatutPastille({ statut }: { statut: string }) {
+  const TONS: Record<string, { texte: string; classe: string; icone: React.ElementType }> = {
+    valid: { texte: "Conforme", classe: "bg-success/15 text-success-strong border-success/30", icone: CheckCircle2 },
+    alert: { texte: "Pièce manquante", classe: "bg-error/10 text-error-strong border-error/30", icone: AlertCircle },
+    review: { texte: "En révision", classe: "bg-warning/15 text-warning-strong border-warning/40", icone: Clock },
+    pending: { texte: "En attente", classe: "bg-muted text-foreground/70 border-border", icone: Clock },
+  }
+  const t = TONS[statut] ?? TONS.pending
+  const Icone = t.icone
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full border shrink-0", t.classe)}>
+      <Icone className="w-3.5 h-3.5" /> {t.texte}
+    </span>
+  )
+}
+
 export function MattersClient({ t, initialMatters }: MattersClientProps) {
   const router = useRouter()
   const [matters, setMatters] = React.useState<Matter[]>(initialMatters)
@@ -102,12 +121,12 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
   }, [matters, activeTab, filterStatus, searchQuery])
 
   return (
-    <div className="flex flex-col gap-8 pb-20 selection:bg-blue-600 selection:text-white">
+    <div className="flex flex-col gap-8 pb-20 selection:bg-primary selection:text-primary-foreground">
       
       {/* TOAST GLOBAL */}
       {toastNotice && (
-        <div className="fixed top-20 right-6 z-[300] bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 font-bold text-xs sm:text-sm flex items-center gap-3 animate-slideInRight">
-          <div className="h-9 w-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black shrink-0">
+        <div className="fixed top-20 right-6 z-[300] bg-foreground text-primary-foreground p-4 rounded-2xl shadow-2xl border border-foreground/70 font-bold text-xs sm:text-sm flex items-center gap-3 animate-slideInRight">
+          <div className="h-9 w-9 rounded-xl bg-success text-primary-foreground flex items-center justify-center font-black shrink-0">
             ✓
           </div>
           <span>{toastNotice}</span>
@@ -131,14 +150,14 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
 
 
       {/* 2. BARRE DE FILTRES ET RECHERCHE HAUTE DÉFINITION */}
-      <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-card rounded-3xl p-5 border border-border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         
         {/* PROGRAM CATEGORY TABS */}
-        <div className="flex items-center gap-1.5 bg-slate-100/90 p-1.5 rounded-2xl overflow-x-auto">
+        <div className="flex items-center gap-1.5 bg-muted p-1.5 rounded-2xl overflow-x-auto">
           <button
             onClick={() => setActiveTab("all")}
             className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "all" ? "bg-blue-600 text-white shadow-md font-black" : "text-slate-600 hover:text-slate-900"
+              activeTab === "all" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
             }`}
           >
             Tous ({matters.length})
@@ -146,7 +165,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
           <button
             onClick={() => setActiveTab("pr")}
             className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "pr" ? "bg-blue-600 text-white shadow-md font-black" : "text-slate-600 hover:text-slate-900"
+              activeTab === "pr" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
             }`}
           >
             Résidence Permanente (PEQ / EE)
@@ -154,7 +173,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
           <button
             onClick={() => setActiveTab("work")}
             className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "work" ? "bg-blue-600 text-white shadow-md font-black" : "text-slate-600 hover:text-slate-900"
+              activeTab === "work" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
             }`}
           >
             Permis Travail / EIMT
@@ -162,7 +181,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
           <button
             onClick={() => setActiveTab("study")}
             className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "study" ? "bg-blue-600 text-white shadow-md font-black" : "text-slate-600 hover:text-slate-900"
+              activeTab === "study" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
             }`}
           >
             Permis Études & CAQ
@@ -170,7 +189,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
           <button
             onClick={() => setActiveTab("tr")}
             className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "tr" ? "bg-blue-600 text-white shadow-md font-black" : "text-slate-600 hover:text-slate-900"
+              activeTab === "tr" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
             }`}
           >
             Résidence Temporaire (Visa, Super Visa)
@@ -180,20 +199,20 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
         {/* SEARCH & STATUS FILTER */}
         <div className="flex items-center gap-3 max-w-md w-full">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-3" />
             <input
               type="text"
               placeholder="Chercher par nom, dossier #DOS..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+              className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-muted/60 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
             />
           </div>
 
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as "all" | "valid" | "alert" | "review")}
-            className="h-10 px-3 text-xs font-bold rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none cursor-pointer"
+            className="h-10 px-3 text-xs font-bold rounded-xl bg-muted/60 border border-border focus:bg-card focus:border-primary focus:outline-none cursor-pointer"
           >
             <option value="all">Tous statut</option>
             <option value="valid">Conformes ✓</option>
@@ -210,10 +229,10 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
         {/* LEFT COLUMN: LIST OF DOSSIERS (7 COLONNES) */}
         <div className="lg:col-span-7 space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-lg font-black text-slate-900">
+            <h3 className="text-lg font-black text-foreground">
               Liste des Mandats ({filteredMatters.length})
             </h3>
-            <span className="text-xs font-semibold text-slate-500">Cliquez sur un dossier pour le consulter</span>
+            <span className="text-xs font-semibold text-muted-foreground">Cliquez sur un dossier pour le consulter</span>
           </div>
 
           <div className="space-y-3.5">
@@ -226,22 +245,22 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                   onClick={() => setSelectedMatter(m)}
                   className={`p-6 rounded-3xl border transition-all duration-200 cursor-pointer text-left space-y-3 relative group ${
                     isSelected
-                      ? "bg-gradient-to-r from-blue-50/90 to-indigo-50/70 border-blue-500 shadow-md ring-2 ring-blue-500/20"
-                      : "bg-white border-slate-200/80 hover:border-blue-300 hover:shadow-sm"
+                      ? "bg-gradient-to-r from-blue-50/90 to-indigo-50/70 border-primary shadow-md ring-2 ring-blue-500/20"
+                      : "bg-card border-border hover:border-primary/30 hover:shadow-sm"
                   }`}
                 >
                   {/* HEADER ROW */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <span className="font-mono text-xs font-black text-slate-900 bg-white px-3 py-1 rounded-xl border border-slate-200 shadow-2xs">
+                      <span className="font-mono text-xs font-black text-foreground bg-card px-3 py-1 rounded-xl border border-border shadow-2xs">
                         {m.id}
                       </span>
                       {m.clientType === "b2b" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-primary-strong bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/25">
                           <Building2 className="w-3 h-3" /> Entreprise B2B
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-primary-strong bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/25">
                           <User className="w-3 h-3" /> Particulier B2C
                         </span>
                       )}
@@ -250,46 +269,34 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setDrawerMatter(m); }}
-                        className="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
+                        className="px-2.5 py-1 rounded-xl bg-primary/10 hover:bg-primary/15 text-primary-strong border border-primary/25 text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer"
                         title="Ouvrir le tiroir coulissant"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>Coulissant</span>
                       </button>
 
-                      {m.status === "valid" ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Conforme
-                        </span>
-                      ) : m.status === "alert" ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full animate-pulse">
-                          <AlertCircle className="w-3.5 h-3.5" /> Pièce manquante
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
-                          <Clock className="w-3.5 h-3.5" /> En révision
-                        </span>
-                      )}
+                      <StatutPastille statut={m.status} />
                     </div>
                   </div>
 
                   {/* CLIENT & PROGRAM */}
                   <div>
-                    <h4 className="text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
+                    <h4 className="text-xl font-black text-foreground group-hover:text-primary-strong transition-colors">
                       {m.clientName}
                     </h4>
-                    <p className="text-xs sm:text-sm font-bold text-blue-700 mt-0.5">
+                    <p className="text-xs sm:text-sm font-bold text-primary-strong mt-0.5">
                       {m.program}
                     </p>
                   </div>
 
                   {/* METADATA BAR */}
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                  <div className="pt-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground font-medium">
                     <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-amber-500" /> Échéance : <strong className="text-slate-900 font-bold">{m.deadline || "à fixer"}</strong>
+                      <Calendar className="w-3.5 h-3.5 text-warning" /> Échéance : <strong className="text-foreground font-bold">{m.deadline || "à fixer"}</strong>
                     </span>
-                    <span className="flex items-center gap-1 text-slate-700 font-bold">
-                      <User className="w-3.5 h-3.5 text-blue-600" /> {m.rcic}
+                    <span className="flex items-center gap-1 text-muted-foreground font-bold">
+                      <User className="w-3.5 h-3.5 text-primary-strong" /> {m.rcic}
                     </span>
                   </div>
 
@@ -302,114 +309,91 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
         {/* RIGHT COLUMN: FICHE COMPLÈTE DU DOSSIER SÉLECTIONNÉ (5 COLONNES) */}
         <div className="lg:col-span-5 space-y-6">
           {!selectedMatter ? (
-            <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-10 text-center shadow-xs sticky top-6">
-              <FolderOpen className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-black text-slate-800">Aucun dossier sélectionné</p>
-              <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">Créez un premier dossier pour voir sa fiche s&apos;afficher ici.</p>
+            <div className="bg-card rounded-3xl border border-dashed border-border p-10 text-center shadow-xs sticky top-6">
+              <FolderOpen className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm font-black text-foreground">Aucun dossier sélectionné</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">Créez un premier dossier pour voir sa fiche s&apos;afficher ici.</p>
             </div>
           ) : (
-          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-7 shadow-md space-y-6 sticky top-6">
-            
-            {/* CARD HEADER */}
-            <div className="border-b border-slate-100 pb-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200 font-mono">
-                  {selectedMatter.id}
-                </span>
-
-                <Link
-                  href={`/matters/${selectedMatter.id.replace('#', '')}`}
-                  className="inline-flex items-center gap-1.5 text-xs font-black text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 transition-all hover:scale-105"
-                >
-                  <span>Ouvrir la Fiche Complète</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-black text-slate-900">
-                  {selectedMatter.clientName}
-                </h2>
-                <p className="text-xs sm:text-sm font-extrabold text-blue-700 mt-0.5">
-                  {selectedMatter.program}
-                </p>
-              </div>
+          /**
+           * Le panneau de droite SITUE un dossier ; il ne le rejoue pas.
+           *
+           * Il affichait auparavant un compte de fidéicommis, une liste
+           * d'exigences IRCC et quatre actions rapides — c'est-à-dire une
+           * seconde fiche, à côté de la vraie, accessible d'un clic. D'où
+           * l'impression, juste, qu'on ne savait pas à quoi servait cette
+           * page : elle faisait le travail de la suivante, en moins bien.
+           *
+           * Elle le faisait surtout avec des données INVENTÉES. « 5 000 $ CAD »
+           * et « 1. Passeport principal (Valide > 6 mois) » étaient écrits en
+           * dur : tous les dossiers de tous les cabinets affichaient le même
+           * solde en fiducie et le même passeport coché. La fiche, elle, lit
+           * client_trust_balance() et les exigences réelles. Deux nombres pour
+           * le même fait, dont un faux — et c'est le rassurant qu'on croit.
+           *
+           * Ne reste ici que ce qu'une liste doit donner : de quoi reconnaître
+           * le dossier, et une porte vers lui.
+           */
+          <div className="bg-card rounded-3xl border border-border p-6 shadow-md space-y-5 sticky top-6">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-black uppercase text-primary-strong bg-primary/10 px-3 py-1 rounded-full border border-primary/25 font-mono">
+                {selectedMatter.id}
+              </span>
+              <StatutPastille statut={selectedMatter.status} />
             </div>
 
-            {/* FIDÉICOMMIS & REMARQUES DE CONFORMITÉ */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600">Compte Fidéicommis CICC</span>
-                <span className="text-sm font-black text-emerald-600 font-mono">$5,000 CAD</span>
-              </div>
-              <p className="text-xs text-slate-600 font-medium">
-                💬 <strong>Notes :</strong> {selectedMatter.notes}
+            <div>
+              <h2 className="text-2xl font-black text-foreground leading-tight">
+                {selectedMatter.clientName}
+              </h2>
+              <p className="text-sm font-extrabold text-primary-strong mt-0.5">
+                {selectedMatter.program}
               </p>
             </div>
 
-            {/* RACCOURCIS D'ACTIONS DIRECTES POUR CE DOSSIER */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
-                Actions Rapides sur ce Mandat
-              </h4>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <button
-                  onClick={() => showToast("Formulaire officiel IMM 5476 ouvert pour la signature numérotée !")}
-                  className="p-3.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer"
-                >
-                  <FileText className="w-4 h-4 text-blue-600 shrink-0" />
-                  <span>Mandat IMM 5476</span>
-                </button>
-
-                <button
-                  onClick={() => showToast("Appel de fonds fidéicommis envoyé à " + selectedMatter.clientName)}
-                  className="p-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer"
-                >
-                  <DollarSign className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Compte Fidéicommis</span>
-                </button>
-
-                <Link
-                  href="/calendar"
-                  className="p-3.5 rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold flex items-center gap-2.5 transition-all text-left"
-                >
-                  <Video className="w-4 h-4 text-purple-600 shrink-0" />
-                  <span>Inviter en Visio</span>
-                </Link>
-
-                <button
-                  onClick={() => showToast("Exportation du rapport d'audit pour le Collège (CICC)...")}
-                  className="p-3.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold flex items-center gap-2.5 transition-all text-left cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Audit CICC</span>
-                </button>
+            <dl className="space-y-2.5 text-xs border-t border-border pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Consultant responsable</dt>
+                <dd className="font-bold text-foreground">{selectedMatter.rcic || "—"}</dd>
               </div>
-            </div>
-
-            {/* CHECKLIST EXPRESS */}
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-              <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">
-                Exigences Documentaires IRCC
-              </h4>
-
-              <div className="space-y-2 text-xs">
-                <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200 text-emerald-950 flex items-center justify-between font-medium">
-                  <span>1. Passeport principal (Valide &gt; 6 mois)</span>
-                  <Check className="w-4 h-4 text-emerald-600" />
-                </div>
-                <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200 text-emerald-950 flex items-center justify-between font-medium">
-                  <span>2. Formulaire d&apos;antécédents IMM 5669</span>
-                  <Check className="w-4 h-4 text-emerald-600" />
-                </div>
-                <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200 text-amber-950 flex items-center justify-between font-medium">
-                  <span>3. Preuve financière & Fidéicommis</span>
-                  <Clock className="w-4 h-4 text-amber-600" />
-                </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Ouvert le</dt>
+                <dd className="font-bold text-foreground font-mono">{selectedMatter.openedDate || "—"}</dd>
               </div>
-            </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Prochaine échéance</dt>
+                <dd className={cn("font-bold font-mono", selectedMatter.deadline ? "text-foreground" : "text-muted-foreground")}>
+                  {selectedMatter.deadline || "à fixer"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Type de client</dt>
+                <dd className="font-bold text-foreground">
+                  {selectedMatter.clientType === "b2b" ? "Entreprise" : "Particulier"}
+                </dd>
+              </div>
+            </dl>
 
+            {selectedMatter.notes && (
+              <p className="text-xs text-muted-foreground border-t border-border pt-4 whitespace-pre-wrap">
+                {selectedMatter.notes}
+              </p>
+            )}
+
+            {/* Une seule porte, et elle est grande. Les quatre « actions
+                rapides » d'avant menaient toutes au même endroit. */}
+            <Link
+              href={`/matters/${selectedMatter.id.replace('#', '')}`}
+              className="w-full py-3 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl text-center shadow-md transition-all flex items-center justify-center gap-2 text-sm"
+            >
+              <span>Ouvrir le dossier</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </Link>
+
+            <p className="text-[11px] text-muted-foreground text-center">
+              Fidéicommis, documents, formulaires, échéances et portail client
+              s&apos;y trouvent, à jour.
+            </p>
           </div>
           )}
         </div>
@@ -418,23 +402,23 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
 
       {/* 4. MODAL CRÉATION DE DOSSIER */}
       {isNewModalOpen && (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden animate-scaleUp">
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-foreground/50 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl w-full max-w-lg overflow-hidden animate-scaleUp">
             
-            <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+            <div className="p-6 border-b border-border bg-muted/60 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                <div className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold">
                   <FolderOpen className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Ouverture d&apos;un Nouveau Dossier CICC</h3>
-                  <p className="text-xs text-slate-500 font-medium">Initialisez un mandat client et générez la checklist IRCC.</p>
+                  <h3 className="text-lg font-black text-foreground">Ouverture d&apos;un Nouveau Dossier CICC</h3>
+                  <p className="text-xs text-muted-foreground font-medium">Initialisez un mandat client et générez la checklist IRCC.</p>
                 </div>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsNewModalOpen(false)}
-                className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900"
+                className="p-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -469,23 +453,23 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
               className="p-6 space-y-4"
             >
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Nom du Client / Raison Sociale</label>
+                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Nom du Client / Raison Sociale</label>
                 <input
                   type="text"
                   required
                   value={nouveauClient}
                   onChange={(e) => setNouveauClient(e.target.value)}
                   placeholder="Nom complet du client, ou raison sociale"
-                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-muted/60 border border-border focus:bg-card focus:border-primary focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Programme d&apos;Immigration Requis</label>
+                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Programme d&apos;Immigration Requis</label>
                 <select
                   value={nouveauProgramme}
                   onChange={(e) => setNouveauProgramme(e.target.value)}
-                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-muted/60 border border-border focus:bg-card focus:border-primary focus:outline-none"
                 >
                   <option value="PEQ">Résidence Permanente (PEQ Québec)</option>
                   <option value="EE">Entrée Express (Catégorie Santé / Tech)</option>
@@ -499,7 +483,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">CRIC responsable</label>
+                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">CRIC responsable</label>
                 {/* Ce champ affichait « Adama Diarra (RCIC #R512345) », un
                     numéro de permis inventé porté au nom du titulaire. Il est
                     lu du profil du cabinet, et n'affiche rien s'il n'y est
@@ -513,28 +497,28 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                       ? `${firm.rcicName}${firm.rcicNumber ? ` (permis CICC #${firm.rcicNumber})` : ""}`
                       : "Titulaire non renseigné — complétez le profil du cabinet"
                   }
-                  className="w-full h-12 px-4 text-xs font-bold rounded-2xl bg-slate-100 border border-slate-200 text-slate-700"
+                  className="w-full h-12 px-4 text-xs font-bold rounded-2xl bg-muted border border-border text-muted-foreground"
                 />
               </div>
 
               {erreurCreation && (
-                <p role="alert" className="rounded-2xl bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs font-bold text-rose-800">
+                <p role="alert" className="rounded-2xl bg-error/10 border border-error/30 px-4 py-2.5 text-xs font-bold text-error-strong">
                   {erreurCreation}
                 </p>
               )}
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="pt-3 border-t border-border flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsNewModalOpen(false)}
-                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-900"
+                  className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={creationEnCours || !nouveauClient.trim()}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-xs sm:text-sm font-bold shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary text-primary-foreground px-6 py-3 text-xs sm:text-sm font-bold shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   <span>{creationEnCours ? "Enregistrement…" : "Créer le dossier"}</span>
@@ -556,45 +540,43 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
         badgeVariant={drawerMatter?.status === "valid" ? "emerald" : drawerMatter?.status === "alert" ? "amber" : "blue"}
       >
         {drawerMatter && (
-          <div className="space-y-6 text-xs text-slate-800">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-              <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
-                <User className="w-4 h-4 text-indigo-600" /> Profil Candidate & Procédure
+          <div className="space-y-6 text-xs text-foreground">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-xs space-y-3">
+              <h4 className="font-black text-foreground text-sm flex items-center gap-2">
+                <User className="w-4 h-4 text-primary-strong" /> Profil Candidate & Procédure
               </h4>
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="text-slate-500 font-bold block">Nom du Client :</span>
-                  <span className="font-bold text-slate-900">{drawerMatter.clientName}</span>
+                  <span className="text-muted-foreground font-bold block">Nom du Client :</span>
+                  <span className="font-bold text-foreground">{drawerMatter.clientName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-bold block">Programme IRCC :</span>
-                  <span className="font-bold text-indigo-700">{drawerMatter.program}</span>
+                  <span className="text-muted-foreground font-bold block">Programme IRCC :</span>
+                  <span className="font-bold text-primary-strong">{drawerMatter.program}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-bold block">Échéance Réglementaire :</span>
-                  <span className="font-mono font-bold text-amber-700">{drawerMatter.deadline || "à fixer"}</span>
+                  <span className="text-muted-foreground font-bold block">Échéance Réglementaire :</span>
+                  <span className="font-mono font-bold text-warning-strong">{drawerMatter.deadline || "à fixer"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-bold block">Consultant RCIC :</span>
-                  <span className="font-bold text-slate-900">{drawerMatter.rcic}</span>
+                  <span className="text-muted-foreground font-bold block">Consultant RCIC :</span>
+                  <span className="font-bold text-foreground">{drawerMatter.rcic}</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-5 rounded-2xl shadow-md space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-indigo-300 uppercase font-mono">Solde Fidéicommis (Art. 13)</span>
-                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold px-2 py-0.5 rounded-full font-mono">$5,000.00 CAD</span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                Les fonds sont protégés en fiducie. Le virement vers le compte général sera proposé après validation de l&apos;étape de service.
-              </p>
-            </div>
+            {/* Le solde de fidéicommis a disparu d'ici, et c'est délibéré.
+                Il valait « 5 000,00 $ CAD » en dur, pour tous les dossiers de
+                tous les cabinets. Un montant en fiducie inventé, affiché sous
+                l'article 13, à côté d'une fiche qui affiche le vrai — c'est
+                exactement le genre de chiffre qu'on ne remet pas en question
+                parce qu'il rassure. Le solde réel, calculé par
+                client_trust_balance(), vit dans l'onglet Paiements du dossier. */}
 
             <div className="pt-2 flex items-center gap-3">
               <Link
                 href={`/matters/${drawerMatter.id.replace('#', '')}`}
-                className="w-full py-3 bg-indigo-900 hover:bg-indigo-950 text-white font-bold rounded-2xl text-center shadow-md transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-foreground hover:bg-foreground text-primary-foreground font-bold rounded-2xl text-center shadow-md transition-all flex items-center justify-center gap-2"
               >
                 <span>Ouvrir la Fiche Complète du Dossier</span>
                 <ArrowUpRight className="w-4 h-4" />
