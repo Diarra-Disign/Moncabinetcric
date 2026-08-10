@@ -46,7 +46,7 @@ export default async function MatterDetailPage({
   const { getSessionSupabase, getCurrentMember } = await import("@/lib/supabase/session")
   const [member, clientsRes] = await Promise.all([
     getCurrentMember(),
-    (await getSessionSupabase()).from("clients").select("id, name, file_number").order("name")
+    (await getSessionSupabase()).from("clients").select("id, name, file_number, email").order("name")
   ])
   const clientsBruts = clientsRes.data
   // profileId et non userId : c'est le profil qui désigne l'auteur d'une
@@ -183,6 +183,7 @@ export default async function MatterDetailPage({
           modeles={modeles}
           consultant={consultant}
           clientName={matter.clientName}
+          courrielClient={clientsBruts?.find((c) => String(c.id) === dossier.clientId)?.email ?? ""}
           programName={matter.program}
         />
       )}

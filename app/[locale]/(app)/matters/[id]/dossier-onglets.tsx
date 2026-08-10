@@ -23,6 +23,7 @@ import {
 } from "@/lib/data/actions"
 import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
 import { envoyerQuestionnaire } from "@/lib/data/questionnaire-actions"
+import { ConfirmationEnvoi } from "@/components/ui/confirmation-envoi"
 import { creerFacture, emettreFacture, supprimerFacture, annulerFacture, envoyerFactureAuClient, modifierFacture, lignesDeFacture } from "@/lib/data/invoice-actions"
 import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
@@ -93,7 +94,7 @@ const CHAMP =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 
 export function DossierOnglets({
-  dossier, matterId, clientId, statutDossier, clientsDuCabinet, clientQuestionnaires: initialQuestionnaires = [], modeles = [], consultant, clientName, programName,
+  dossier, matterId, clientId, statutDossier, clientsDuCabinet, clientQuestionnaires: initialQuestionnaires = [], modeles = [], consultant, clientName, courrielClient = "", programName,
 }: {
   dossier: DossierComplet
   matterId: string
@@ -108,6 +109,8 @@ export function DossierOnglets({
   consultant: { id: string; name: string }
   /** Nom du client, pour la lettre IA d'argumentaire. */
   clientName: string
+  /** Courriel du client, pour montrer À QUI part un envoi avant de l'exécuter. */
+  courrielClient?: string
   /** Nom du programme, pour la lettre IA d'argumentaire. */
   programName: string
 }) {
@@ -123,6 +126,19 @@ export function DossierOnglets({
   const [nouvelleFacture, setNouvelleFacture] = React.useState(false)
   /** Le brouillon en cours de modification, ou null. */
   const [factureAModifier, setFactureAModifier] = React.useState<{ id: string; numero: string; dueOn: string; description: string } | null>(null)
+  /**
+   * L'envoi en attente de confirmation.
+   *
+   * Rien ne part tant que cet état n'a pas été confirmé : le bouton « Envoyer »
+   * le POSE, la fenêtre l'exécute. C'est ce qui garantit qu'un clic seul ne
+   * déclenche jamais un courriel vers un client.
+   */
+  const [envoiAConfirmer, setEnvoiAConfirmer] = React.useState<{
+    action: string; objet: string; objetDetail?: string
+    destinataire: { nom: string; courriel?: string }
+    irreversible?: string
+    executer: () => Promise<Resultat>
+  } | null>(null)
 
   // Liste des questionnaires locaux
   const [prevInitialQuestionnaires, setPrevInitialQuestionnaires] = React.useState(initialQuestionnaires)
@@ -859,18 +875,25 @@ export function DossierOnglets({
                         <button
                           type="button"
                           disabled={enCours}
-                          onClick={() => demarrer(async () => {
-                            const fd = new FormData()
-                            fd.set("id", f.id)
-                            // Envoyer une facture, c'est l'émettre. Laisser
-                            // partir un document marqué « brouillon » puis lui
-                            // donner un autre numéro serait le meilleur moyen
-                            // de la faire payer deux fois — ou pas du tout.
-                            if (f.statut === "draft") fd.set("emettre", "1")
-                            fd.set("locale", "fr")
-                            const r = await envoyerFactureAuClient(fd)
-                            setResultat(r)
-                            if (r.ok) rafraichir()
+                          onClick={() => setEnvoiAConfirmer({
+                            action: "Vous êtes sur le point d'envoyer cette facture au client.",
+                            objet: `Facture ${f.numero}`,
+                            objetDetail: `${argent(f.montant)}${f.dueOn ? ` · à régler avant le ${f.dueOn}` : ""}`,
+                            destinataire: { nom: clientName, courriel: courrielClient },
+                            irreversible: f.statut === "draft"
+                              ? "La facture sera émise en même temps : son numéro et son montant seront alors figés."
+                              : undefined,
+                            executer: async () => {
+                              const fd = new FormData()
+                              fd.set("id", f.id)
+                              // Envoyer une facture, c'est l'émettre. Laisser
+                              // partir un document marqué « brouillon » puis lui
+                              // donner un autre numéro serait le meilleur moyen
+                              // de la faire payer deux fois — ou pas du tout.
+                              if (f.statut === "draft") fd.set("emettre", "1")
+                              fd.set("locale", "fr")
+                              return envoyerFactureAuClient(fd)
+                            },
                           })}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground"
                         >
@@ -1568,6 +1591,23 @@ export function DossierOnglets({
           matterId={matterId}
           onFermer={() => setNouvelleFacture(false)}
           onCreee={(r) => { setNouvelleFacture(false); setResultat(r); rafraichir() }}
+        />
+      )}
+
+      {envoiAConfirmer && (
+        <ConfirmationEnvoi
+          action={envoiAConfirmer.action}
+          objet={envoiAConfirmer.objet}
+          objetDetail={envoiAConfirmer.objetDetail}
+          destinataires={[envoiAConfirmer.destinataire]}
+          irreversible={envoiAConfirmer.irreversible}
+          onAnnuler={() => setEnvoiAConfirmer(null)}
+          onConfirmer={async () => {
+            const r = await envoiAConfirmer.executer()
+            setEnvoiAConfirmer(null)
+            setResultat(r)
+            if (r.ok) rafraichir()
+          }}
         />
       )}
 

@@ -13,6 +13,7 @@ import {
   dupliquerModele, definirParDefaut, supprimerModele, enregistrerModele,
   cloreQuestionnaire, demanderCorrection,
 } from "@/lib/data/questionnaire-actions"
+import { ConfirmationEnvoi } from "@/components/ui/confirmation-envoi"
 import { cn } from "@/lib/utils"
 
 type Onglet = "bibliotheque" | "envoyes"
@@ -505,6 +506,8 @@ function ModaleEnvoi({
   const [type, setType] = React.useState<"client" | "lead">("lead")
   const [recherche, setRecherche] = React.useState("")
   const [choisi, setChoisi] = React.useState<Destinataire | null>(null)
+  /** Vrai quand la confirmation est ouverte : rien n'est parti à ce stade. */
+  const [confirmation, setConfirmation] = React.useState(false)
   const [message, setMessage] = React.useState(modele.messageFr)
   const [echeance, setEcheance] = React.useState("")
 
@@ -622,23 +625,37 @@ function ModaleEnvoi({
           <button
             type="button"
             disabled={!choisi || enCours}
-            onClick={() => {
-              if (!choisi) return
-              const fd = new FormData()
-              fd.set("templateId", modele.id)
-              fd.set("destinataireType", choisi.type)
-              fd.set("destinataireId", choisi.id)
-              fd.set("message", message)
-              fd.set("dueDate", echeance)
-              fd.set("locale", locale)
-              onEnvoyer(fd)
-            }}
+            onClick={() => setConfirmation(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 disabled:opacity-40 cursor-pointer"
           >
             <Send className="h-4 w-4" /> {enCours ? "Envoi…" : "Envoyer"}
           </button>
         </footer>
       </div>
+
+      {/* Le clic sur « Envoyer » ci-dessus n'expédie rien : il ouvre ceci.
+          L'appel réel n'a lieu que depuis « Confirmer ». */}
+      {confirmation && choisi && (
+        <ConfirmationEnvoi
+          action="Le destinataire recevra un lien sécurisé pour remplir ce questionnaire."
+          objet={modele.titleFr}
+          objetDetail={`${choisi.type === "lead" ? "Prospect" : "Client"}${echeance ? ` · à compléter avant le ${echeance}` : ""}`}
+          destinataires={[{ nom: choisi.nom, courriel: choisi.courriel, telephone: choisi.telephone }]}
+          message={message}
+          onAnnuler={() => setConfirmation(false)}
+          onConfirmer={() => {
+            const fd = new FormData()
+            fd.set("templateId", modele.id)
+            fd.set("destinataireType", choisi.type)
+            fd.set("destinataireId", choisi.id)
+            fd.set("message", message)
+            fd.set("dueDate", echeance)
+            fd.set("locale", locale)
+            setConfirmation(false)
+            onEnvoyer(fd)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -118,7 +118,38 @@ try {
   const desactive = await boutonEnvoyer.isDisabled()
   verifier("le bouton « Envoyer » est actif", desactive ? "DÉSACTIVÉ" : "actif", "actif")
 
+  // ---------------------------------------------------------------------
+  console.log("\nLe premier clic ne doit RIEN envoyer")
+  // ---------------------------------------------------------------------
   await boutonEnvoyer.click()
+  await page.waitForTimeout(900)
+
+  const confirmation = await page.evaluate(() =>
+    Boolean([...document.querySelectorAll("h2")].find((h) => /Confirmer l'envoi/.test(h.textContent ?? ""))))
+  verifier("la confirmation s'ouvre", confirmation, true)
+
+  const vu = await page.evaluate(() => document.querySelector('[role="dialog"]')?.textContent ?? "")
+  verifier("elle nomme le destinataire", /Awa Diallo/.test(vu), true)
+  verifier("elle montre son adresse", /awa-/.test(vu), true)
+  verifier("elle nomme ce qui part", /Questionnaire/.test(vu), true)
+
+  const { data: avant } = await admin.from("client_questionnaires").select("id").eq("firm_id", cabinetId)
+  verifier("RIEN n'est parti avant confirmation", (avant ?? []).length, 0)
+
+  // ---------------------------------------------------------------------
+  console.log("\nAnnuler ne laisse aucune trace")
+  // ---------------------------------------------------------------------
+  await page.click('[role="dialog"] button:has-text("Annuler")')
+  await page.waitForTimeout(700)
+  const { data: apresAnnule } = await admin.from("client_questionnaires").select("id").eq("firm_id", cabinetId)
+  verifier("après Annuler, toujours rien", (apresAnnule ?? []).length, 0)
+
+  // ---------------------------------------------------------------------
+  console.log("\nConfirmer, et alors seulement, envoyer")
+  // ---------------------------------------------------------------------
+  await boutonEnvoyer.click()
+  await page.waitForTimeout(900)
+  await page.click('[role="dialog"] button:has-text("Confirmer")')
   // L'action serveur crée la ligne puis appelle le fournisseur de courriel :
   // laisser le temps aux deux, sans quoi on conclurait à un échec sur une
   // simple lenteur.
