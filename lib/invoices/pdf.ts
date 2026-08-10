@@ -79,6 +79,24 @@ const MOTS = {
     fiducie1: "Ces fonds sont détenus en fidéicommis (art. 13) et ne seront virés au compte",
     fiducie2: "général du cabinet qu'au fur et à mesure des services rendus.",
     merci: "Merci de votre confiance.",
+    rapprochement: "ÉTAT DE RAPPROCHEMENT",
+    compteFiducie: "Compte en fidéicommis",
+    periodeArretee: "PÉRIODE ARRÊTÉE AU",
+    soldeReleve: "SOLDE DU RELEVÉ BANCAIRE",
+    soldeRegistre: "SOLDE DU REGISTRE",
+    elementsRapprochement: "ÉLÉMENTS DE RAPPROCHEMENT",
+    aucunEcart: "Aucun élément de rapprochement : le relevé et le registre concordent exactement.",
+    soldeRapproche: "SOLDE RAPPROCHÉ",
+    ecartResiduel: "ÉCART RÉSIDUEL",
+    ventilationClients: "VENTILATION PAR CLIENT",
+    client: "Client",
+    solde: "Solde",
+    totalVentilation: "Total de la ventilation",
+    attestation: "J'atteste que le présent état a été dressé à partir du registre du compte en",
+    attestation2: "fidéicommis du cabinet et du relevé bancaire de la période indiquée.",
+    arreteLe: "Arrêté le",
+    par: "par",
+    brouillonRappro: "NON ARRÊTÉ",
     modeCol: "Mode",
     dateCol: "Date",
     paiement: "Paiement reçu",
@@ -127,6 +145,24 @@ const MOTS = {
     fiducie1: "These funds are held in trust (s. 13) and will only be transferred to the",
     fiducie2: "firm's general account as services are rendered.",
     merci: "Thank you for your trust.",
+    rapprochement: "RECONCILIATION STATEMENT",
+    compteFiducie: "Trust account",
+    periodeArretee: "PERIOD ENDING",
+    soldeReleve: "BANK STATEMENT BALANCE",
+    soldeRegistre: "LEDGER BALANCE",
+    elementsRapprochement: "RECONCILING ITEMS",
+    aucunEcart: "No reconciling items: the statement and the ledger agree exactly.",
+    soldeRapproche: "RECONCILED BALANCE",
+    ecartResiduel: "UNEXPLAINED DIFFERENCE",
+    ventilationClients: "BREAKDOWN BY CLIENT",
+    client: "Client",
+    solde: "Balance",
+    totalVentilation: "Total of breakdown",
+    attestation: "I certify that this statement was prepared from the firm's trust account",
+    attestation2: "ledger and the bank statement for the period indicated.",
+    arreteLe: "Closed on",
+    par: "by",
+    brouillonRappro: "NOT CLOSED",
     modeCol: "Method",
     dateCol: "Date",
     paiement: "Payment received",
@@ -375,7 +411,10 @@ async function enTete(
 
   // Le titre vient sous le logo, à gauche : c'est le premier mot que l'œil
   // rencontre en descendant, et il dit de quelle pièce il s'agit.
-  const yTitre = Math.min(yGauche - 22, yCabinet - 6)
+  // Sous les DEUX colonnes, pas seulement sous le logo. En l'absence de logo,
+  // yGauche valait encore le haut de page et le titre se posait sur la
+  // dernière ligne du cabinet — le numéro de permis, précisément.
+  const yTitre = Math.min(yGauche, yCabinet) - 22
   ecrire(page, titre, { x: G, y: yTitre, size: 26, font: gras, color: ENCRE })
 
   return yTitre - 34
@@ -679,5 +718,139 @@ export async function recuPdf(r: RecuPdf, c: CabinetPdf): Promise<Uint8Array> {
 
   pagination(page, m, normal)
 
+  return doc.save()
+}
+
+
+/**
+ * L'état de rapprochement du compte en fidéicommis.
+ *
+ * Il partage l'en-tête, la typographie et le pied des deux autres pièces : un
+ * cabinet qui remet trois documents au même inspecteur ne doit pas avoir l'air
+ * d'en avoir trois origines.
+ *
+ * La VENTILATION PAR CLIENT y figure, et ce n'est pas une décoration. Un solde
+ * global juste peut masquer un client débiteur compensé par un autre — la
+ * faute la plus grave en matière de fidéicommis. L'état la rend visible.
+ */
+export interface RapprochementPdf {
+  periodeFin: string
+  soldeBancaire: number
+  soldeRegistre: number
+  ecarts: { libelle: string; montant: number }[]
+  parClient: { nom: string; solde: number }[]
+  clos: boolean
+  closLe: string | null
+  closPar: string | null
+  notes: string | null
+  langue?: LanguePdf
+}
+
+export async function rapprochementPdf(r: RapprochementPdf, c: CabinetPdf): Promise<Uint8Array> {
+  const langue: LanguePdf = r.langue ?? "fr"
+  const m = MOTS[langue]
+  const argent = argentDe(langue)
+
+  const doc = await PDFDocument.create()
+  const page = doc.addPage([LARGEUR, HAUTEUR])
+  const normal = await doc.embedFont(StandardFonts.Helvetica)
+  const gras = await doc.embedFont(StandardFonts.HelveticaBold)
+
+  let y = await enTete(doc, page, c, m, normal, gras, m.rapprochement)
+
+  const xMilieu = 300
+  bloc(page, G, y, m.compteFiducie, c.nom ? couper(c.nom, gras, 10, 220) : "-", normal, gras)
+  bloc(page, xMilieu, y, m.periodeArretee, r.periodeFin, normal, gras, false, 9.5)
+  bloc(page, D, y, m.soldeRapproche, argent(r.soldeRegistre), normal, gras, true, 14)
+
+  y -= 40
+  page.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 1.6, color: ENCRE })
+  y -= 24
+
+  const xLibelle = 470
+  droite(page, m.soldeReleve, xLibelle, y, normal, 9.5, GRIS)
+  droite(page, argent(r.soldeBancaire), D, y, normal, 9.5)
+  y -= 22
+
+  ecrire(page, m.elementsRapprochement, { x: G, y, size: 8, font: gras, color: GRIS })
+  y -= 16
+
+  if (r.ecarts.length === 0) {
+    ecrire(page, couper(m.aucunEcart, normal, 9, D - G), { x: G, y, size: 9, font: normal, color: GRIS })
+    y -= 18
+  } else {
+    for (const e of r.ecarts) {
+      ecrire(page, couper(e.libelle, normal, 9.5, 380), { x: G, y, size: 9.5, font: normal, color: ENCRE })
+      droite(page, `${e.montant > 0 ? "+" : "-"}${argent(Math.abs(e.montant))}`, D, y, normal, 9.5)
+      y -= 15
+    }
+  }
+
+  const explique = r.ecarts.reduce((t, e) => t + e.montant, 0)
+  const residuel = Math.round((r.soldeBancaire + explique - r.soldeRegistre) * 100) / 100
+
+  y -= 4
+  page.drawLine({ start: { x: 340, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 0.6, color: TRAIT })
+  y -= 6
+  droite(page, m.soldeRegistre, xLibelle, y, normal, 10, GRIS)
+  droite(page, argent(r.soldeRegistre), D, y, normal, 10)
+  y -= 18
+
+  page.drawLine({ start: { x: 340, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 1.6, color: ENCRE })
+  y -= 6
+  // L'écart résiduel est imprimé MÊME quand il vaut zéro. C'est la ligne que
+  // l'inspection cherche ; l'omettre parce qu'elle est nulle obligerait à
+  // refaire le calcul pour s'en assurer.
+  droite(page, m.ecartResiduel, xLibelle, y, gras, 11)
+  droite(page, argent(residuel), D, y, gras, 11)
+  y -= 34
+
+  ecrire(page, m.ventilationClients, { x: G, y, size: 8, font: gras, color: GRIS })
+  y -= 14
+  ecrire(page, m.client, { x: G, y, size: 8, font: normal, color: GRIS })
+  droite(page, m.solde, D, y, normal, 8, GRIS)
+  y -= 16
+
+  let totalVentile = 0
+  for (const p of r.parClient.slice(0, 28)) {
+    totalVentile += p.solde
+    ecrire(page, couper(p.nom, normal, 9.5, 380), { x: G, y, size: 9.5, font: normal, color: ENCRE })
+    droite(page, argent(p.solde), D, y, normal, 9.5, p.solde < 0 ? rgb(0.72, 0.11, 0.11) : ENCRE)
+    y -= 14
+    if (y < 150) break
+  }
+
+  y -= 4
+  page.drawLine({ start: { x: G, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 0.6, color: TRAIT })
+  y -= 6
+  droite(page, m.totalVentilation, xLibelle, y, gras, 10)
+  droite(page, argent(totalVentile), D, y, gras, 10)
+
+  let bas = 120
+  if (r.notes) {
+    ecrire(page, m.notes, { x: G, y: bas, size: 8, font: gras, color: GRIS })
+    bas -= 12
+    ecrire(page, couper(r.notes, normal, 9, D - G), { x: G, y: bas, size: 9, font: normal, color: ENCRE })
+    bas -= 18
+  }
+
+  ecrire(page, m.attestation, { x: G, y: bas, size: 8.5, font: normal, color: GRIS })
+  bas -= 11
+  ecrire(page, m.attestation2, { x: G, y: bas, size: 8.5, font: normal, color: GRIS })
+  bas -= 14
+  if (r.clos && r.closLe) {
+    ecrire(page, `${m.arreteLe} ${r.closLe}${r.closPar ? ` ${m.par} ${r.closPar}` : ""}`,
+      { x: G, y: bas, size: 8.5, font: gras, color: ENCRE })
+  }
+
+  // Un état non arrêté porte sa mention : sans elle, un brouillon circule et
+  // se fait prendre pour la pièce définitive.
+  if (!r.clos) {
+    ecrire(page, m.brouillonRappro, {
+      x: 150, y: 400, size: 48, font: gras, color: rgb(0.93, 0.94, 0.96), rotate: { type: "degrees", angle: 32 } as never,
+    })
+  }
+
+  pagination(page, m, normal)
   return doc.save()
 }

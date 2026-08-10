@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, FolderOpen, Calendar, FileText, Settings, Building2, Files, FileSignature, AlertTriangle, Bot, BookOpen, PenLine, KeyRound, ClipboardList } from "lucide-react"
+import { LayoutDashboard, Users, FolderOpen, Calendar, FileText, Settings, Building2, Files, FileSignature, AlertTriangle, Bot, BookOpen, PenLine, KeyRound, ClipboardList, Landmark } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 export interface NavItem {
@@ -23,6 +23,7 @@ export const MAIN_NAV: NavItem[] = [
 
 export const OTHER_NAV: NavItem[] = [
   { labelKey: "billing", href: "/billing", icon: FileText },
+  { labelKey: "trust", href: "/fideicommis", icon: Landmark },
   { labelKey: "portal", href: "/portal", icon: KeyRound },
   { labelKey: "connector", href: "/settings/connector", icon: Bot },
   { labelKey: "settings", href: "/settings", icon: Settings },

@@ -29,7 +29,8 @@
     "signatures": "Signatures",
     "portal": "Client Portal",
     "preferences": "Preferences",
-    "customizeViews": "Views & widgets"
+    "customizeViews": "Views & widgets",
+    "trust": "Trust account"
   },
   "Documents": {
     "title": "Documents",

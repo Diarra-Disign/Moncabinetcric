@@ -202,3 +202,77 @@ export async function pdfDeRecu(sb: SupabaseClient, id: string, langue: LanguePd
     enFideicommis: p.destination === "trust",
   }
 }
+
+/**
+ * L'état de rapprochement d'une période, en PDF.
+ *
+ * Il lit le rapprochement TEL QU'IL A ÉTÉ ARRÊTÉ — solde du registre figé,
+ * éléments explicatifs conservés — et n'en recalcule aucun. Seule la
+ * ventilation par client est reprise du registre courant, faute de l'avoir
+ * figée : la limite est réelle et vaut d'être connue, elle sera corrigée en
+ * conservant l'instantané le jour où un cabinet aura besoin de rejouer un
+ * mois ancien.
+ */
+export async function pdfDeRapprochement(sb: SupabaseClient, id: string, langue: LanguePdf = "fr") {
+  const { data } = await sb
+    .from("trust_reconciliations")
+    .select(
+      "id, period_end, bank_balance, ledger_balance, explanations, client_breakdown, status, closed_at, notes, firm_id, " +
+        "firms(name, address, phone, email, rcic_license_number, logo_url, tax_gst_number, tax_qst_number, payment_terms), " +
+        "profiles!trust_reconciliations_closed_by_fkey(full_name)"
+    )
+    .eq("id", id)
+    .maybeSingle()
+
+  if (!data) return null
+  const r = data as unknown as Record<string, unknown>
+  const cab = r.firms as unknown as Record<string, string | null> | null
+  const closPar = (r.profiles as unknown as { full_name?: string } | null)?.full_name ?? null
+
+  // La ventilation CONSERVÉE fait foi. Les rapprochements arrêtés avant que
+  // cette colonne n'existe n'en ont pas : on retombe alors sur la lecture
+  // courante, faute de mieux, et l'écart éventuel se voit.
+  const figee = (r.client_breakdown as { nom: string; solde: number }[]) ?? []
+  const ventil = figee.length > 0
+    ? null
+    : (await sb.rpc("firm_trust_by_client", { f_id: String(r.firm_id) })).data
+
+  const jour = (v: unknown) =>
+    v ? new Date(String(v)).toLocaleDateString(langue === "en" ? "en-CA" : "fr-CA",
+      { day: "numeric", month: "long", year: "numeric" }) : ""
+
+  const { rapprochementPdf } = await import("./pdf")
+  const octets = await rapprochementPdf(
+    {
+      periodeFin: jour(r.period_end),
+      soldeBancaire: Number(r.bank_balance ?? 0),
+      soldeRegistre: Number(r.ledger_balance ?? 0),
+      ecarts: (r.explanations as { libelle: string; montant: number }[]) ?? [],
+      parClient: figee.length > 0
+        ? figee
+        : ((ventil ?? []) as Record<string, unknown>[]).map((v) => ({
+            nom: String(v.client_name ?? ""),
+            solde: Number(v.balance ?? 0),
+          })),
+      clos: r.status === "closed",
+      closLe: r.closed_at ? jour(r.closed_at) : null,
+      closPar,
+      notes: r.notes ? String(r.notes) : null,
+      langue,
+    },
+    {
+      nom: cab?.name ?? "",
+      adresse: cab?.address ?? "",
+      telephone: cab?.phone ?? "",
+      courriel: cab?.email ?? "",
+      numeroPermis: cab?.rcic_license_number ?? "",
+      numeroTps: cab?.tax_gst_number ?? "",
+      numeroTvq: cab?.tax_qst_number ?? "",
+      conditionsPaiement: cab?.payment_terms ?? "",
+      logoUrl: cab?.logo_url ?? "",
+    }
+  )
+
+  const numero = `RAP-${String(r.period_end).slice(0, 7)}`
+  return { octets, numero, clos: r.status === "closed" }
+}

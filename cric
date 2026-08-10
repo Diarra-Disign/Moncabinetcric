@@ -53,6 +53,7 @@ case "$commande" in
   facturation-lignes) exec node scripts/verify-facturation.mjs "$@" ;;
   facturation-globale) exec node scripts/verify-facturation-globale.mjs "$@" ;;
   capture)      exec node scripts/capturer.mjs "$@" ;;
+  rapprochement) exec node scripts/verify-fideicommis.mjs "$@" ;;
   facture-pdf)  exec node scripts/verify-facture-pdf.mjs "$@" ;;
   modeles)      exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/generer-modeles-questionnaires.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;

@@ -29,7 +29,8 @@
     "signatures": "Signatures",
     "portal": "Portail Client",
     "preferences": "Préférences",
-    "customizeViews": "Vues & widgets"
+    "customizeViews": "Vues & widgets",
+    "trust": "Fidéicommis"
   },
   "Documents": {
     "title": "Documents",
