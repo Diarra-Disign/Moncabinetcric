@@ -25,6 +25,7 @@ import {
   Calculator,
   Trash2,
   FolderOpen,
+  FolderPlus,
   Receipt,
   ChevronRight,
   X,
@@ -37,6 +38,8 @@ import { ClientRecord, Matter } from "@/lib/data/types"
 import { matchesPerson } from "@/lib/utils/search"
 import { createClient } from "@/lib/data/actions"
 import { ouvrirAccesPortail } from "@/lib/data/portal-access"
+import { creerDossierPourClient } from "@/lib/data/matter-creation"
+import { TYPES_DE_DOSSIER } from "@/lib/data/matter-types"
 import { cn } from "@/lib/utils"
 
 export type { ClientRecord }
@@ -63,6 +66,8 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [showNewModal, setShowNewModal] = React.useState(false)
   const [selectedPortalClient, setSelectedPortalClient] = React.useState<ClientRecord | null>(null)
   const [actionNotice, setActionNotice] = React.useState<string | null>(null)
+  /** Le client pour lequel on ouvre un dossier, ou null. */
+  const [dossierPour, setDossierPour] = React.useState<ClientRecord | null>(null)
 
   // Identité du cabinet connecté, pour signer le courriel d'accès. Elle vient
   // du contexte et jamais d'une constante : c'est ce qui a fait disparaître
@@ -567,6 +572,15 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
 
                       <button
                         type="button"
+                        onClick={(e) => { e.stopPropagation(); setDossierPour(client) }}
+                        title="Ouvrir un nouveau dossier pour ce client"
+                        className="p-1.5 text-muted-foreground hover:text-primary-strong hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <FolderPlus className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => router.push("/documents")}
                         title="Ouvrir le coffre-fort documentaire du client"
                         className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
@@ -931,6 +945,169 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
         </div>
       )}
 
+
+      {dossierPour && (
+        <ModaleNouveauDossier
+          client={dossierPour}
+          dossiersExistants={matters.filter((m) => m.clientId === dossierPour.id).length}
+          onFermer={() => setDossierPour(null)}
+          onCree={(reference) => {
+            setDossierPour(null)
+            setActionNotice(`Dossier ${reference} ouvert pour ${dossierPour.name}.`)
+            router.push(`/matters/${reference}`)
+          }}
+        />
+      )}
+
+    </div>
+  )
+}
+
+
+/**
+ * Ouvrir un dossier depuis un client.
+ *
+ * Le haut du formulaire n'est pas saisissable : ce sont les informations du
+ * PROFIL, montrées pour qu'on sache à qui l'on ouvre un mandat, et non pour
+ * qu'on les ressaisisse. Les rendre modifiables ici aurait créé un second
+ * endroit où corriger une adresse — et deux vérités sur la même personne.
+ */
+function ModaleNouveauDossier({
+  client, dossiersExistants, onFermer, onCree,
+}: {
+  client: ClientRecord
+  dossiersExistants: number
+  onFermer: () => void
+  onCree: (reference: string) => void
+}) {
+  const [service, setService] = React.useState("")
+  const [echeance, setEcheance] = React.useState("")
+  const [priorite, setPriorite] = React.useState("normal")
+  const [description, setDescription] = React.useState("")
+  const [notes, setNotes] = React.useState("")
+  const [erreur, setErreur] = React.useState<string | null>(null)
+  const [enCours, demarrer] = React.useTransition()
+
+  const CHAMP =
+    "w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+
+  return (
+    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-foreground/50 p-4">
+      <div className="bg-card w-full max-w-xl rounded-3xl border border-border shadow-2xl flex flex-col max-h-[92vh]">
+        <header className="p-5 border-b border-border flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-black text-foreground">Ouvrir un dossier</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Pour {client.name}
+              {dossiersExistants > 0 && ` · ${dossiersExistants} dossier${dossiersExistants > 1 ? "s" : ""} déjà ouvert${dossiersExistants > 1 ? "s" : ""}`}
+            </p>
+          </div>
+          <button type="button" onClick={onFermer} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer">
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          <section className="rounded-2xl border border-border bg-muted/40 p-4">
+            <h4 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">
+              Repris du profil client
+            </h4>
+            <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2 text-xs">
+              {[
+                ["Nom", client.name],
+                ["Courriel", client.email],
+                ["Téléphone", client.phone],
+                ["Nationalité", client.citizenship],
+                ["Résidence", client.residence],
+                ["Dossier client", client.fileNumber],
+              ].map(([etiquette, valeur]) => (
+                <div key={etiquette} className="flex justify-between gap-2">
+                  <dt className="text-muted-foreground">{etiquette}</dt>
+                  <dd className="font-bold text-foreground truncate">{valeur || "—"}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Ces informations restent celles du profil : les corriger se fait sur la fiche client,
+              et vaut alors pour tous ses dossiers.
+            </p>
+          </section>
+
+          <label className="block">
+            <span className="text-[11px] font-bold text-muted-foreground">Type de dossier *</span>
+            <select value={service} onChange={(e) => setService(e.target.value)} className={cn(CHAMP, "mt-1")}>
+              <option value="">Choisir…</option>
+              {TYPES_DE_DOSSIER.map((tds) => (
+                <option key={tds} value={tds}>{tds}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[11px] font-bold text-muted-foreground">Date limite importante</span>
+              <input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} className={cn(CHAMP, "mt-1")} />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-bold text-muted-foreground">Priorité</span>
+              <select value={priorite} onChange={(e) => setPriorite(e.target.value)} className={cn(CHAMP, "mt-1")}>
+                <option value="low">Basse</option>
+                <option value="normal">Normale</option>
+                <option value="high">Haute</option>
+                <option value="critical">Critique</option>
+              </select>
+            </label>
+          </div>
+
+          <label className="block">
+            <span className="text-[11px] font-bold text-muted-foreground">Description du mandat</span>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={cn(CHAMP, "mt-1 resize-y")} />
+          </label>
+
+          <label className="block">
+            <span className="text-[11px] font-bold text-muted-foreground">Notes internes</span>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={cn(CHAMP, "mt-1 resize-y")} />
+          </label>
+
+          <p className="text-[11px] text-muted-foreground rounded-xl border border-border bg-muted/40 p-3">
+            Le numéro de dossier est calculé par le système au moment de l&apos;ouverture.
+            Les pièces exigées et les échéances du programme sont posées automatiquement.
+          </p>
+
+          {erreur && (
+            <p className="rounded-xl border border-error/30 bg-error/10 p-3 text-xs text-error-strong">{erreur}</p>
+          )}
+        </div>
+
+        <footer className="p-5 border-t border-border flex items-center justify-end gap-2">
+          <button type="button" onClick={onFermer} className="px-4 py-2 rounded-xl border border-border font-bold text-xs hover:bg-muted cursor-pointer text-foreground">
+            Annuler
+          </button>
+          <button
+            type="button"
+            disabled={!service || enCours}
+            onClick={() => {
+              setErreur(null)
+              demarrer(async () => {
+                const fd = new FormData()
+                fd.set("clientId", client.id)
+                fd.set("serviceType", service)
+                fd.set("deadline", echeance)
+                fd.set("priority", priorite)
+                fd.set("description", description)
+                fd.set("notes", notes)
+                fd.set("locale", "fr")
+                const r = await creerDossierPourClient(fd)
+                if (r.ok && r.reference) onCree(r.reference)
+                else setErreur(r.message)
+              })
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 disabled:opacity-40 cursor-pointer"
+          >
+            <FolderPlus className="h-4 w-4" /> {enCours ? "Ouverture…" : "Créer le dossier"}
+          </button>
+        </footer>
+      </div>
     </div>
   )
 }
