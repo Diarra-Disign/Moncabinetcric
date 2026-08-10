@@ -336,27 +336,27 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             <button
               type="button"
               onClick={() => setShowPortalModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-900 text-xs font-bold transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-card border border-primary/40 hover:bg-primary/10 text-primary-strong text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
-              <KeyRound className="w-4 h-4 text-indigo-600" />
+              <KeyRound className="w-4 h-4 text-primary-strong" />
               <span>Accès Portail Client</span>
             </button>
 
             <button
               type="button"
               onClick={handleDownloadAllZip}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-card border border-border hover:bg-muted text-foreground text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
-              <FileArchive className="w-4 h-4 text-indigo-600" />
+              <FileArchive className="w-4 h-4 text-primary-strong" />
               <span>Exporter Tout (ZIP Audit)</span>
             </button>
 
             <button
               type="button"
               onClick={() => setShowNewModal(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-bold transition-all shadow-md shadow-indigo-900/20 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all shadow-md cursor-pointer"
             >
-              <Plus className="w-4 h-4 text-indigo-300" />
+              <Plus className="w-4 h-4 text-primary-strong" />
               <span>Ajouter un Document</span>
             </button>
           </div>
@@ -365,20 +365,27 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
       {/* NOTICE BANNER */}
       {notice && (
-        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-white text-xs font-bold flex items-center justify-between shadow-lg animate-fadeIn">
+        <div className="p-4 rounded-2xl bg-foreground border border-border text-background text-xs font-bold flex items-center justify-between shadow-lg animate-fadeIn">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
+            <Sparkles className="w-5 h-5 text-primary-strong shrink-0" />
             <span>{notice}</span>
           </div>
-          <button type="button" onClick={() => setNotice(null)} className="text-slate-400 hover:text-white font-mono">✕</button>
+          <button type="button" onClick={() => setNotice(null)} className="text-muted-foreground hover:text-background font-mono">✕</button>
         </div>
       )}
 
       {/* BANNIÈRE COMPLIANCE & SÉCURITÉ DE STOCKAGE */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-500/30 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      {/* Ce bandeau était un dégradé sombre figé. L'aplatir en surface
+          inversée ne suffisait pas : ses textes enfants restaient calibrés
+          pour le fond de PAGE, et tombaient à 2,3:1 sur un fond sombre. Un
+          îlot inversé oblige à redéfinir chaque couleur qu'il contient — ce
+          qui se paie à chaque modification ultérieure. C'est une notice, pas
+          un héros : elle devient une carte ordinaire, et ses enfants
+          redeviennent lisibles sans rien redéfinir. */}
+      <div className="bg-card rounded-3xl p-6 sm:p-8 shadow-sm border border-border relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4 relative z-10">
-          <div className="h-14 w-14 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 flex items-center justify-center font-black shadow-md shrink-0">
-            <Lock className="w-7 h-7 text-indigo-400" />
+          <div className="h-14 w-14 rounded-2xl bg-primary/20 border border-primary/30 text-primary-strong flex items-center justify-center font-black shadow-md shrink-0">
+            <Lock className="w-7 h-7 text-primary-strong" />
           </div>
           <div>
             {/* Ce bandeau annonçait un chiffrement AES-256, une empreinte
@@ -387,15 +394,15 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                 le sont — et le chemin nommait un cabinet fictif. Il ne
                 subsiste que ce qui est vérifiable : la région d'hébergement. */}
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black tracking-tight text-white">Registre documentaire</h2>
-              <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono">
+              <h2 className="text-lg font-black tracking-tight text-foreground">Registre documentaire</h2>
+              <span className="bg-success/20 text-success-strong border border-success/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full font-mono">
                 Hébergé au Canada
               </span>
             </div>
-            <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+            <p className="text-xs text-muted-foreground mt-1 max-w-2xl leading-relaxed">
               Les fiches documentaires — nom, catégorie, dossier client, dates — sont
               conservées dans une base hébergée au Canada.{" "}
-              <strong className="text-amber-300 font-bold">
+              <strong className="text-warning-strong font-bold">
                 Le dépôt des fichiers eux-mêmes n&apos;est pas encore en service :
               </strong>{" "}
               seules les métadonnées sont enregistrées.
@@ -407,7 +414,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
           <button
             type="button"
             onClick={handleDownloadAllZip}
-            className="px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+            className="px-4 py-2.5 rounded-2xl bg-primary hover:bg-primary/100 text-primary-foreground text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
             <span>Télécharger l&apos;Intégrale</span>
@@ -416,13 +423,13 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
       </div>
 
       {/* SÉLECTEUR D'ONGLETS ET CATÉGORIES DE DOCUMENTS */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4 overflow-x-auto">
-        <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl shrink-0">
+      <div className="flex items-center justify-between border-b border-border pb-4 overflow-x-auto">
+        <div className="flex items-center gap-2 bg-muted p-1.5 rounded-2xl shrink-0">
           <button
             type="button"
             onClick={() => setActiveCategory("all")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeCategory === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              activeCategory === "all" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Tous les Fichiers ({documents.filter(d => d.status !== "archived").length})
@@ -432,7 +439,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             type="button"
             onClick={() => setActiveCategory("client_upload")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeCategory === "client_upload" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              activeCategory === "client_upload" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Fournis par Client ({documents.filter(d => d.category === "client_upload" && d.status !== "archived").length})
@@ -442,7 +449,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             type="button"
             onClick={() => setActiveCategory("consultant_upload")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeCategory === "consultant_upload" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              activeCategory === "consultant_upload" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Téléchargés par Consultant ({documents.filter(d => d.category === "consultant_upload" && d.status !== "archived").length})
@@ -452,7 +459,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             type="button"
             onClick={() => setActiveCategory("contract")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeCategory === "contract" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              activeCategory === "contract" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Contrats CICC
@@ -462,7 +469,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             type="button"
             onClick={() => setActiveCategory("invoice")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeCategory === "invoice" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              activeCategory === "invoice" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Factures & Reçus
@@ -472,7 +479,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             type="button"
             onClick={() => setActiveCategory("archived")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeCategory === "archived" ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:text-slate-900"
+              activeCategory === "archived" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Archives ({documents.filter(d => d.status === "archived").length})
@@ -482,10 +489,17 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             type="button"
             onClick={() => setActiveCategory("audit")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeCategory === "audit" ? "bg-indigo-900 text-white shadow-sm" : "bg-indigo-50 text-indigo-900 hover:bg-indigo-100"
+              /* Inactif, ce bouton portait un aplat teinté que ses voisins du
+                 même groupe n'ont pas — et sur lequel le texte tombait à
+                 4,19:1. Il garde sa teinte, qui le distingue comme vue
+                 d'audit, mais posée sur le fond de page où elle est calibrée. */
+              activeCategory === "audit" ? "bg-primary text-primary-foreground shadow-sm" : "text-primary-strong hover:bg-muted"
             }`}
           >
-            <Shield className="w-3.5 h-3.5 text-indigo-500" />
+            {/* Sans couleur propre : l'icône hérite de celle du bouton, qui
+                change selon qu'il est actif ou non. Une teinte fixe était
+                lisible dans un état et pas dans l'autre. */}
+            <Shield className="w-3.5 h-3.5" />
             <span>Journal d&apos;audit</span>
           </button>
         </div>
@@ -496,24 +510,24 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
       ) : (
         <>
           {/* BARRE DE RECHERCHE */}
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs flex items-center justify-between gap-4">
+          <div className="bg-card p-4 rounded-3xl border border-border shadow-xs flex items-center justify-between gap-4">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Rechercher un document par nom, client ou ID dossier..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-600 focus:outline-none transition-all"
+                className="w-full pl-10 pr-4 py-2.5 text-xs font-medium rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
               />
             </div>
           </div>
 
           {/* TABLEAU DES DOCUMENTS AVEC ACTIONS DIRECTES (TELECHARGER, ARCHIVER, SUPPRIMER) */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="bg-card rounded-3xl border border-border shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse">
-                <thead className="bg-slate-50 font-black uppercase text-[10px] text-slate-500 border-b border-slate-200">
+                <thead className="bg-muted font-black uppercase text-[10px] text-muted-foreground border-b border-border">
                   <tr>
                     <th className="py-3.5 px-4 w-[28%]">Nom du Fichier</th>
                     <th className="py-3.5 px-4 w-[18%]">Catégorie & Source</th>
@@ -522,21 +536,21 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                     <th className="py-3.5 px-4 w-[20%] text-right whitespace-nowrap">Actions de Gestion</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                <tbody className="divide-y divide-border font-medium text-foreground">
                   {filteredDocuments.map(doc => (
                     <tr 
                       key={doc.id} 
-                      className="hover:bg-slate-50/80 transition-colors group"
+                      className="hover:bg-muted transition-colors group"
                     >
                       {/* Nom Fichier */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700 shrink-0">
+                          <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/40 flex items-center justify-center text-primary-strong shrink-0">
                             <FileText className="w-4 h-4" />
                           </div>
                           <div>
-                            <strong className="font-bold text-slate-900 block group-hover:text-indigo-600 transition-colors">{doc.name}</strong>
-                            <span className="text-[10px] font-mono text-slate-400">ID: {doc.id}</span>
+                            <strong className="font-bold text-foreground block group-hover:text-primary-strong transition-colors">{doc.name}</strong>
+                            <span className="text-[10px] font-mono text-muted-foreground">ID: {doc.id}</span>
                           </div>
                         </div>
                       </td>
@@ -544,28 +558,28 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                       {/* Catégorie */}
                       <td className="py-3.5 px-4">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
-                          doc.category === "client_upload" ? "bg-sky-100 text-sky-900 border border-sky-200" :
-                          doc.category === "consultant_upload" ? "bg-indigo-100 text-indigo-900 border border-indigo-200" :
-                          doc.category === "contract" ? "bg-emerald-100 text-emerald-900 border border-emerald-200" :
-                          "bg-amber-100 text-amber-900 border border-amber-200"
+                          doc.category === "client_upload" ? "bg-primary/15 text-primary-strong border border-primary/40" :
+                          doc.category === "consultant_upload" ? "bg-primary/15 text-primary-strong border border-primary/40" :
+                          doc.category === "contract" ? "bg-success/15 text-success-strong border border-success/40" :
+                          "bg-warning/15 text-warning-strong border border-warning/40"
                         }`}>
                           {doc.category === "client_upload" ? "Pièce Client" :
                            doc.category === "consultant_upload" ? "Note Consultant" :
                            doc.category === "contract" ? "Contrat CICC" : "Facture / Reçu"}
                         </span>
-                        <div className="text-[10px] text-slate-500 mt-1">Source : {doc.source}</div>
+                        <div className="text-[10px] text-muted-foreground mt-1">Source : {doc.source}</div>
                       </td>
 
                       {/* Client & Dossier */}
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-900">{doc.clientName || doc.uploadedBy}</div>
-                        <div className="text-[10px] font-mono text-slate-500">{doc.matterId || "—"}</div>
+                        <div className="font-bold text-foreground">{doc.clientName || doc.uploadedBy}</div>
+                        <div className="text-[10px] font-mono text-muted-foreground">{doc.matterId || "—"}</div>
                       </td>
 
                       {/* Date & Taille */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <div className="font-mono text-slate-700">{doc.date}</div>
-                        <div className="text-[10px] font-mono text-slate-400">{doc.fileSize || "2.1 MB"}</div>
+                        <div className="font-mono text-foreground">{doc.date}</div>
+                        <div className="text-[10px] font-mono text-muted-foreground">{doc.fileSize || "2.1 MB"}</div>
                       </td>
 
                       {/* Actions de Gestion (Aperçu, Télécharger, Archiver, Supprimer) */}
@@ -576,7 +590,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                             type="button"
                             onClick={() => setSelectedDoc(doc)}
                             title="Aperçu du document"
-                            className="p-2 rounded-xl border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 transition-colors cursor-pointer"
+                            className="p-2 rounded-xl border border-primary/40 bg-primary/15 hover:bg-primary/10 text-primary-strong hover:text-primary-strong transition-colors cursor-pointer"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
@@ -586,7 +600,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                             type="button"
                             onClick={(e) => handleDownloadDocument(doc, e)}
                             title="Télécharger sur mon ordinateur"
-                            className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer"
+                            className="p-2 rounded-xl border border-border bg-card hover:bg-primary/10 text-foreground hover:text-primary-strong transition-colors cursor-pointer"
                           >
                             <Download className="w-4 h-4" />
                           </button>
@@ -597,7 +611,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                               type="button"
                               onClick={(e) => handleArchiveDocument(doc.id, e)}
                               title="Archiver ce document"
-                              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-amber-50 text-slate-700 hover:text-amber-600 transition-colors cursor-pointer"
+                              className="p-2 rounded-xl border border-border bg-card hover:bg-warning/10 text-foreground hover:text-warning-strong transition-colors cursor-pointer"
                             >
                               <Archive className="w-4 h-4" />
                             </button>
@@ -609,7 +623,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                           type="button"
                           onClick={(e) => handleRestoreDocument(doc.id, e)}
                           title="Réintégrer dans le dossier actif"
-                          className="p-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-900 transition-colors cursor-pointer"
+                          className="p-2 rounded-xl border border-success/40 bg-success/15 hover:bg-success/10 text-success-strong hover:text-success-strong transition-colors cursor-pointer"
                         >
                           <RotateCcw className="w-4 h-4" />
                         </button>
@@ -620,7 +634,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setDeleteTargetDoc(doc); }}
                         title="Supprimer définitivement"
-                        className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-600 transition-colors cursor-pointer"
+                        className="p-2 rounded-xl border border-border bg-card hover:bg-error/10 text-foreground hover:text-error-strong transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -637,30 +651,30 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
       {/* MODAL APERÇU COMPLET DU DOCUMENT */}
       {selectedDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-lg p-4 animate-fadeIn" onClick={() => setSelectedDoc(null)}>
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-3xl border border-slate-200 shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-lg p-4 animate-fadeIn" onClick={() => setSelectedDoc(null)}>
+          <div className="bg-card w-full max-w-4xl max-h-[90vh] rounded-3xl border border-border shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
 
             {/* En-tête du viewer */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 shrink-0">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted shrink-0">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shrink-0">
+                <div className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold shrink-0">
                   <Eye className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900">Aperçu — {selectedDoc.name}</h3>
-                  <p className="text-[10px] text-slate-500 font-mono">ID: {selectedDoc.id} · {selectedDoc.fileSize || "2.1 MB"} · {selectedDoc.date}</p>
+                  <h3 className="text-sm font-black text-foreground">Aperçu — {selectedDoc.name}</h3>
+                  <p className="text-[10px] text-muted-foreground font-mono">ID: {selectedDoc.id} · {selectedDoc.fileSize || "2.1 MB"} · {selectedDoc.date}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={(e) => handleDownloadDocument(selectedDoc, e)}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Télécharger</span>
                 </button>
-                <button type="button" onClick={() => setSelectedDoc(null)} className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center transition-colors cursor-pointer">✕</button>
+                <button type="button" onClick={() => setSelectedDoc(null)} className="w-8 h-8 rounded-full bg-muted hover:bg-muted text-foreground font-bold flex items-center justify-center transition-colors cursor-pointer">✕</button>
               </div>
             </div>
 
@@ -668,21 +682,21 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
             <div className="flex flex-1 overflow-hidden">
 
               {/* Panneau gauche : Rendu visuel du document */}
-              <div className="flex-1 bg-slate-100 p-6 overflow-y-auto">
-                <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 sm:p-10 min-h-[500px] max-w-[600px] mx-auto">
+              <div className="flex-1 bg-muted p-6 overflow-y-auto">
+                <div className="bg-card rounded-2xl shadow-lg border border-border p-8 sm:p-10 min-h-[500px] max-w-[600px] mx-auto">
                   {/* Simulation d'un rendu PDF */}
-                  <div className="border-b-2 border-indigo-600 pb-4 mb-6">
+                  <div className="border-b-2 border-primary/40 pb-4 mb-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">{firm.name}</p>
-                        <p className="text-[9px] text-slate-400 font-mono">CICC #{firm.rcicNumber}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono uppercase tracking-widest">{firm.name}</p>
+                        <p className="text-[9px] text-muted-foreground font-mono">CICC #{firm.rcicNumber}</p>
                       </div>
-                      <div className="h-10 w-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg">M</div>
+                      <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-black text-lg">M</div>
                     </div>
                   </div>
 
-                  <h2 className="text-base font-black text-slate-900 mb-1">{selectedDoc.name}</h2>
-                  <p className="text-xs text-slate-500 mb-6">
+                  <h2 className="text-base font-black text-foreground mb-1">{selectedDoc.name}</h2>
+                  <p className="text-xs text-muted-foreground mb-6">
                     {libelleType(selectedDoc.docType, "fr") ??
                      (selectedDoc.category === "client_upload" ? "Pièce justificative fournie par le client" :
                       selectedDoc.category === "consultant_upload" ? "Document interne téléversé par le consultant" :
@@ -693,77 +707,77 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
                   {selectedDoc.fileUrl ? (
                     selectedDoc.fileUrl.startsWith("data:image") || selectedDoc.name.match(/\.(png|jpe?g|webp|gif|svg)$/i) ? (
-                      <div className="flex flex-col items-center justify-center p-4 bg-slate-900 rounded-2xl border border-slate-800 my-2">
+                      <div className="flex flex-col items-center justify-center p-4 bg-foreground rounded-2xl border border-border my-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={selectedDoc.fileUrl} alt={selectedDoc.name} className="max-w-full max-h-[500px] object-contain rounded-lg shadow-lg" />
                       </div>
                     ) : (
-                      <div className="w-full h-[550px] rounded-2xl overflow-hidden border border-slate-300 shadow-inner bg-slate-100 my-2">
+                      <div className="w-full h-[550px] rounded-2xl overflow-hidden border border-border shadow-inner bg-muted my-2">
                         <iframe src={selectedDoc.fileUrl} title={selectedDoc.name} className="w-full h-full border-0" />
                       </div>
                     )
                   ) : selectedDoc.content ? (
                     /* Rendu du contenu réel du document */
-                    <pre className="whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 max-h-[500px] overflow-y-auto my-2">
+                    <pre className="whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed text-foreground bg-muted p-4 rounded-xl border border-border max-h-[500px] overflow-y-auto my-2">
                       {selectedDoc.content}
                     </pre>
                   ) : (
-                  <div className="space-y-3 text-xs text-slate-700">
+                  <div className="space-y-3 text-xs text-foreground">
                     {/* Repli : aucun contenu stocké pour ce document (ex. téléversement récent) */}
-                    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 mb-4">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-px" />
-                      <p className="text-[10px] font-bold text-amber-900 leading-relaxed">
+                    <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/15 p-2.5 mb-4">
+                      <AlertTriangle className="w-3.5 h-3.5 text-warning-strong shrink-0 mt-px" />
+                      <p className="text-[10px] font-bold text-warning-strong leading-relaxed">
                         Contenu du fichier non disponible à l&apos;aperçu. Seules les métadonnées du dossier sont affichées ci-dessous.
                       </p>
                     </div>
-                    <div className="flex justify-between border-b border-slate-100 pb-2">
-                      <span className="font-bold text-slate-500">Client / Dossier</span>
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <span className="font-bold text-muted-foreground">Client / Dossier</span>
                       <span className="font-bold">{selectedDoc.clientName || selectedDoc.uploadedBy}</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-100 pb-2">
-                      <span className="font-bold text-slate-500">Numéro de dossier</span>
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <span className="font-bold text-muted-foreground">Numéro de dossier</span>
                       <span className="font-mono font-bold">{selectedDoc.matterId || "—"}</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-100 pb-2">
-                      <span className="font-bold text-slate-500">Source</span>
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <span className="font-bold text-muted-foreground">Source</span>
                       <span>{selectedDoc.source}</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-100 pb-2">
-                      <span className="font-bold text-slate-500">Date de téléversement</span>
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <span className="font-bold text-muted-foreground">Date de téléversement</span>
                       <span className="font-mono">{selectedDoc.date}</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-100 pb-2">
-                      <span className="font-bold text-slate-500">Date d&apos;expiration</span>
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <span className="font-bold text-muted-foreground">Date d&apos;expiration</span>
                       <span className="font-mono">{selectedDoc.expiration || "N/A"}</span>
                     </div>
-                    <div className="flex justify-between border-b border-slate-100 pb-2">
-                      <span className="font-bold text-slate-500">Taille du fichier</span>
+                    <div className="flex justify-between border-b border-border pb-2">
+                      <span className="font-bold text-muted-foreground">Taille du fichier</span>
                       <span className="font-mono">{selectedDoc.fileSize || "2.1 MB"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="font-bold text-slate-500">Statut</span>
+                      <span className="font-bold text-muted-foreground">Statut</span>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                        selectedDoc.status === "valid" ? "bg-emerald-100 text-emerald-900" :
-                        selectedDoc.status === "archived" ? "bg-amber-100 text-amber-900" :
-                        "bg-rose-100 text-rose-900"
+                        selectedDoc.status === "valid" ? "bg-success/15 text-success-strong" :
+                        selectedDoc.status === "archived" ? "bg-warning/15 text-warning-strong" :
+                        "bg-error/15 text-error-strong"
                       }`}>{selectedDoc.status === "valid" ? "Valide" : selectedDoc.status === "archived" ? "Archivé" : "Invalide"}</span>
                     </div>
                   </div>
                   )}
 
-                  <div className="mt-8 pt-4 border-t border-slate-200 text-[9px] text-slate-400 text-center font-mono">
+                  <div className="mt-8 pt-4 border-t border-border text-[9px] text-muted-foreground text-center font-mono">
                     Document confidentiel — {firm.name}
                   </div>
                 </div>
               </div>
 
               {/* Panneau droit : Métadonnées techniques & intégrité */}
-              <div className="w-80 border-l border-slate-200 bg-white p-5 overflow-y-auto shrink-0 hidden md:block">
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-4">Intégrité & Stockage</h4>
+              <div className="w-80 border-l border-border bg-card p-5 overflow-y-auto shrink-0 hidden md:block">
+                <h4 className="text-xs font-black text-foreground uppercase tracking-wider mb-4">Intégrité & Stockage</h4>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-2">Fichier</label>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-2">Fichier</label>
                     <ActionsFichier
                       documentId={selectedDoc.id}
                       clientId={selectedDoc.clientId ?? ""}
@@ -775,7 +789,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-2">Signature</label>
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-2">Signature</label>
                     <SignatureBloc
                       documentId={selectedDoc.id}
                       documentName={selectedDoc.name}
@@ -784,10 +798,10 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Conservation</label>
-                    <div className="flex items-start gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                      <Lock className="w-4 h-4 text-slate-500 shrink-0 mt-px" />
-                      <span className="text-[10px] font-medium text-slate-700 leading-relaxed">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-1">Conservation</label>
+                    <div className="flex items-start gap-2 p-2.5 bg-muted border border-border rounded-lg">
+                      <Lock className="w-4 h-4 text-muted-foreground shrink-0 mt-px" />
+                      <span className="text-[10px] font-medium text-foreground leading-relaxed">
                         {selectedDoc.storagePath
                           ? "Fichier conservé dans le coffre du cabinet, accès restreint par les politiques de la base. L’empreinte ci-dessus permet de vérifier qu’il n’a pas été modifié."
                           : "Aucun fichier n’est encore déposé sur cette fiche."}
@@ -796,11 +810,11 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                   </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-100 space-y-2">
+                <div className="mt-6 pt-4 border-t border-border space-y-2">
                   <button
                     type="button"
                     onClick={(e) => handleDownloadDocument(selectedDoc, e)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Télécharger sur mon Ordi
@@ -810,7 +824,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                     <button
                       type="button"
                       onClick={(e) => { handleRestoreDocument(selectedDoc.id, e); setSelectedDoc(null) }}
-                      className="w-full px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full px-4 py-2.5 rounded-xl bg-success hover:bg-success/90 text-background text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       Réintégrer dans le dossier
@@ -826,21 +840,21 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
       {/* MODAL 2 : AJOUT / TELEVERSEMENT DE DOCUMENT */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 flex flex-col gap-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-black text-slate-900">Téléverser un Fichier (Client ou Consultant)</h3>
-              <button type="button" onClick={() => setShowNewModal(false)} className="w-8 h-8 rounded-full bg-slate-100 font-bold flex items-center justify-center">✕</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="bg-card w-full max-w-lg rounded-3xl border border-border shadow-2xl p-6 sm:p-8 flex flex-col gap-5">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-base font-black text-foreground">Téléverser un Fichier (Client ou Consultant)</h3>
+              <button type="button" onClick={() => setShowNewModal(false)} className="w-8 h-8 rounded-full bg-muted font-bold flex items-center justify-center">✕</button>
             </div>
 
             <form onSubmit={handleCreateDocument} className="space-y-4 text-xs font-medium">
               <div>
-                <label htmlFor="doc-type" className="block text-slate-700 font-bold mb-1">Nature du document</label>
+                <label htmlFor="doc-type" className="block text-foreground font-bold mb-1">Nature du document</label>
                 <select
                   id="doc-type"
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
-                  className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-indigo-600 focus:outline-none"
+                  className="w-full p-2.5 border border-border rounded-xl focus:border-primary/40 focus:outline-none"
                 >
                   {GROUPES_TYPES_DOCUMENT.map((groupe) => (
                     <optgroup key={groupe.id} label={groupe.labelFr}>
@@ -853,9 +867,9 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                     </optgroup>
                   ))}
                 </select>
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="text-[10px] text-muted-foreground mt-1">
                   Origine déduite :{" "}
-                  <span className="font-bold text-slate-700">{LIBELLE_ORIGINE[docCategory]}</span>
+                  <span className="font-bold text-foreground">{LIBELLE_ORIGINE[docCategory]}</span>
                   {TYPES_DOCUMENT[docType]?.refCode && (
                     <> — encadré par l’article {TYPES_DOCUMENT[docType].refCode} du Code de déontologie.</>
                   )}
@@ -863,27 +877,27 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
               </div>
 
               <div>
-                <label className="block text-slate-700 font-bold mb-1">Nom du Fichier</label>
+                <label className="block text-foreground font-bold mb-1">Nom du Fichier</label>
                 <input
                   type="text"
                   required
                   placeholder="ex : Passeport.pdf"
                   value={docName}
                   onChange={(e) => setDocName(e.target.value)}
-                  className="w-full p-2.5 border border-slate-300 rounded-xl focus:border-indigo-600 focus:outline-none"
+                  className="w-full p-2.5 border border-border rounded-xl focus:border-primary/40 focus:outline-none"
                 />
               </div>
 
-              <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => fileInputRef.current?.click()}>
-                <UploadCloud className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
-                <p className="text-xs font-bold text-slate-800">Cliquez pour choisir un fichier sur votre ordinateur</p>
-                <p className="text-[10px] text-slate-400 mt-1">PDF, JPEG, PNG ou HEIC — 20 Mo maximum</p>
+              <div className="border-2 border-dashed border-border rounded-2xl p-6 text-center cursor-pointer hover:bg-muted transition-colors" onClick={() => fileInputRef.current?.click()}>
+                <UploadCloud className="w-8 h-8 text-primary-strong mx-auto mb-2" />
+                <p className="text-xs font-bold text-foreground">Cliquez pour choisir un fichier sur votre ordinateur</p>
+                <p className="text-[10px] text-muted-foreground mt-1">PDF, JPEG, PNG ou HEIC — 20 Mo maximum</p>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button type="button" onClick={() => setShowNewModal(false)} className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold">Annuler</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-900 text-white font-bold hover:bg-indigo-950 shadow-md">Téléverser dans le Coffre-Fort</button>
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+                <button type="button" onClick={() => setShowNewModal(false)} className="px-4 py-2 rounded-xl text-muted-foreground hover:bg-muted font-bold">Annuler</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 shadow-md">Téléverser dans le Coffre-Fort</button>
               </div>
             </form>
           </div>
@@ -892,39 +906,39 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
       {/* MODAL PERSONNALISÉ DE CONFIRMATION DE SUPPRESSION DE DOCUMENT */}
       {deleteTargetDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setDeleteTargetDoc(null)}>
-          <div className="bg-white w-full max-w-md rounded-3xl border border-rose-100 shadow-2xl p-6 flex flex-col gap-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setDeleteTargetDoc(null)}>
+          <div className="bg-card w-full max-w-md rounded-3xl border border-error/40 shadow-2xl p-6 flex flex-col gap-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold shrink-0">
+              <div className="h-12 w-12 rounded-2xl bg-error/15 text-error-strong flex items-center justify-center font-bold shrink-0">
                 <Trash2 className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-black text-slate-900">Supprimer le Document ?</h3>
-                <p className="text-xs text-slate-500">Cette suppression sera consignée dans l&apos;audit.</p>
+                <h3 className="text-base font-black text-foreground">Supprimer le Document ?</h3>
+                <p className="text-xs text-muted-foreground">Cette suppression sera consignée dans l&apos;audit.</p>
               </div>
             </div>
 
-            <div className="p-4 bg-rose-50/70 border border-rose-200/60 rounded-2xl text-xs text-slate-700 leading-relaxed space-y-2">
+            <div className="p-4 bg-error/15 border border-error/60 rounded-2xl text-xs text-foreground leading-relaxed space-y-2">
               <p>
-                Voulez-vous vraiment supprimer définitivement le document <strong className="text-slate-900 font-bold">« {deleteTargetDoc.name} »</strong> ?
+                Voulez-vous vraiment supprimer définitivement le document <strong className="text-foreground font-bold">« {deleteTargetDoc.name} »</strong> ?
               </p>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 La fiche sera retirée du registre et l&apos;opération inscrite au journal d&apos;audit.
               </p>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-border">
               <button
                 type="button"
                 onClick={() => setDeleteTargetDoc(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                className="px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-bold text-xs transition-colors cursor-pointer"
               >
                 Annuler
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDeleteDocument}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-all shadow-md cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-error hover:bg-error/90 text-background font-bold text-xs transition-all shadow-md cursor-pointer"
               >
                 Supprimer Définitivement
               </button>
@@ -935,30 +949,30 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
       {/* MODAL LIEN DE CONNEXION ET ACCÈS PORTAIL CLIENT */}
       {showPortalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setShowPortalModal(false)}>
-          <div className="bg-white w-full max-w-lg rounded-3xl border border-indigo-100 shadow-2xl p-6 sm:p-8 flex flex-col gap-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setShowPortalModal(false)}>
+          <div className="bg-card w-full max-w-lg rounded-3xl border border-primary/40 shadow-2xl p-6 sm:p-8 flex flex-col gap-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-indigo-900 text-white flex items-center justify-center font-bold shrink-0">
-                  <KeyRound className="w-5 h-5 text-indigo-300" />
+                <div className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold shrink-0">
+                  <KeyRound className="w-5 h-5 text-primary-strong" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">Accès au Portail Client Sécurisé</h3>
-                  <p className="text-xs text-slate-500">Transmettez ce lien à votre client pour lui donner accès à ses pièces & dossiers.</p>
+                  <h3 className="text-base font-black text-foreground">Accès au Portail Client Sécurisé</h3>
+                  <p className="text-xs text-muted-foreground">Transmettez ce lien à votre client pour lui donner accès à ses pièces & dossiers.</p>
                 </div>
               </div>
-              <button type="button" onClick={() => setShowPortalModal(false)} className="w-8 h-8 rounded-full bg-slate-100 font-bold flex items-center justify-center">✕</button>
+              <button type="button" onClick={() => setShowPortalModal(false)} className="w-8 h-8 rounded-full bg-muted font-bold flex items-center justify-center">✕</button>
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <label className="block text-slate-500 font-bold text-[10px] uppercase mb-1">Lien Officiel du Portail Client</label>
+              <div className="p-4 rounded-2xl bg-muted border border-border">
+                <label className="block text-muted-foreground font-bold text-[10px] uppercase mb-1">Lien Officiel du Portail Client</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     readOnly
                     value={`${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
-                    className="flex-1 p-2.5 bg-white border border-slate-300 rounded-xl font-mono text-xs text-indigo-900 font-bold select-all focus:outline-none"
+                    className="flex-1 p-2.5 bg-card border border-border rounded-xl font-mono text-xs text-primary-strong font-bold select-all focus:outline-none"
                   />
                   <button
                     type="button"
@@ -969,7 +983,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                       setShowPortalModal(false)
                       setTimeout(() => setNotice(null), 5000)
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs transition-all shrink-0 cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs transition-all shrink-0 cursor-pointer"
                   >
                     Copier
                   </button>
@@ -981,17 +995,17 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
                   href={`${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold text-center text-xs transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-primary/40 bg-primary/15 hover:bg-primary/10 text-primary-strong font-bold text-center text-xs transition-colors flex items-center justify-center gap-2"
                 >
-                  <ExternalLink className="w-4 h-4 text-indigo-600" />
+                  <ExternalLink className="w-4 h-4 text-primary-strong" />
                   <span>Tester (Aperçu Vue Client)</span>
                 </a>
 
                 <a
                   href={`mailto:?subject=Accès à votre Portail Client CRIC&body=Bonjour, voici le lien pour accéder à votre portail client sécurisé et suivre vos pièces d'immigration : ${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-950 text-white font-bold text-center text-xs transition-all flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-foreground hover:bg-foreground text-background font-bold text-center text-xs transition-all flex items-center justify-center gap-2"
                 >
-                  <Mail className="w-4 h-4 text-slate-300" />
+                  <Mail className="w-4 h-4 text-muted-foreground" />
                   <span>Envoyer par courriel</span>
                 </a>
               </div>
