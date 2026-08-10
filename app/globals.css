@@ -15,7 +15,13 @@
   --gold-foreground: #FFFFFF;
 
   --muted: #F1F5F9;
-  --muted-foreground: #64748B;
+  /* Mesuré, pas choisi : #64748B posé sur --muted (#F1F5F9) donnait 4,34:1,
+     sous le seuil AA. Le couple « bg-muted + text-muted-foreground » compte
+     86 emplois dans l'application — corriger chaque pastille aurait laissé
+     passer la 87e. C'est donc le JETON qui remonte, à 5,07:1 sur muted et
+     5,56:1 sur une carte. L'écart à l'œil est infime ; il tient au fait que
+     le gris secondaire n'était jamais prévu pour être posé sur un gris. */
+  --muted-foreground: #5B6980;
   
   --border: #E2E8F0;
   

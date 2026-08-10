@@ -181,6 +181,53 @@ try {
   const volRecu = await anonyme2.request.get(`${BASE}/api/payments/${pay.id}/receipt`)
   verifier("sans session, le reçu est refusé", volRecu.status(), 404)
 
+  // -----------------------------------------------------------------------
+  console.log("\nLe reçu s'envoie comme une facture")
+  // -----------------------------------------------------------------------
+  // Le reçu n'avait qu'un lien « Reçu PDF » : on pouvait le regarder, jamais
+  // le transmettre. Il porte maintenant les mêmes gestes qu'une facture, et
+  // donc la même règle — le clic PRÉPARE, la fenêtre exécute.
+  // La fiche s'ouvre par la RÉFÉRENCE du dossier, pas par son identifiant :
+  // c'est ce que porte l'adresse que voit le consultant.
+  await page.goto(`${BASE}/fr/matters/ZEN-2026-00001`, { waitUntil: "domcontentloaded" })
+  await page.waitForSelector("h1", { timeout: 30000 })
+  await page.click('button:has-text("Paiements")')
+  await page.waitForTimeout(1500)
+
+  const gestes = await page.evaluate(() => {
+    const zone = document.body.innerText
+    return {
+      paiementVisible: /INT-88213/.test(zone),
+      voir: /Voir le PDF/.test(zone),
+      envoyer: /Envoyer au client/.test(zone),
+    }
+  })
+  verifier("le paiement figure dans l'onglet", gestes.paiementVisible, true)
+  verifier("le reçu offre « Voir le PDF »", gestes.voir, true)
+  verifier("le reçu offre « Envoyer au client »", gestes.envoyer, true)
+
+  // On vise la LIGNE du paiement par sa référence, qui n'appartient qu'à lui.
+  // Prendre « le dernier bouton Envoyer au client » de la page ouvrait en fait
+  // celui de la facture, et le contrôle passait sur le mauvais document.
+  const ligneDuPaiement = page.locator("div.rounded-2xl").filter({ hasText: "INT-88213" }).first()
+  await ligneDuPaiement.getByRole("button", { name: "Envoyer au client" }).click()
+  await page.waitForTimeout(800)
+
+  const vuRecu = await page.evaluate(() => document.querySelector('[role="dialog"]')?.textContent ?? "")
+  console.log(`     La fenêtre dit : « ${vuRecu.replace(/\s+/g, " ").slice(0, 220)} »`)
+  verifier("l'envoi du reçu demande confirmation", /Confirmer l'envoi/.test(vuRecu), true)
+  verifier("il nomme le destinataire", /Awa Diallo/.test(vuRecu), true)
+  verifier("il montre le montant encaissé", /300/.test(vuRecu), true)
+  // Un reçu n'écrit rien et ne fige rien : l'avertissement rouge serait un
+  // mensonge, et l'habitude de le voir partout finirait par le rendre muet
+  // là où il compte.
+  verifier("il n'annonce AUCUNE irréversibilité", /irréversible|cessera|figé/i.test(vuRecu), false)
+
+  await page.click('[role="dialog"] button:has-text("Annuler")')
+  await page.waitForTimeout(500)
+  const ferme = await page.evaluate(() => !document.querySelector('[role="dialog"]'))
+  verifier("Annuler referme sans rien envoyer", ferme, true)
+
 } finally {
   if (navigateur) await navigateur.close()
   if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)

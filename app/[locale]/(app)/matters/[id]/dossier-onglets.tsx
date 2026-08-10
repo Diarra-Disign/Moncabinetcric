@@ -24,7 +24,7 @@ import {
 import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
 import { envoyerQuestionnaire } from "@/lib/data/questionnaire-actions"
 import { ConfirmationEnvoi } from "@/components/ui/confirmation-envoi"
-import { creerFacture, emettreFacture, supprimerFacture, annulerFacture, envoyerFactureAuClient, modifierFacture, lignesDeFacture } from "@/lib/data/invoice-actions"
+import { creerFacture, emettreFacture, supprimerFacture, annulerFacture, envoyerFactureAuClient, envoyerRecuAuClient, modifierFacture, lignesDeFacture } from "@/lib/data/invoice-actions"
 import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
 /**
@@ -1104,15 +1104,43 @@ export function DossierOnglets({
 
               {/* Le reçu se produit AU PAIEMENT, pas à la facturation : la
                   facture dit « vous devez », le reçu dit « vous avez payé ».
-                  Il vit donc ici, sur l'encaissement qu'il atteste. */}
-              <a
-                href={`/api/payments/${p.id}/receipt`}
-                target="_blank"
-                rel="noopener"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground shrink-0"
-              >
-                <Eye className="h-3.5 w-3.5" /> Reçu PDF
-              </a>
+                  Il vit donc ici, sur l'encaissement qu'il atteste — et il
+                  porte les mêmes gestes qu'une facture, parce qu'un client qui
+                  a payé attend sa preuve autant qu'il attendait sa demande. */}
+              <div className="flex flex-wrap gap-1.5 shrink-0">
+                <a
+                  href={`/api/payments/${p.id}/receipt`}
+                  target="_blank"
+                  rel="noopener"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground"
+                >
+                  <Eye className="h-3.5 w-3.5" /> Voir le PDF
+                </a>
+
+                <button
+                  type="button"
+                  disabled={enCours}
+                  onClick={() => setEnvoiAConfirmer({
+                    action: "Le client recevra son reçu par courriel, en pièce jointe.",
+                    objet: `Reçu du paiement de ${argent(p.montant)}`,
+                    objetDetail: `${p.date} · ${p.methode}${p.factureNumero ? ` · facture ${p.factureNumero}` : ""}`,
+                    destinataire: { nom: clientName, courriel: courrielClient },
+                    // Aucun avertissement d'irréversibilité, et c'est exact :
+                    // envoyer un reçu n'écrit rien et ne fige rien. Le même
+                    // reçu peut repartir autant de fois qu'un client l'égare.
+                    libelleConfirmer: "Envoyer le reçu",
+                    executer: async () => {
+                      const fd = new FormData()
+                      fd.set("id", p.id)
+                      fd.set("locale", "fr")
+                      return envoyerRecuAuClient(fd)
+                    },
+                  })}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground disabled:opacity-40"
+                >
+                  <Send className="h-3.5 w-3.5" /> Envoyer au client
+                </button>
+              </div>
             </div>
           ))}
         </div>

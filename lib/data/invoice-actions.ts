@@ -358,3 +358,83 @@ export async function lignesDeFacture(id: string): Promise<LigneFacture[]> {
     taxable: l.taxable !== false,
   }))
 }
+
+/**
+ * Envoie le reçu d'un paiement au client, PDF joint.
+ *
+ * Décalque de envoyerFactureAuClient, à une différence près qui change le ton
+ * du message : une facture RÉCLAME, un reçu ATTESTE. Le courriel ne demande
+ * donc rien et n'annonce aucune échéance — il confirme un encaissement, et
+ * c'est tout ce que le client doit y lire.
+ *
+ * Rien n'est écrit en base : réémettre un reçu ne modifie pas le paiement, et
+ * le même reçu peut donc être renvoyé autant de fois qu'un client l'égare.
+ */
+export async function envoyerRecuAuClient(formData: FormData): Promise<Resultat> {
+  try {
+    const membre = await getCurrentMember()
+    if (!membre) return { ok: false, message: "Session expirée." }
+    const sb = await getSessionSupabase()
+    const id = String(formData.get("id") ?? "")
+    const locale = String(formData.get("locale") ?? "fr")
+
+    const { pdfDeRecu } = await import("@/lib/invoices/document")
+    const { envoyerCourriel } = await import("@/lib/email/send")
+    const { identiteCourriel } = await import("./questionnaires")
+
+    const doc = await pdfDeRecu(sb, id)
+    if (!doc) return { ok: false, message: "Paiement introuvable." }
+    if (!doc.clientCourriel) {
+      return {
+        ok: false,
+        message:
+          "Ce client n'a pas d'adresse courriel. Ajoutez-la sur sa fiche, ou téléchargez le PDF et transmettez-le vous-même.",
+      }
+    }
+
+    const identite = await identiteCourriel()
+    const montant = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(doc.montant)
+
+    // La mention fidéicommis n'est pas décorative : elle dit au client que son
+    // argent est dans un compte séparé et qu'aucun honoraire n'en sera prélevé
+    // sans facture. La taire dans le courriel alors que le PDF la porte
+    // laisserait croire à un simple encaissement.
+    const fiducie = doc.enFideicommis
+      ? `<p style="font-size:14px;line-height:1.6">Cette somme est déposée dans le compte en fidéicommis du cabinet. Aucun honoraire n'en sera prélevé sans l'émission préalable d'une facture.</p>`
+      : ""
+
+    const envoi = await envoyerCourriel({
+      destinataire: doc.clientCourriel,
+      nomExpediteur: identite.nomExpediteur,
+      repondreA: identite.repondreA,
+      sujet: `Reçu ${doc.numero} — ${identite.nom}`,
+      texte:
+        `Bonjour ${doc.clientNom},\n\nNous accusons réception de votre paiement de ${montant}` +
+        `${doc.factureNumero ? ` pour la facture ${doc.factureNumero}` : ""}, le ${doc.date}.\n\n` +
+        `Le reçu est joint à ce message.\n\n${identite.nom}`,
+      html: `
+        <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
+          <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">${identite.nom}</p>
+          <h1 style="font-size:20px;margin:0 0 16px">Reçu ${doc.numero}</h1>
+          <p style="font-size:15px;line-height:1.6">Bonjour ${doc.clientNom},</p>
+          <p style="font-size:15px;line-height:1.6">
+            Nous accusons réception de votre paiement de <strong>${montant}</strong>
+            ${doc.factureNumero ? `pour la facture <strong>${doc.factureNumero}</strong>` : ""}
+            ${doc.dossierReference ? `, dossier ${doc.dossierReference}` : ""}, le ${doc.date}.
+          </p>
+          ${fiducie}
+          <p style="font-size:15px;line-height:1.6">Le reçu officiel est joint à ce message.</p>
+          <p style="font-size:12px;color:#64748b;margin-top:28px">${identite.nom} — ${identite.repondreA ?? ""}</p>
+        </div>`,
+      pieces: [{ nom: `${doc.numero}.pdf`, contenu: doc.octets }],
+    })
+
+    if (!envoi.configure) return { ok: false, message: "L'envoi de courriel n'est pas configuré." }
+    if (!envoi.envoye) return { ok: false, message: `Le reçu n'est pas parti : ${envoi.erreur ?? "erreur inconnue"}.` }
+
+    revalidatePath(`/${locale}/matters`)
+    return { ok: true, message: `Reçu ${doc.numero} envoyé à ${doc.clientCourriel}.` }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}

@@ -226,18 +226,18 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-card border border-border hover:bg-muted/40 text-foreground text-xs font-bold transition-all shadow-xs cursor-pointer"
             >
-              <Download className="w-4 h-4 text-slate-500" />
+              <Download className="w-4 h-4 text-muted-foreground" />
               <span>Exporter CSV</span>
             </button>
 
             <button
               type="button"
               onClick={handleExportPdf}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white text-xs font-bold transition-all shadow-md shadow-indigo-900/20 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-foreground hover:bg-foreground/90 text-background text-xs font-bold transition-all shadow-md cursor-pointer"
             >
-              <FileCheck2 className="w-4 h-4 text-indigo-300" />
+              <FileCheck2 className="w-4 h-4 text-background/70" />
               <span>Rapport Audit PDF CICC</span>
             </button>
           </div>
@@ -246,38 +246,38 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
 
       {/* BANNIÈRE DE NOTIFICATION REACTIVE */}
       {notice && (
-        <div className="p-4 rounded-2xl bg-indigo-950 border border-indigo-700 text-white text-xs font-bold flex items-center justify-between shadow-lg animate-fadeIn">
+        <div className="p-4 rounded-2xl bg-foreground border border-border text-background text-xs font-bold flex items-center justify-between shadow-lg animate-fadeIn">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
+            <Sparkles className="w-5 h-5 text-background/70 shrink-0" />
             <span>{notice}</span>
           </div>
-          <button type="button" onClick={() => setNotice(null)} className="text-indigo-300 hover:text-white font-mono">✕</button>
+          <button type="button" onClick={() => setNotice(null)} className="text-background/70 hover:text-background font-mono">✕</button>
         </div>
       )}
 
       {/* BANNIÈRE DE CONTRÔLE D'INTÉGRITÉ CRYPTOGRAPHIQUE SHA-256 */}
-      <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 border border-indigo-800/40 shadow-2xl text-white relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-foreground rounded-3xl p-6 sm:p-8 border border-primary/25 shadow-2xl text-background relative overflow-hidden">
+        <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-64 h-64 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
         
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-600/30 border border-indigo-400/40 flex items-center justify-center shrink-0 shadow-inner">
-              <Lock className="w-7 h-7 text-indigo-400" />
+            <div className="w-14 h-14 rounded-2xl bg-background/15 border border-background/25 flex items-center justify-center shrink-0 shadow-inner">
+              <Lock className="w-7 h-7 text-background" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black tracking-tight text-white">Registre Registral en Ajout Seul (Immutable Log)</h2>
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" /> Chaîne de Hachage Validée
+                <h2 className="text-xl font-black tracking-tight text-background">Registre Registral en Ajout Seul (Immutable Log)</h2>
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-background/15 text-background border border-background/25 px-2.5 py-0.5 rounded-full">
+                  <ShieldCheck className="w-3 h-3 text-background" /> Chaîne de Hachage Validée
                 </span>
               </div>
-              <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                Toutes les mutations métier (contrats, virements fidéicommis, approbations) sont scellées par une empreinte SHA-256 dépendante de la transaction précédente (<code className="font-mono text-indigo-300">row_hash</code>). Toute suppression ou altération rétroactive est détectable instantanément.
+              <p className="text-xs text-background/70 mt-1 max-w-2xl leading-relaxed">
+                Toutes les mutations métier (contrats, virements fidéicommis, approbations) sont scellées par une empreinte SHA-256 dépendante de la transaction précédente (<code className="font-mono text-background">row_hash</code>). Toute suppression ou altération rétroactive est détectable instantanément.
               </p>
-              <div className="flex items-center gap-4 mt-3 text-[11px] font-mono text-slate-400">
-                <span>Cabinet : <strong className="text-white">{firm.name}</strong></span>
+              <div className="flex items-center gap-4 mt-3 text-[11px] font-mono text-background/60">
+                <span>Cabinet : <strong className="text-background">{firm.name}</strong></span>
                 <span>•</span>
-                <span>Dernier Hash: <strong className="text-indigo-300">{logs[0]?.rowHash.substring(0, 16)}...</strong></span>
+                <span>Dernier Hash: <strong className="text-background">{logs[0]?.rowHash.substring(0, 16)}...</strong></span>
               </div>
             </div>
           </div>
@@ -287,7 +287,7 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
               type="button"
               onClick={handleVerifyChain}
               disabled={verifyingChain}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all shadow-md cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${verifyingChain ? "animate-spin" : ""}`} />
               <span>{verifyingChain ? "Vérification en cours..." : "Recalculer la Chaîne SHA-256"}</span>
@@ -297,18 +297,18 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
       </div>
 
       {/* SÉLECTEUR D'ONGLETS ET INDICATEUR D'APPROBATION EN 2 TEMPS */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-        <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl">
+      <div className="flex items-center justify-between border-b border-border pb-4">
+        <div className="flex items-center gap-2 bg-muted p-1.5 rounded-2xl">
           <button
             type="button"
             onClick={() => setActiveTab("logs")}
             className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
               activeTab === "logs" 
-                ? "bg-white text-indigo-950 shadow-sm" 
-                : "text-slate-600 hover:text-slate-900"
+                ? "bg-card text-foreground shadow-sm" 
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <FileText className="w-4 h-4 text-indigo-600" />
+            <FileText className="w-4 h-4 text-primary" />
             <span>Journal d&apos;Audit du Cabinet ({logs.length})</span>
           </button>
 
@@ -317,21 +317,21 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
             onClick={() => setActiveTab("approvals")}
             className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 relative ${
               activeTab === "approvals" 
-                ? "bg-indigo-900 text-white shadow-sm" 
-                : "text-slate-600 hover:text-slate-900"
+                ? "bg-foreground text-background shadow-sm" 
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <UserCheck className="w-4 h-4 text-indigo-300" />
+            <UserCheck className="w-4 h-4" />
             <span>File d&apos;Approbations CRIC (action_approvals)</span>
             {pendingApprovalsCount > 0 && (
-              <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] flex items-center justify-center animate-pulse">
+              <span className="w-5 h-5 rounded-full bg-warning/20 text-warning-strong font-black text-[10px] flex items-center justify-center animate-pulse">
                 {pendingApprovalsCount}
               </span>
             )}
           </button>
         </div>
 
-        <div className="text-xs text-slate-500 font-medium hidden sm:block">
+        <div className="text-xs text-muted-foreground font-medium hidden sm:block">
           {activeTab === "logs" 
             ? "Affichage des accès et mutations horodatés" 
             : "Mécanique d'approbation en 2 temps pour les actes réservés aux CRIC"}
@@ -343,27 +343,27 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
         <div className="space-y-6">
           
           {/* BARRE DE RECHERCHE ET FILTRES MULTICRITÈRES */}
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="bg-card p-4 rounded-3xl border border-border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Rechercher par résumé, courriel, hash SHA-256 ou ID dossier..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-600 focus:outline-none transition-all"
+                className="w-full pl-10 pr-4 py-2.5 text-xs font-medium rounded-2xl bg-muted/40 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
               />
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
               {/* Filtre par Rôle */}
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
-                <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+                <Filter className="w-3.5 h-3.5 text-muted-foreground" />
                 <span>Rôle :</span>
                 <select
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                  className="bg-muted/40 border border-border rounded-xl px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none cursor-pointer"
                 >
                   <option value="all">Tous les rôles</option>
                   <option value="owner">Propriétaire (Owner)</option>
@@ -374,12 +374,12 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
               </div>
 
               {/* Filtre par Action */}
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
                 <span>Action :</span>
                 <select
                   value={actionFilter}
                   onChange={(e) => setActionFilter(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                  className="bg-muted/40 border border-border rounded-xl px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none cursor-pointer"
                 >
                   <option value="all">Toutes les actions</option>
                   <option value="approval">Approbation CRIC</option>
@@ -393,10 +393,10 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
           </div>
 
           {/* TABLEAU COMPACT HAUTE DENSITÉ DES EVENEMENTS D'AUDIT */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+          <div className="bg-card rounded-3xl border border-border shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left border-collapse">
-                <thead className="bg-slate-50 font-black uppercase text-[10px] text-slate-500 border-b border-slate-200">
+                <thead className="bg-muted/40 font-black uppercase text-[10px] text-muted-foreground border-b border-border">
                   <tr>
                     <th className="py-3.5 px-4 w-[16%] whitespace-nowrap">Horodatage (ISO)</th>
                     <th className="py-3.5 px-4 w-[22%]">Acteur & Rôle</th>
@@ -405,14 +405,14 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
                     <th className="py-3.5 px-4 w-[14%] text-right whitespace-nowrap">Empreinte SHA-256</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                <tbody className="divide-y divide-border font-medium text-foreground">
                   {filteredLogs.map(log => (
                     <tr 
                       key={log.id} 
                       onClick={() => setSelectedLog(log)}
-                      className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                      className="hover:bg-muted/40 transition-colors cursor-pointer group"
                     >
-                      <td className="py-3.5 px-4 font-mono text-slate-600 whitespace-nowrap">
+                      <td className="py-3.5 px-4 font-mono text-muted-foreground whitespace-nowrap">
                         {new Date(log.occurredAt).toLocaleString("fr-CA", { dateStyle: "short", timeStyle: "medium" })}
                       </td>
 
@@ -420,28 +420,28 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
                             log.actorRole === "rcic" || log.actorRole === "owner" 
-                              ? "bg-indigo-100 text-indigo-900 border border-indigo-200" 
+                              ? "bg-primary/15 text-primary-strong border border-primary/30" 
                               : log.actorRole === "risia"
-                              ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
-                              : "bg-amber-100 text-amber-900 border border-amber-200"
+                              ? "bg-success/15 text-success-strong border border-success/30"
+                              : "bg-warning/15 text-warning-strong border border-warning/40"
                           }`}>
                             {log.actorRole}
                           </span>
-                          <span className="font-bold text-slate-900 truncate max-w-[150px]">{log.actorName}</span>
+                          <span className="font-bold text-foreground truncate max-w-[150px]">{log.actorName}</span>
                         </div>
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className="bg-slate-100 text-slate-700 font-mono font-bold px-2 py-0.5 rounded text-[10px] uppercase">
+                        <span className="bg-muted text-foreground font-mono font-bold px-2 py-0.5 rounded text-[10px] uppercase">
                           {log.action}
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-foreground group-hover:text-primary transition-colors">
                         {log.summary}
                       </td>
 
-                      <td className="py-3.5 px-4 text-right font-mono text-[10px] text-slate-400 group-hover:text-indigo-600 whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-right font-mono text-[10px] text-muted-foreground group-hover:text-primary whitespace-nowrap">
                         {log.rowHash.substring(0, 14)}...
                       </td>
                     </tr>
@@ -457,12 +457,12 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
       {/* VUE 2 : FILE D'APPROBATIONS EN 2 TEMPS (ACTION_APPROVALS) */}
       {activeTab === "approvals" && (
         <div className="space-y-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 flex items-start gap-4 text-xs font-sans text-amber-950">
-            <BadgeAlert className="w-6 h-6 text-amber-700 shrink-0 mt-0.5" />
+          <div className="bg-warning/10 border border-warning/40 rounded-3xl p-5 flex items-start gap-4 text-xs font-sans text-warning-strong">
+            <BadgeAlert className="w-6 h-6 text-warning-strong shrink-0 mt-0.5" />
             <div>
-              <strong className="text-amber-900 font-extrabold text-sm block">Mécanique de Supervision CRIC en 2 Temps (Règlement sur la Conduite du CICC)</strong>
-              <p className="mt-1 text-amber-900/90 leading-relaxed">
-                Conformément aux règlements du CICC, le personnel administratif (<code className="font-mono bg-amber-100 px-1 rounded">staff</code>) et les stagiaires (<code className="font-mono bg-amber-100 px-1 rounded">risia</code>) peuvent **préparer** des actes réservés (virements fidéicommis, contrats, fermetures de dossiers). Cependant, l&apos;acte ne devient exécutoire qu&apos;après **validation électronique explicite par le consultant titulaire (CRIC)**.
+              <strong className="text-warning-strong font-extrabold text-sm block">Mécanique de Supervision CRIC en 2 Temps (Règlement sur la Conduite du CICC)</strong>
+              <p className="mt-1 text-warning-strong leading-relaxed">
+                Conformément aux règlements du CICC, le personnel administratif (<code className="font-mono bg-warning/15 px-1 rounded">staff</code>) et les stagiaires (<code className="font-mono bg-warning/15 px-1 rounded">risia</code>) peuvent **préparer** des actes réservés (virements fidéicommis, contrats, fermetures de dossiers). Cependant, l&apos;acte ne devient exécutoire qu&apos;après **validation électronique explicite par le consultant titulaire (CRIC)**.
               </p>
             </div>
           </div>
@@ -473,36 +473,36 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
                 key={approval.id} 
                 className={`p-6 rounded-3xl border transition-all ${
                   approval.status === "pending" 
-                    ? "bg-white border-amber-300 shadow-md shadow-amber-500/5 ring-2 ring-amber-400/20" 
+                    ? "bg-card border-warning/40 shadow-md shadow-warning/10 ring-2 ring-warning/20" 
                     : approval.status === "approved"
-                    ? "bg-slate-50 border-emerald-200 opacity-90"
-                    : "bg-rose-50/50 border-rose-200 opacity-80"
+                    ? "bg-muted/40 border-success/30 opacity-90"
+                    : "bg-error/5 border-error/30 opacity-80"
                 }`}
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
-                        approval.status === "pending" ? "bg-amber-100 text-amber-900 border border-amber-300" :
-                        approval.status === "approved" ? "bg-emerald-100 text-emerald-900 border border-emerald-300" :
-                        "bg-rose-100 text-rose-900 border border-rose-300"
+                        approval.status === "pending" ? "bg-warning/15 text-warning-strong border border-warning/40" :
+                        approval.status === "approved" ? "bg-success/15 text-success-strong border border-success/40" :
+                        "bg-error/15 text-error-strong border border-error/40"
                       }`}>
                         {approval.status === "pending" ? "⏳ En attente de validation CRIC" : approval.status === "approved" ? "✅ Approuvé & Exécuté" : "❌ Rejeté"}
                       </span>
-                      <span className="text-xs font-mono text-slate-500">{approval.matterTitle}</span>
+                      <span className="text-xs font-mono text-muted-foreground">{approval.matterTitle}</span>
                     </div>
 
-                    <h3 className="text-base font-black text-slate-900">{approval.actionTitle}</h3>
-                    <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">{approval.summary}</p>
+                    <h3 className="text-base font-black text-foreground">{approval.actionTitle}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-3xl">{approval.summary}</p>
 
-                    <div className="flex items-center gap-4 text-xs font-medium text-slate-500 pt-1">
-                      <span>Préparé par : <strong className="text-slate-800">{approval.preparedBy}</strong></span>
+                    <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground pt-1">
+                      <span>Préparé par : <strong className="text-foreground">{approval.preparedBy}</strong></span>
                       <span>•</span>
                       <span>Horodatage : <span className="font-mono">{new Date(approval.preparedAt).toLocaleString("fr-CA")}</span></span>
                       {approval.approvedBy && (
                         <>
                           <span>•</span>
-                          <span className="text-emerald-700 font-bold">Approuvé par : {approval.approvedBy}</span>
+                          <span className="text-success-strong font-bold">Approuvé par : {approval.approvedBy}</span>
                         </>
                       )}
                     </div>
@@ -517,7 +517,7 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
                           setSelectedApproval(approval)
                           setShowRejectInput(true)
                         }}
-                        className="px-4 py-2.5 rounded-2xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all cursor-pointer"
+                        className="px-4 py-2.5 rounded-2xl border border-error/40 text-error-strong hover:bg-error/10 text-xs font-bold transition-all cursor-pointer"
                       >
                         Rejeter
                       </button>
@@ -525,7 +525,7 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
                       <button
                         type="button"
                         onClick={() => handleApproveAction(approval.id)}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-success/15 hover:bg-success/25 text-success-strong border border-success/40 text-xs font-bold shadow-md transition-all cursor-pointer"
                       >
                         <Check className="w-4 h-4" />
                         <span>Approuver & Signer (RCIC)</span>
@@ -541,73 +541,73 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
 
       {/* MODAL 1 : DETAIL D'UN ENREGISTREMENT D'AUDIT ET DIFFERENTIEL (DIFF) */}
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-xl rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-8 flex flex-col gap-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="bg-card w-full max-w-xl rounded-3xl border border-border shadow-2xl p-6 sm:p-8 flex flex-col gap-5">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-indigo-100 text-indigo-900 flex items-center justify-center font-bold">
-                  <KeyRound className="w-5 h-5 text-indigo-700" />
+                <div className="h-10 w-10 rounded-2xl bg-primary/15 text-primary-strong flex items-center justify-center font-bold">
+                  <KeyRound className="w-5 h-5 text-primary-strong" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">Preuve d&apos;Audit Cryptographique</h3>
-                  <p className="text-xs text-slate-500 font-mono">ID Log: {selectedLog.id}</p>
+                  <h3 className="text-base font-black text-foreground">Preuve d&apos;Audit Cryptographique</h3>
+                  <p className="text-xs text-muted-foreground font-mono">ID Log: {selectedLog.id}</p>
                 </div>
               </div>
               <button 
                 type="button" 
                 onClick={() => setSelectedLog(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold flex items-center justify-center hover:bg-slate-200"
+                className="w-8 h-8 rounded-full bg-muted text-muted-foreground font-bold flex items-center justify-center hover:bg-muted"
               >
                 ✕
               </button>
             </div>
 
             <div className="space-y-4 text-xs font-sans">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
+              <div className="bg-muted/40 p-4 rounded-2xl border border-border space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-bold">Acteur :</span>
-                  <span className="font-bold text-slate-900">{selectedLog.actorName} ({selectedLog.actorEmail})</span>
+                  <span className="text-muted-foreground font-bold">Acteur :</span>
+                  <span className="font-bold text-foreground">{selectedLog.actorName} ({selectedLog.actorEmail})</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-bold">Rôle CICC :</span>
-                  <span className="font-mono text-indigo-900 font-bold uppercase">{selectedLog.actorRole}</span>
+                  <span className="text-muted-foreground font-bold">Rôle CICC :</span>
+                  <span className="font-mono text-primary-strong font-bold uppercase">{selectedLog.actorRole}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-bold">Adresse IP & Agent :</span>
-                  <span className="font-mono text-slate-700">{selectedLog.ipAddress}</span>
+                  <span className="text-muted-foreground font-bold">Adresse IP & Agent :</span>
+                  <span className="font-mono text-foreground">{selectedLog.ipAddress}</span>
                 </div>
               </div>
 
               <div>
-                <strong className="text-slate-900 font-bold block mb-1">Résumé de la Mutation :</strong>
-                <p className="p-3 bg-indigo-50/60 rounded-xl text-indigo-950 font-bold border border-indigo-200 leading-relaxed">
+                <strong className="text-foreground font-bold block mb-1">Résumé de la Mutation :</strong>
+                <p className="p-3 bg-primary/10 rounded-xl text-foreground font-bold border border-primary/30 leading-relaxed">
                   {selectedLog.summary}
                 </p>
               </div>
 
               {selectedLog.changes && (
                 <div>
-                  <strong className="text-slate-900 font-bold block mb-1">Différentiel de Données (Before / After) :</strong>
-                  <pre className="p-3 bg-slate-900 text-slate-200 rounded-xl font-mono text-[10px] overflow-x-auto">
+                  <strong className="text-foreground font-bold block mb-1">Différentiel de Données (Before / After) :</strong>
+                  <pre className="p-3 bg-foreground text-background rounded-xl font-mono text-[10px] overflow-x-auto">
                     {JSON.stringify(selectedLog.changes, null, 2)}
                   </pre>
                 </div>
               )}
 
               <div>
-                <strong className="text-slate-900 font-bold block mb-1">Chaîne Cryptographique SHA-256 :</strong>
-                <div className="p-3 bg-slate-100 rounded-xl font-mono text-[10px] text-slate-700 break-all space-y-1">
+                <strong className="text-foreground font-bold block mb-1">Chaîne Cryptographique SHA-256 :</strong>
+                <div className="p-3 bg-muted rounded-xl font-mono text-[10px] text-foreground break-all space-y-1">
                   <div><strong>Prev Hash:</strong> {selectedLog.prevHash}</div>
-                  <div className="text-indigo-900 font-bold"><strong>Row Hash:</strong> {selectedLog.rowHash}</div>
+                  <div className="text-primary-strong font-bold"><strong>Row Hash:</strong> {selectedLog.rowHash}</div>
                 </div>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex justify-end">
+            <div className="pt-2 border-t border-border flex justify-end">
               <button
                 type="button"
                 onClick={() => setSelectedLog(null)}
-                className="px-5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
+                className="px-5 py-2 rounded-xl bg-foreground text-background text-xs font-bold hover:bg-foreground/90"
               >
                 Fermer
               </button>
@@ -618,18 +618,18 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
 
       {/* MODAL 2 : MOTIF DE REJET D'UNE DEMANDE D'APPROBATION */}
       {showRejectInput && selectedApproval && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-md rounded-3xl border border-slate-200 shadow-2xl p-6 flex flex-col gap-4">
-            <h3 className="text-base font-black text-slate-900">Motif de Rejet de la Demande</h3>
-            <p className="text-xs text-slate-600">
-              Précisez au préparateur (<strong className="text-slate-900">{selectedApproval.preparedBy}</strong>) la raison du refus pour correction :
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="bg-card w-full max-w-md rounded-3xl border border-border shadow-2xl p-6 flex flex-col gap-4">
+            <h3 className="text-base font-black text-foreground">Motif de Rejet de la Demande</h3>
+            <p className="text-xs text-muted-foreground">
+              Précisez au préparateur (<strong className="text-foreground">{selectedApproval.preparedBy}</strong>) la raison du refus pour correction :
             </p>
             <textarea
               rows={3}
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Ex: Le montant des honoraires ne correspond pas à la Phase 1 de l'entente..."
-              className="w-full p-3 text-xs border border-slate-300 rounded-2xl focus:outline-none focus:border-rose-600 font-medium"
+              className="w-full p-3 text-xs border border-border rounded-2xl focus:outline-none focus:border-error font-medium"
             />
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
@@ -638,14 +638,14 @@ export function AuditClient({ initialLogs, initialApprovals }: AuditClientProps)
                   setShowRejectInput(false)
                   setSelectedApproval(null)
                 }}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                className="px-4 py-2 text-xs font-bold text-muted-foreground hover:bg-muted rounded-xl"
               >
                 Annuler
               </button>
               <button
                 type="button"
                 onClick={() => handleRejectAction(selectedApproval.id)}
-                className="px-5 py-2 text-xs font-bold bg-rose-600 text-white rounded-xl hover:bg-rose-700"
+                className="px-5 py-2 text-xs font-bold bg-error/15 text-error-strong border border-error/40 rounded-xl hover:bg-error/25"
               >
                 Confirmer le Rejet
               </button>
