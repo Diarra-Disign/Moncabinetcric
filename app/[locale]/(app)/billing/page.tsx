@@ -1,38 +1,29 @@
-import { getTranslations } from "next-intl/server"
 import { BillingClient } from "./billing-client"
-import { getInvoices, getClients, getMatters } from "@/lib/data"
+import { getFacturesDuCabinet, getMatters } from "@/lib/data"
 
+/**
+ * L'écran Facturation du menu : la vue d'ensemble du cabinet.
+ *
+ * Il ne lit plus getInvoices() mais firm_invoices_view, seule à porter le
+ * statut CALCULÉ et le montant réglé — la colonne status reste « issued » sur
+ * une facture entièrement payée, si bien que cet écran et la fiche dossier
+ * annonçaient deux états différents pour la même facture.
+ *
+ * Les dossiers sont chargés pour une seule raison : conduire à celui dans
+ * lequel une facture doit naître. Ils ne servent plus à un formulaire de
+ * création local — il n'y en a plus.
+ */
 export default async function BillingPage() {
-  const tBilling = await getTranslations("Billing")
-  const [initialInvoices, initialClients, initialMatters] = await Promise.all([
-    getInvoices(), getClients(), getMatters(),
-  ])
+  const [factures, dossiers] = await Promise.all([getFacturesDuCabinet(), getMatters()])
 
-  const translations = {
-    title: tBilling("title"),
-    subtitle: tBilling("subtitle"),
-    newInvoice: tBilling("newInvoice"),
-    stats: {
-      totalBilled: tBilling("stats.totalBilled"),
-      collected: tBilling("stats.collected"),
-      pending: tBilling("stats.pending"),
-      overdue: tBilling("stats.overdue"),
-    },
-    searchPlaceholder: tBilling("searchPlaceholder"),
-    table: {
-      invoiceId: tBilling("table.invoiceId"),
-      client: tBilling("table.client"),
-      amount: tBilling("table.amount"),
-      date: tBilling("table.date"),
-      status: tBilling("table.status"),
-      actions: tBilling("table.actions"),
-    },
-  }
-
-  return <BillingClient
-      t={translations}
-      initialInvoices={initialInvoices}
-      initialClients={initialClients}
-      initialMatters={initialMatters}
+  return (
+    <BillingClient
+      factures={factures}
+      dossiers={dossiers.map((m) => ({
+        reference: m.id,
+        clientNom: m.clientName,
+        programme: m.program ?? "",
+      }))}
     />
+  )
 }

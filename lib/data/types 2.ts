@@ -35,21 +35,6 @@ export interface Lead {
   contactIntent?: "info" | "consultation" | "mandate"
 }
 
-/**
- * Le vocabulaire des statuts de facture, tel que la base le produit.
- *
- * Il était typé « paid | pending | trust_reconciled », trois valeurs
- * qu'invoice_status() n'a jamais rendues. Le mappeur les affirmait par un
- * `as` aveugle, donc TypeScript ne pouvait rien signaler — et l'écran
- * Facturation filtrait sur « pending », valeur qu'aucune facture ne porte :
- * son indicateur « en attente » affichait 0 $ quel que soit l'encours.
- *
- * Une union qui ment est pire qu'une absence de type : elle donne la
- * confiance sans la garantie.
- */
-export type StatutFacture =
-  | "draft" | "issued" | "overdue" | "partial" | "paid" | "cancelled"
-
 export interface InvoiceRecord {
   id: string
   invoiceNumber: string // format : #FAC-AAAAMM##
@@ -57,38 +42,11 @@ export interface InvoiceRecord {
   serviceDescription?: string // "Description du service facturé"
   amount: number // $ CAD
   date: string
-  status: StatutFacture
+  status: "paid" | "pending" | "trust_reconciled"
   isTrustAccount?: boolean
   matterId?: string
   clientId?: string
   taxExempt?: boolean
-}
-
-/**
- * Une facture vue depuis l'écran du cabinet.
- *
- * Distincte d'InvoiceRecord parce qu'elle porte ce que seule la vue SQL sait :
- * le statut CALCULÉ, le montant réglé et le solde. Les reprendre dans
- * InvoiceRecord obligerait tous ses autres producteurs à les inventer.
- */
-export interface FactureCabinet {
-  id: string
-  numero: string
-  clientId: string | null
-  clientNom: string
-  /** L'adresse que la confirmation d'envoi doit montrer avant d'expédier. */
-  clientCourriel: string | null
-  matterId: string | null
-  /** La référence affichable du dossier — celle que porte l'adresse. */
-  dossierReference: string | null
-  description: string | null
-  montant: number
-  regle: number
-  solde: number
-  statut: StatutFacture
-  date: string
-  echeance: string | null
-  enFideicommis: boolean
 }
 
 export interface ClientRecord {

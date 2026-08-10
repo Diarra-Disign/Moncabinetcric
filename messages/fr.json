@@ -336,35 +336,50 @@
     }
   },
   "Billing": {
-    "title": "Facturation & Fidéicommis",
-    "subtitle": "Gestion comptable, factures, reçus automatiques et rapprochement fiduciaire CICC.",
-    "newInvoice": "+ Nouvelle Facture",
-    "stats": {
-      "totalBilled": "Total Facturé",
-      "collected": "Encaissé (Fidéicommis)",
-      "pending": "En Attente Paiement",
-      "overdue": "Retards (> 30j)"
+    "title": "Facturation",
+    "subtitle": "Toutes les factures du cabinet, tous dossiers confondus.",
+    "searchPlaceholder": "Rechercher un numéro, un client ou un dossier…",
+    "newInvoice": "Nouvelle facture",
+    "chooseMatterTitle": "Dans quel dossier ?",
+    "chooseMatterWhy": "Une facture appartient toujours à un dossier : c'est lui qui porte le client, le programme et les taxes applicables. Choisissez-le, et vous serez conduit à son onglet Facturation.",
+    "chooseMatterSearch": "Rechercher un dossier ou un client…",
+    "noMatter": "Aucun dossier au cabinet. Créez-en un depuis l'écran Dossiers.",
+    "overview": {
+      "billed": "Total facturé",
+      "collected": "Encaissé",
+      "outstanding": "Reste à encaisser",
+      "overdue": "En retard"
     },
-    "searchPlaceholder": "Rechercher une facture ou un client...",
     "table": {
-      "invoiceId": "N° Facture",
-      "client": "Client / Entreprise",
-      "amount": "Montant ($ CAD)",
-      "date": "Date Émission",
+      "invoiceId": "N° de facture",
+      "client": "Client",
+      "matter": "Dossier",
+      "amount": "Montant",
+      "balance": "Solde",
+      "date": "Émise le",
+      "due": "Échéance",
       "status": "Statut",
       "actions": "Actions"
     },
-    "status": {
-      "paid": "Payée",
-      "pending": "En attente",
-      "trust_reconciled": "Fidéicommis Réconcilié"
-    },
     "filters": {
-      "all": "Toutes les factures",
-      "trust": "Compte Fidéicommis",
-      "general": "Compte Général",
-      "pending": "En attente de règlement",
-      "reconciled": "Réconciliées CICC"
+      "all": "Toutes",
+      "draft": "Brouillons",
+      "issued": "Émises",
+      "partial": "Partiellement payées",
+      "paid": "Payées",
+      "overdue": "En retard",
+      "cancelled": "Annulées"
+    },
+    "actions": {
+      "viewPdf": "Voir le PDF",
+      "send": "Envoyer au client",
+      "openMatter": "Ouvrir le dossier"
+    },
+    "empty": "Aucune facture ne correspond.",
+    "emptyAll": "Aucune facture au cabinet pour l'instant. Elles se créent depuis l'onglet Facturation d'un dossier.",
+    "confirm": {
+      "action": "Vous êtes sur le point d'envoyer cette facture au client.",
+      "draftWarning": "La facture sera émise en même temps : son numéro et son montant seront alors figés."
     }
   },
   "Dashboard": {

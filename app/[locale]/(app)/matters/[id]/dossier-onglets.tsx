@@ -25,6 +25,7 @@ import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistory
 import { envoyerQuestionnaire } from "@/lib/data/questionnaire-actions"
 import { ConfirmationEnvoi } from "@/components/ui/confirmation-envoi"
 import { useLocale } from "next-intl"
+import { libelleStatut, tonStatut } from "@/lib/invoices/statuts"
 import { creerFacture, emettreFacture, supprimerFacture, annulerFacture, envoyerFactureAuClient, envoyerRecuAuClient, modifierFacture, lignesDeFacture } from "@/lib/data/invoice-actions"
 import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
@@ -70,15 +71,6 @@ const STATUT_ECHEANCE: Record<string, { texte: string; ton: string }> = {
   done:        { texte: "Terminé",   ton: "bg-success/15 text-success" },
   overdue:     { texte: "En retard", ton: "bg-error/15 text-error" },
   cancelled:   { texte: "Annulé",    ton: "bg-muted text-muted-foreground" },
-}
-
-const STATUT_FACTURE: Record<string, { texte: string; ton: string }> = {
-  draft:     { texte: "Brouillon",           ton: "bg-muted text-muted-foreground" },
-  issued:    { texte: "Émise",               ton: "bg-primary/10 text-primary-strong" },
-  partial:   { texte: "Partiellement payée", ton: "bg-warning/15 text-warning" },
-  paid:      { texte: "Payée",               ton: "bg-success/15 text-success" },
-  overdue:   { texte: "En retard",           ton: "bg-error/15 text-error" },
-  cancelled: { texte: "Annulée",             ton: "bg-muted text-muted-foreground line-through" },
 }
 
 const STATUT_FORMULAIRE: Record<string, string> = {
@@ -860,7 +852,7 @@ export function DossierOnglets({
 
           {d.factures.length === 0 && <Vide texte="Aucune facture pour ce dossier." />}
           {d.factures.map((f) => {
-            const s = STATUT_FACTURE[f.statut] ?? { texte: f.statut, ton: "bg-muted" }
+            const s = { texte: libelleStatut(f.statut, locale), ton: tonStatut(f.statut) }
             return (
               <div key={f.id} className="rounded-2xl border border-border bg-card p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">

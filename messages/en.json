@@ -336,35 +336,50 @@
     }
   },
   "Billing": {
-    "title": "Billing & Trust Accounts",
-    "subtitle": "Accounting, invoices, automated receipts, and CICC trust account reconciliation.",
-    "newInvoice": "+ New Invoice",
-    "stats": {
-      "totalBilled": "Total Billed",
-      "collected": "Collected (Trust)",
-      "pending": "Pending Payment",
-      "overdue": "Overdue (> 30d)"
+    "title": "Billing",
+    "subtitle": "Every invoice in the firm, across all matters.",
+    "searchPlaceholder": "Search a number, a client or a matter…",
+    "newInvoice": "New invoice",
+    "chooseMatterTitle": "Which matter?",
+    "chooseMatterWhy": "An invoice always belongs to a matter: the matter carries the client, the program and the applicable taxes. Pick one and you will be taken to its Billing tab.",
+    "chooseMatterSearch": "Search a matter or a client…",
+    "noMatter": "No matter in this firm yet. Create one from the Matters screen.",
+    "overview": {
+      "billed": "Total billed",
+      "collected": "Collected",
+      "outstanding": "Outstanding",
+      "overdue": "Overdue"
     },
-    "searchPlaceholder": "Search invoice or client...",
     "table": {
       "invoiceId": "Invoice #",
-      "client": "Client / Employer",
-      "amount": "Amount ($ CAD)",
-      "date": "Issue Date",
+      "client": "Client",
+      "matter": "Matter",
+      "amount": "Amount",
+      "balance": "Balance",
+      "date": "Issued",
+      "due": "Due",
       "status": "Status",
       "actions": "Actions"
     },
-    "status": {
-      "paid": "Paid",
-      "pending": "Pending",
-      "trust_reconciled": "Trust Reconciled"
-    },
     "filters": {
-      "all": "All Invoices",
-      "trust": "Trust Account",
-      "general": "General Account",
-      "pending": "Pending Payment",
-      "reconciled": "CICC Reconciled"
+      "all": "All",
+      "draft": "Drafts",
+      "issued": "Issued",
+      "partial": "Partially paid",
+      "paid": "Paid",
+      "overdue": "Overdue",
+      "cancelled": "Cancelled"
+    },
+    "actions": {
+      "viewPdf": "View PDF",
+      "send": "Send to client",
+      "openMatter": "Open matter"
+    },
+    "empty": "No invoice matches.",
+    "emptyAll": "No invoice yet. Invoices are created from a matter's Billing tab.",
+    "confirm": {
+      "action": "You are about to send this invoice to the client.",
+      "draftWarning": "The invoice will be issued at the same time: its number and amount will then be locked."
     }
   },
   "Dashboard": {

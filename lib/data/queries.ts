@@ -1,4 +1,4 @@
-import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, FolderRecord, ImmigrationProgram, CalendarEvent, AuditLogRecord, ActionApprovalRecord, DeadlineRule, CiccComplianceScore, DeadlineRecord, LegislationProvision, ResearchWorkspace, ClientQuestionnaire } from "./types"
+import { Matter, Lead, InvoiceRecord, FactureCabinet, ClientRecord, DocumentRecord, FolderRecord, ImmigrationProgram, CalendarEvent, AuditLogRecord, ActionApprovalRecord, DeadlineRule, CiccComplianceScore, DeadlineRecord, LegislationProvision, ResearchWorkspace, ClientQuestionnaire } from "./types"
 import { MOCK_MATTERS } from "./mock/matters"
 import { MOCK_LEADS } from "./mock/leads"
 import { MOCK_INVOICES } from "./mock/invoices"
@@ -75,6 +75,35 @@ export async function getLeadById(id: string): Promise<Lead | undefined> {
 export async function getInvoices(): Promise<InvoiceRecord[]> {
   if (isSupabaseSource()) return (await sbReads()).getInvoices()
   return _mockStores.invoices
+}
+
+/**
+ * Les factures du cabinet pour l'écran de vue d'ensemble.
+ *
+ * Sur les données de démonstration, le statut calculé n'existe pas : on
+ * reprend celui de la fixture et on déduit le réglé du statut, faute de
+ * paiements à additionner. C'est une approximation ASSUMÉE pour une
+ * démonstration ; elle ne sert jamais un cabinet réel, qui passe par la vue.
+ */
+export async function getFacturesDuCabinet(): Promise<FactureCabinet[]> {
+  if (isSupabaseSource()) return (await sbReads()).getFacturesDuCabinet()
+  return _mockStores.invoices.map((i) => ({
+    id: i.id,
+    numero: i.invoiceNumber,
+    clientId: i.clientId ?? null,
+    clientNom: i.clientName,
+    clientCourriel: null,
+    matterId: null,
+    dossierReference: i.matterId ?? null,
+    description: i.serviceDescription ?? null,
+    montant: i.amount,
+    regle: i.status === "paid" ? i.amount : 0,
+    solde: i.status === "paid" ? 0 : i.amount,
+    statut: i.status,
+    date: i.date,
+    echeance: null,
+    enFideicommis: i.isTrustAccount === true,
+  }))
 }
 
 export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRecord[]> {

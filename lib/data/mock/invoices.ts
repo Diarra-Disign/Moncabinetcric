@@ -8,7 +8,7 @@ export const MOCK_INVOICES: InvoiceRecord[] = [
     serviceDescription: "Mandat Entreprise B2B — Accompagnement, rédaction & dépôt de 12 demandes d'EIMT (Recrutement International)",
     amount: 18500,
     date: "18-05-2026",
-    status: "trust_reconciled",
+    status: "paid",
     isTrustAccount: true,
     matterId: "#DOS-35698",
     clientId: "c-4"
@@ -32,7 +32,7 @@ export const MOCK_INVOICES: InvoiceRecord[] = [
     serviceDescription: "Accompagnement Réglementaire CICC — Programme Santé Québec & Recrutement d'Infirmières Diplômées Hors Canada",
     amount: 14400,
     date: "15-05-2026",
-    status: "pending",
+    status: "issued",
     isTrustAccount: true,
     matterId: "#DOS-35696",
     clientId: "c-4"

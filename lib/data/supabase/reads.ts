@@ -11,6 +11,7 @@ import type {
   AuditLogRecord,
   ClientQuestionnaire,
   DeadlineRecord,
+  FactureCabinet,
 } from "../types"
 import {
   toMatter,
@@ -140,6 +141,39 @@ export async function getInvoices(): Promise<InvoiceRecord[]> {
 
   if (error) fail("invoices", error.message)
   return (data ?? []).map(toInvoice)
+}
+
+/**
+ * Toutes les factures du cabinet, statut CALCULÉ compris.
+ *
+ * Passe par firm_invoices_view() plutôt que de lire la table : la colonne
+ * status reste « issued » sur une facture entièrement payée et ignore qu'une
+ * échéance est passée. L'écran du cabinet affichait donc des statuts que la
+ * fiche dossier, elle, corrigeait — deux écrans, deux vérités sur la même
+ * facture.
+ */
+export async function getFacturesDuCabinet(): Promise<FactureCabinet[]> {
+  const { data, error } = await (await db())
+    .rpc("firm_invoices_view", { f_id: await currentFirmId() })
+
+  if (error) fail("firmInvoices", error.message)
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: String(r.id),
+    numero: String(r.invoice_number ?? ""),
+    clientId: r.client_id ? String(r.client_id) : null,
+    clientNom: String(r.client_name ?? ""),
+    clientCourriel: r.client_email ? String(r.client_email) : null,
+    matterId: r.matter_id ? String(r.matter_id) : null,
+    dossierReference: r.matter_reference ? String(r.matter_reference) : null,
+    description: r.service_description ? String(r.service_description) : null,
+    montant: Number(r.amount ?? 0),
+    regle: Number(r.paid_amount ?? 0),
+    solde: Number(r.balance ?? 0),
+    statut: String(r.status ?? "draft") as FactureCabinet["statut"],
+    date: String(r.date ?? ""),
+    echeance: r.due_on ? String(r.due_on) : null,
+    enFideicommis: r.is_trust_account === true,
+  }))
 }
 
 export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRecord[]> {
