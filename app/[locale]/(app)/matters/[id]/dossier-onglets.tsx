@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
-  Upload, Users, X, Edit3, MessageSquare, History, Plus, Sparkles
+  Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Sparkles
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
 import {
@@ -23,7 +23,7 @@ import {
 } from "@/lib/data/actions"
 import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
 import { envoyerQuestionnaire } from "@/lib/data/questionnaire-actions"
-import { creerFacture, emettreFacture, supprimerFacture, annulerFacture } from "@/lib/data/invoice-actions"
+import { creerFacture, emettreFacture, supprimerFacture, annulerFacture, envoyerFactureAuClient } from "@/lib/data/invoice-actions"
 import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
 /**
@@ -853,6 +853,29 @@ export function DossierOnglets({
                           annuler que sur une facture émise. La base refuserait
                           de toute façon ; montrer un bouton voué au refus
                           n'aurait appris la règle qu'après le clic. */}
+                      {f.statut !== "cancelled" && (
+                        <button
+                          type="button"
+                          disabled={enCours}
+                          onClick={() => demarrer(async () => {
+                            const fd = new FormData()
+                            fd.set("id", f.id)
+                            // Envoyer une facture, c'est l'émettre. Laisser
+                            // partir un document marqué « brouillon » puis lui
+                            // donner un autre numéro serait le meilleur moyen
+                            // de la faire payer deux fois — ou pas du tout.
+                            if (f.statut === "draft") fd.set("emettre", "1")
+                            fd.set("locale", "fr")
+                            const r = await envoyerFactureAuClient(fd)
+                            setResultat(r)
+                            if (r.ok) rafraichir()
+                          })}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground"
+                        >
+                          <Send className="h-3.5 w-3.5" /> Envoyer au client
+                        </button>
+                      )}
+
                       {f.statut === "draft" ? (
                         <button
                           type="button"

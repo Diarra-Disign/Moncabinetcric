@@ -262,3 +262,76 @@ export async function annulerFacture(formData: FormData): Promise<Resultat> {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
 }
+
+/**
+ * Envoie la facture au client, PDF joint.
+ *
+ * Le document part par le même chemin que celui qu'affiche « Voir le PDF » —
+ * pdfDeFacture() est appelée par les deux. Composer une seconde fois ici
+ * ferait courir le risque que le client reçoive une pièce différente de celle
+ * que le consultant a sous les yeux.
+ *
+ * Un brouillon est ÉMIS au passage : envoyer une facture, c'est l'émettre.
+ * Laisser partir un document marqué « brouillon » puis lui donner un autre
+ * numéro serait le meilleur moyen de faire payer deux fois — ou pas du tout.
+ */
+export async function envoyerFactureAuClient(formData: FormData): Promise<Resultat> {
+  try {
+    const membre = await getCurrentMember()
+    if (!membre) return { ok: false, message: "Session expirée." }
+    const sb = await getSessionSupabase()
+    const id = String(formData.get("id") ?? "")
+    const locale = String(formData.get("locale") ?? "fr")
+
+    const { pdfDeFacture } = await import("@/lib/invoices/document")
+    const { envoyerCourriel } = await import("@/lib/email/send")
+    const { identiteCourriel } = await import("./questionnaires")
+
+    if (String(formData.get("emettre") ?? "") === "1") {
+      const { error } = await sb.from("invoices").update({ status: "issued" }).eq("id", id)
+      if (error) return { ok: false, message: lisible(error) }
+    }
+
+    const doc = await pdfDeFacture(sb, id)
+    if (!doc) return { ok: false, message: "Facture introuvable." }
+    if (!doc.clientCourriel) {
+      return { ok: false, message: "Ce client n'a pas d'adresse courriel. Ajoutez-la sur sa fiche, ou téléchargez le PDF et transmettez-le vous-même." }
+    }
+
+    const identite = await identiteCourriel()
+    const montant = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(doc.total)
+    const echeance = doc.echeance ? `<p style="font-size:14px"><strong>À régler avant le ${doc.echeance}.</strong></p>` : ""
+
+    const envoi = await envoyerCourriel({
+      destinataire: doc.clientCourriel,
+      nomExpediteur: identite.nomExpediteur,
+      repondreA: identite.repondreA,
+      sujet: `Facture ${doc.numero} — ${identite.nom}`,
+      texte:
+        `Bonjour ${doc.clientNom},\n\nVeuillez trouver ci-joint la facture ${doc.numero} ` +
+        `d'un montant de ${montant}${doc.echeance ? `, à régler avant le ${doc.echeance}` : ""}.\n\n` +
+        `${identite.nom}`,
+      html: `
+        <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
+          <p style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:4px">${identite.nom}</p>
+          <h1 style="font-size:20px;margin:0 0 16px">Facture ${doc.numero}</h1>
+          <p style="font-size:15px;line-height:1.6">Bonjour ${doc.clientNom},</p>
+          <p style="font-size:15px;line-height:1.6">
+            Veuillez trouver ci-joint la facture <strong>${doc.numero}</strong> d'un montant de
+            <strong>${montant}</strong>${doc.dossierReference ? `, pour le dossier ${doc.dossierReference}` : ""}.
+          </p>
+          ${echeance}
+          <p style="font-size:12px;color:#64748b;margin-top:28px">${identite.nom} — ${identite.repondreA ?? ""}</p>
+        </div>`,
+      pieces: [{ nom: `${doc.numero}.pdf`, contenu: doc.octets }],
+    })
+
+    if (!envoi.configure) return { ok: false, message: "L'envoi de courriel n'est pas configuré." }
+    if (!envoi.envoye) return { ok: false, message: `La facture n'est pas partie : ${envoi.erreur ?? "erreur inconnue"}.` }
+
+    revalidatePath(`/${locale}/matters`)
+    return { ok: true, message: `Facture ${doc.numero} envoyée à ${doc.clientCourriel}.` }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}

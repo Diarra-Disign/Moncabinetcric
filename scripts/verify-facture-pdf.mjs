@@ -62,7 +62,7 @@ try {
   const num = (await admin.rpc("next_invoice_number", { p_firm_id: cabinetId })).data
   const { data: inv, error: eInv } = await admin.from("invoices").insert({
     firm_id: cabinetId, client_id: c.id, matter_id: m.id, invoice_number: num, client_name: "Awa Diallo",
-    amount: 0, date: new Date().toISOString().slice(0, 10), status: "issued",
+    amount: 0, date: new Date().toISOString().slice(0, 10), status: "draft",
     due_on: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
   }).select("id").single()
   if (eInv) throw new Error(`Facture : ${eInv.message}`)
@@ -72,6 +72,8 @@ try {
     { firm_id: cabinetId, invoice_id: inv.id, description: "Débours IRCC", quantity: 1, unit_price: 235, taxable: false, position: 3 },
   ])
   if (eL) throw new Error(`Lignes : ${eL.message}`)
+
+  await admin.from("invoices").update({ status: "issued" }).eq("id", inv.id)
 
   navigateur = await chromium.launch({ channel: "chrome" })
   const page = await (await navigateur.newContext()).newPage()

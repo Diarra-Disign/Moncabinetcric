@@ -82,6 +82,8 @@ export async function envoyerCourriel(opts: {
   nomExpediteur?: string | null
   /** Adresse qui recevra les réponses ; à défaut, celle de la plateforme. */
   repondreA?: string | null
+  /** Pièces jointes. Le contenu est encodé en base64 par cette fonction. */
+  pieces?: { nom: string; contenu: Uint8Array }[]
 }): Promise<ResultatEnvoi> {
   const cle = process.env.RESEND_API_KEY
   const expediteurBrut = process.env.EMAIL_FROM
@@ -101,6 +103,14 @@ export async function envoyerCourriel(opts: {
         from: expediteur,
         to: [opts.destinataire],
         ...(repondreA ? { reply_to: repondreA } : {}),
+        ...(opts.pieces?.length
+          ? {
+              attachments: opts.pieces.map((p) => ({
+                filename: p.nom,
+                content: Buffer.from(p.contenu).toString("base64"),
+              })),
+            }
+          : {}),
         subject: opts.sujet,
         html: opts.html,
         // Toujours accompagner le HTML de sa version texte : sans elle,
