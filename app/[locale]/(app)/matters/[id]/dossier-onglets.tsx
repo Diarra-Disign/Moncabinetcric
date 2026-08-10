@@ -136,7 +136,10 @@ export function DossierOnglets({
   const [envoiAConfirmer, setEnvoiAConfirmer] = React.useState<{
     action: string; objet: string; objetDetail?: string
     destinataire: { nom: string; courriel?: string }
+    mode?: string
+    message?: string
     irreversible?: string
+    libelleConfirmer?: string
     executer: () => Promise<Resultat>
   } | null>(null)
 
@@ -163,6 +166,27 @@ export function DossierOnglets({
 
   const lancer = (action: (fd: FormData) => Promise<Resultat>) => (fd: FormData) =>
     demarrer(async () => setResultat(await action(fd)))
+
+  /**
+   * Un formulaire qui envoie quelque chose au client passe par la confirmation.
+   *
+   * On remplace `action={…}` par ceci : la soumission native est arrêtée, les
+   * champs saisis sont figés dans une FormData, et c'est cette FormData — celle
+   * qui a été LUE dans la fenêtre — que « Confirmer » expédiera. Décrire
+   * l'envoi à partir du formulaire, plutôt qu'à partir de l'état du composant,
+   * évite le décalage où la fenêtre annonce un document et le serveur en reçoit
+   * un autre.
+   */
+  const confirmerPuisEnvoyer =
+    (
+      action: (fd: FormData) => Promise<Resultat>,
+      decrire: (fd: FormData) => Omit<NonNullable<typeof envoiAConfirmer>, "executer">
+    ) =>
+    (evenement: React.FormEvent<HTMLFormElement>) => {
+      evenement.preventDefault()
+      const fd = new FormData(evenement.currentTarget)
+      setEnvoiAConfirmer({ ...decrire(fd), executer: () => action(fd) })
+    }
 
   /**
    * Pour les actions qui rendent une adresse : l'onglet s'ouvre.
@@ -613,23 +637,32 @@ export function DossierOnglets({
                     className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     defaultValue=""
                     disabled={modeles.length === 0}
-                    onChange={async (e) => {
+                    // Le geste le plus léger de l'application déclenchait le
+                    // plus lourd : dérouler la liste et relâcher la souris sur
+                    // la mauvaise ligne — ou la survoler au clavier — expédiait
+                    // un courriel au client. La sélection ne fait plus que
+                    // PRÉPARER l'envoi ; la fenêtre l'exécute.
+                    onChange={(e) => {
                       const templateId = e.target.value
                       if (!templateId) return
+                      const modele = modeles.find((m) => m.id === templateId)
                       e.target.value = ""
-                      demarrer(async () => {
-                        const fd = new FormData()
-                        fd.set("templateId", templateId)
-                        fd.set("destinataireType", "client")
-                        fd.set("destinataireId", clientId ?? "")
-                        fd.set("matterId", matterId)
-                        fd.set("locale", "fr")
-                        const r = await envoyerQuestionnaire(fd)
-                        setResultat(r)
-                        if (r.ok) {
-                          setLienEnvoi(r.lien ?? null)
-                          rafraichir()
-                        }
+                      const fd = new FormData()
+                      fd.set("templateId", templateId)
+                      fd.set("destinataireType", "client")
+                      fd.set("destinataireId", clientId ?? "")
+                      fd.set("matterId", matterId)
+                      fd.set("locale", "fr")
+                      setEnvoiAConfirmer({
+                        action: "Le client recevra un lien sécurisé pour remplir ce questionnaire.",
+                        objet: modele?.titleFr ?? "Questionnaire",
+                        objetDetail: `Rattaché au dossier ${matterId}`,
+                        destinataire: { nom: clientName, courriel: courrielClient },
+                        executer: async () => {
+                          const r = await envoyerQuestionnaire(fd)
+                          if (r.ok) setLienEnvoi(r.lien ?? null)
+                          return r
+                        },
                       })
                     }}
                   >
@@ -1196,7 +1229,25 @@ export function DossierOnglets({
               <Ligne libelle="Validations en attente" valeur={`${d.portail.validationsEnAttente}`} accent={d.portail.validationsEnAttente > 0} />
             </dl>
             {!sansClient && (
-              <form action={lancer(inviterClientAuPortail)} className="mt-4 border-t border-border pt-4">
+              <form
+                onSubmit={confirmerPuisEnvoyer(inviterClientAuPortail, () => ({
+                  action: d.portail.compteCree
+                    ? "Un nouveau mot de passe temporaire va remplacer celui en vigueur."
+                    : "Un compte va être créé pour que ce client accède à son portail.",
+                  objet: `Accès au portail — ${clientName}`,
+                  objetDetail: `Dossier ${matterId}`,
+                  destinataire: { nom: clientName, courriel: courrielClient },
+                  mode: "Aucun courriel automatique — le mot de passe vous sera affiché à transmettre",
+                  // Le bouton dit « Régénérer » sans dire ce que la
+                  // régénération coûte au client : son mot de passe actuel
+                  // meurt, y compris celui qu'il avait choisi lui-même.
+                  irreversible: d.portail.compteCree
+                    ? "Ce client a déjà un accès. Son mot de passe actuel cessera immédiatement de fonctionner, et il devra en définir un nouveau."
+                    : undefined,
+                  libelleConfirmer: d.portail.compteCree ? "Régénérer l'accès" : "Ouvrir l'accès",
+                }))}
+                className="mt-4 border-t border-border pt-4"
+              >
                 <input type="hidden" name="clientId" value={clientId ?? ""} />
                 <p className="max-w-prose text-xs text-muted-foreground">
                   {d.portail.compteCree
@@ -1211,7 +1262,31 @@ export function DossierOnglets({
           </div>
 
           {!sansClient && (
-          <form action={lancer(demanderValidation)} className="rounded-2xl border border-border bg-card p-5">
+          <form
+            onSubmit={confirmerPuisEnvoyer(demanderValidation, (fd) => {
+              const choisis = fd.getAll("documentId").map(String).filter(Boolean)
+              // On renomme les identifiants en libellés : « 3 documents » ne
+              // permet pas de vérifier qu'on n'a pas coché le passeport à la
+              // place du contrat.
+              const noms = choisis
+                .map((id) => d.exigences.find((e) => e.documentId === id)?.label ?? "Document")
+              const nature = String(fd.get("nature") ?? "validation")
+              return {
+                action: {
+                  validation: "Le client sera invité à confirmer que ces pièces sont exactes.",
+                  signature: "Le client sera invité à signer ces pièces.",
+                  validation_and_signature: "Le client sera invité à confirmer puis à signer ces pièces.",
+                }[nature] ?? "Le client sera sollicité sur ces pièces.",
+                objet: noms.length === 0 ? "Aucun document sélectionné" : noms.join(" · "),
+                objetDetail: `${choisis.length} document(s) · dossier ${matterId}`,
+                destinataire: { nom: clientName, courriel: courrielClient },
+                mode: "Portail client",
+                message: String(fd.get("message") ?? "") || undefined,
+                libelleConfirmer: "Envoyer au client",
+              }
+            })}
+            className="rounded-2xl border border-border bg-card p-5"
+          >
             <input type="hidden" name="clientId" value={clientId ?? ""} />
             <input type="hidden" name="matterId" value={matterId} />
             <h3 className="text-sm font-black text-foreground">Demander la validation du client</h3>
@@ -1600,7 +1675,10 @@ export function DossierOnglets({
           objet={envoiAConfirmer.objet}
           objetDetail={envoiAConfirmer.objetDetail}
           destinataires={[envoiAConfirmer.destinataire]}
+          mode={envoiAConfirmer.mode}
+          message={envoiAConfirmer.message}
           irreversible={envoiAConfirmer.irreversible}
+          libelleConfirmer={envoiAConfirmer.libelleConfirmer}
           onAnnuler={() => setEnvoiAConfirmer(null)}
           onConfirmer={async () => {
             const r = await envoiAConfirmer.executer()

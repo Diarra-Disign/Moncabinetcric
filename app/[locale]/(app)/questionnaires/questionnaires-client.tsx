@@ -97,6 +97,7 @@ export function QuestionnairesClient({
   const [apercuDe, setApercuDe] = React.useState<QuestionnaireTemplateRecord | null>(null)
   const [creation, setCreation] = React.useState(false)
   const [filtre, setFiltre] = React.useState<string>("tous")
+  const [rappelPour, setRappelPour] = React.useState<ClientQuestionnaire | null>(null)
 
   const agir = (action: () => Promise<Resultat>) =>
     demarrer(async () => {
@@ -358,12 +359,7 @@ export function QuestionnairesClient({
                       <button
                         type="button"
                         disabled={enCours || !e.destinataireCourriel}
-                        onClick={() => agir(() => {
-                          const fd = new FormData()
-                          fd.set("id", e.id)
-                          fd.set("locale", locale)
-                          return envoyerRappel(fd)
-                        })}
+                        onClick={() => setRappelPour(e)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground disabled:opacity-40"
                       >
                         <BellRing className="h-3.5 w-3.5" /> Rappel
@@ -449,6 +445,30 @@ export function QuestionnairesClient({
               }
               return r
             })
+          }}
+        />
+      )}
+
+      {/* Le rappel est un envoi comme un autre, et il porte en plus une
+          conséquence que le bouton seul ne laissait pas deviner : il émet un
+          jeton neuf, donc le lien déjà transmis meurt. Un consultant qui
+          relance « pour être sûr » cassait ainsi le lien que son client avait
+          peut-être ouvert la veille. La fenêtre le dit avant, pas après. */}
+      {rappelPour && (
+        <ConfirmationEnvoi
+          action="Le destinataire recevra une relance par courriel."
+          objet={rappelPour.title}
+          objetDetail={`Rappel n° ${rappelPour.reminderCount + 1}${rappelPour.dueDate ? ` · échéance du ${dateCourte(rappelPour.dueDate)}` : ""}`}
+          destinataires={[{ nom: rappelPour.destinataireNom || "Destinataire", courriel: rappelPour.destinataireCourriel }]}
+          irreversible="Un nouveau lien sera émis : celui envoyé précédemment cessera aussitôt de fonctionner. Les réponses déjà saisies sont conservées."
+          libelleConfirmer="Envoyer le rappel"
+          onAnnuler={() => setRappelPour(null)}
+          onConfirmer={() => {
+            const fd = new FormData()
+            fd.set("id", rappelPour.id)
+            fd.set("locale", locale)
+            setRappelPour(null)
+            agir(() => envoyerRappel(fd))
           }}
         />
       )}

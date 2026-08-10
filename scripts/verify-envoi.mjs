@@ -188,6 +188,33 @@ try {
     verifier("la date d'envoi est posée", Boolean(envois[0].sent_at), true)
   }
 
+  // ---------------------------------------------------------------------
+  console.log("\nLe rappel obéit à la même règle")
+  // ---------------------------------------------------------------------
+  // Le rappel mérite sa propre épreuve : il émet un jeton neuf, donc un clic
+  // accidentel ne se contente pas d'envoyer un courriel de trop — il TUE le
+  // lien que le destinataire avait peut-être déjà ouvert. Ce qu'on vérifie
+  // ici, c'est que la fenêtre le dit, et qu'Annuler laisse le jeton intact.
+  const jetonAvant = (envois ?? [])[0]?.token_hash ?? null
+
+  await page.click('article button:has-text("Rappel")')
+  await page.waitForTimeout(900)
+
+  const vuRappel = await page.evaluate(() => document.querySelector('[role="dialog"]')?.textContent ?? "")
+  verifier("le rappel demande confirmation", /Confirmer l'envoi/.test(vuRappel), true)
+  verifier("il nomme le destinataire", /Awa Diallo/.test(vuRappel), true)
+  verifier("il annonce que l'ancien lien meurt", /cessera aussitôt de fonctionner/.test(vuRappel), true)
+
+  await page.click('[role="dialog"] button:has-text("Annuler")')
+  await page.waitForTimeout(900)
+
+  const { data: apresAnnuleRappel } = await admin
+    .from("client_questionnaires")
+    .select("token_hash, reminder_count")
+    .eq("firm_id", cabinetId)
+  verifier("après Annuler, aucun rappel compté", apresAnnuleRappel?.[0]?.reminder_count ?? 0, 0)
+  verifier("après Annuler, le lien est intact", apresAnnuleRappel?.[0]?.token_hash === jetonAvant, true)
+
   verifier("aucune erreur serveur (5xx)", erreursReseau.length, 0)
   if (erreursReseau.length) erreursReseau.slice(0, 3).forEach((e) => console.log(`     ${e}`))
 

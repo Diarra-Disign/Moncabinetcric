@@ -40,6 +40,7 @@ import { createClient } from "@/lib/data/actions"
 import { ouvrirAccesPortail } from "@/lib/data/portal-access"
 import { creerDossierPourClient } from "@/lib/data/matter-creation"
 import { TYPES_DE_DOSSIER } from "@/lib/data/matter-types"
+import { ConfirmationEnvoi } from "@/components/ui/confirmation-envoi"
 import { cn } from "@/lib/utils"
 
 export type { ClientRecord }
@@ -86,6 +87,8 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [openingPortal, setOpeningPortal] = React.useState(false)
   const [copied, setCopied] = React.useState(false)
   const [emailCopied, setEmailCopied] = React.useState(false)
+  /** Vrai quand l'ouverture d'accès attend une confirmation explicite. */
+  const [accesAConfirmer, setAccesAConfirmer] = React.useState(false)
 
   const handleSelectPortalClient = (client: ClientRecord | null) => {
     setSelectedPortalClient(client)
@@ -93,6 +96,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
     setPortalError(null)
     setCopied(false)
     setEmailCopied(false)
+    setAccesAConfirmer(false)
   }
 
   const handleOuvrirAcces = async () => {
@@ -820,7 +824,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                   </span>
                   <button
                     type="button"
-                    onClick={handleOuvrirAcces}
+                    onClick={() => setAccesAConfirmer(true)}
                     disabled={openingPortal}
                     className="text-[10px] text-indigo-300 hover:text-white font-mono underline cursor-pointer disabled:opacity-50 disabled:cursor-wait"
                   >
@@ -945,6 +949,36 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
         </div>
       )}
 
+      {/* Ouvrir un accès ne part pas par courriel — le mot de passe s'affiche
+          ici et c'est le cabinet qui le transmet. La confirmation reste
+          néanmoins due, pour une raison propre à ce bouton : sur un client qui
+          possède déjà son accès, il devient « Re-générer » et REMPLACE le mot
+          de passe en vigueur. Le client se retrouve dehors sans avoir été
+          prévenu, et l'ancien mot de passe n'est pas récupérable. */}
+      {accesAConfirmer && selectedPortalClient && (
+        <ConfirmationEnvoi
+          action={
+            tempPassword
+              ? "Un nouveau mot de passe temporaire va remplacer celui en vigueur."
+              : "Un compte va être créé pour que ce client accède à son portail."
+          }
+          objet={`Accès au portail — ${selectedPortalClient.name}`}
+          objetDetail={`Dossier n° ${selectedPortalClient.fileNumber}`}
+          destinataires={[{ nom: selectedPortalClient.name, courriel: selectedPortalClient.email }]}
+          mode="Aucun courriel automatique — le mot de passe vous sera affiché à transmettre vous-même"
+          irreversible={
+            tempPassword
+              ? "Ce client a déjà un accès. Son mot de passe actuel cessera immédiatement de fonctionner, y compris s'il l'avait personnalisé, et il devra en définir un nouveau."
+              : undefined
+          }
+          libelleConfirmer={tempPassword ? "Régénérer l'accès" : "Ouvrir l'accès"}
+          onAnnuler={() => setAccesAConfirmer(false)}
+          onConfirmer={async () => {
+            setAccesAConfirmer(false)
+            await handleOuvrirAcces()
+          }}
+        />
+      )}
 
       {dossierPour && (
         <ModaleNouveauDossier
