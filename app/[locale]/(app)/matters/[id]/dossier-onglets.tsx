@@ -818,6 +818,37 @@ export function DossierOnglets({
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       Émise le {f.date} {f.dueOn && `· échéance ${f.dueOn}`}
                     </p>
+
+                    {/* Le PDF s'ouvre dans un onglet plutôt que de tomber dans
+                        les téléchargements : on veut d'abord LE VOIR. La
+                        visionneuse du navigateur offre l'enregistrement. */}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <a
+                        href={`/api/invoices/${f.id}/pdf`}
+                        target="_blank"
+                        rel="noopener"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Voir le PDF
+                      </a>
+                      {f.statut === "draft" && (
+                        <button
+                          type="button"
+                          disabled={enCours}
+                          onClick={() => demarrer(async () => {
+                            const fd = new FormData()
+                            fd.set("id", f.id)
+                            fd.set("locale", "fr")
+                            const r = await emettreFacture(fd)
+                            setResultat(r)
+                            if (r.ok) rafraichir()
+                          })}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-[11px] hover:bg-primary/90 transition-colors cursor-pointer"
+                        >
+                          <Receipt className="h-3.5 w-3.5" /> Émettre
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="font-mono text-sm font-black text-foreground">{argent(f.montant)}</p>
