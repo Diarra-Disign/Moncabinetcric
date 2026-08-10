@@ -14,6 +14,18 @@
   --gold: #D97706;
   --gold-foreground: #FFFFFF;
 
+  /* Second accent, CATÉGORIEL et non sémantique.
+     Les quatre familles — primary, success, warning, error — disent un ÉTAT.
+     Elles ne savent pas dire une NATURE : dans le pipeline, un prospect
+     d'entreprise (B2B) se distingue d'un particulier (B2C), et ce n'est ni un
+     succès ni un avertissement. Faute de jeton, l'écran portait 28 violets
+     écrits en dur, donc sourds au thème.
+     Il vaut dans les quatre thèmes dont l'accent principal n'est pas violet ;
+     le thème « purple » le déplace vers le sarcelle pour rester distinct. */
+  --accent: #7C3AED;
+  --accent-strong: #6D28D9;
+  --accent-foreground: #FFFFFF;
+
   --muted: #F1F5F9;
   /* Mesuré, pas choisi : #64748B posé sur --muted (#F1F5F9) donnait 4,34:1,
      sous le seuil AA. Le couple « bg-muted + text-muted-foreground » compte
@@ -77,6 +89,9 @@ html[data-cabinet-theme="purple"] {
   --primary: #7C3AED;
   --primary-hover: #6D28D9;
   --primary-strong: #6D28D9;
+  /* Le violet est ici l'accent principal : le second se déplace. */
+  --accent: #0F766E;
+  --accent-strong: #115E59;
 }
 
 html[data-cabinet-theme="midnight"] {
@@ -99,6 +114,9 @@ html[data-cabinet-theme="midnight"] {
   --success-strong: #6EE7B7;
   --warning-strong: #FCD34D;
   --error-strong: #FCA5A5;
+  --accent: #A78BFA;
+  --accent-strong: #C4B5FD;
+  --accent-foreground: #1A0B2E;
 }
 
 html[data-cabinet-theme="sapphire"] {
@@ -116,6 +134,9 @@ html[data-cabinet-theme="sapphire"] {
   --color-primary-foreground: var(--primary-foreground);
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-foreground: var(--accent-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);

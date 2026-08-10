@@ -68,16 +68,16 @@ function getFormattedDateWithWeekday(dateIso: string): string {
 function getEventPastelStyle(type?: string, index: number = 0) {
   if (type === "deadline") {
     return {
-      card: "bg-amber-50/90 text-amber-900 border-amber-200/90 hover:border-amber-400 hover:shadow-md",
-      dot: "bg-amber-500",
-      badge: "bg-amber-100 text-amber-900 border-amber-300"
+      card: "bg-warning/15 text-warning-strong border-warning/90 hover:border-warning/40 hover:shadow-md",
+      dot: "bg-warning",
+      badge: "bg-warning/15 text-warning-strong border-warning/40"
     }
   }
   const styles = [
-    { card: "bg-sky-50/90 text-sky-900 border-sky-200/90 hover:border-sky-400 hover:shadow-md", dot: "bg-sky-500", badge: "bg-sky-100 text-sky-900 border-sky-300" },
-    { card: "bg-purple-50/90 text-purple-900 border-purple-200/90 hover:border-purple-400 hover:shadow-md", dot: "bg-purple-500", badge: "bg-purple-100 text-purple-900 border-purple-300" },
-    { card: "bg-emerald-50/90 text-emerald-900 border-emerald-200/90 hover:border-emerald-400 hover:shadow-md", dot: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-900 border-emerald-300" },
-    { card: "bg-orange-50/90 text-orange-900 border-orange-200/90 hover:border-orange-400 hover:shadow-md", dot: "bg-orange-500", badge: "bg-orange-100 text-orange-900 border-orange-300" },
+    { card: "bg-primary/15 text-primary-strong border-primary/90 hover:border-primary/40 hover:shadow-md", dot: "bg-primary", badge: "bg-primary/15 text-primary-strong border-primary/40" },
+    { card: "bg-accent/10 text-accent-strong border-accent/30 hover:border-accent/50 hover:shadow-md", dot: "bg-accent", badge: "bg-accent/15 text-accent-strong border-accent/40" },
+    { card: "bg-success/15 text-success-strong border-success/90 hover:border-success/40 hover:shadow-md", dot: "bg-success", badge: "bg-success/15 text-success-strong border-success/40" },
+    { card: "bg-warning/15 text-warning-strong border-warning/90 hover:border-warning/40 hover:shadow-md", dot: "bg-warning", badge: "bg-warning/15 text-warning-strong border-warning/40" },
   ]
   return styles[index % styles.length]
 }
@@ -464,7 +464,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
       title: `${inviteForm.reason}`,
       clientName: inviteForm.clientName,
       clientInitials: initials,
-      avatarBg: "bg-blue-600",
+      avatarBg: "bg-primary",
       matterId: inviteForm.matterId,
       program: "Dossier Immigration CICC",
       type: "visio",
@@ -528,12 +528,12 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
   }
 
   return (
-    <div className="flex flex-col gap-8 pb-20 selection:bg-blue-600 selection:text-white">
+    <div className="flex flex-col gap-8 pb-20 selection:bg-primary selection:text-background">
       
       {/* TOAST NOTIFICATION GLOBAL */}
       {toastNotice && (
-        <div className="fixed top-20 right-6 z-[300] bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 font-bold text-xs sm:text-sm flex items-center gap-3 animate-slideInRight">
-          <div className="h-9 w-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black shrink-0">
+        <div className="fixed top-20 right-6 z-[300] bg-foreground text-background p-4 rounded-2xl shadow-2xl border border-border font-bold text-xs sm:text-sm flex items-center gap-3 animate-slideInRight">
+          <div className="h-9 w-9 rounded-xl bg-success text-background flex items-center justify-center font-black shrink-0">
             ✓
           </div>
           <span>{toastNotice}</span>
@@ -817,11 +817,17 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                   {hRow.hour === currentHour && (
                     <div className="relative my-1.5 z-20 transition-all duration-500">
                       <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div className="w-full border-t-2 border-dashed border-red-500/90 shadow-xs" />
+                        <div className="w-full border-t-2 border-dashed border-error/90 shadow-xs" />
                       </div>
                       <div className="relative flex justify-start pl-16">
-                        <span className="bg-red-600 text-white font-mono font-bold text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-md shadow-red-600/30">
-                          <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                        {/* Le repère de l'heure courante était un aplat rouge
+                            plein portant du texte clair : 3,60:1, sous le
+                            seuil dans les quatre thèmes clairs — et il l'était
+                            déjà avant cette conversion. Fond teinté, texte en
+                            variante lisible, et c'est le point qui bat qui
+                            porte le « maintenant ». */}
+                        <span className="bg-error/15 text-error-strong border border-error/40 font-mono font-bold text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shadow-md">
+                          <span className="w-2 h-2 rounded-full bg-error animate-ping" />
                           <span>{timeLabel}</span>
                         </span>
                       </div>
@@ -837,10 +843,15 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                     {/* TIME LABEL */}
                     <div
                       className={`flex shrink-0 items-center justify-center rounded-xl border py-2 font-mono text-xs font-bold ${
+                        /* L'heure courante prend la variante lisible, pas la
+                           couleur de remplissage. Et les heures hors bureau
+                           s'effacent par leur FOND, pas en diluant leur texte
+                           à 70 % — ce qui les faisait tomber à 3,29:1, donc
+                           illisibles plutôt que discrètes. */
                         hRow.hour === currentHour
-                          ? "border-error/40 bg-error/10 text-error"
+                          ? "border-error/40 bg-error/10 text-error-strong"
                           : hRow.hour >= 18
-                            ? "border-border/40 bg-muted/20 text-muted-foreground/70"
+                            ? "border-border/40 bg-muted/20 text-muted-foreground"
                             : "border-border/40 bg-muted/40 text-muted-foreground"
                       }`}
                     >
@@ -954,7 +965,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                                       className="font-bold opacity-80 hover:opacity-100 cursor-pointer"
                                       title="Synthèse CICC"
                                     >
-                                      <Sparkles className="w-3 h-3 text-amber-500" />
+                                      <Sparkles className="w-3 h-3 text-warning-strong" />
                                     </button>
                                   </div>
                                 </div>
@@ -974,7 +985,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
           {/* VUE MOIS COMPLET (GRILLE 31 JOURS) */}
           {viewMode === "month" && (
             <div className="space-y-4 animate-fadeIn">
-              <div className="grid grid-cols-7 gap-2 text-center text-xs font-black uppercase text-slate-400 border-b border-slate-100 pb-2">
+              <div className="grid grid-cols-7 gap-2 text-center text-xs font-black uppercase text-muted-foreground border-b border-border pb-2">
                 <span>Lun</span>
                 <span>Mar</span>
                 <span>Mer</span>
@@ -1006,16 +1017,16 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                       }}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer text-left min-h-[95px] flex flex-col justify-between ${
                         isSelected
-                          ? "bg-blue-600 text-white border-blue-600 shadow-md"
+                          ? "bg-primary text-primary-foreground border-primary/40 shadow-md"
                           : isToday
-                          ? "bg-blue-50 border-blue-300 text-blue-900 font-black"
-                          : "bg-slate-50/70 border-slate-200/80 hover:bg-slate-100 text-slate-900"
+                          ? "bg-primary/15 border-primary/40 text-primary-strong font-black"
+                          : "bg-muted/50 border-border hover:bg-muted text-foreground"
                       }`}
                     >
                       <div className="flex items-center justify-between w-full">
                         <span className="text-sm font-black">{dayNum}</span>
                         {dayEvts.length > 0 && (
-                          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${isSelected ? "bg-white text-blue-600" : "bg-blue-600 text-white"}`}>
+                          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${isSelected ? "bg-card text-primary-strong" : "bg-primary text-primary-foreground"}`}>
                             {dayEvts.length} RDV
                           </span>
                         )}
@@ -1026,7 +1037,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                           <div 
                             key={evt.id} 
                             className={`text-[10px] font-bold truncate rounded px-1.5 py-0.5 ${
-                              isSelected ? "bg-blue-700 text-white" : "bg-white border border-slate-200 text-slate-800"
+                              isSelected ? "bg-primary text-primary-foreground" : "bg-card border border-border text-foreground"
                             }`}
                           >
                             • {evt.clientName}
@@ -1044,76 +1055,76 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
           {viewMode === "day" && (
             <div className="space-y-4 animate-fadeIn">
               {filteredEvents.length === 0 ? (
-                <div className="p-12 text-center text-slate-400 space-y-3">
-                  <CalendarDays className="w-12 h-12 mx-auto text-slate-300" />
-                  <p className="text-base font-bold text-slate-600">Aucun rendez-vous prévu pour cette journée.</p>
+                <div className="p-12 text-center text-muted-foreground space-y-3">
+                  <CalendarDays className="w-12 h-12 mx-auto text-muted-foreground" />
+                  <p className="text-base font-bold text-muted-foreground">Aucun rendez-vous prévu pour cette journée.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {filteredEvents.map((evt) => (
                     <div
                       key={evt.id}
-                      className="p-6 rounded-2xl border border-slate-200/80 bg-white hover:border-blue-400 hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-6 group"
+                      className="p-6 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-6 group"
                     >
                       <div className="flex items-start gap-4 sm:gap-5">
-                        <div className={`w-14 h-14 rounded-2xl ${evt.avatarBg} text-white flex items-center justify-center text-base font-black shadow-md shrink-0 mt-0.5`}>
+                        <div className={`w-14 h-14 rounded-2xl ${evt.avatarBg} text-background flex items-center justify-center text-base font-black shadow-md shrink-0 mt-0.5`}>
                           {evt.clientInitials}
                         </div>
 
                         <div className="space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="bg-slate-900 text-white font-mono text-xs font-bold px-2.5 py-1 rounded-xl uppercase flex items-center gap-1">
-                              <CalendarIcon className="w-3.5 h-3.5 text-slate-300" />
+                            <span className="bg-foreground text-background font-mono text-xs font-bold px-2.5 py-1 rounded-xl uppercase flex items-center gap-1">
+                              <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
                               <span>{getDayOfWeekName(evt.date)}</span>
                             </span>
-                            <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200 flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="font-mono text-xs sm:text-sm font-bold text-foreground bg-muted px-3 py-1 rounded-xl border border-border flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                               <span>{getFormattedDateWithWeekday(evt.date)} · {evt.time}</span>
                             </span>
-                            <span className="font-mono text-xs sm:text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-200">
+                            <span className="font-mono text-xs sm:text-sm font-bold text-primary-strong bg-primary/15 px-3 py-1 rounded-xl border border-primary/40">
                               {evt.matterId}
                             </span>
                             {evt.platform === "calendly" && (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full font-mono">
-                                <Globe className="w-3.5 h-3.5 text-purple-600" /> Calendly Direct
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-accent-strong bg-accent/10 border border-accent/30 px-3 py-1 rounded-full font-mono">
+                                <Globe className="w-3.5 h-3.5 text-accent-strong" /> Calendly Direct
                               </span>
                             )}
                             {evt.status === "ready" ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-success-strong bg-success/15 border border-success/40 px-3 py-1 rounded-full">
                                 <Check className="w-3.5 h-3.5" /> Dossier 100% Prêt
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-warning-strong bg-warning/15 border border-warning/40 px-3 py-1 rounded-full">
                                 <AlertCircle className="w-3.5 h-3.5" /> Pièce en attente
                               </span>
                             )}
                           </div>
 
-                          <h3 className="text-lg sm:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
+                          <h3 className="text-lg sm:text-xl font-black text-foreground group-hover:text-primary-strong transition-colors">
                             {evt.title}
                           </h3>
 
-                          <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-600 font-medium">
-                            <span>Client : <strong className="text-slate-900 font-bold">{evt.clientName}</strong></span>
+                          <div className="flex items-center gap-3 text-xs sm:text-sm text-muted-foreground font-medium">
+                            <span>Client : <strong className="text-foreground font-bold">{evt.clientName}</strong></span>
                             <span>·</span>
                             <span>{evt.program}</span>
                             {evt.trustBalance && (
                               <>
                                 <span>·</span>
-                                <span className="text-emerald-600 font-bold font-mono">Fidéicommis : {evt.trustBalance}</span>
+                                <span className="text-success-strong font-bold font-mono">Fidéicommis : {evt.trustBalance}</span>
                               </>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2.5 shrink-0 border-t md:border-t-0 pt-4 md:pt-0 border-slate-100">
+                      <div className="flex items-center gap-2.5 shrink-0 border-t md:border-t-0 pt-4 md:pt-0 border-border">
                         <button
                           type="button"
                           onClick={() => handleOpenMoveModal(evt)}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-3 text-xs sm:text-sm font-bold transition-all cursor-pointer"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-muted hover:bg-muted text-foreground px-4 py-3 text-xs sm:text-sm font-bold transition-all cursor-pointer"
                         >
-                          <MoveRight className="w-4 h-4 text-blue-600" />
+                          <MoveRight className="w-4 h-4 text-primary-strong" />
                           <span>Changer créneau</span>
                         </button>
 
@@ -1122,7 +1133,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                             href={evt.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 text-xs sm:text-sm font-bold shadow-sm transition-all"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-3 text-xs sm:text-sm font-bold shadow-sm transition-all"
                           >
                             <Video className="w-4 h-4" />
                             <span>Visio</span>
@@ -1133,9 +1144,9 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                         <button
                           type="button"
                           onClick={() => handleOpenBrief(evt)}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-200 px-5 py-3 text-xs sm:text-sm font-bold transition-all cursor-pointer"
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-muted hover:bg-muted text-foreground border border-border px-5 py-3 text-xs sm:text-sm font-bold transition-all cursor-pointer"
                         >
-                          <Sparkles className="w-4 h-4 text-amber-500" />
+                          <Sparkles className="w-4 h-4 text-warning-strong" />
                           <span>Brief AI</span>
                         </button>
                       </div>
@@ -1149,13 +1160,13 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
 
       {/* MODE 2: VUE LISTE SYNTHÉTIQUE DES RENCONTRES */}
       {displayStyle === "list" && (
-        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 sm:p-8 space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div className="bg-card rounded-3xl border border-border shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 sm:p-8 space-y-6">
+          <div className="flex items-center justify-between border-b border-border pb-4">
             <div>
-              <h2 className="text-xl font-black text-slate-900">Vue Liste Synthétique des Mandats & Consultations</h2>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">Présentation chronologique synthétique par dossier d&apos;immigration.</p>
+              <h2 className="text-xl font-black text-foreground">Vue Liste Synthétique des Mandats & Consultations</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-0.5">Présentation chronologique synthétique par dossier d&apos;immigration.</p>
             </div>
-            <span className="bg-blue-50 text-blue-700 border border-blue-200 text-xs sm:text-sm font-mono font-bold px-3.5 py-1.5 rounded-full">
+            <span className="bg-primary/15 text-primary-strong border border-primary/40 text-xs sm:text-sm font-mono font-bold px-3.5 py-1.5 rounded-full">
               {filteredEvents.length} Dossier(s) actif(s)
             </span>
           </div>
@@ -1165,23 +1176,23 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
               <div key={group.dateIso} className="space-y-3.5">
                 
                 {/* BANDEAU DE JOUR SOBRE & ÉLÉGANT */}
-                <div className="flex items-center justify-between bg-slate-100/90 text-slate-900 px-5 py-3 rounded-2xl border border-slate-200/80">
+                <div className="flex items-center justify-between bg-muted/50 text-foreground px-5 py-3 rounded-2xl border border-border">
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold shrink-0">
-                      <CalendarIcon className="w-4 h-4 text-white" />
+                    <div className="h-9 w-9 rounded-xl bg-foreground text-background flex items-center justify-center font-bold shrink-0">
+                      <CalendarIcon className="w-4 h-4 text-background" />
                     </div>
                     <div>
-                      <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase flex items-center gap-2">
+                      <h3 className="text-sm sm:text-base font-black text-foreground uppercase flex items-center gap-2">
                         <span>{group.dayOfWeek}</span>
-                        <span className="text-slate-500 font-semibold capitalize">({group.fullDateTitle})</span>
+                        <span className="text-muted-foreground font-semibold capitalize">({group.fullDateTitle})</span>
                       </h3>
-                      <p className="text-xs text-slate-500 font-medium">
+                      <p className="text-xs text-muted-foreground font-medium">
                         {group.events.length} rendez-vous programmé(s)
                       </p>
                     </div>
                   </div>
 
-                  <span className="text-xs font-mono font-bold bg-white text-slate-700 border border-slate-200 px-3 py-1 rounded-xl uppercase">
+                  <span className="text-xs font-mono font-bold bg-card text-foreground border border-border px-3 py-1 rounded-xl uppercase">
                     {group.dayOfWeek}
                   </span>
                 </div>
@@ -1191,58 +1202,58 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                   {group.events.map((evt) => (
                     <div
                       key={evt.id}
-                      className="p-6 rounded-2xl border border-slate-200/80 bg-white hover:border-slate-400 hover:shadow-sm transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-6 group"
+                      className="p-6 rounded-2xl border border-border bg-card hover:border-border hover:shadow-sm transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-6 group"
                     >
                       <div className="flex items-start gap-4 sm:gap-5">
-                        <div className={`w-14 h-14 rounded-2xl ${evt.avatarBg} text-white flex items-center justify-center text-base font-black shadow-sm shrink-0 mt-0.5`}>
+                        <div className={`w-14 h-14 rounded-2xl ${evt.avatarBg} text-background flex items-center justify-center text-base font-black shadow-sm shrink-0 mt-0.5`}>
                           {evt.clientInitials}
                         </div>
 
                         <div className="space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="bg-slate-900 text-white font-mono text-xs font-bold px-2.5 py-1 rounded-xl uppercase flex items-center gap-1">
-                              <CalendarIcon className="w-3.5 h-3.5 text-slate-300" />
+                            <span className="bg-foreground text-background font-mono text-xs font-bold px-2.5 py-1 rounded-xl uppercase flex items-center gap-1">
+                              <CalendarIcon className="w-3.5 h-3.5 text-muted-foreground" />
                               <span>{getDayOfWeekName(evt.date)}</span>
                             </span>
-                            <span className="font-mono text-xs sm:text-sm font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200 flex items-center gap-1.5">
-                              <Clock className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="font-mono text-xs sm:text-sm font-bold text-foreground bg-muted px-3 py-1 rounded-xl border border-border flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                               <span>{evt.time}</span>
                             </span>
-                            <span className="font-mono text-xs sm:text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-xl border border-blue-200">
+                            <span className="font-mono text-xs sm:text-sm font-bold text-primary-strong bg-primary/15 px-3 py-1 rounded-xl border border-primary/40">
                               {evt.matterId}
                             </span>
                             {evt.platform === "calendly" && (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full font-mono">
-                                <Globe className="w-3.5 h-3.5 text-purple-600" /> Calendly Direct
+                              <span className="inline-flex items-center gap-1 text-xs font-bold text-accent-strong bg-accent/10 border border-accent/30 px-3 py-1 rounded-full font-mono">
+                                <Globe className="w-3.5 h-3.5 text-accent-strong" /> Calendly Direct
                               </span>
                             )}
                           </div>
 
-                          <h3 className="text-lg sm:text-xl font-black text-slate-900 group-hover:text-blue-600 transition-colors">
+                          <h3 className="text-lg sm:text-xl font-black text-foreground group-hover:text-primary-strong transition-colors">
                             {evt.title}
                           </h3>
 
-                          <div className="flex items-center gap-3 text-xs sm:text-sm text-slate-600 font-medium">
-                            <span>Client : <strong className="text-slate-900 font-bold">{evt.clientName}</strong></span>
+                          <div className="flex items-center gap-3 text-xs sm:text-sm text-muted-foreground font-medium">
+                            <span>Client : <strong className="text-foreground font-bold">{evt.clientName}</strong></span>
                             <span>·</span>
                             <span>{evt.program}</span>
                             {evt.trustBalance && (
                               <>
                                 <span>·</span>
-                                <span className="text-emerald-600 font-bold font-mono">Fidéicommis : {evt.trustBalance}</span>
+                                <span className="text-success-strong font-bold font-mono">Fidéicommis : {evt.trustBalance}</span>
                               </>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2.5 shrink-0 border-t md:border-t-0 pt-4 md:pt-0 border-slate-100">
+                      <div className="flex items-center gap-2.5 shrink-0 border-t md:border-t-0 pt-4 md:pt-0 border-border">
                         {evt.link && (
                           <a
                             href={evt.link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 text-xs sm:text-sm font-bold shadow-sm transition-all"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-3 text-xs sm:text-sm font-bold shadow-sm transition-all"
                           >
                             <Video className="w-4 h-4" />
                             <span>Lancer la Visio</span>
@@ -1252,9 +1263,9 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                         <button
                           type="button"
                           onClick={() => handleOpenBrief(evt)}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-800 border border-slate-200 px-5 py-3 text-xs sm:text-sm font-bold transition-all cursor-pointer"
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-muted hover:bg-muted text-foreground border border-border px-5 py-3 text-xs sm:text-sm font-bold transition-all cursor-pointer"
                         >
-                          <Sparkles className="w-4 h-4 text-amber-500" />
+                          <Sparkles className="w-4 h-4 text-warning-strong" />
                           <span>Brief AI</span>
                         </button>
                       </div>
@@ -1270,50 +1281,50 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
 
       {/* MODAL DE DÉPLACEMENT SPÉCIFIQUE (NOUVELLE DATE & HEURE PRÉCISE) */}
       {movingEvent && (
-        <div className="fixed inset-0 z-[260] flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden animate-scaleUp">
+        <div className="fixed inset-0 z-[260] flex items-center justify-center bg-foreground/50 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl w-full max-w-md overflow-hidden animate-scaleUp">
             
-            <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+            <div className="p-6 border-b border-border bg-muted flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                <div className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold">
                   <CalendarCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Déplacer la rencontre</h3>
-                  <p className="text-xs text-slate-500 font-medium">{movingEvent.clientName}</p>
+                  <h3 className="text-lg font-black text-foreground">Déplacer la rencontre</h3>
+                  <p className="text-xs text-muted-foreground font-medium">{movingEvent.clientName}</p>
                 </div>
               </div>
               <button 
                 type="button"
                 onClick={() => setMovingEvent(null)}
-                className="p-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900"
+                className="p-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleConfirmMove} className="p-6 space-y-4">
-              <div className="bg-blue-50 p-3.5 rounded-2xl border border-blue-200 text-xs font-bold text-blue-900">
+              <div className="bg-primary/15 p-3.5 rounded-2xl border border-primary/40 text-xs font-bold text-primary-strong">
                 📌 Motif : {movingEvent.title}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Nouvelle Date</label>
+                <label className="text-xs font-extrabold text-foreground uppercase tracking-wider">Nouvelle Date</label>
                 <input
                   type="date"
                   required
                   value={targetMoveDate}
                   onChange={(e) => setTargetMoveDate(e.target.value)}
-                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Nouvelle Heure d&apos;entrevue</label>
+                <label className="text-xs font-extrabold text-foreground uppercase tracking-wider">Nouvelle Heure d&apos;entrevue</label>
                 <select
                   value={targetMoveHour}
                   onChange={(e) => setTargetMoveHour(Number(e.target.value))}
-                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none"
                 >
                   {HOURLY_ROW_TIMES.map((h) => (
                     <option key={h.hour} value={h.hour}>
@@ -1323,17 +1334,17 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                 </select>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+              <div className="pt-3 border-t border-border flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setMovingEvent(null)}
-                  className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-900"
+                  className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-xs sm:text-sm font-bold shadow-md cursor-pointer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 text-xs sm:text-sm font-bold shadow-md cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Confirmer le déplacement</span>
@@ -1347,26 +1358,26 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
 
       {/* MODAL D'INVITATION RENCONTRE & CALENDLY */}
       {isInviteModalOpen && (
-        <div className="fixed inset-0 z-[250] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-xs animate-fadeIn sm:items-center">
+        <div className="fixed inset-0 z-[250] flex items-start justify-center overflow-y-auto bg-foreground/50 p-4 backdrop-blur-xs animate-fadeIn sm:items-center">
           {/* La fiche dépassait de l'écran en haut comme en bas : elle est
               désormais bornée en hauteur, et c'est son corps qui défile —
               l'en-tête et les boutons restent atteignables. */}
-          <div className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-scaleUp">
+          <div className="my-auto flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl animate-scaleUp">
 
-            <div className="shrink-0 p-6 sm:p-7 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+            <div className="shrink-0 p-6 sm:p-7 border-b border-border bg-muted flex items-center justify-between">
               <div className="flex items-center gap-3.5">
-                <div className="h-11 w-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                <div className="h-11 w-11 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold">
                   <CalendarDays className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">Planifier un rendez-vous</h3>
-                  <p className="text-xs sm:text-sm text-slate-500 font-medium">Le rendez-vous est inscrit à votre agenda. Le lien de réunion est à transmettre vous-même.</p>
+                  <h3 className="text-xl font-black text-foreground">Planifier un rendez-vous</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">Le rendez-vous est inscrit à votre agenda. Le lien de réunion est à transmettre vous-même.</p>
                 </div>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsInviteModalOpen(false)}
-                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 transition-colors"
+                className="p-2.5 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1375,7 +1386,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
             <form onSubmit={handleCreateInviteSubmit} className="flex min-h-0 flex-1 flex-col">
               <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6 sm:p-7">
               <div className="flex flex-col gap-2">
-                <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">Candidat / Client Destinataire</label>
+                <label className="text-xs sm:text-sm font-extrabold text-foreground uppercase tracking-wider">Candidat / Client Destinataire</label>
                 <select
                   value={inviteForm.clientName}
                   onChange={e => {
@@ -1391,7 +1402,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                       matterId: dossier?.id ?? "",
                     })
                   }}
-                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
                 >
                   <option value="">
                     {clients.length === 0 && leads.length === 0
@@ -1431,11 +1442,11 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">Raison de la rencontre (Motif d&apos;entrevue)</label>
+                <label className="text-xs sm:text-sm font-extrabold text-foreground uppercase tracking-wider">Raison de la rencontre (Motif d&apos;entrevue)</label>
                 <select
                   value={inviteForm.reason}
                   onChange={e => setInviteForm({ ...inviteForm, reason: e.target.value })}
-                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                  className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
                 >
                   <option value="Consultation Initiale d'évaluation">Consultation Initiale d&apos;évaluation</option>
                   <option value="Revue des antécédents 10 ans (IMM 5669)">Revue des antécédents 10 ans (IMM 5669)</option>
@@ -1447,22 +1458,22 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">Date de la rencontre</label>
+                  <label className="text-xs sm:text-sm font-extrabold text-foreground uppercase tracking-wider">Date de la rencontre</label>
                   <input
                     type="date"
                     required
                     value={inviteForm.date}
                     onChange={e => setInviteForm({ ...inviteForm, date: e.target.value })}
-                    className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                    className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
                   />
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">Heure de Début (HE / Montréal)</label>
+                  <label className="text-xs sm:text-sm font-extrabold text-foreground uppercase tracking-wider">Heure de Début (HE / Montréal)</label>
                   <select
                     value={inviteForm.startTime}
                     onChange={e => setInviteForm({ ...inviteForm, startTime: e.target.value })}
-                    className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all font-mono"
+                    className="w-full h-12 px-4 text-xs sm:text-sm font-bold rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all font-mono"
                   >
                     {/* Créneaux générés de 8 h à 23 h 30 : la liste
                         s'arrêtait à 17 h, sans rendez-vous possible en
@@ -1483,13 +1494,13 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
               </div>
 
               {/* SÉLECTEUR DE DURÉE DE RENCONTRE (15min à 3h+) */}
-              <div className="flex flex-col gap-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+              <div className="flex flex-col gap-2 bg-muted p-4 rounded-2xl border border-border">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="w-4 h-4 text-indigo-600" />
+                  <label className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-primary-strong" />
                     <span>Durée de la rencontre (Flexibilité 15 min ➔ 3h)</span>
                   </label>
-                  <span className="text-xs font-mono font-black text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                  <span className="text-xs font-mono font-black text-primary-strong bg-primary/15 border border-primary/40 px-2.5 py-0.5 rounded-full">
                     {formatMeetingTimeRange(inviteForm.startTime, inviteForm.durationMinutes)}
                   </span>
                 </div>
@@ -1510,8 +1521,8 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                       onClick={() => setInviteForm({ ...inviteForm, durationMinutes: dur.value })}
                       className={`py-2 px-1 rounded-xl text-xs font-bold text-center transition-all cursor-pointer ${
                         inviteForm.durationMinutes === dur.value
-                          ? "bg-indigo-900 text-white font-black shadow-md ring-2 ring-indigo-500/20"
-                          : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                          ? "bg-primary text-primary-foreground font-black shadow-md ring-2 ring-primary"
+                          : "bg-card text-foreground hover:bg-muted border border-border"
                       }`}
                     >
                       {dur.label}
@@ -1521,15 +1532,15 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">Plateforme de Visioconférence Directe</label>
+                <label className="text-xs sm:text-sm font-extrabold text-foreground uppercase tracking-wider">Plateforme de Visioconférence Directe</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
                     onClick={() => setInviteForm({ ...inviteForm, platform: "google_meet", calendlyLink: "" })}
                     className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       inviteForm.platform === "google_meet"
-                        ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                        : "bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200"
+                        ? "bg-primary text-primary-foreground border-primary/40 shadow-xs"
+                        : "bg-muted text-foreground hover:bg-muted border-border"
                     }`}
                   >
                     Google Meet
@@ -1540,8 +1551,8 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                     onClick={() => setInviteForm({ ...inviteForm, platform: "zoom", calendlyLink: "" })}
                     className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       inviteForm.platform === "zoom"
-                        ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                        : "bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200"
+                        ? "bg-primary text-primary-foreground border-primary/40 shadow-xs"
+                        : "bg-muted text-foreground hover:bg-muted border-border"
                     }`}
                   >
                     Zoom Direct
@@ -1552,8 +1563,8 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                     onClick={() => setInviteForm({ ...inviteForm, platform: "google_meet", calendlyLink: "https://teams.microsoft.com/l/meetup-join/direct-cicc" })}
                     className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       inviteForm.calendlyLink.includes("teams")
-                        ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                        : "bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200"
+                        ? "bg-primary text-primary-foreground border-primary/40 shadow-xs"
+                        : "bg-muted text-foreground hover:bg-muted border-border"
                     }`}
                   >
                     MS Teams
@@ -1564,8 +1575,8 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                     onClick={() => setInviteForm({ ...inviteForm, platform: "calendly", calendlyLink: "" })}
                     className={`p-2.5 rounded-xl border text-xs font-bold text-center transition-all cursor-pointer ${
                       inviteForm.platform === "calendly"
-                        ? "bg-blue-600 text-white border-blue-600 shadow-xs"
-                        : "bg-slate-50 text-slate-700 hover:bg-slate-100 border-slate-200"
+                        ? "bg-primary text-primary-foreground border-primary/40 shadow-xs"
+                        : "bg-muted text-foreground hover:bg-muted border-border"
                     }`}
                   >
                     Calendly
@@ -1573,13 +1584,13 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 bg-purple-50 p-4 sm:p-5 rounded-2xl border border-purple-200">
+              <div className="flex flex-col gap-2 bg-accent/10 p-4 sm:p-5 rounded-2xl border border-accent/30">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs sm:text-sm font-extrabold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <Globe className="w-4 h-4 text-purple-600" />
+                  <label className="text-xs sm:text-sm font-extrabold text-accent-strong uppercase tracking-wider flex items-center gap-1.5">
+                    <Globe className="w-4 h-4 text-accent-strong" />
                     <span>Lien direct de la réunion ou Calendly</span>
                   </label>
-                  <span className="text-xs font-bold text-purple-700 bg-white px-2.5 py-0.5 rounded-md border border-purple-200">
+                  <span className="text-xs font-bold text-accent-strong bg-card px-2.5 py-0.5 rounded-md border border-accent/30">
                     Lien sécurisé ✓
                   </span>
                 </div>
@@ -1587,18 +1598,18 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                   type="url"
                   value={inviteForm.calendlyLink}
                   onChange={e => setInviteForm({ ...inviteForm, calendlyLink: e.target.value })}
-                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold bg-white border border-purple-300 rounded-xl text-purple-900 focus:outline-none"
+                  className="w-full h-10 px-3.5 text-xs sm:text-sm font-mono font-bold bg-card border border-accent/40 rounded-xl text-accent-strong focus:outline-none"
                 />
-                <p className="text-xs text-purple-700">Le lien est conservé avec le rendez-vous. Sa transmission au client reste manuelle.</p>
+                <p className="text-xs text-accent-strong">Le lien est conservé avec le rendez-vous. Sa transmission au client reste manuelle.</p>
               </div>
 
               </div>
 
-              <div className="shrink-0 flex items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4 sm:px-7">
+              <div className="shrink-0 flex items-center justify-end gap-3 border-t border-border bg-card px-6 py-4 sm:px-7">
                 <button
                   type="button"
                   onClick={() => setIsInviteModalOpen(false)}
-                  className="px-5 py-3 text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                  className="px-5 py-3 text-xs sm:text-sm font-bold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
                   Annuler
                 </button>
@@ -1608,7 +1619,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white px-7 py-3.5 text-xs sm:text-sm font-black shadow-md transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground px-7 py-3.5 text-xs sm:text-sm font-black shadow-md transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CalendarDays className="w-4 h-4" />
                   <span>{isSaving ? "Enregistrement…" : "Enregistrer le rendez-vous"}</span>
@@ -1621,24 +1632,24 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
 
       {/* SLIDE-OVER DRAWER : PLAN DE RENCONTRE & BRIEFING AI */}
       {isSlideOverOpen && selectedEvent && (
-        <div className="fixed inset-0 z-[200] flex justify-end bg-slate-900/40 backdrop-blur-xs animate-fadeIn">
-          <div className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col justify-between border-l border-slate-200 animate-slideInRight overflow-y-auto">
+        <div className="fixed inset-0 z-[200] flex justify-end bg-foreground/50 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-xl bg-card h-full shadow-2xl flex flex-col justify-between border-l border-border animate-slideInRight overflow-y-auto">
             
-            <div className="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+            <div className="p-6 border-b border-border bg-muted flex items-center justify-between">
               <div>
-                <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 border border-amber-300 font-mono text-xs font-bold px-3 py-1 rounded-full uppercase">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Smart Brief AI CICC
+                <span className="inline-flex items-center gap-1.5 bg-warning/15 text-warning-strong border border-warning/40 font-mono text-xs font-bold px-3 py-1 rounded-full uppercase">
+                  <Sparkles className="w-3.5 h-3.5 text-warning-strong" /> Smart Brief AI CICC
                 </span>
-                <h2 className="text-xl font-black text-slate-900 mt-2">
+                <h2 className="text-xl font-black text-foreground mt-2">
                   Plan d&apos;entrevue pour {selectedEvent.clientName}
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 font-medium">Dossier {selectedEvent.matterId} · {selectedEvent.program}</p>
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium">Dossier {selectedEvent.matterId} · {selectedEvent.program}</p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setIsSlideOverOpen(false)}
-                className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                className="p-2.5 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1648,11 +1659,11 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
               {/* Depuis un rendez-vous, ouvrir la fiche correspondante :
                   c'est ce qui évite de recopier à la main ce que la
                   personne a déjà saisi en réservant. */}
-              <div className="rounded-2xl border border-slate-200/80 bg-slate-50 p-4 sm:p-5">
-                <p className="mb-1 text-xs font-black uppercase tracking-wider text-slate-500">
+              <div className="rounded-2xl border border-border bg-muted p-4 sm:p-5">
+                <p className="mb-1 text-xs font-black uppercase tracking-wider text-muted-foreground">
                   Suite à donner
                 </p>
-                <p className="mb-3 text-xs text-slate-600">
+                <p className="mb-3 text-xs text-muted-foreground">
                   Créez la fiche de {selectedEvent.clientName} à partir de ce rendez-vous.
                 </p>
                 <PromoteFromEvent
@@ -1665,39 +1676,39 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
               </div>
 
               <div className="space-y-3">
-                <h4 className="text-xs sm:text-sm font-extrabold text-slate-500 uppercase tracking-wider">
+                <h4 className="text-xs sm:text-sm font-extrabold text-muted-foreground uppercase tracking-wider">
                   Ordre du jour réglementaire recommandé
                 </h4>
 
                 <div className="space-y-2.5">
-                  <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60 flex items-center gap-3.5">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <div className="p-4 rounded-xl border border-success/40 bg-success/15 flex items-center gap-3.5">
+                    <CheckCircle2 className="w-5 h-5 text-success-strong shrink-0" />
                     <div>
-                      <p className="text-xs sm:text-sm font-bold text-emerald-950">1. Vérification d&apos;identité & Passeport</p>
-                      <p className="text-xs text-emerald-800">Conforme · Valide au-delà de 6 mois après traitement</p>
+                      <p className="text-xs sm:text-sm font-bold text-success-strong">1. Vérification d&apos;identité & Passeport</p>
+                      <p className="text-xs text-success-strong">Conforme · Valide au-delà de 6 mois après traitement</p>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/60 flex items-center gap-3.5">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <div className="p-4 rounded-xl border border-success/40 bg-success/15 flex items-center gap-3.5">
+                    <CheckCircle2 className="w-5 h-5 text-success-strong shrink-0" />
                     <div>
-                      <p className="text-xs sm:text-sm font-bold text-emerald-950">2. Contrôle d&apos;antécédents 10 ans (IMM 5669)</p>
-                      <p className="text-xs text-emerald-800">100% de la période couverte sans aucun trou de date</p>
+                      <p className="text-xs sm:text-sm font-bold text-success-strong">2. Contrôle d&apos;antécédents 10 ans (IMM 5669)</p>
+                      <p className="text-xs text-success-strong">100% de la période couverte sans aucun trou de date</p>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/60 flex items-center gap-3.5">
-                    <Clock className="w-5 h-5 text-blue-600 shrink-0" />
+                  <div className="p-4 rounded-xl border border-primary/40 bg-primary/15 flex items-center gap-3.5">
+                    <Clock className="w-5 h-5 text-primary-strong shrink-0" />
                     <div>
-                      <p className="text-xs sm:text-sm font-bold text-blue-950">3. Confirmation signature mandat IMM 5476</p>
-                      <p className="text-xs text-blue-800">À faire signer numériquement pendant la visio</p>
+                      <p className="text-xs sm:text-sm font-bold text-primary-strong">3. Confirmation signature mandat IMM 5476</p>
+                      <p className="text-xs text-primary-strong">À faire signer numériquement pendant la visio</p>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs sm:text-sm font-extrabold text-slate-700 uppercase tracking-wider">
+                <label className="text-xs sm:text-sm font-extrabold text-foreground uppercase tracking-wider">
                   Notes de séance & consignes CICC
                 </label>
                 <textarea
@@ -1705,16 +1716,16 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                   value={briefNotes}
                   onChange={(e) => setBriefNotes(e.target.value)}
                   placeholder="Notez ici les instructions partagées durant l'entrevue..."
-                  className="w-full p-4 text-xs sm:text-sm font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all"
+                  className="w-full p-4 text-xs sm:text-sm font-medium rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
                 />
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+            <div className="p-6 border-t border-border bg-muted flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => setIsSlideOverOpen(false)}
-                className="px-5 py-3 text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                className="px-5 py-3 text-xs sm:text-sm font-bold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 Fermer
               </button>
@@ -1722,7 +1733,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
               <button
                 type="button"
                 onClick={handleSendBriefToPortal}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 text-xs sm:text-sm font-bold shadow-md transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 text-xs sm:text-sm font-bold shadow-md transition-all cursor-pointer"
               >
                 <Send className="w-4 h-4" />
                 <span>Copier le lien de réunion</span>
