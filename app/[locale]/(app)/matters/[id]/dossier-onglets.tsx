@@ -24,6 +24,7 @@ import {
 import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
 import { envoyerQuestionnaire } from "@/lib/data/questionnaire-actions"
 import { ConfirmationEnvoi } from "@/components/ui/confirmation-envoi"
+import { useLocale } from "next-intl"
 import { creerFacture, emettreFacture, supprimerFacture, annulerFacture, envoyerFactureAuClient, envoyerRecuAuClient, modifierFacture, lignesDeFacture } from "@/lib/data/invoice-actions"
 import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
@@ -163,6 +164,11 @@ export function DossierOnglets({
   // États pour corrections dans la modale de corrections
   const [newCorrectionComment, setNewCorrectionComment] = React.useState("")
   const [selectedCorrectionSection, setSelectedCorrectionSection] = React.useState("")
+
+  // La locale était écrite « fr » en dur à sept endroits. Elle décide de la
+  // langue du PDF envoyé au client et du chemin revalidé : figée, un cabinet
+  // travaillant en anglais expédiait des factures françaises.
+  const locale = useLocale()
 
   const lancer = (action: (fd: FormData) => Promise<Resultat>) => (fd: FormData) =>
     demarrer(async () => setResultat(await action(fd)))
@@ -652,7 +658,7 @@ export function DossierOnglets({
                       fd.set("destinataireType", "client")
                       fd.set("destinataireId", clientId ?? "")
                       fd.set("matterId", matterId)
-                      fd.set("locale", "fr")
+                      fd.set("locale", locale)
                       setEnvoiAConfirmer({
                         action: "Le client recevra un lien sécurisé pour remplir ce questionnaire.",
                         objet: modele?.titleFr ?? "Questionnaire",
@@ -875,7 +881,7 @@ export function DossierOnglets({
                         visionneuse du navigateur offre l'enregistrement. */}
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       <a
-                        href={`/api/invoices/${f.id}/pdf`}
+                        href={`/api/invoices/${f.id}/pdf?lang=${locale}`}
                         target="_blank"
                         rel="noopener"
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground"
@@ -889,7 +895,7 @@ export function DossierOnglets({
                           onClick={() => demarrer(async () => {
                             const fd = new FormData()
                             fd.set("id", f.id)
-                            fd.set("locale", "fr")
+                            fd.set("locale", locale)
                             const r = await emettreFacture(fd)
                             setResultat(r)
                             if (r.ok) rafraichir()
@@ -924,7 +930,7 @@ export function DossierOnglets({
                               // donner un autre numéro serait le meilleur moyen
                               // de la faire payer deux fois — ou pas du tout.
                               if (f.statut === "draft") fd.set("emettre", "1")
-                              fd.set("locale", "fr")
+                              fd.set("locale", locale)
                               return envoyerFactureAuClient(fd)
                             },
                           })}
@@ -951,7 +957,7 @@ export function DossierOnglets({
                           onClick={() => demarrer(async () => {
                             const fd = new FormData()
                             fd.set("id", f.id)
-                            fd.set("locale", "fr")
+                            fd.set("locale", locale)
                             const r = await supprimerFacture(fd)
                             setResultat(r)
                             if (r.ok) rafraichir()
@@ -967,7 +973,7 @@ export function DossierOnglets({
                           onClick={() => demarrer(async () => {
                             const fd = new FormData()
                             fd.set("id", f.id)
-                            fd.set("locale", "fr")
+                            fd.set("locale", locale)
                             const r = await annulerFacture(fd)
                             setResultat(r)
                             if (r.ok) rafraichir()
@@ -1109,7 +1115,7 @@ export function DossierOnglets({
                   a payé attend sa preuve autant qu'il attendait sa demande. */}
               <div className="flex flex-wrap gap-1.5 shrink-0">
                 <a
-                  href={`/api/payments/${p.id}/receipt`}
+                  href={`/api/payments/${p.id}/receipt?lang=${locale}`}
                   target="_blank"
                   rel="noopener"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground"
@@ -1132,7 +1138,7 @@ export function DossierOnglets({
                     executer: async () => {
                       const fd = new FormData()
                       fd.set("id", p.id)
-                      fd.set("locale", "fr")
+                      fd.set("locale", locale)
                       return envoyerRecuAuClient(fd)
                     },
                   })}
@@ -1924,6 +1930,7 @@ function ModaleNouvelleFacture({
   onFermer: () => void
   onCreee: (r: Resultat) => void
 }) {
+  const locale = useLocale()
   const aujourdhui = new Date().toISOString().slice(0, 10)
   const dans30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
 
@@ -2084,7 +2091,7 @@ function ModaleNouvelleFacture({
                 fd.set("dueOn", echeance)
                 fd.set("notes", notes)
                 fd.set("lignes", JSON.stringify(lignes))
-                fd.set("locale", "fr")
+                fd.set("locale", locale)
                 const r = facture
                   ? await modifierFacture((fd.set("id", facture.id), fd))
                   : await creerFacture(fd)

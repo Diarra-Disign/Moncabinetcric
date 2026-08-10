@@ -1,7 +1,17 @@
 import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { facturePdf, recuPdf } from "./pdf"
+import { facturePdf, recuPdf, type LanguePdf } from "./pdf"
+
+/**
+ * La langue du document.
+ *
+ * Il n'existe pas de colonne de langue sur les clients : elle vient donc de
+ * l'appelant — la locale de l'écran pour un aperçu, celle portée par l'envoi
+ * pour un courriel. Tout ce qui n'est pas « en » retombe sur le français
+ * plutôt que de laisser passer une valeur inattendue jusque dans le PDF.
+ */
+export const langueDuDocument = (v: unknown): LanguePdf => (String(v ?? "") === "en" ? "en" : "fr")
 
 /**
  * Le PDF d'une facture, et ce qu'il faut pour l'envoyer.
@@ -12,13 +22,16 @@ import { facturePdf, recuPdf } from "./pdf"
  * différente de celle que le consultant a sous les yeux — écart qu'on ne
  * découvre qu'en les comparant, c'est-à-dire jamais.
  */
-export async function pdfDeFacture(sb: SupabaseClient, id: string) {
+export async function pdfDeFacture(sb: SupabaseClient, id: string, langue: LanguePdf = "fr") {
   const { data } = await sb
     .from("invoices")
     .select(
-      "id, invoice_number, date, due_on, status, client_name, service_description, " +
+      "id, invoice_number, date, due_on, status, client_name, service_description, tax_exempt, " +
         "clients(name, email, residence), matters(reference, rcic), " +
-        "firms(name, address, phone, email, rcic_license_number, logo_url, tax_gst_number, tax_qst_number, payment_terms)"
+        // Les TAUX viennent avec le reste de l'identité du cabinet : le PDF
+        // imprime « TPS 5,000 % » à côté du montant, et un taux qu'on ne lit
+        // pas ici serait un taux réécrit en dur ailleurs.
+        "firms(name, address, phone, email, rcic_license_number, logo_url, tax_gst_number, tax_qst_number, payment_terms, tax_gst_rate, tax_qst_rate)"
     )
     .eq("id", id)
     .maybeSingle()
@@ -63,6 +76,10 @@ export async function pdfDeFacture(sb: SupabaseClient, id: string) {
       total: Number(t.total ?? 0),
       regle: Number(regle ?? 0),
       notes: String(l.service_description ?? ""),
+      tauxTps: Number(cab?.tax_gst_rate ?? 0),
+      tauxTvq: Number(cab?.tax_qst_rate ?? 0),
+      exonere: l.tax_exempt === true,
+      langue,
     },
     {
       nom: cab?.name ?? "",
@@ -99,7 +116,7 @@ export async function pdfDeFacture(sb: SupabaseClient, id: string) {
  * différente de celle que le consultant a sous les yeux — écart qu'on ne
  * découvre qu'en les comparant, c'est-à-dire jamais.
  */
-export async function pdfDeRecu(sb: SupabaseClient, id: string) {
+export async function pdfDeRecu(sb: SupabaseClient, id: string, langue: LanguePdf = "fr") {
   const { data: paiement } = await sb
     .from("payments")
     .select(
@@ -158,6 +175,7 @@ export async function pdfDeRecu(sb: SupabaseClient, id: string) {
       factureTotal,
       dejaRegle,
       enFideicommis: p.destination === "trust",
+      langue,
     },
     {
       nom: cab?.name ?? "",

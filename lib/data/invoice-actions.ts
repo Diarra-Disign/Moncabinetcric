@@ -283,7 +283,7 @@ export async function envoyerFactureAuClient(formData: FormData): Promise<Result
     const id = String(formData.get("id") ?? "")
     const locale = String(formData.get("locale") ?? "fr")
 
-    const { pdfDeFacture } = await import("@/lib/invoices/document")
+    const { pdfDeFacture, langueDuDocument } = await import("@/lib/invoices/document")
     const { envoyerCourriel } = await import("@/lib/email/send")
     const { identiteCourriel } = await import("./questionnaires")
 
@@ -292,7 +292,9 @@ export async function envoyerFactureAuClient(formData: FormData): Promise<Result
       if (error) return { ok: false, message: lisible(error) }
     }
 
-    const doc = await pdfDeFacture(sb, id)
+    // Le document part dans la langue de l'envoi, celle-là même que porte déjà
+    // le formulaire : un client anglophone ne doit pas recevoir un PDF français.
+    const doc = await pdfDeFacture(sb, id, langueDuDocument(locale))
     if (!doc) return { ok: false, message: "Facture introuvable." }
     if (!doc.clientCourriel) {
       return { ok: false, message: "Ce client n'a pas d'adresse courriel. Ajoutez-la sur sa fiche, ou téléchargez le PDF et transmettez-le vous-même." }
@@ -378,11 +380,11 @@ export async function envoyerRecuAuClient(formData: FormData): Promise<Resultat>
     const id = String(formData.get("id") ?? "")
     const locale = String(formData.get("locale") ?? "fr")
 
-    const { pdfDeRecu } = await import("@/lib/invoices/document")
+    const { pdfDeRecu, langueDuDocument } = await import("@/lib/invoices/document")
     const { envoyerCourriel } = await import("@/lib/email/send")
     const { identiteCourriel } = await import("./questionnaires")
 
-    const doc = await pdfDeRecu(sb, id)
+    const doc = await pdfDeRecu(sb, id, langueDuDocument(locale))
     if (!doc) return { ok: false, message: "Paiement introuvable." }
     if (!doc.clientCourriel) {
       return {

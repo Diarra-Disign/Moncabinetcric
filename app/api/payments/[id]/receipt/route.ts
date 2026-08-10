@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSessionSupabase } from "@/lib/supabase/session"
-import { pdfDeRecu } from "@/lib/invoices/document"
+import { pdfDeRecu, langueDuDocument } from "@/lib/invoices/document"
 
 /**
  * Sert le reçu d'un paiement.
@@ -13,11 +13,13 @@ import { pdfDeRecu } from "@/lib/invoices/document"
  * le jour où le reçu a pu s'ENVOYER : c'est ce qui garantit que la pièce jointe
  * au courriel est celle que le consultant vient de regarder.
  */
-export async function GET(_r: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(requete: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const sb = await getSessionSupabase()
 
-  const doc = await pdfDeRecu(sb, id)
+  const langue = langueDuDocument(new URL(requete.url).searchParams.get("lang"))
+
+  const doc = await pdfDeRecu(sb, id, langue)
   if (!doc) return new NextResponse("Paiement introuvable.", { status: 404 })
 
   return new NextResponse(Buffer.from(doc.octets), {

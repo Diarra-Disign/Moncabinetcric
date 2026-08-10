@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getSessionSupabase } from "@/lib/supabase/session"
-import { pdfDeFacture } from "@/lib/invoices/document"
+import { pdfDeFacture, langueDuDocument } from "@/lib/invoices/document"
 
 /**
  * Sert le PDF d'une facture.
@@ -17,13 +17,17 @@ import { pdfDeFacture } from "@/lib/invoices/document"
  * Supabase n'a aucun droit, et la même requête revient vide.
  */
 export async function GET(
-  _requete: Request,
+  requete: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
   const sb = await getSessionSupabase()
 
-  const doc = await pdfDeFacture(sb, id)
+  // La route vit hors de /[locale] : la langue du document ne peut donc pas
+  // se déduire du chemin, elle est demandée explicitement.
+  const langue = langueDuDocument(new URL(requete.url).searchParams.get("lang"))
+
+  const doc = await pdfDeFacture(sb, id, langue)
   if (!doc) return new NextResponse("Facture introuvable.", { status: 404 })
 
   return new NextResponse(Buffer.from(doc.octets), {

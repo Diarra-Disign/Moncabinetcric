@@ -136,7 +136,43 @@ try {
     ["le débours non taxable", "non taxable"],
     ["le numéro de TPS", "RT0001"],
     ["les conditions de paiement", "30 jours"],
+    // La refonte : ce que la capture de référence apporte et qui manquait.
+    ["le montant dû, en en-tête", "MONTANT DÛ"],
+    ["le TAUX de la TPS, pas que son montant", "5,000 %"],
+    ["le taux de la TVQ à trois décimales", "9,975 %"],
+    ["le solde dû, distinct du total", "SOLDE DÛ"],
+    ["la pagination", "Page 1 sur 1"],
   ]) verifier(quoi, texte.includes(motif), true)
+
+  // Les montants sont recalculés À LA MAIN, pour que le contrôle ne puisse
+  // pas se contenter d'être d'accord avec un logiciel qui se tromperait :
+  //   imposable     150 + 500        = 650,00
+  //   non taxable   débours IRCC     = 235,00
+  //   sous-total                     = 885,00
+  //   TPS  650 x 5 %                 =  32,50
+  //   TVQ  650 x 9,975 %             =  64,84   (64,8375 arrondi au cent)
+  //   total                          = 982,34
+  verifier("le sous-total imprimé", texte.includes("885,00"), true)
+  verifier("la TPS calculée sur la seule part imposable", texte.includes("32,50"), true)
+  verifier("la TVQ à trois décimales, arrondie au cent", texte.includes("64,84"), true)
+  verifier("le total", texte.includes("982,34"), true)
+  verifier("le débours n'est pas taxé", texte.includes("235,00"), true)
+
+  console.log("\nLe même document, en anglais")
+  const repEn = await page.request.get(`${BASE}/api/invoices/${inv.id}/pdf?lang=en`)
+  verifier("la route accepte la langue", repEn.status(), 200)
+  const texteEn = lisiblePdf(Buffer.from(await repEn.body()))
+  for (const [quoi, motif] of [
+    ["le titre est traduit", "INVOICE"],
+    ["le destinataire aussi", "BILLED TO"],
+    ["le montant dû aussi", "AMOUNT DUE"],
+    ["le solde dû aussi", "BALANCE DUE"],
+    ["la taxe porte son nom canadien-anglais", "GST"],
+    ["la pagination est traduite", "Page 1 of 1"],
+  ]) verifier(quoi, texteEn.includes(motif), true)
+  // Le format des nombres suit la langue : 5.000% et non 5,000 %.
+  verifier("les nombres suivent la langue", texteEn.includes("5.000%"), true)
+  verifier("aucun mot français ne subsiste", /FACTURÉ À|SOLDE DÛ/.test(texteEn), false)
 
   const chemin = "/tmp/facture-epreuve.pdf"
   writeFileSync(chemin, octets)
@@ -170,7 +206,7 @@ try {
     ["la référence", "INT-88213"],
     ["le nom du client", "Awa Diallo"],
     ["la facture rattachée", String(num)],
-    ["le solde restant", "Solde restant"],
+    ["le solde restant", "SOLDE RESTANT"],
     ["la mention de fidéicommis", "fid\u00e9icommis"],
     ["le nom du cabinet", "Zenith Immigration"],
   ]) verifier(quoi, texteRecu.includes(motif), true)
