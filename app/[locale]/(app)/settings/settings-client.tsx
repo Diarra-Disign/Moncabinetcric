@@ -43,6 +43,17 @@ export function SettingsClient() {
   const [email, setEmail] = React.useState(firm.email)
   const [replyToEmail, setReplyToEmail] = React.useState(firm.replyToEmail)
   const [emailSenderName, setEmailSenderName] = React.useState(firm.emailSenderName)
+  // Ces champs affichaient « 123456789 RT0001 », un numéro d'inscription
+  // INVENTÉ, identique pour tous les cabinets et qui n'était jamais
+  // enregistré. Un consultant pouvait le croire sien et l'imprimer sur ses
+  // factures — un numéro de TPS erroné sur une pièce comptable n'est pas une
+  // coquille d'affichage.
+  const [tpsNumber, setTpsNumber] = React.useState(firm.taxGstNumber)
+  const [tvqNumber, setTvqNumber] = React.useState(firm.taxQstNumber)
+  const [tpsRate, setTpsRate] = React.useState(String(Math.round(firm.taxGstRate * 10000) / 100))
+  const [tvqRate, setTvqRate] = React.useState(String(Math.round(firm.taxQstRate * 10000) / 100))
+  const [invoicePrefix, setInvoicePrefix] = React.useState(firm.invoicePrefix)
+  const [paymentTerms, setPaymentTerms] = React.useState(firm.paymentTerms)
   const [logoUrl, setLogoUrl] = React.useState(firm.logoUrl)
 
   // Logo error & file upload state
@@ -61,6 +72,12 @@ export function SettingsClient() {
     setEmail(firm.email)
     setReplyToEmail(firm.replyToEmail)
     setEmailSenderName(firm.emailSenderName)
+    setTpsNumber(firm.taxGstNumber)
+    setTvqNumber(firm.taxQstNumber)
+    setTpsRate(String(Math.round(firm.taxGstRate * 10000) / 100))
+    setTvqRate(String(Math.round(firm.taxQstRate * 10000) / 100))
+    setInvoicePrefix(firm.invoicePrefix)
+    setPaymentTerms(firm.paymentTerms)
     setLogoUrl(firm.logoUrl)
   }
 
@@ -89,9 +106,7 @@ export function SettingsClient() {
   }
 
   // Taxes state
-  const [tpsNumber, setTpsNumber] = React.useState("123456789 RT0001")
-  const [tvqNumber, setTvqNumber] = React.useState("1234567890 TQ0001")
-  const [autoTaxExempt, setAutoTaxExempt] = React.useState(true)
+
 
   // Stripe State
   const [stripeConnected, setStripeConnected] = React.useState(true)
@@ -117,6 +132,12 @@ export function SettingsClient() {
       email,
       replyToEmail,
       emailSenderName,
+      taxGstNumber: tpsNumber,
+      taxQstNumber: tvqNumber,
+      taxGstRate: Number(tpsRate) || 0,
+      taxQstRate: Number(tvqRate) || 0,
+      invoicePrefix,
+      paymentTerms,
       logoUrl,
     }
 
@@ -545,7 +566,7 @@ export function SettingsClient() {
           <div className="flex flex-col gap-5 animate-fadeIn">
             <div className="border-b border-slate-100 pb-3">
               <h3 className="text-lg font-black text-slate-900">Matrice Fiscale & Numéros de Taxes Canadiennes</h3>
-              <p className="text-xs text-slate-500 font-medium">Configurez vos identifiants TPS/TVQ pour le calcul automatique sur les factures.</p>
+              <p className="text-xs text-slate-500 font-medium">Vos numéros d'inscription, vos taux et vos conditions — imprimés sur chaque facture et chaque reçu.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -571,16 +592,59 @@ export function SettingsClient() {
                 />
               </div>
 
-              <div className="flex flex-col gap-2 sm:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoTaxExempt}
-                    onChange={(e) => setAutoTaxExempt(e.target.checked)}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-0 cursor-pointer"
-                  />
-                  <span>Exonérer automatiquement la TPS/TVQ pour les candidats résidant hors du Canada (Mention légale 0$)</span>
-                </label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Taux de TPS / TVH (%)</label>
+                <input
+                  type="number" step="0.001" min="0" max="100"
+                  value={tpsRate}
+                  onChange={(e) => setTpsRate(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all font-mono"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Taux de TVQ (%)</label>
+                <input
+                  type="number" step="0.001" min="0" max="100"
+                  value={tvqRate}
+                  onChange={(e) => setTvqRate(e.target.value)}
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all font-mono"
+                />
+              </div>
+
+              <div className="sm:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                <p className="text-[11px] text-amber-900 leading-relaxed">
+                  <strong>Changer un taux recalcule les factures non réglées.</strong> Celles qui ont
+                  reçu ne serait-ce qu&apos;un acompte ne bougent pas : le prix a été accepté, il ne se
+                  renégocie pas. Une facture déjà payée reste telle que votre client l&apos;a reçue.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Préfixe des numéros de facture</label>
+                <input
+                  type="text" maxLength={8}
+                  value={invoicePrefix}
+                  onChange={(e) => setInvoicePrefix(e.target.value.toUpperCase())}
+                  placeholder="FAC"
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all font-mono"
+                />
+                <span className="text-[11px] text-slate-400">
+                  Vos factures seront numérotées {invoicePrefix || "FAC"}-{new Date().getFullYear()}-000001.
+                  Les factures déjà émises gardent leur numéro.
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Conditions de paiement</label>
+                <textarea
+                  rows={3}
+                  value={paymentTerms}
+                  onChange={(e) => setPaymentTerms(e.target.value)}
+                  placeholder="Paiement dû sous 30 jours. Virement Interac accepté à infos@…"
+                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-600 focus:outline-none transition-all resize-y"
+                />
+                <span className="text-[11px] text-slate-400">Imprimées au bas de chaque facture et de chaque reçu.</span>
               </div>
             </div>
           </div>

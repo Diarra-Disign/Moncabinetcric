@@ -311,6 +311,12 @@ export async function searchLegislationAction(
 export async function updateFirmSettings(data: {
   replyToEmail?: string
   emailSenderName?: string
+  taxGstNumber?: string
+  taxQstNumber?: string
+  taxGstRate?: number
+  taxQstRate?: number
+  invoicePrefix?: string
+  paymentTerms?: string
   name?: string
   rcicNumber?: string
   rcicName?: string

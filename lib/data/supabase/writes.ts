@@ -347,6 +347,12 @@ export async function updateFirmSettings(data: {
   logoUrl?: string
   replyToEmail?: string
   emailSenderName?: string
+  taxGstNumber?: string
+  taxQstNumber?: string
+  taxGstRate?: number
+  taxQstRate?: number
+  invoicePrefix?: string
+  paymentTerms?: string
 }): Promise<boolean> {
   const firmId = await currentFirmId()
   const payload: Record<string, unknown> = {
@@ -365,6 +371,16 @@ export async function updateFirmSettings(data: {
   // comportement par défaut.
   if (data.replyToEmail !== undefined) payload.reply_to_email = data.replyToEmail.trim() || null
   if (data.emailSenderName !== undefined) payload.email_sender_name = data.emailSenderName.trim() || null
+  if (data.taxGstNumber !== undefined) payload.tax_gst_number = data.taxGstNumber.trim() || null
+  if (data.taxQstNumber !== undefined) payload.tax_qst_number = data.taxQstNumber.trim() || null
+  if (data.invoicePrefix !== undefined) payload.invoice_prefix = data.invoicePrefix.trim().toUpperCase() || null
+  if (data.paymentTerms !== undefined) payload.payment_terms = data.paymentTerms.trim() || null
+  // Les taux arrivent en POURCENTAGE depuis l'écran — c'est ainsi qu'un
+  // comptable les énonce — et se rangent en fraction, qui est ce que le
+  // calcul multiplie. Convertir ici plutôt qu'à chaque lecture évite qu'un
+  // seul appel oublie la division et facture cinq cents pour cent.
+  if (data.taxGstRate !== undefined) payload.tax_gst_rate = data.taxGstRate / 100
+  if (data.taxQstRate !== undefined) payload.tax_qst_rate = data.taxQstRate / 100
 
   const { error } = await (await db())
     .from("firms")

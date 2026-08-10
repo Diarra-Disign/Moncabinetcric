@@ -41,19 +41,19 @@ try {
   const t = (await runSql(`select * from public.invoice_totals('${inv}');`))[0]
   verifier("sous-total", t.sous_total, "650.00")
   verifier("TPS", t.tps, "32.50")
-  verifier("TVQ", t.tvq, "64.87")
-  verifier("total", t.total, "747.37")
-  verifier("amount a suivi les lignes", (await runSql(`select amount from public.invoices where id='${inv}';`))[0].amount, "747.37")
+  verifier("TVQ", t.tvq, "64.84")
+  verifier("total", t.total, "747.34")
+  verifier("amount a suivi les lignes", (await runSql(`select amount from public.invoices where id='${inv}';`))[0].amount, "747.34")
 
   console.log("\nLe statut suit les paiements, et dit la vérité")
   verifier("sans paiement : émise", (await runSql(`select public.invoice_status('${inv}') as s;`))[0].s, "issued")
 
   await runSql(`insert into public.payments (firm_id,client_id,matter_id,invoice_id,amount,paid_on,method,destination)
     values ('${id}','${c[0].id}','${m[0].id}','${inv}',200,current_date,'bank_transfer','business');`)
-  verifier("acompte de 200 sur 747,37 : PARTIELLE", (await runSql(`select public.invoice_status('${inv}') as s;`))[0].s, "partial")
+  verifier("acompte de 200 sur 747,34 : PARTIELLE", (await runSql(`select public.invoice_status('${inv}') as s;`))[0].s, "partial")
 
   await runSql(`insert into public.payments (firm_id,client_id,matter_id,invoice_id,amount,paid_on,method,destination)
-    values ('${id}','${c[0].id}','${m[0].id}','${inv}',547.37,current_date,'bank_transfer','business');`)
+    values ('${id}','${c[0].id}','${m[0].id}','${inv}',547.34,current_date,'bank_transfer','business');`)
   verifier("solde réglé : payée", (await runSql(`select public.invoice_status('${inv}') as s;`))[0].s, "paid")
 
   console.log("\nUn changement de taux déplace les factures non closes")
@@ -63,7 +63,7 @@ try {
   await runSql(`insert into public.invoice_lines (firm_id,invoice_id,description,quantity,unit_price,position)
     values ('${id}','${inv2}','Honoraires',1,1000,1);`)
   verifier("nouveau taux appliqué (5% + 10%)", (await runSql(`select amount from public.invoices where id='${inv2}';`))[0].amount, "1150.00")
-  verifier("la facture PAYÉE n'a pas bougé", (await runSql(`select amount from public.invoices where id='${inv}';`))[0].amount, "747.37")
+  verifier("la facture PAYÉE n'a pas bougé", (await runSql(`select amount from public.invoices where id='${inv}';`))[0].amount, "747.34")
 
   console.log("\nUne ligne exonérée coexiste avec une ligne taxable")
   await runSql(`insert into public.invoice_lines (firm_id,invoice_id,description,quantity,unit_price,taxable,position)
@@ -75,7 +75,7 @@ try {
   console.log("\nLe résumé du dossier")
   const b = (await runSql(`select * from public.matter_billing_summary('${m[0].id}');`))[0]
   verifier("nombre de factures", b.nb_factures, 2)
-  verifier("total payé", b.total_paye, "747.37")
+  verifier("total payé", b.total_paye, "747.34")
 } finally {
   await runSql(`delete from public.firms where id='${id}';`)
   console.log("\nCabinet d'épreuve supprimé.")

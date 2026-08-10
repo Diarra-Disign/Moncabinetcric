@@ -23,6 +23,14 @@ export interface FirmIdentity {
   replyToEmail: string
   /** Nom affiché dans la boîte du destinataire. */
   emailSenderName: string
+  /** Numéros d'inscription, imprimés sur les factures. */
+  taxGstNumber: string
+  taxQstNumber: string
+  /** Taux en fraction : 0.05 vaut 5 %. */
+  taxGstRate: number
+  taxQstRate: number
+  invoicePrefix: string
+  paymentTerms: string
   website: string
   logoLetter: string
   logoUrl: string
@@ -51,6 +59,12 @@ export const EMPTY_FIRM: FirmIdentity = {
   email: "",
   replyToEmail: "",
   emailSenderName: "",
+  taxGstNumber: "",
+  taxQstNumber: "",
+  taxGstRate: 0.05,
+  taxQstRate: 0.09975,
+  invoicePrefix: "",
+  paymentTerms: "",
   website: "",
   logoLetter: "",
   logoUrl: "",
@@ -71,6 +85,12 @@ export interface FirmRow {
   email: string | null
   reply_to_email?: string | null
   email_sender_name?: string | null
+  tax_gst_number?: string | null
+  tax_qst_number?: string | null
+  tax_gst_rate?: number | null
+  tax_qst_rate?: number | null
+  invoice_prefix?: string | null
+  payment_terms?: string | null
   website: string | null
   logo_letter: string | null
   logo_url: string | null
@@ -91,6 +111,12 @@ export function mapFirmRow(row: FirmRow): FirmIdentity {
     email: row.email ?? "",
     replyToEmail: row.reply_to_email ?? "",
     emailSenderName: row.email_sender_name ?? "",
+    taxGstNumber: row.tax_gst_number ?? "",
+    taxQstNumber: row.tax_qst_number ?? "",
+    taxGstRate: Number(row.tax_gst_rate ?? 0.05),
+    taxQstRate: Number(row.tax_qst_rate ?? 0.09975),
+    invoicePrefix: row.invoice_prefix ?? "",
+    paymentTerms: row.payment_terms ?? "",
     website: row.website ?? "",
     // À défaut d'initiale explicite, la première lettre de la raison sociale.
     logoLetter: row.logo_letter || name.trim().charAt(0).toUpperCase() || "",
