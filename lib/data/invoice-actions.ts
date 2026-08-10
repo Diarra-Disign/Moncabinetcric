@@ -141,3 +141,124 @@ export async function emettreFacture(formData: FormData): Promise<Resultat> {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
 }
+
+/**
+ * Traduit les refus de la base en phrases lisibles.
+ *
+ * Les messages levés par les déclencheurs sont déjà écrits pour être lus :
+ * ils sont repris tels quels. Les réécrire ici en produirait une seconde
+ * version, qui finirait par dire autre chose que la règle.
+ */
+function lisible(e: { message?: string; code?: string } | null): string {
+  const brut = e?.message ?? "Erreur inattendue."
+  if (e?.code === "42501" || /row-level security/i.test(brut)) {
+    return "Vous n'avez pas le droit d'effectuer cette action."
+  }
+  return brut
+}
+
+/** Remplace les lignes d'un brouillon. La base refuse si la facture est émise. */
+export async function modifierFacture(formData: FormData): Promise<Resultat> {
+  try {
+    const membre = await getCurrentMember()
+    if (!membre) return { ok: false, message: "Session expirée." }
+    const sb = await getSessionSupabase()
+
+    const id = String(formData.get("id") ?? "")
+    const dueOn = String(formData.get("dueOn") ?? "").trim()
+    const notes = String(formData.get("notes") ?? "").trim()
+    const locale = String(formData.get("locale") ?? "fr")
+
+    let lignes: LigneFacture[] = []
+    try {
+      lignes = JSON.parse(String(formData.get("lignes") ?? "[]"))
+    } catch {
+      return { ok: false, message: "Les lignes sont illisibles." }
+    }
+    const retenues = lignes.filter((l) => l.description.trim() && Number(l.prixUnitaire) > 0)
+    if (retenues.length === 0) return { ok: false, message: "Une facture doit porter au moins une ligne." }
+
+    // Les anciennes lignes partent d'abord : les remplacer une à une laisserait
+    // un état intermédiaire où le total ne correspond à rien.
+    const { error: eSup } = await sb.from("invoice_lines").delete().eq("invoice_id", id)
+    if (eSup) return { ok: false, message: lisible(eSup) }
+
+    const { error: eIns } = await sb.from("invoice_lines").insert(
+      retenues.map((l, i) => ({
+        firm_id: membre.firmId,
+        invoice_id: id,
+        description: l.description.trim(),
+        quantity: Number(l.quantite) || 1,
+        unit_price: Number(l.prixUnitaire),
+        taxable: l.taxable !== false,
+        position: i + 1,
+      }))
+    )
+    if (eIns) return { ok: false, message: lisible(eIns) }
+
+    const { error } = await sb
+      .from("invoices")
+      .update({ due_on: dueOn || null, service_description: notes || retenues[0].description })
+      .eq("id", id)
+    if (error) return { ok: false, message: lisible(error) }
+
+    revalidatePath(`/${locale}/matters`)
+    return { ok: true, message: "Facture modifiée." }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/** Supprime un brouillon. La base refuse dès que la facture est émise. */
+export async function supprimerFacture(formData: FormData): Promise<Resultat> {
+  try {
+    const sb = await getSessionSupabase()
+    const id = String(formData.get("id") ?? "")
+    const locale = String(formData.get("locale") ?? "fr")
+
+    const { error } = await sb.from("invoices").delete().eq("id", id)
+    if (error) return { ok: false, message: lisible(error) }
+
+    revalidatePath(`/${locale}/matters`)
+    return { ok: true, message: "Brouillon supprimé." }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Annule une facture émise.
+ *
+ * Elle n'est pas effacée : son numéro reste pris et la trace demeure. Une
+ * suite de numéros trouée est le premier signe qu'une comptabilité a été
+ * retouchée — c'est précisément ce qu'un vérificateur cherche.
+ */
+export async function annulerFacture(formData: FormData): Promise<Resultat> {
+  try {
+    const sb = await getSessionSupabase()
+    const id = String(formData.get("id") ?? "")
+    const motif = String(formData.get("motif") ?? "").trim()
+    const locale = String(formData.get("locale") ?? "fr")
+
+    const { data: regle } = await sb.rpc("invoice_paid_amount", { i_id: id })
+    if (Number(regle ?? 0) > 0) {
+      return {
+        ok: false,
+        message: "Cette facture a reçu un paiement : remboursez-le avant de l'annuler, sinon l'encaissement n'aurait plus de pièce.",
+      }
+    }
+
+    const { data: avant } = await sb.from("invoices").select("service_description").eq("id", id).maybeSingle()
+    const note = [String((avant as { service_description?: string } | null)?.service_description ?? ""), motif ? `Annulée : ${motif}` : "Annulée."]
+      .filter(Boolean)
+      .join(" — ")
+
+    const { error } = await sb.from("invoices").update({ status: "cancelled", service_description: note }).eq("id", id)
+    if (error) return { ok: false, message: lisible(error) }
+
+    revalidatePath(`/${locale}/matters`)
+    return { ok: true, message: "Facture annulée. Son numéro reste dans la suite." }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}

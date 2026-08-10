@@ -29,7 +29,7 @@ try {
 
   const num = (await runSql(`select public.next_invoice_number('${id}') as n;`))[0].n
   const inv = (await runSql(`insert into public.invoices (firm_id,client_id,matter_id,invoice_number,client_name,amount,date,status,due_on)
-    values ('${id}','${c[0].id}','${m[0].id}','${num}','Awa',0,current_date,'issued',current_date+14) returning id;`))[0].id
+    values ('${id}','${c[0].id}','${m[0].id}','${num}','Awa',0,current_date,'draft',current_date+14) returning id;`))[0].id
 
   console.log("\nLe montant suit les lignes, il ne se saisit plus")
   verifier("facture sans ligne : montant intact", (await runSql(`select amount from public.invoices where id='${inv}';`))[0].amount, "0.00")
@@ -37,6 +37,8 @@ try {
   await runSql(`insert into public.invoice_lines (firm_id,invoice_id,description,quantity,unit_price,position) values
     ('${id}','${inv}','Consultation initiale en immigration',1,150,1),
     ('${id}','${inv}','Analyse du dossier',1,500,2);`)
+
+  await runSql(`update public.invoices set status='issued' where id='${inv}';`)
 
   const t = (await runSql(`select * from public.invoice_totals('${inv}');`))[0]
   verifier("sous-total", t.sous_total, "650.00")
@@ -71,6 +73,32 @@ try {
   const t2 = (await runSql(`select * from public.invoice_totals('${inv2}');`))[0]
   verifier("sous-total inclut le débours", t2.sous_total, "1500.00")
   verifier("la taxe ignore le débours", t2.tps, "50.00")
+
+
+  console.log("\nUn brouillon se modifie ; une facture émise, non")
+  const brouillon = (await runSql(`insert into public.invoices (firm_id,client_id,matter_id,invoice_number,client_name,amount,date,status)
+    values ('${id}','${c[0].id}','${m[0].id}','${(await runSql(`select public.next_invoice_number('${id}') as n;`))[0].n}','Awa',0,current_date,'draft') returning id;`))[0].id
+  await runSql(`insert into public.invoice_lines (firm_id,invoice_id,description,quantity,unit_price,taxable,position)
+    values ('${id}','${brouillon}','Honoraires',1,100,true,1);`)
+
+  const essai = async (sql) => { try { await runSql(sql); return "accepté" } catch { return "refusé" } }
+
+  verifier("brouillon : la ligne se modifie", await essai(`update public.invoice_lines set unit_price=200 where invoice_id='${brouillon}';`), "accepté")
+  verifier("brouillon : la facture se supprime", await essai(`delete from public.invoices where id='${brouillon}';`), "accepté")
+
+  const e = (await runSql(`insert into public.invoices (firm_id,client_id,matter_id,invoice_number,client_name,amount,date,status)
+    values ('${id}','${c[0].id}','${m[0].id}','${(await runSql(`select public.next_invoice_number('${id}') as n;`))[0].n}','Awa',0,current_date,'draft') returning id;`))[0].id
+  await runSql(`insert into public.invoice_lines (firm_id,invoice_id,description,quantity,unit_price,taxable,position)
+    values ('${id}','${e}','Honoraires',1,100,true,1);`)
+  await runSql(`update public.invoices set status='issued' where id='${e}';`)
+
+  verifier("émise : la ligne NE se modifie plus", await essai(`update public.invoice_lines set unit_price=999 where invoice_id='${e}';`), "refusé")
+  verifier("émise : on ne peut pas ajouter de ligne", await essai(`insert into public.invoice_lines (firm_id,invoice_id,description,quantity,unit_price,taxable,position) values ('${id}','${e}','Ajout',1,50,true,2);`), "refusé")
+  verifier("émise : la date ne bouge plus", await essai(`update public.invoices set date=current_date-10 where id='${e}';`), "refusé")
+  verifier("émise : le numéro ne bouge plus", await essai(`update public.invoices set invoice_number='TRICHE' where id='${e}';`), "refusé")
+  verifier("émise : elle NE se supprime pas", await essai(`delete from public.invoices where id='${e}';`), "refusé")
+  verifier("émise : elle s'ANNULE", await essai(`update public.invoices set status='cancelled' where id='${e}';`), "accepté")
+  verifier("son numéro reste pris", (await runSql(`select count(*)::int as n from public.invoices where id='${e}';`))[0].n, 1)
 
   console.log("\nLe résumé du dossier")
   const b = (await runSql(`select * from public.matter_billing_summary('${m[0].id}');`))[0]

@@ -23,7 +23,7 @@ import {
 } from "@/lib/data/actions"
 import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
 import { envoyerQuestionnaire } from "@/lib/data/questionnaire-actions"
-import { creerFacture, emettreFacture } from "@/lib/data/invoice-actions"
+import { creerFacture, emettreFacture, supprimerFacture, annulerFacture } from "@/lib/data/invoice-actions"
 import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
 /**
@@ -846,6 +846,44 @@ export function DossierOnglets({
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-[11px] hover:bg-primary/90 transition-colors cursor-pointer"
                         >
                           <Receipt className="h-3.5 w-3.5" /> Émettre
+                        </button>
+                      )}
+
+                      {/* Supprimer n'est offert que sur un BROUILLON, et
+                          annuler que sur une facture émise. La base refuserait
+                          de toute façon ; montrer un bouton voué au refus
+                          n'aurait appris la règle qu'après le clic. */}
+                      {f.statut === "draft" ? (
+                        <button
+                          type="button"
+                          disabled={enCours}
+                          onClick={() => demarrer(async () => {
+                            const fd = new FormData()
+                            fd.set("id", f.id)
+                            fd.set("locale", "fr")
+                            const r = await supprimerFacture(fd)
+                            setResultat(r)
+                            if (r.ok) rafraichir()
+                          })}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-error/10 hover:text-error transition-colors cursor-pointer text-muted-foreground"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                        </button>
+                      ) : f.statut !== "cancelled" && (
+                        <button
+                          type="button"
+                          disabled={enCours}
+                          onClick={() => demarrer(async () => {
+                            const fd = new FormData()
+                            fd.set("id", f.id)
+                            fd.set("locale", "fr")
+                            const r = await annulerFacture(fd)
+                            setResultat(r)
+                            if (r.ok) rafraichir()
+                          })}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-error/10 hover:text-error transition-colors cursor-pointer text-muted-foreground"
+                        >
+                          <X className="h-3.5 w-3.5" /> Annuler
                         </button>
                       )}
                     </div>
