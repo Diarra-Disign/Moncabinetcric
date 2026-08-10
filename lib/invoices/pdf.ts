@@ -240,3 +240,127 @@ export async function facturePdf(f: FacturePdf, c: CabinetPdf): Promise<Uint8Arr
 
   return doc.save()
 }
+
+/**
+ * Le reçu d'un paiement.
+ *
+ * Un reçu n'est pas une facture allégée : la facture dit « vous devez », le
+ * reçu dit « vous avez payé ». Il porte donc le montant REÇU, sa date, son
+ * mode, sa référence — et le solde qui reste, car c'est la première question
+ * du client qui vient de payer.
+ *
+ * Il partage l'en-tête et les helpers de la facture : deux gabarits séparés
+ * auraient divergé au premier changement d'adresse du cabinet, et le client
+ * aurait reçu deux documents au nom de deux cabinets légèrement différents.
+ */
+export interface RecuPdf {
+  numero: string
+  date: string
+  montant: number
+  mode: string
+  reference: string
+  notes: string
+  clientNom: string
+  clientCourriel: string
+  dossierReference: string
+  factureNumero: string
+  factureTotal: number
+  dejaRegle: number
+  /** Vrai si l'argent est entré en fidéicommis et non au compte général. */
+  enFideicommis: boolean
+}
+
+const MODES: Record<string, string> = {
+  card: "Carte", interac: "Virement Interac", bank_transfer: "Virement bancaire",
+  cheque: "Chèque", cash: "Comptant", other: "Autre",
+}
+
+export async function recuPdf(r: RecuPdf, c: CabinetPdf): Promise<Uint8Array> {
+  const doc = await PDFDocument.create()
+  const page = doc.addPage([595.28, 841.89])
+  const normal = await doc.embedFont(StandardFonts.Helvetica)
+  const gras = await doc.embedFont(StandardFonts.HelveticaBold)
+
+  const G = 56
+  const D = 539
+  let y = 786
+
+  const logo = await logoEnOctets(c.logoUrl)
+  if (logo) {
+    try {
+      const image = logo.type === "jpg" ? await doc.embedJpg(logo.octets) : await doc.embedPng(logo.octets)
+      const h = 40
+      page.drawImage(image, { x: G, y: y - h + 8, width: Math.min((image.width / image.height) * h, 150), height: h })
+      y -= h + 14
+    } catch { /* voir facturePdf */ }
+  }
+
+  page.drawText(c.nom, { x: G, y, size: 16, font: gras, color: ENCRE })
+  y -= 15
+  for (const ligne of [c.adresse, [c.telephone, c.courriel].filter(Boolean).join(" · "),
+                       c.numeroPermis ? `Consultant réglementé CRIC ${c.numeroPermis}` : ""]) {
+    if (!ligne) continue
+    page.drawText(couper(ligne, normal, 8.5, 300), { x: G, y, size: 8.5, font: normal, color: GRIS })
+    y -= 11
+  }
+
+  droite(page, "REÇU", D, 786, gras, 22)
+  droite(page, r.numero, D, 766, normal, 11, GRIS)
+  droite(page, `Reçu le ${r.date}`, D, 750, normal, 9, GRIS)
+
+  y = Math.min(y, 726)
+  page.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 0.8, color: TRAIT })
+  y -= 24
+
+  page.drawText("REÇU DE", { x: G, y, size: 8, font: gras, color: GRIS })
+  droite(page, "DOSSIER", D, y, gras, 8, GRIS)
+  y -= 14
+  page.drawText(couper(r.clientNom, gras, 11, 260), { x: G, y, size: 11, font: gras, color: ENCRE })
+  droite(page, r.dossierReference, D, y, normal, 10, ENCRE)
+  y -= 12
+  if (r.clientCourriel) {
+    page.drawText(couper(r.clientCourriel, normal, 9, 260), { x: G, y, size: 9, font: normal, color: GRIS })
+    y -= 11
+  }
+
+  // Le montant reçu, en grand : c'est l'unique raison d'être du document.
+  y -= 22
+  page.drawRectangle({ x: G, y: y - 34, width: D - G, height: 56, color: rgb(0.96, 0.97, 0.98) })
+  page.drawText("MONTANT REÇU", { x: G + 16, y: y + 6, size: 8, font: gras, color: GRIS })
+  page.drawText(argent(r.montant), { x: G + 16, y: y - 22, size: 24, font: gras, color: ENCRE })
+  droite(page, MODES[r.mode] ?? r.mode, D - 16, y + 6, normal, 9, GRIS)
+  if (r.reference) droite(page, `Réf. ${r.reference}`, D - 16, y - 8, normal, 9, GRIS)
+  y -= 60
+
+  const details: [string, string][] = [
+    ["Facture", r.factureNumero || "—"],
+    ["Total de la facture", argent(r.factureTotal)],
+    ["Total réglé à ce jour", argent(r.dejaRegle)],
+    ["Solde restant", argent(Math.max(0, r.factureTotal - r.dejaRegle))],
+  ]
+  for (const [libelle, valeur] of details) {
+    const solde = libelle === "Solde restant"
+    droite(page, libelle, 400, y, solde ? gras : normal, solde ? 10 : 9.5, solde ? ENCRE : GRIS)
+    droite(page, valeur, D, y, solde ? gras : normal, solde ? 10 : 9.5)
+    y -= solde ? 20 : 15
+  }
+
+  if (r.enFideicommis) {
+    y -= 8
+    // Une somme en fiducie n'appartient pas encore au cabinet. Le taire sur
+    // le reçu laisserait croire que les honoraires sont acquis — ce que
+    // l'article 13 interdit précisément de laisser croire.
+    page.drawText("Ces fonds sont détenus en fidéicommis (art. 13) et ne seront virés au compte",
+      { x: G, y, size: 8.5, font: normal, color: GRIS })
+    y -= 11
+    page.drawText("général du cabinet qu'au fur et à mesure des services rendus.",
+      { x: G, y, size: 8.5, font: normal, color: GRIS })
+  }
+
+  if (r.notes) {
+    page.drawText(couper(r.notes, normal, 8.5, D - G), { x: G, y: 110, size: 8.5, font: normal, color: GRIS })
+  }
+  page.drawText("Merci de votre confiance.", { x: G, y: 88, size: 9, font: normal, color: GRIS })
+
+  return doc.save()
+}

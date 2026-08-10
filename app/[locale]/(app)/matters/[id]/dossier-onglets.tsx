@@ -972,6 +972,18 @@ export function DossierOnglets({
                   {p.factureNumero && ` · facture ${p.factureNumero}`}
                 </p>
               </div>
+
+              {/* Le reçu se produit AU PAIEMENT, pas à la facturation : la
+                  facture dit « vous devez », le reçu dit « vous avez payé ».
+                  Il vit donc ici, sur l'encaissement qu'il atteste. */}
+              <a
+                href={`/api/payments/${p.id}/receipt`}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground shrink-0"
+              >
+                <Eye className="h-3.5 w-3.5" /> Reçu PDF
+              </a>
             </div>
           ))}
         </div>

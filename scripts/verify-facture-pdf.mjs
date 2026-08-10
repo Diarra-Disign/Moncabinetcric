@@ -99,7 +99,7 @@ try {
    * renvoyait faux sur un document parfaitement rempli — le contrôle
    * échouait, et c'est lui qui avait tort.
    */
-  const texte = (() => {
+  const lisiblePdf = (octets) => {
     let sortie = ""
     let i = 0
     while ((i = octets.indexOf("stream", i)) !== -1) {
@@ -121,7 +121,8 @@ try {
     const lisible = sortie.replace(/<([0-9A-Fa-f]{4,})>/g, (_, hex) =>
       Buffer.from(hex, "hex").toString("latin1"))
     return lisible + octets.toString("latin1")
-  })()
+  }
+  const texte = lisiblePdf(octets)
   for (const [quoi, motif] of [
     ["le nom du cabinet", "Zenith Immigration"],
     ["son adresse", "Sherbrooke"],
@@ -141,8 +142,43 @@ try {
 
   console.log("\nCloisonnement")
   const anonyme = await (await navigateur.newContext()).newPage()
+  const anonyme2 = anonyme
   const vol = await anonyme.request.get(`${BASE}/api/invoices/${inv.id}/pdf`)
   verifier("sans session, la facture est refusée", vol.status(), 404)
+
+  console.log("\nLe reçu du paiement")
+  const { data: pay, error: eP } = await admin.from("payments").insert({
+    firm_id: cabinetId, client_id: c.id, matter_id: m.id, invoice_id: inv.id,
+    amount: 300, paid_on: new Date().toISOString().slice(0, 10),
+    method: "interac", reference: "INT-88213", destination: "trust",
+    notes: "Acompte à la signature du mandat.",
+  }).select("id").single()
+  if (eP) throw new Error(`Paiement : ${eP.message}`)
+
+  const rec = await page.request.get(`${BASE}/api/payments/${pay.id}/receipt`)
+  verifier("la route du reçu répond", rec.status(), 200)
+  verifier("c'est un PDF", rec.headers()["content-type"], "application/pdf")
+
+  const octetsRecu = Buffer.from(await rec.body())
+  const texteRecu = lisiblePdf(octetsRecu)
+  for (const [quoi, motif] of [
+    ["le titre REÇU", "RE\u00c7U"],
+    ["le montant reçu", "300"],
+    ["le mode de paiement", "Interac"],
+    ["la référence", "INT-88213"],
+    ["le nom du client", "Awa Diallo"],
+    ["la facture rattachée", String(num)],
+    ["le solde restant", "Solde restant"],
+    ["la mention de fidéicommis", "fid\u00e9icommis"],
+    ["le nom du cabinet", "Zenith Immigration"],
+  ]) verifier(quoi, texteRecu.includes(motif), true)
+
+  writeFileSync("/tmp/recu-epreuve.pdf", octetsRecu)
+  console.log("     Reçu écrit dans /tmp/recu-epreuve.pdf")
+
+  const volRecu = await anonyme2.request.get(`${BASE}/api/payments/${pay.id}/receipt`)
+  verifier("sans session, le reçu est refusé", volRecu.status(), 404)
+
 } finally {
   if (navigateur) await navigateur.close()
   if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
