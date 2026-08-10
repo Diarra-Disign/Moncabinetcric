@@ -35,6 +35,19 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 })
 
 const THEMES = ["sapphire", "emerald", "amber", "purple", "midnight"]
+
+/**
+ * Deux modes.
+ *
+ *   (défaut)        les pastilles de statut des questionnaires
+ *   --page=/fr/…    tout texte visible d'une page, sans exception
+ *
+ * Le second est plus brutal et c'est voulu : il ne suppose pas quelles
+ * couleurs comptent. Une seule ligne oubliée dans un coin de tableau de bord
+ * suffit à rendre une information illisible pour un cabinet qui a choisi le
+ * thème sombre, et c'est précisément celle qu'un contrôle ciblé manquerait.
+ */
+const PAGE = (process.argv.find((a) => a.startsWith("--page=")) ?? "").slice(7)
 const SEUIL = 4.5
 
 let echecs = 0
@@ -104,18 +117,27 @@ try {
   await page.waitForURL(/\/fr(\/|$)/, { timeout: 30000 }).catch(() => {})
   await page.waitForTimeout(2500)
 
-  await page.goto(`${BASE}/fr/questionnaires`, { waitUntil: "domcontentloaded" })
-  await page.waitForSelector("h1", { timeout: 30000 })
-  await page.waitForTimeout(1200)
-  await page.click('button:has-text("Envoyés")')
-  await page.waitForTimeout(800)
+  if (PAGE) {
+    await page.goto(`${BASE}${PAGE}`, { waitUntil: "domcontentloaded" })
+    await page.waitForSelector("h1, h2", { timeout: 30000 })
+    await page.waitForTimeout(1800)
+  } else {
+    await page.goto(`${BASE}/fr/questionnaires`, { waitUntil: "domcontentloaded" })
+    await page.waitForSelector("h1", { timeout: 30000 })
+    await page.waitForTimeout(1200)
+    await page.click('button:has-text("Envoyés")')
+    await page.waitForTimeout(800)
+  }
 
   const attendus = await admin.from("client_questionnaires").select("status").eq("firm_id", cabinetId)
   console.log(`\n${(attendus.data ?? []).length} envois en base, à retrouver à l'écran.`)
 
   for (const theme of THEMES) {
     console.log(`\nThème « ${theme} »`)
-    await page.evaluate((t) => document.documentElement.setAttribute("data-cabinet-theme", t), theme)
+    await page.evaluate((o) => {
+      document.documentElement.setAttribute("data-cabinet-theme", o.t)
+      window.__modePage = o.p
+    }, { t: theme, p: Boolean(PAGE) })
     await page.waitForTimeout(400)
 
     const mesures = await page.evaluate(() => {
@@ -157,6 +179,44 @@ try {
       }
 
       const fondPage = getComputedStyle(document.body).backgroundColor
+
+      /** Le premier ancêtre qui peint réellement un fond. */
+      const socleDe = (el) => {
+        const couches = []
+        for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+          const bg = getComputedStyle(n).backgroundColor
+          if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") couches.unshift(bg)
+        }
+        return [fondPage, ...couches]
+      }
+
+      if (window.__modePage) {
+        const vus = new Set()
+        const resultats = []
+        for (const el of document.querySelectorAll("body *")) {
+          // Seuls les nœuds qui portent EUX-MÊMES du texte : mesurer un
+          // conteneur reviendrait à mesurer la couleur héritée de ses enfants.
+          const propre = [...el.childNodes]
+            .filter((n) => n.nodeType === 3)
+            .map((n) => n.textContent.trim())
+            .join(" ")
+            .trim()
+          if (propre.length < 2) continue
+          const r = el.getBoundingClientRect()
+          if (r.width < 4 || r.height < 4) continue
+          const st = getComputedStyle(el)
+          if (st.visibility === "hidden" || st.opacity === "0") continue
+
+          const couches = socleDe(el)
+          const fond = peindre(couches)
+          const encre = peindre([...couches, st.color])
+          const cle = `${st.color}|${couches.join(",")}`
+          if (vus.has(cle)) continue
+          vus.add(cle)
+          resultats.push({ texte: propre.slice(0, 38), ratio: ratio(encre, fond) })
+        }
+        return resultats
+      }
 
       const resultats = []
       for (const badge of document.querySelectorAll("article span.rounded-full")) {

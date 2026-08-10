@@ -26,7 +26,7 @@ export function Sidebar() {
               title={isCollapsed ? label : undefined}
               className={cn(
                 isActive
-                  ? "bg-primary/10 text-primary font-bold"
+                  ? "bg-primary/10 text-primary-strong font-bold"
                   : "text-foreground hover:bg-muted hover:text-foreground",
                 "group flex items-center rounded-xl p-2.5 text-sm leading-6 transition-all duration-200",
                 isCollapsed ? "justify-center" : "gap-x-3"
@@ -34,7 +34,7 @@ export function Sidebar() {
             >
               <Icon
                 className={cn(
-                  isActive ? "text-primary scale-105" : "text-muted-foreground group-hover:text-foreground",
+                  isActive ? "text-primary-strong scale-105" : "text-muted-foreground group-hover:text-foreground",
                   "h-5 w-5 shrink-0 transition-transform"
                 )}
                 aria-hidden="true"
@@ -73,7 +73,7 @@ export function Sidebar() {
       <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-card px-4 pb-4 shadow-sm">
         {/* En-tête de la Sidebar avec Logo uniquement */}
         <div className="flex h-16 shrink-0 items-center justify-center border-b border-border/50">
-          <div className="flex items-center gap-2.5 text-primary font-extrabold text-xl tracking-tight overflow-hidden">
+          <div className="flex items-center gap-2.5 text-primary-strong font-extrabold text-xl tracking-tight overflow-hidden">
             <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-black text-lg shadow-sm shrink-0">
               M
             </div>

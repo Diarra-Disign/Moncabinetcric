@@ -73,14 +73,14 @@ export function MobileNav() {
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   isActive
-                    ? "bg-primary/10 text-primary"
+                    ? "bg-primary/10 text-primary-strong"
                     : "text-foreground hover:bg-muted",
                   "group flex gap-x-3 rounded-xl p-2 text-sm font-semibold leading-6 transition-colors"
                 )}
               >
                 <Icon
                   className={cn(
-                    isActive ? "text-primary" : "text-muted-foreground",
+                    isActive ? "text-primary-strong" : "text-muted-foreground",
                     "h-5 w-5 shrink-0"
                   )}
                   aria-hidden="true"
@@ -123,7 +123,7 @@ export function MobileNav() {
             className="relative flex h-full w-72 max-w-[85vw] flex-col gap-y-5 overflow-y-auto border-r border-border bg-card px-6 pb-4 shadow-xl"
           >
             <div className="flex h-16 shrink-0 items-center justify-between">
-              <div className="flex items-center gap-2 text-primary font-bold text-xl tracking-tight">
+              <div className="flex items-center gap-2 text-primary-strong font-bold text-xl tracking-tight">
                 <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
                   M
                 </div>
@@ -168,7 +168,7 @@ export function MobileNav() {
                 }}
                 className="inline-flex w-full items-center gap-2 rounded-xl border border-border bg-muted/60 px-3 py-2.5 text-xs font-bold text-foreground transition-colors hover:bg-muted"
               >
-                <SlidersHorizontal className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <SlidersHorizontal className="h-4 w-4 shrink-0 text-primary-strong" aria-hidden="true" />
                 {t("customizeViews")}
               </button>
             </div>

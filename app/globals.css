@@ -38,7 +38,7 @@
      ------------------------------------------------------------------ */
   --primary-strong: #1E40AF;
   --success-strong: #047857;
-  --warning-strong: #B45309;
+  --warning-strong: #92400E;
   --error-strong: #B91C1C;
   
   /* UI/UX Pro Max Extended Design Tokens */
@@ -55,12 +55,16 @@ html[data-cabinet-theme="emerald"] {
   --primary: #059669;
   --primary-hover: #047857;
   --primary-strong: #047857;
+  --primary-foreground: #00160F;
 }
 
 html[data-cabinet-theme="amber"] {
   --primary: #D97706;
   --primary-hover: #B45309;
   --primary-strong: #92400E;
+  /* Sur de l'ambre, le blanc tombe à 3,19:1. Le texte porté par l'accent
+     s'assombrit donc avec lui — un accent clair ne peut pas porter du clair. */
+  --primary-foreground: #2A1A05;
 }
 
 html[data-cabinet-theme="purple"] {
@@ -76,6 +80,7 @@ html[data-cabinet-theme="midnight"] {
   --card-foreground: #F8FAFC;
   --primary: #3B82F6;
   --primary-hover: #60A5FA;
+  --primary-foreground: #06101F;
   --border: #1E293B;
   --muted: #1E293B;
   --muted-foreground: #94A3B8;
