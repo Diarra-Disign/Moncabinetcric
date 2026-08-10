@@ -21,7 +21,6 @@ import {
   Lock,
   Download,
   ArrowUpRight,
-  Sparkles,
   HardDrive,
   Trash2,
   UploadCloud,
@@ -367,7 +366,6 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
       {notice && (
         <div className="p-4 rounded-2xl bg-foreground border border-border text-background text-xs font-bold flex items-center justify-between shadow-lg animate-fadeIn">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-primary-strong shrink-0" />
             <span>{notice}</span>
           </div>
           <button type="button" onClick={() => setNotice(null)} className="text-muted-foreground hover:text-background font-mono">✕</button>

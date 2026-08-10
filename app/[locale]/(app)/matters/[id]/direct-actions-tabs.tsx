@@ -12,7 +12,6 @@ import {
   CheckCircle2, 
   ExternalLink, 
   Clock, 
-  Sparkles,
   AlertCircle,
   Download,
   Copy,
@@ -104,7 +103,6 @@ export function DirectActionsTabs({
                 : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             <span>1. Argumentaire IRCC (Lettre IA)</span>
           </button>
 

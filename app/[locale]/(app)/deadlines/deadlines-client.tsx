@@ -14,7 +14,6 @@ import {
   ExternalLink, 
   Scale, 
   Calendar as CalendarIcon, 
-  Sparkles, 
   Check, 
   X, 
   AlertCircle, 
@@ -188,7 +187,6 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
       {notice && (
         <div className="p-4 rounded-2xl bg-foreground border border-border text-background text-xs font-bold flex items-center justify-between shadow-lg animate-fadeIn">
           <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-warning shrink-0" />
             <span>{notice}</span>
           </div>
           <button type="button" onClick={() => setNotice(null)} className="text-background/70 hover:text-background font-mono">✕</button>

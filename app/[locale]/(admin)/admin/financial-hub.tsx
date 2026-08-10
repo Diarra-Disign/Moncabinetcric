@@ -10,7 +10,6 @@ import {
   Check, 
   Mail, 
   Clock, 
-  Sparkles,
   Settings,
 } from "lucide-react"
 import type { AdminFirmRow, AdminSubscriptionRow } from "@/lib/data/admin"
@@ -186,7 +185,6 @@ export function FinancialHub({ firms, catalogue }: FinancialHubProps) {
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">ARR (Projeté Annuel)</span>
             <div className="h-8 w-8 rounded-xl bg-muted flex items-center justify-center text-foreground">
-              <Sparkles className="w-4 h-4 text-amber-500" />
             </div>
           </div>
           <p className="mt-3 text-3xl font-black tabular-nums tracking-tight text-foreground">

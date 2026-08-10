@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { X, Sparkles, FolderOpen, User, DollarSign, Calendar, FileText, CheckCircle2, ShieldCheck } from "lucide-react"
+import { X, FolderOpen, User, DollarSign, Calendar, FileText, CheckCircle2, ShieldCheck } from "lucide-react"
 
 export interface SideSheetDrawerProps {
   isOpen: boolean

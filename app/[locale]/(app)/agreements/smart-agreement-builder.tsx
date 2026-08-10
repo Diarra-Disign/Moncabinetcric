@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { X, CheckCircle2, ShieldCheck, Lock, Plus, Trash2, ArrowRight, ArrowLeft, DollarSign, Users, FileSignature, Sparkles, Building } from "lucide-react"
+import { X, CheckCircle2, ShieldCheck, Lock, Plus, Trash2, ArrowRight, ArrowLeft, DollarSign, Users, FileSignature, Wand2, Building } from "lucide-react"
 import { AgreementRecord, ClauseDefinition, GovernmentFee } from "@/lib/data/types"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { ConformiteContrat } from "@/components/agreements/conformite-contrat"
@@ -529,7 +529,7 @@ export function SmartAgreementBuilder({
           {step === 2 && (
             <div className="flex flex-col gap-5">
               <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl flex items-start gap-3 text-xs text-emerald-900">
-                <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <Wand2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block text-sm font-bold text-emerald-950">Attribution des Services CICC</strong>
                   Associez chaque prestation d&apos;immigration à la personne concernée. Le montant des honoraires professionnels sera calculé en temps réel.

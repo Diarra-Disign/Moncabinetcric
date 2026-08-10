@@ -10,7 +10,7 @@ import {
   CheckCircle2, 
   AlertCircle, 
   ExternalLink, 
-  Sparkles, 
+  Wand2, 
   ChevronLeft, 
   ChevronRight, 
   Filter, 
@@ -965,7 +965,6 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                                       className="font-bold opacity-80 hover:opacity-100 cursor-pointer"
                                       title="Synthèse CICC"
                                     >
-                                      <Sparkles className="w-3 h-3 text-warning-strong" />
                                     </button>
                                   </div>
                                 </div>
@@ -1146,7 +1145,6 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                           onClick={() => handleOpenBrief(evt)}
                           className="inline-flex items-center justify-center gap-2 rounded-xl bg-muted hover:bg-muted text-foreground border border-border px-5 py-3 text-xs sm:text-sm font-bold transition-all cursor-pointer"
                         >
-                          <Sparkles className="w-4 h-4 text-warning-strong" />
                           <span>Brief AI</span>
                         </button>
                       </div>
@@ -1265,7 +1263,6 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
                           onClick={() => handleOpenBrief(evt)}
                           className="inline-flex items-center justify-center gap-2 rounded-xl bg-muted hover:bg-muted text-foreground border border-border px-5 py-3 text-xs sm:text-sm font-bold transition-all cursor-pointer"
                         >
-                          <Sparkles className="w-4 h-4 text-warning-strong" />
                           <span>Brief AI</span>
                         </button>
                       </div>
@@ -1638,7 +1635,7 @@ export function CalendarClient({ initialEvents, clients = [], matters = [], lead
             <div className="p-6 border-b border-border bg-muted flex items-center justify-between">
               <div>
                 <span className="inline-flex items-center gap-1.5 bg-warning/15 text-warning-strong border border-warning/40 font-mono text-xs font-bold px-3 py-1 rounded-full uppercase">
-                  <Sparkles className="w-3.5 h-3.5 text-warning-strong" /> Smart Brief AI CICC
+                  <Wand2 className="w-3.5 h-3.5 text-warning-strong" /> Smart Brief AI CICC
                 </span>
                 <h2 className="text-xl font-black text-foreground mt-2">
                   Plan d&apos;entrevue pour {selectedEvent.clientName}

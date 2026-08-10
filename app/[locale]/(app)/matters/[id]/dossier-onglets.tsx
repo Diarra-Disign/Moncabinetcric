@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
-  Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Sparkles
+  Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Wand2
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
 import {
@@ -53,7 +53,7 @@ const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
   { cle: "paiements", libelle: "Paiements", icone: Banknote },
   { cle: "echeances", libelle: "Échéances", icone: CalendarClock },
   { cle: "portail", libelle: "Portail client", icone: Users },
-  { cle: "argumentaire", libelle: "Argumentaire IRCC", icone: Sparkles },
+  { cle: "argumentaire", libelle: "Argumentaire IRCC", icone: Wand2 },
 ]
 
 const STATUT_PIECE: Record<string, { texte: string; ton: string }> = {

@@ -13,7 +13,6 @@ import {
   User, 
   Calendar, 
   ArrowUpRight, 
-  Sparkles, 
   ShieldCheck, 
   Filter,
   MoreHorizontal,

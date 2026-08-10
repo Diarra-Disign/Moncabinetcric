@@ -4,7 +4,7 @@ import * as React from "react"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { 
   FileText, 
-  Sparkles, 
+  Wand2, 
   Copy, 
   CheckCircle2, 
   ShieldCheck, 
@@ -355,7 +355,7 @@ Boreal Immigration Cabinet Inc.`
       <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl border border-blue-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="h-12 w-12 rounded-2xl bg-blue-500/20 border border-blue-400/30 text-blue-300 flex items-center justify-center font-bold shrink-0">
-            <Sparkles className="w-6 h-6 text-amber-300" />
+            <Wand2 className="w-6 h-6 text-amber-300" />
           </div>
           <div>
             <div className="flex items-center gap-2">

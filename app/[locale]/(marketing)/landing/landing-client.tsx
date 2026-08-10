@@ -12,7 +12,6 @@ import {
   ShieldCheck, 
   Clock, 
   ArrowUpRight, 
-  Sparkles, 
   Lock, 
   TrendingUp,
   AlertCircle,
@@ -256,7 +255,6 @@ export function LandingClient({ t }: LandingClientProps) {
             
             {/* Pill Badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 backdrop-blur-md px-4 py-1.5 text-xs sm:text-sm font-bold text-white mb-6 shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
               <span>{t.hero.badge}</span>
             </div>
 

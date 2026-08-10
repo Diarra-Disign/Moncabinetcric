@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { ArrowLeft, Check, AlertTriangle, Lock, ScrollText, Sparkles } from "lucide-react"
+import { ArrowLeft, Check, AlertTriangle, Lock, ScrollText } from "lucide-react"
 import type { Plan } from "@/lib/billing/plans"
 import { formatMontant } from "@/lib/billing/plans"
 import type {
@@ -309,7 +309,6 @@ export function CatalogueClient({
           --------------------------------------------------------------- */}
       <section>
         <h2 className="mb-1 flex items-center gap-2 text-base font-black tracking-tight text-foreground">
-          <Sparkles aria-hidden className="h-4 w-4 text-muted-foreground" />
           Exceptions accordées à un cabinet
         </h2>
         <p className="mb-4 max-w-prose text-xs text-muted-foreground">

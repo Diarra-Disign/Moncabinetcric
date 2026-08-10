@@ -14,7 +14,6 @@ import {
   Phone, 
   Calendar, 
   ArrowRight, 
-  Sparkles, 
   ShieldCheck, 
   Filter,
   MoreHorizontal,
@@ -710,7 +709,6 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
             onClick={() => setFilterType("high")}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${filterType === "high" ? "bg-success text-background shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
             <span>Score Élevé (&gt;85%)</span>
           </button>
         </div>
@@ -814,7 +812,6 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                         lead.score >= 70 ? "bg-warning/15 text-warning-strong border-warning/40" :
                         "bg-muted text-muted-foreground border-border"
                       }`}>
-                        <Sparkles className="w-2.5 h-2.5" />
                         <span>Praticabilité : {lead.score}%</span>
                       </span>
 

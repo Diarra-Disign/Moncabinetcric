@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Palette, Check, Sparkles } from "lucide-react"
+import { Palette, Check } from "lucide-react"
 
 export type ThemePalette = "sapphire" | "emerald" | "amber" | "purple" | "midnight"
 
@@ -53,8 +53,7 @@ export function ThemePicker() {
       {isOpen && (
         <div className="absolute right-0 top-11 bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 z-[150] animate-fadeIn w-64 ring-1 ring-slate-900/10 space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <span className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Nuancier Exécutif
+            <span className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5"> Nuancier Exécutif
             </span>
             <span className="text-[10px] font-bold text-slate-400 font-mono">4 Modes</span>
           </div>

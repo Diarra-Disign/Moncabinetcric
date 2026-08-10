@@ -16,7 +16,6 @@ import {
   ArrowUpRight, 
   Database, 
   UserCheck, 
-  Sparkles,
   Award,
   Briefcase,
   Layers,
@@ -560,7 +559,7 @@ export function DashboardClient({
                 <span className="text-xs font-black uppercase tracking-wider text-foreground">SCORE CICC AUDIT</span>
               </div>
               <div className="h-10 w-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/20 group-hover:scale-110 transition-transform">
-                <Sparkles className="h-5 w-5" />
+                <ShieldCheck className="h-5 w-5" />
               </div>
             </div>
             <div>

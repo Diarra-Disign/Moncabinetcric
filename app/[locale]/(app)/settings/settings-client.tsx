@@ -11,7 +11,6 @@ import {
   Calendar, 
   Save, 
   CheckCircle2, 
-  Sparkles, 
   Lock, 
   FileText, 
   DollarSign, 

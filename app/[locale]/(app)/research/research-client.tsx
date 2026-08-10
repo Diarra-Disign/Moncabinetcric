@@ -14,7 +14,7 @@ import {
   AlertTriangle,
   Globe,
   BookmarkPlus,
-  Sparkles,
+  Wand2,
   Layers,
   X,
 } from "lucide-react"
@@ -608,7 +608,7 @@ export function ResearchClient({
 
                           {src.note && (
                             <div className="flex items-start gap-1.5 rounded bg-primary/10 p-2 text-xs text-foreground">
-                              <Sparkles aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                              <Wand2 aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                               <p>
                                 <strong className="font-bold">{t("consultantAnalysis")} : </strong>
                                 {src.note}
