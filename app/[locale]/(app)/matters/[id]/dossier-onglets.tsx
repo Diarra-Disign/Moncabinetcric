@@ -23,6 +23,7 @@ import {
 } from "@/lib/data/actions"
 import type { ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "@/lib/data/types"
 import { envoyerQuestionnaire } from "@/lib/data/questionnaire-actions"
+import { creerFacture, emettreFacture } from "@/lib/data/invoice-actions"
 import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-builder"
 
 /**
@@ -118,6 +119,8 @@ export function DossierOnglets({
 
   /** Le lien du dernier envoi, à copier quand le courriel n'est pas parti. */
   const [lienEnvoi, setLienEnvoi] = React.useState<string | null>(null)
+  /** Vrai quand la fenêtre de création de facture est ouverte. */
+  const [nouvelleFacture, setNouvelleFacture] = React.useState(false)
 
   // Liste des questionnaires locaux
   const [prevInitialQuestionnaires, setPrevInitialQuestionnaires] = React.useState(initialQuestionnaires)
@@ -762,6 +765,42 @@ export function DossierOnglets({
       {/* ------------------------------------------------------------ */}
       {onglet === "facturation" && (
         <div className="space-y-3">
+          {/* Le total facturé, le réglé et le solde (§10). Ils ne sont pas
+              recalculés ici : ils viennent de la fiche, qui les tient de la
+              base — un troisième calcul finirait par en différer. */}
+          <div className="rounded-2xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-4">
+            <dl className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+              <div>
+                <dt className="text-muted-foreground">Total facturé</dt>
+                <dd className="font-black text-foreground font-mono text-sm">{argent(d.finances.facture)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Réglé</dt>
+                <dd className="font-black text-success-strong font-mono text-sm">{argent(d.finances.paye)}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Solde à recevoir</dt>
+                <dd className={cn("font-black font-mono text-sm", d.finances.solde > 0 ? "text-warning-strong" : "text-foreground")}>
+                  {argent(d.finances.solde)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Factures</dt>
+                <dd className="font-black text-foreground font-mono text-sm">{d.factures.length}</dd>
+              </div>
+            </dl>
+
+            <button
+              type="button"
+              onClick={() => setNouvelleFacture(true)}
+              disabled={!clientId}
+              title={clientId ? undefined : "Rattachez un client à ce dossier avant de facturer"}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 disabled:opacity-40 transition-colors cursor-pointer"
+            >
+              <Plus className="h-4 w-4" /> Créer une facture
+            </button>
+          </div>
+
           {d.factures.length === 0 && <Vide texte="Aucune facture pour ce dossier." />}
           {d.factures.map((f) => {
             const s = STATUT_FACTURE[f.statut] ?? { texte: f.statut, ton: "bg-muted" }
@@ -1408,6 +1447,14 @@ export function DossierOnglets({
       })()}
 
       {/* 3. Modale de demande de corrections */}
+      {nouvelleFacture && (
+        <ModaleNouvelleFacture
+          matterId={matterId}
+          onFermer={() => setNouvelleFacture(false)}
+          onCreee={(r) => { setNouvelleFacture(false); setResultat(r); rafraichir() }}
+        />
+      )}
+
       {selectedCorrectionQ && (() => {
         const tpl = { sections: selectedCorrectionQ.sections }
         return (
@@ -1538,6 +1585,7 @@ function Ligne({ libelle, valeur, accent }: { libelle: string; valeur: string; a
       <dd className={cn("font-mono text-xs font-bold", accent ? "text-warning" : "text-foreground")}>
         {valeur}
       </dd>
+
     </div>
   )
 }
@@ -1579,5 +1627,181 @@ function BoutonPetit({
     >
       {children}
     </button>
+  )
+}
+
+
+/**
+ * Création d'une facture depuis un dossier.
+ *
+ * Le client et le dossier ne sont pas redemandés : on est déjà dedans. Le
+ * numéro n'est pas saisissable non plus — il est calculé à l'enregistrement,
+ * et le laisser modifier rouvrirait la porte aux doublons que l'index unique
+ * vient de fermer.
+ *
+ * Les totaux affichés ici sont une ESTIMATION à l'écran. Ceux qui feront foi
+ * sont recalculés en base par invoice_totals(), avec les taux du cabinet. Les
+ * deux doivent s'accorder ; en cas d'écart, c'est la base qui a raison, et
+ * c'est son montant que la liste affichera ensuite.
+ */
+function ModaleNouvelleFacture({
+  matterId, onFermer, onCreee,
+}: {
+  matterId: string
+  onFermer: () => void
+  onCreee: (r: Resultat) => void
+}) {
+  const aujourdhui = new Date().toISOString().slice(0, 10)
+  const dans30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+
+  const [date, setDate] = React.useState(aujourdhui)
+  const [echeance, setEcheance] = React.useState(dans30)
+  const [notes, setNotes] = React.useState("")
+  const [lignes, setLignes] = React.useState([
+    { description: "", quantite: 1, prixUnitaire: 0, taxable: true },
+  ])
+  const [erreur, setErreur] = React.useState<string | null>(null)
+  const [enCours, demarrer] = React.useTransition()
+
+  const majLigne = (i: number, champ: string, valeur: unknown) =>
+    setLignes((prev) => prev.map((l, j) => (j === i ? { ...l, [champ]: valeur } : l)))
+
+  const sousTotal = lignes.reduce((t, l) => t + (Number(l.quantite) || 0) * (Number(l.prixUnitaire) || 0), 0)
+  const imposable = lignes
+    .filter((l) => l.taxable)
+    .reduce((t, l) => t + (Number(l.quantite) || 0) * (Number(l.prixUnitaire) || 0), 0)
+  const tps = Math.round(imposable * 0.05 * 100) / 100
+  const tvq = Math.round(imposable * 0.09975 * 100) / 100
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">
+      <div className="bg-card w-full max-w-3xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[92vh]">
+        <header className="p-5 border-b border-border flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-black text-foreground">Créer une facture</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Le numéro est attribué à l&apos;enregistrement. La facture naît en brouillon.
+            </p>
+          </div>
+          <button type="button" onClick={onFermer} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer">
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[11px] font-bold text-muted-foreground">Date de facturation</span>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={cn(CHAMP, "mt-1")} />
+            </label>
+            <label className="block">
+              <span className="text-[11px] font-bold text-muted-foreground">Date d&apos;échéance</span>
+              <input type="date" value={echeance} onChange={(e) => setEcheance(e.target.value)} className={cn(CHAMP, "mt-1")} />
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-[11px] font-bold text-muted-foreground">Services facturés</span>
+            {lignes.map((l, i) => (
+              <div key={i} className="grid gap-2 sm:grid-cols-[1fr_5rem_7rem_auto] items-start">
+                <input
+                  value={l.description}
+                  onChange={(e) => majLigne(i, "description", e.target.value)}
+                  placeholder="Consultation initiale en immigration"
+                  className={CHAMP}
+                />
+                <input
+                  type="number" min="0" step="0.5" value={l.quantite}
+                  onChange={(e) => majLigne(i, "quantite", Number(e.target.value))}
+                  className={CHAMP}
+                />
+                <input
+                  type="number" min="0" step="0.01" value={l.prixUnitaire}
+                  onChange={(e) => majLigne(i, "prixUnitaire", Number(e.target.value))}
+                  className={CHAMP}
+                />
+                <span className="flex items-center gap-1.5 pt-2">
+                  {/* Un débours d'IRCC n'est pas taxable là où les honoraires
+                      le sont, et les deux figurent sur la même facture. */}
+                  <label className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox" checked={l.taxable}
+                      onChange={(e) => majLigne(i, "taxable", e.target.checked)}
+                    />
+                    taxable
+                  </label>
+                  {lignes.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setLignes((prev) => prev.filter((_, j) => j !== i))}
+                      className="text-error hover:text-error/80 cursor-pointer"
+                      aria-label="Retirer la ligne"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </span>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setLignes((prev) => [...prev, { description: "", quantite: 1, prixUnitaire: 0, taxable: true }])}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border font-bold text-xs hover:bg-muted cursor-pointer text-foreground"
+            >
+              <Plus className="h-3.5 w-3.5" /> Ajouter une ligne
+            </button>
+          </div>
+
+          <dl className="rounded-2xl border border-border bg-muted/40 p-4 space-y-1 text-xs">
+            <div className="flex justify-between"><dt className="text-muted-foreground">Sous-total</dt><dd className="font-mono font-bold text-foreground">{argent(sousTotal)}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">TPS (5 %)</dt><dd className="font-mono font-bold text-foreground">{argent(tps)}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">TVQ (9,975 %)</dt><dd className="font-mono font-bold text-foreground">{argent(tvq)}</dd></div>
+            <div className="flex justify-between border-t border-border pt-1 mt-1">
+              <dt className="font-black text-foreground">Total</dt>
+              <dd className="font-mono font-black text-foreground">{argent(sousTotal + tps + tvq)}</dd>
+            </div>
+            <p className="text-[10px] text-muted-foreground pt-1">
+              Estimation aux taux par défaut. Les taux de votre cabinet s&apos;appliquent à
+              l&apos;enregistrement, et c&apos;est ce montant-là qui fera foi.
+            </p>
+          </dl>
+
+          <label className="block">
+            <span className="text-[11px] font-bold text-muted-foreground">Notes</span>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={cn(CHAMP, "mt-1 resize-y")} />
+          </label>
+
+          {erreur && <p className="rounded-xl border border-error/30 bg-error/10 p-3 text-xs text-error-strong">{erreur}</p>}
+        </div>
+
+        <footer className="p-5 border-t border-border flex items-center justify-end gap-2">
+          <button type="button" onClick={onFermer} className="px-4 py-2 rounded-xl border border-border font-bold text-xs hover:bg-muted cursor-pointer text-foreground">
+            Annuler
+          </button>
+          <button
+            type="button"
+            disabled={enCours || sousTotal <= 0}
+            onClick={() => {
+              setErreur(null)
+              demarrer(async () => {
+                const fd = new FormData()
+                fd.set("matterId", matterId)
+                fd.set("date", date)
+                fd.set("dueOn", echeance)
+                fd.set("notes", notes)
+                fd.set("lignes", JSON.stringify(lignes))
+                fd.set("locale", "fr")
+                const r = await creerFacture(fd)
+                if (r.ok) onCreee(r)
+                else setErreur(r.message)
+              })
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 disabled:opacity-40 cursor-pointer"
+          >
+            <Receipt className="h-4 w-4" /> {enCours ? "Création…" : "Créer la facture"}
+          </button>
+        </footer>
+      </div>
+    </div>
   )
 }
