@@ -34,6 +34,7 @@ import { randomBytes } from "node:crypto"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createClient } from "@supabase/supabase-js"
+import { exigerSupabase } from "./lib/environnement.mjs"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 
@@ -59,6 +60,12 @@ const env = Object.fromEntries(
     .map((l) => l.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)$/)).filter(Boolean)
     .map((m) => [m[1], m[2].trim()])
 )
+
+// Avant toute conclusion : l'application lit-elle la vraie base ? Sinon
+// cette épreuve échouerait sur des données factices, et son verdict
+// parlerait de l'environnement en croyant parler du produit.
+exigerSupabase(env)
+
 
 const arg = process.argv.find((a) => a.startsWith("--url="))
 const BASE = (arg ? arg.slice(6) : "http://localhost:3000").replace(/\/+$/, "")

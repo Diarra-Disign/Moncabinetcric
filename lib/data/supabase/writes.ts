@@ -409,7 +409,7 @@ export async function updateFirmSettings(data: {
  */
 export async function convertLeadToClient(
   leadId: string
-): Promise<{ client: ClientRecord; alreadyConverted: boolean }> {
+): Promise<{ client: ClientRecord; alreadyConverted: boolean; questionnairesTransferes: number }> {
   const firmId = await currentFirmId()
   const supabase = await db()
 
@@ -431,7 +431,10 @@ export async function convertLeadToClient(
       .select("*")
       .eq("id", lead.converted_client_id)
       .maybeSingle()
-    if (existant) return { client: toClient(existant), alreadyConverted: true }
+    // Zéro, et non « inconnu » : le transfert a déjà eu lieu à la première
+    // conversion, il ne reste rien à déplacer. C'est ce qui rend le second
+    // clic sans conséquence de bout en bout.
+    if (existant) return { client: toClient(existant), alreadyConverted: true, questionnairesTransferes: 0 }
   }
 
   // Le numéro est calculé en base : deux conversions simultanées y
@@ -481,7 +484,46 @@ export async function convertLeadToClient(
     console.error("convertLeadToClient : client créé mais prospect non marqué —", markErr.message)
   }
 
-  return { client: toClient(created), alreadyConverted: false }
+  // Les questionnaires suivent leur destinataire.
+  //
+  // Sans ceci, ils restaient accrochés au lead_id. Le portail du nouveau
+  // client lit par client_id : il annonçait « Aucun questionnaire ne vous est
+  // attribué » à quelqu'un qui venait d'en remplir un, et le cabinet le lui
+  // redemandait.
+  //
+  // Un SEUL update, et les deux colonnes ensemble : la contrainte
+  // client_questionnaires_destinataire impose
+  // (client_id is not null) <> (lead_id is not null) — en deux temps, l'état
+  // intermédiaire est refusé par la base.
+  //
+  // Vider lead_id n'est pas qu'un ménage : la colonne est « on delete
+  // cascade ». La laisser garnie signifie qu'effacer le prospect plus tard
+  // détruirait le questionnaire rempli. Le détacher est ce qui le sauve.
+  //
+  // token_hash n'est pas touché : le lien déjà transmis continue de
+  // fonctionner. La personne qui remplit le formulaire n'a pas à savoir
+  // qu'elle a changé de statut dans notre base.
+  const { data: transferes, error: qErr } = await supabase
+    .from("client_questionnaires")
+    .update({ client_id: created.id, lead_id: null })
+    .eq("firm_id", firmId)
+    .eq("lead_id", lead.id)
+    .select("id")
+
+  // Même arbitrage que pour le marquage : le client est créé, on ne défait
+  // pas une conversion réussie. Mais le compte est RENDU à l'appelant plutôt
+  // que perdu dans un journal — une interface qui annonce « 2 questionnaires
+  // transférés » et n'en montre aucun est un défaut visible ; un échec
+  // silencieux ne l'est pas.
+  if (qErr) {
+    console.error("convertLeadToClient : client créé, questionnaires non transférés —", qErr.message)
+  }
+
+  return {
+    client: toClient(created),
+    alreadyConverted: false,
+    questionnairesTransferes: qErr ? 0 : (transferes?.length ?? 0),
+  }
 }
 
 /**

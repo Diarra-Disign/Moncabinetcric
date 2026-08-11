@@ -243,6 +243,67 @@ try {
   verifier("le questionnaire est soumis", soumis.status, "submitted")
 
   // -------------------------------------------------------------------------
+  console.log("\nLe prospect devient client — son questionnaire le suit")
+  // -------------------------------------------------------------------------
+  // Sans ce transfert, les réponses restaient accrochées au lead_id. Le
+  // portail du nouveau client lit par client_id : il annonçait « Aucun
+  // questionnaire ne vous est attribué » à quelqu'un qui venait d'en remplir
+  // un, et le cabinet le lui redemandait.
+  //
+  // Ce que ce bloc éprouve : que le déplacement soit LÉGAL au regard du
+  // schéma, et qu'il ne perde rien. Ce qu'il n'éprouve PAS : que le bouton de
+  // conversion l'appelle — ça se joue dans le navigateur, sur un écran dont
+  // la refonte est en cours.
+  const { data: avantTransfert } = await admin
+    .from("client_questionnaires").select("answers, status, token_hash").eq("id", envoi.id).single()
+
+  const { data: clientIssu, error: eClient } = await admin.from("clients").insert({
+    firm_id: cabinetA, name: "Awa Diallo", email: `awa-cli-${marque}@example.invalid`,
+    file_number: `DOS-CV-${String(marque).slice(-6)}`, program: "Permis d'études",
+    status: "active", client_type: "individual",
+  }).select("id").single()
+  if (eClient) throw new Error(`Client issu du prospect : ${eClient.message}`)
+
+  // Les DEUX colonnes dans le même UPDATE. La contrainte
+  // client_questionnaires_destinataire impose
+  // (client_id is not null) <> (lead_id is not null) : en deux temps, l'état
+  // intermédiaire est refusé par la base.
+  const { data: deplaces, error: eMove } = await cabinet
+    .from("client_questionnaires")
+    .update({ client_id: clientIssu.id, lead_id: null })
+    .eq("firm_id", cabinetA).eq("lead_id", prospect.id)
+    .select("id")
+  verifier("le transfert est accepté", eMove ? eMove.message : "ok", "ok")
+  verifier("il déplace le questionnaire rempli", (deplaces ?? []).length, 1)
+
+  const { data: apresTransfert } = await admin
+    .from("client_questionnaires").select("client_id, lead_id, answers, status, token_hash")
+    .eq("id", envoi.id).single()
+  verifier("il vise désormais le client", apresTransfert.client_id, clientIssu.id)
+  verifier("et plus le prospect", String(apresTransfert.lead_id), "null")
+
+  // Le contrôle qui compte : un transfert qui perdrait les réponses serait
+  // pire que pas de transfert du tout.
+  verifier("LES RÉPONSES SONT INTACTES",
+    JSON.stringify(apresTransfert.answers), JSON.stringify(avantTransfert.answers))
+  verifier("le statut ne recule pas", apresTransfert.status, avantTransfert.status)
+
+  // Le lien déjà transmis doit survivre : la personne qui remplit le
+  // formulaire n'a pas à savoir qu'elle a changé de statut dans notre base.
+  verifier("l'empreinte du jeton est inchangée", apresTransfert.token_hash, avantTransfert.token_hash)
+  const { data: ouvertApres, error: eOuvrirApres } = await anon.rpc("questionnaire_ouvrir", { p_token: j })
+  verifier("le lien déjà envoyé ouvre toujours", eOuvrirApres ? eOuvrirApres.message : "ok", "ok")
+  verifier("et sert les mêmes réponses",
+    JSON.stringify(ouvertApres?.answers ?? {}), JSON.stringify(avantTransfert.answers))
+
+  // Effacer le prospect ne doit plus emporter le questionnaire : lead_id est
+  // « on delete cascade », et c'est précisément pourquoi on le vide.
+  await admin.from("leads").delete().eq("id", prospect.id)
+  const { data: survivant } = await admin
+    .from("client_questionnaires").select("id").eq("id", envoi.id).maybeSingle()
+  verifier("effacer le prospect n'emporte plus ses réponses", survivant ? "conservé" : "PERDU", "conservé")
+
+  // -------------------------------------------------------------------------
   console.log("\nLe statut « expiré » se calcule, il ne se stocke pas")
   // -------------------------------------------------------------------------
   const { data: statuts } = await admin.rpc("questionnaire_status", {

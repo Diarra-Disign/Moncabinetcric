@@ -16,12 +16,19 @@ import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import { randomBytes } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
+import { exigerSupabase } from "./lib/environnement.mjs"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const env = Object.fromEntries(
   [...readFileSync(join(ROOT, ".env.local"), "utf8").matchAll(/^([A-Z0-9_]+)=(.*)$/gm)]
     .map((m) => [m[1], m[2].trim()])
 )
+
+// Avant toute conclusion : l'application lit-elle la vraie base ? Sinon
+// cette épreuve échouerait sur des données factices, et son verdict
+// parlerait de l'environnement en croyant parler du produit.
+exigerSupabase(env)
+
 
 const magasin = join(ROOT, "node_modules/.pnpm")
 const dossierPw = readdirSync(magasin).find((d) => /^playwright@/.test(d))
