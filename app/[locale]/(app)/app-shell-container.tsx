@@ -4,6 +4,7 @@ import * as React from "react"
 import { SidebarProvider, useSidebar } from "@/components/app-shell/sidebar-context"
 import { Sidebar } from "@/components/app-shell/sidebar"
 import { Topbar, SearchItem, TopbarMember } from "@/components/app-shell/topbar"
+import { BottomNav } from "@/components/app-shell/bottom-nav"
 import type { NotificationVue } from "@/components/app-shell/notifications-cloche"
 import { cn } from "@/lib/utils"
 
@@ -28,12 +29,13 @@ function AppShellBody({ searchDb, member, notifications = [], nonLues = 0, child
         )}
       >
         <Topbar searchDb={searchDb} member={member} notifications={notifications} nonLues={nonLues} />
-        <main className="flex-1 py-10">
+        <main className="flex-1 py-10 pb-24 lg:pb-10">
           <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {children}
           </div>
         </main>
       </div>
+      <BottomNav />
     </div>
   )
 }

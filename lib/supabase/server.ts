@@ -1,6 +1,7 @@
 import "server-only"
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "@/lib/supabase/database.types"
 
 /**
  * Client Supabase réservé au serveur.
@@ -17,9 +18,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js"
  * sera branché.
  */
 
-let cached: SupabaseClient | null = null
+let cached: SupabaseClient<Database> | null = null
 
-export function getServerSupabase(): SupabaseClient {
+export function getServerSupabase(): SupabaseClient<Database> {
   if (cached) return cached
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -33,7 +34,7 @@ export function getServerSupabase(): SupabaseClient {
     )
   }
 
-  cached = createClient(url, serviceKey, {
+  cached = createClient<Database>(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 
