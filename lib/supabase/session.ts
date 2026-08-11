@@ -3,7 +3,6 @@ import "server-only"
 import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { Database } from "@/lib/supabase/database.types"
 import { EMPTY_FIRM, mapFirmRow, type FirmIdentity, type FirmRow } from "@/lib/data/firm"
 
 /**
@@ -18,7 +17,7 @@ import { EMPTY_FIRM, mapFirmRow, type FirmIdentity, type FirmRow } from "@/lib/d
  * C'est la différence entre « l'application oublie de filtrer et tout
  * fuit » et « l'application oublie de filtrer et la base refuse ».
  */
-export async function getSessionSupabase(): Promise<SupabaseClient<Database>> {
+export async function getSessionSupabase(): Promise<SupabaseClient> {
   const cookieStore = await cookies()
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -31,7 +30,7 @@ export async function getSessionSupabase(): Promise<SupabaseClient<Database>> {
     )
   }
 
-  return createServerClient<Database>(url, anonKey, {
+  return createServerClient(url, anonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll()
