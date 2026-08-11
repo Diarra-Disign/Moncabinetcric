@@ -35,8 +35,11 @@ export function MobileNav() {
   // Le portail rend le tiroir immunisé : posé sous <body>, aucun ancêtre ne
   // peut plus le contenir, quel que soit l'effet qu'on ajoutera un jour à la
   // barre.
-  const [monte, setMonte] = React.useState(false)
-  React.useEffect(() => setMonte(true), [])
+  const monte = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  )
 
   // Ferme le tiroir à chaque changement de page
   const prevPathname = React.useRef(pathname)

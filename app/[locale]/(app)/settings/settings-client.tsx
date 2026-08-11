@@ -565,7 +565,7 @@ export function SettingsClient() {
           <div className="flex flex-col gap-5 animate-fadeIn">
             <div className="border-b border-border pb-3">
               <h3 className="text-lg font-black text-foreground">Matrice Fiscale & Numéros de Taxes Canadiennes</h3>
-              <p className="text-xs text-muted-foreground font-medium">Vos numéros d'inscription, vos taux et vos conditions — imprimés sur chaque facture et chaque reçu.</p>
+              <p className="text-xs text-muted-foreground font-medium">Vos numéros d&apos;inscription, vos taux et vos conditions — imprimés sur chaque facture et chaque reçu.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
