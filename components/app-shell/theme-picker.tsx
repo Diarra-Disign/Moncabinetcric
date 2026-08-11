@@ -43,7 +43,7 @@ export function ThemePicker() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200 text-xs font-black transition-all cursor-pointer shadow-2xs"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-muted hover:bg-muted/70 text-foreground border border-border text-xs font-black transition-all cursor-pointer shadow-2xs"
         title="Personnaliser les couleurs du Cabinet"
       >
         <Palette className="w-3.5 h-3.5 text-primary" />
@@ -51,77 +51,77 @@ export function ThemePicker() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-11 bg-white rounded-3xl border border-slate-200 shadow-2xl p-4 z-[150] animate-fadeIn w-64 ring-1 ring-slate-900/10 space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <span className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5"> Nuancier Exécutif
+        <div className="absolute right-0 top-11 bg-card rounded-3xl border border-border shadow-2xl p-4 z-[150] animate-fadeIn w-64 ring-1 ring-border space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-border">
+            <span className="text-xs font-black uppercase text-foreground flex items-center gap-1.5"> Nuancier Exécutif
             </span>
-            <span className="text-[10px] font-bold text-slate-400 font-mono">4 Modes</span>
+            <span className="text-[10px] font-bold text-muted-foreground font-mono">5 modes</span>
           </div>
 
           <div className="space-y-2">
             <button
               onClick={() => applyTheme("sapphire")}
               className={`w-full p-2.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                activeTheme === "sapphire" ? "bg-blue-50 border-blue-400 ring-2 ring-blue-500/20" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                activeTheme === "sapphire" ? "bg-primary/10 border-primary ring-2 ring-primary/20" : "bg-muted/40 border-border hover:bg-muted"
               }`}
             >
               <div className="flex items-center gap-2.5">
                 <span className="w-4 h-4 rounded-full bg-blue-600 border border-blue-400 shrink-0" />
-                <span className="text-xs font-black text-slate-900">Bleu Saphir CICC</span>
+                <span className="text-xs font-black text-foreground">Bleu Saphir CICC</span>
               </div>
-              {activeTheme === "sapphire" && <Check className="w-4 h-4 text-blue-600" />}
+              {activeTheme === "sapphire" && <Check className="w-4 h-4 text-primary" />}
             </button>
 
             <button
               onClick={() => applyTheme("emerald")}
               className={`w-full p-2.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                activeTheme === "emerald" ? "bg-emerald-50 border-emerald-400 ring-2 ring-emerald-500/20" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                activeTheme === "emerald" ? "bg-primary/10 border-primary ring-2 ring-primary/20" : "bg-muted/40 border-border hover:bg-muted"
               }`}
             >
               <div className="flex items-center gap-2.5">
                 <span className="w-4 h-4 rounded-full bg-emerald-600 border border-emerald-400 shrink-0" />
-                <span className="text-xs font-black text-slate-900">Émeraude Fiducie</span>
+                <span className="text-xs font-black text-foreground">Émeraude Fiducie</span>
               </div>
-              {activeTheme === "emerald" && <Check className="w-4 h-4 text-emerald-600" />}
+              {activeTheme === "emerald" && <Check className="w-4 h-4 text-primary" />}
             </button>
 
             <button
               onClick={() => applyTheme("amber")}
               className={`w-full p-2.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                activeTheme === "amber" ? "bg-amber-50 border-amber-400 ring-2 ring-amber-500/20" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                activeTheme === "amber" ? "bg-primary/10 border-primary ring-2 ring-primary/20" : "bg-muted/40 border-border hover:bg-muted"
               }`}
             >
               <div className="flex items-center gap-2.5">
                 <span className="w-4 h-4 rounded-full bg-amber-600 border border-amber-400 shrink-0" />
-                <span className="text-xs font-black text-slate-900">Ambre Prestige</span>
+                <span className="text-xs font-black text-foreground">Ambre Prestige</span>
               </div>
-              {activeTheme === "amber" && <Check className="w-4 h-4 text-amber-600" />}
+              {activeTheme === "amber" && <Check className="w-4 h-4 text-primary" />}
             </button>
 
             <button
               onClick={() => applyTheme("purple")}
               className={`w-full p-2.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                activeTheme === "purple" ? "bg-purple-50 border-purple-400 ring-2 ring-purple-500/20" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                activeTheme === "purple" ? "bg-primary/10 border-primary ring-2 ring-primary/20" : "bg-muted/40 border-border hover:bg-muted"
               }`}
             >
               <div className="flex items-center gap-2.5">
                 <span className="w-4 h-4 rounded-full bg-purple-600 border border-purple-400 shrink-0" />
-                <span className="text-xs font-black text-slate-900">Violet Exécutif</span>
+                <span className="text-xs font-black text-foreground">Violet Exécutif</span>
               </div>
-              {activeTheme === "purple" && <Check className="w-4 h-4 text-purple-600" />}
+              {activeTheme === "purple" && <Check className="w-4 h-4 text-primary" />}
             </button>
 
             <button
               onClick={() => applyTheme("midnight")}
               className={`w-full p-2.5 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                activeTheme === "midnight" ? "bg-slate-900 border-slate-700 text-white ring-2 ring-blue-500/20" : "bg-slate-900/90 text-white border-slate-800 hover:bg-slate-900"
+                activeTheme === "midnight" ? "bg-primary/10 border-primary ring-2 ring-primary/20" : "bg-muted/40 border-border hover:bg-muted"
               }`}
             >
               <div className="flex items-center gap-2.5">
                 <span className="w-4 h-4 rounded-full bg-blue-500 border border-blue-400 shrink-0" />
-                <span className="text-xs font-black text-white">Mode Nuit Calme 🌙</span>
+                <span className="text-xs font-black text-foreground">Mode Nuit Calme 🌙</span>
               </div>
-              {activeTheme === "midnight" && <Check className="w-4 h-4 text-blue-400" />}
+              {activeTheme === "midnight" && <Check className="w-4 h-4 text-primary" />}
             </button>
           </div>
         </div>
