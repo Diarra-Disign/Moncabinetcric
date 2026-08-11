@@ -450,10 +450,9 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
 
       </div>
 
-      {/* TABLEAU DES CLIENTS UI/UX PRO MAX (VUE ADAPTATIVE : TABLEAU DESKOUT / CARTES MOBILE) */}
+      {/* TABLEAU DES CLIENTS UI/UX PRO MAX (ENTÊTES NETTES EN TEXT-SLATE-800 FONT-BLACK & RACCOURCIS D'ACTIONS) */}
       <div className="bg-card rounded-3xl border border-border shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
-        {/* 🖥️ VUE ORDINATEUR (TABLEAU CLASSIQUE) */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead className="text-foreground uppercase font-black bg-muted/50 border-b border-border tracking-wider">
               <tr>
@@ -614,63 +613,6 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
               ))}
             </tbody>
           </table>
-        </div>
-
-        {/* 📱 VUE MOBILE (CARTES ACCESSIBLES ET FLUIDES SUR SMARTPHONE) */}
-        <div className="md:hidden divide-y divide-border">
-          {filteredClients.length === 0 && (
-            <div className="py-12 text-center text-muted-foreground italic text-xs">
-              Aucun client ne correspond à votre recherche.
-            </div>
-          )}
-          {filteredClients.map((client) => {
-            const ref = getMatterIdForClient(client.id)
-            return (
-              <div
-                key={client.id}
-                onClick={() => router.push(ref ? `/matters/${ref}` : "/matters")}
-                className="p-4 space-y-3 hover:bg-muted/50 transition-colors cursor-pointer active:bg-muted/80"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className={`h-10 w-10 rounded-xl text-background flex items-center justify-center font-black text-xs shadow-xs shrink-0 ${
-                      client.clientType === "employer"
-                        ? "bg-gradient-to-tr from-accent to-accent/60 text-accent-foreground"
-                        : "bg-primary text-primary-foreground font-bold"
-                    }`}>
-                      {client.clientType === "employer" ? <Building2 className="w-5 h-5" /> : getInitials(client.name)}
-                    </div>
-                    <div>
-                      <div className="text-sm font-black text-foreground flex items-center gap-1.5 flex-wrap">
-                        <span>{client.name}</span>
-                        {client.clientType === "employer" && (
-                          <span className="bg-accent/15 text-accent-strong border border-accent/40 font-mono text-[9px] font-extrabold px-1.5 py-0.5 rounded-full">
-                            B2B
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground font-mono font-medium">
-                        {client.fileNumber}
-                      </div>
-                    </div>
-                  </div>
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border shrink-0 ${
-                    client.status === "active"
-                      ? "bg-success/15 text-success-strong border-success/40"
-                      : "bg-warning/15 text-warning-strong border-warning/40"
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${client.status === "active" ? "bg-success" : "bg-warning"}`} />
-                    <span>{client.status === "active" ? "Actif" : "Consultation"}</span>
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-xs pt-2 border-t border-border/50 text-muted-foreground">
-                  <span className="font-semibold text-foreground truncate max-w-[55%]">{client.program}</span>
-                  <span className="font-mono text-[11px] truncate max-w-[40%]">{client.email}</span>
-                </div>
-              </div>
-            )
-          })}
         </div>
       </div>
 
