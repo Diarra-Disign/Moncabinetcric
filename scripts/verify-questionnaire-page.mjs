@@ -88,6 +88,38 @@ try {
   const jeton = randomBytes(32).toString("base64url")
   const empreinte = createHash("sha256").update(jeton).digest("hex")
 
+  // Un second envoi, portant UNE question de chaque type que l'éditeur offre.
+  //
+  // C'est le seul contrôle qui attrape un type qu'on accepte d'enregistrer et
+  // qu'on ne sait pas afficher. « checkbox » était exactement ce cas : présent
+  // dans l'union TypeScript, sans branche de rendu, il serait tombé dans le
+  // cas générique et se serait affiché en zone de texte libre.
+  const jetonTypes = randomBytes(32).toString("base64url")
+  const TYPES_ATTENDUS = [
+    { type: "text", labelFr: "Votre nom complet", controle: 'input[type="text"]' },
+    { type: "number", labelFr: "Nombre de personnes", controle: 'input[type="number"]' },
+    { type: "date", labelFr: "Date d'arrivée souhaitée", controle: 'input[type="date"]' },
+    { type: "select", labelFr: "Province visée", controle: "select" },
+    { type: "radio", labelFr: "Déjà refusé par IRCC ?", controle: "button" },
+    { type: "file", labelFr: "Passeport", controle: "p" },
+  ]
+  const { data: envoiTypes } = await admin.from("client_questionnaires").insert({
+    firm_id: cabinetId, lead_id: prospect.id, template_id: modele.id,
+    title: "Tous les types de question",
+    sections: [{ id: "types", titleFr: "Tous les types", titleEn: "Every type",
+      fields: TYPES_ATTENDUS.map((t, i) => ({
+        key: `q${i}`, labelFr: t.labelFr, labelEn: t.labelFr, type: t.type, required: false,
+        ...(t.type === "select" || t.type === "radio"
+          ? { options: [
+              { value: "oui", labelFr: "Oui", labelEn: "Yes" },
+              { value: "non", labelFr: "Non", labelEn: "No" },
+            ] }
+          : {}),
+      })) }],
+    status: "sent", sent_at: new Date().toISOString(),
+    token_hash: createHash("sha256").update(jetonTypes).digest("hex"),
+  }).select("id").single()
+
   const { data: envoi } = await admin.from("client_questionnaires").insert({
     firm_id: cabinetId, lead_id: prospect.id,
     template_id: modele.id, title: modele.title_fr,
@@ -150,6 +182,34 @@ try {
     verifier(`« ${section.titleFr.slice(0, 28)} »`, rendus, section.fields.length)
   }
   verifier("total des zones de réponse", totalRendus, attendus.length)
+
+  // ---------------------------------------------------------------------
+  console.log("\nChaque type de question offert par l'éditeur SAIT s'afficher")
+  // ---------------------------------------------------------------------
+  {
+    const pageTypes = await (await navigateur.newContext()).newPage()
+    await pageTypes.goto(`${BASE}/fr/q/${jetonTypes}`, { waitUntil: "domcontentloaded" })
+    await pageTypes.waitForSelector("h1", { timeout: 30000 })
+    await pageTypes.waitForTimeout(600)
+
+    for (const t of TYPES_ATTENDUS) {
+      const rendu = await pageTypes.evaluate((attendu) => {
+        const etiquette = [...document.querySelectorAll("label")]
+          .find((l) => (l.textContent ?? "").includes(attendu.labelFr))
+        if (!etiquette) return "AUCUNE ÉTIQUETTE"
+        const carte = etiquette.closest("div")
+        if (!carte) return "AUCUNE CARTE"
+        // Une zone de texte libre là où l'on attendait autre chose est le
+        // symptôme exact du type non rendu : on le nomme.
+        if (attendu.controle !== 'input[type="text"]' && carte.querySelector('input[type="text"]')) {
+          return "ZONE DE TEXTE LIBRE"
+        }
+        return carte.querySelector(attendu.controle) ? "ok" : "MANQUANT"
+      }, t)
+      verifier(`« ${t.type} » se rend correctement`, rendu, "ok")
+    }
+    await pageTypes.close()
+  }
 
   // ---------------------------------------------------------------------
   console.log("\nCe que le destinataire tape arrive en base")

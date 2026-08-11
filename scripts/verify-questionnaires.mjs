@@ -40,6 +40,14 @@ const session = async (courriel, mdp) => {
 }
 
 let echecs = 0
+/** Comparaison de structures indépendante de l'ordre des clés — jsonb le
+ *  réordonne, et cet ordre ne veut rien dire. */
+const canonique = (v) =>
+  Array.isArray(v) ? `[${v.map(canonique).join(",")}]`
+  : v && typeof v === "object"
+    ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonique(v[k])}`).join(",")}}`
+    : JSON.stringify(v)
+
 const verifier = (intitule, obtenu, attendu) => {
   const ok = String(obtenu) === String(attendu)
   if (!ok) echecs++
@@ -358,6 +366,56 @@ try {
 
   const { data: notifsTiers } = await tiers.from("notifications").select("id").eq("firm_id", cabinetA)
   verifier("ni ses notifications", (notifsTiers ?? []).length, 0)
+
+  // -------------------------------------------------------------------------
+  console.log("\nRemanier un modèle ne déplace pas le sol sous un envoi en cours")
+  // -------------------------------------------------------------------------
+  // La base le promet en toutes lettres sur la colonne sections : « Instantané
+  // du modèle au moment de l'envoi. » Personne ne l'avait encore éprouvé, faute
+  // de pouvoir modifier un modèle — c'est précisément ce que l'éditeur rend
+  // possible, donc ce qui met la promesse à l'épreuve pour la première fois.
+  const sectionsDorigine = [{ id: "s1", titleFr: "Vous", titleEn: "You", fields: [
+    { key: "prenom", labelFr: "Prénom", labelEn: "First name", type: "text", required: true },
+  ] }]
+
+  const { data: modeleCabinet, error: eMod } = await cabinet.from("questionnaire_templates").insert({
+    firm_id: cabinetA, slug: `edite-${marque}`,
+    title_fr: "Modèle du cabinet", title_en: "Firm template",
+    description_fr: "", description_en: "", message_fr: "", message_en: "",
+    sections: sectionsDorigine,
+  }).select("id").single()
+  verifier("le cabinet crée son propre modèle", eMod ? eMod.message : "ok", "ok")
+
+  const { data: envoiFige } = await cabinet.from("client_questionnaires").insert({
+    firm_id: cabinetA, client_id: clientIssu.id, template_id: modeleCabinet.id,
+    title: "Envoi figé", sections: sectionsDorigine, status: "sent",
+    sent_at: new Date().toISOString(), token_hash: jeton().h,
+  }).select("id").single()
+
+  // Le modèle est réécrit de fond en comble : la question d'origine disparaît.
+  const { error: eEdit } = await cabinet.from("questionnaire_templates")
+    .update({ sections: [{ id: "s9", titleFr: "Tout autre chose", titleEn: "Something else", fields: [
+      { key: "autre", labelFr: "Autre", labelEn: "Other", type: "text", required: false },
+    ] }] })
+    .eq("id", modeleCabinet.id)
+  verifier("le modèle du cabinet se modifie", eEdit ? eEdit.message : "ok", "ok")
+
+  const { data: apresEdition } = await admin
+    .from("client_questionnaires").select("sections").eq("id", envoiFige.id).single()
+  verifier("l'envoi déjà parti garde SES questions",
+    canonique(apresEdition.sections), canonique(sectionsDorigine))
+
+  const { data: modeleRelu } = await admin
+    .from("questionnaire_templates").select("sections").eq("id", modeleCabinet.id).single()
+  verifier("le modèle, lui, a bien changé", modeleRelu.sections[0].titleFr, "Tout autre chose")
+
+  // Et un cabinet tiers ne remanie pas le modèle d'un autre.
+  const { error: eEditTiers } = await tiers.from("questionnaire_templates")
+    .update({ sections: [] }).eq("id", modeleCabinet.id)
+  const { data: intact } = await admin
+    .from("questionnaire_templates").select("sections").eq("id", modeleCabinet.id).single()
+  verifier("un autre cabinet ne le remanie pas",
+    (eEditTiers || intact.sections.length > 0) ? "protégé" : "MODIFIÉ", "protégé")
 
   // -------------------------------------------------------------------------
   console.log("\nUn lien désactivé cesse d'ouvrir")

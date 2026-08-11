@@ -6,6 +6,7 @@ import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
 import { envoyerCourriel, envoiConfigure, adresseDeReponse } from "@/lib/email/send"
 import { siteUrl } from "@/lib/site-url"
 import { identiteCourriel } from "./questionnaires"
+import { verifierSections } from "./questionnaire-structure"
 
 /**
  * Actions de la bibliothèque de questionnaires.
@@ -524,11 +525,15 @@ export async function enregistrerModele(formData: FormData): Promise<Resultat> {
 
     let sections: unknown = []
     if (sectionsBrut) {
+      let analyse: unknown
       try {
-        sections = JSON.parse(sectionsBrut)
+        analyse = JSON.parse(sectionsBrut)
       } catch {
         return { ok: false, message: "La structure des sections est illisible." }
       }
+      const controle = verifierSections(analyse)
+      if (!controle.ok) return { ok: false, message: controle.message }
+      sections = controle.sections
     }
 
     if (id) {

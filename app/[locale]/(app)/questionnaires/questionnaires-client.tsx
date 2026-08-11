@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import {
   Send, Eye, Copy, Files, Star, Trash2, X, Search, Clock, CheckCircle2,
   AlertCircle, Link2, BellRing, CalendarClock, ShieldOff, Plus, Users,
+  ArrowUp, ArrowDown, Pencil,
 } from "lucide-react"
 import type { ClientQuestionnaire, QuestionnaireTemplateRecord } from "@/lib/data/types"
 import type { Destinataire } from "@/lib/data/questionnaires"
@@ -95,7 +96,8 @@ export function QuestionnairesClient({
   const [envoiPour, setEnvoiPour] = React.useState<QuestionnaireTemplateRecord | null>(null)
   const [reponsesDe, setReponsesDe] = React.useState<ClientQuestionnaire | null>(null)
   const [apercuDe, setApercuDe] = React.useState<QuestionnaireTemplateRecord | null>(null)
-  const [creation, setCreation] = React.useState(false)
+  // null : fermé. « nouveau » : création. Un modèle : modification.
+  const [edition, setEdition] = React.useState<QuestionnaireTemplateRecord | "nouveau" | null>(null)
   const [filtre, setFiltre] = React.useState<string>("tous")
   const [rappelPour, setRappelPour] = React.useState<ClientQuestionnaire | null>(null)
 
@@ -121,7 +123,7 @@ export function QuestionnairesClient({
         </div>
         <button
           type="button"
-          onClick={() => setCreation(true)}
+          onClick={() => setEdition("nouveau")}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 transition-colors cursor-pointer"
         >
           <Plus className="h-4 w-4" /> Créer un questionnaire
@@ -245,6 +247,13 @@ export function QuestionnairesClient({
                     clic. */}
                 {m.firmId && (
                   <>
+                    <button
+                      type="button"
+                      onClick={() => setEdition(m)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted transition-colors cursor-pointer text-foreground"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Modifier
+                    </button>
                     <button
                       type="button"
                       disabled={enCours || m.isDefaultPreconsultation}
@@ -491,15 +500,19 @@ export function QuestionnairesClient({
         />
       )}
 
-      {creation && (
-        <ModaleCreation
+      {edition && (
+        <ModaleEditeur
+          modele={edition === "nouveau" ? undefined : edition}
           locale={locale}
           enCours={enCours}
-          onFermer={() => setCreation(false)}
+          onFermer={() => setEdition(null)}
           onEnregistrer={(fd) => {
             agir(async () => {
               const r = await enregistrerModele(fd)
-              if (r.ok) setCreation(false)
+              // On ne ferme QUE si l'enregistrement a réussi : refermer sur un
+              // refus renverrait l'utilisateur à sa liste en lui faisant perdre
+              // la saisie qu'on vient justement de lui demander de corriger.
+              if (r.ok) setEdition(null)
               return r
             })
           }}
@@ -910,57 +923,315 @@ function ModaleReponses({
 // Créer
 // ---------------------------------------------------------------------------
 
-function ModaleCreation({
-  locale, enCours, onFermer, onEnregistrer,
+/**
+ * L'éditeur de questionnaire — création ET modification.
+ *
+ * Une seule fenêtre pour les deux gestes : deux écrans finiraient par
+ * diverger, et c'est celui qu'on ouvre le moins souvent qui perdrait une
+ * validation.
+ *
+ * Ce qu'il produit est EXACTEMENT la forme que la base stocke et que le
+ * formulaire public lit (FormSection / FormField). Pas de forme intermédiaire
+ * à traduire dans les deux sens : une traduction, c'est un endroit où perdre
+ * un repeater.
+ */
+
+/** Un identifiant lisible, tiré du libellé. C'est sous cette clé que la
+ *  réponse du client sera rangée. */
+function cleDepuis(libelle: string, prises: Set<string>): string {
+  const base = libelle
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40) || "question"
+  if (!prises.has(base)) return base
+  for (let n = 2; n < 500; n++) if (!prises.has(`${base}_${n}`)) return `${base}_${n}`
+  return `${base}_${Date.now()}`
+}
+
+const TYPES_OFFERTS: { valeur: SectionEditable["fields"][number]["type"]; libelle: string }[] = [
+  { valeur: "text", libelle: "Texte" },
+  { valeur: "number", libelle: "Nombre" },
+  { valeur: "date", libelle: "Date" },
+  { valeur: "select", libelle: "Liste déroulante" },
+  { valeur: "radio", libelle: "Choix unique" },
+  { valeur: "file", libelle: "Document" },
+]
+
+interface ChampEditable {
+  key: string
+  labelFr: string
+  labelEn: string
+  type: "text" | "number" | "date" | "select" | "checkbox" | "radio" | "file" | "repeater"
+  required: boolean
+  options?: { value: string; labelFr: string; labelEn: string }[]
+  fields?: ChampEditable[]
+  instructionsFr?: string
+  instructionsEn?: string
+}
+
+interface SectionEditable {
+  id: string
+  titleFr: string
+  titleEn: string
+  fields: ChampEditable[]
+}
+
+function ModaleEditeur({
+  modele, locale, enCours, onFermer, onEnregistrer,
 }: {
+  /** Absent : création. Présent : modification d'un modèle du cabinet. */
+  modele?: QuestionnaireTemplateRecord
   locale: string
   enCours: boolean
   onFermer: () => void
   onEnregistrer: (fd: FormData) => void
 }) {
-  const [titre, setTitre] = React.useState("")
-  const [description, setDescription] = React.useState("")
+  const [titre, setTitre] = React.useState(modele?.titleFr ?? "")
+  const [description, setDescription] = React.useState(modele?.descriptionFr ?? "")
   const [message, setMessage] = React.useState(
+    modele?.messageFr ??
     "Bonjour [Prénom],\n\nNous vous invitons à remplir le questionnaire suivant.\n\nMerci de fournir des informations aussi précises que possible."
   )
+  const [sections, setSections] = React.useState<SectionEditable[]>(
+    () => JSON.parse(JSON.stringify(modele?.sections ?? [])) as SectionEditable[]
+  )
+
+  /** Toutes les clés déjà employées, pour n'en engendrer aucune en double. */
+  const clesPrises = React.useMemo(
+    () => new Set(sections.flatMap((s) => s.fields.map((f) => f.key))),
+    [sections]
+  )
+
+  const majSection = (i: number, modif: Partial<SectionEditable>) =>
+    setSections((prec) => prec.map((s, k) => (k === i ? { ...s, ...modif } : s)))
+
+  const majChamp = (iS: number, iC: number, modif: Partial<ChampEditable>) =>
+    setSections((prec) => prec.map((s, k) => k !== iS ? s : {
+      ...s, fields: s.fields.map((f, j) => (j === iC ? { ...f, ...modif } : f)),
+    }))
+
+  const deplacer = <T,>(liste: T[], de: number, vers: number): T[] => {
+    if (vers < 0 || vers >= liste.length) return liste
+    const copie = [...liste]
+    const [pris] = copie.splice(de, 1)
+    copie.splice(vers, 0, pris)
+    return copie
+  }
+
+  const ajouterSection = () =>
+    setSections((prec) => [...prec, {
+      id: `s_${Date.now()}`, titleFr: "Nouvelle section", titleEn: "Nouvelle section", fields: [],
+    }])
+
+  const ajouterChamp = (iS: number) =>
+    setSections((prec) => prec.map((s, k) => {
+      if (k !== iS) return s
+      const libelle = "Nouvelle question"
+      return { ...s, fields: [...s.fields, {
+        key: cleDepuis(libelle, clesPrises), labelFr: libelle, labelEn: libelle,
+        type: "text" as const, required: false,
+      }] }
+    }))
+
+  /** Le libellé engendre la clé TANT QUE la question n'est pas figée par un
+   *  envoi. On la recalcule donc à chaque frappe — mais jamais sur un champ
+   *  qu'on n'a pas créé ici, dont la clé sert peut-être déjà à ranger des
+   *  réponses dans un envoi passé. */
+  const renommerChamp = (iS: number, iC: number, libelle: string) => {
+    setSections((prec) => prec.map((s, k) => k !== iS ? s : {
+      ...s,
+      fields: s.fields.map((f, j) => {
+        if (j !== iC) return f
+        const autres = new Set(
+          prec.flatMap((sec, ks) => sec.fields.filter((_, jf) => !(ks === iS && jf === iC)).map((c) => c.key))
+        )
+        return { ...f, labelFr: libelle, labelEn: libelle, key: cleDepuis(libelle, autres) }
+      }),
+    }))
+  }
+
+  const nbQuestions = sections.reduce((n, s) => n + s.fields.length, 0)
+  const repeaters = sections.reduce((n, s) => n + s.fields.filter((f) => f.type === "repeater").length, 0)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-card w-full max-w-xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">
+      <div className="bg-card w-full max-w-3xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[92vh]">
         <header className="p-5 border-b border-border flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-black text-foreground">Créer un questionnaire</h2>
+            <h2 className="text-base font-black text-foreground">
+              {modele ? "Modifier le questionnaire" : "Créer un questionnaire"}
+            </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Il rejoint votre bibliothèque. Pour partir d&apos;un questionnaire existant, dupliquez-le plutôt.
+              {nbQuestions} question{nbQuestions > 1 ? "s" : ""} · {sections.length} section{sections.length > 1 ? "s" : ""}
+              {modele ? " · les envois déjà partis ne changent pas" : " · il rejoint votre bibliothèque"}
             </p>
           </div>
-          <button type="button" onClick={onFermer} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer">
+          <button type="button" onClick={onFermer} aria-label="Fermer"
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer">
             <X className="h-5 w-5" />
           </button>
         </header>
 
-        <div className="p-5 space-y-4 overflow-y-auto flex-1">
-          <label className="block">
-            <span className="text-[11px] font-bold text-muted-foreground">Titre</span>
-            <input value={titre} onChange={(e) => setTitre(e.target.value)} className={cn(CHAMP, "mt-1")} placeholder="Questionnaire — Préconsultation étudiants" />
-          </label>
-          <label className="block">
-            <span className="text-[11px] font-bold text-muted-foreground">Description</span>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={cn(CHAMP, "mt-1 resize-y")} />
-          </label>
-          <label className="block">
-            <span className="text-[11px] font-bold text-muted-foreground">Message d&apos;accompagnement par défaut</span>
-            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} className={cn(CHAMP, "mt-1 resize-y")} />
-          </label>
-          <p className="rounded-xl border border-border bg-muted/40 p-3 text-[11px] text-muted-foreground">
-            Ce questionnaire naîtra <strong>sans questions</strong>. Pour en obtenir un déjà rempli de
-            sections, dupliquez un modèle existant : c&apos;est plus rapide que de tout ressaisir, et
-            les libellés officiels restent alors ceux qui ont déjà servi.
-          </p>
+        <div className="p-5 space-y-5 overflow-y-auto flex-1">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block sm:col-span-2">
+              <span className="text-[11px] font-bold text-muted-foreground">Titre</span>
+              <input value={titre} onChange={(e) => setTitre(e.target.value)} className={cn(CHAMP, "mt-1")}
+                placeholder="Questionnaire — Préconsultation étudiants" />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-[11px] font-bold text-muted-foreground">Description</span>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
+                className={cn(CHAMP, "mt-1 resize-y")} />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="text-[11px] font-bold text-muted-foreground">Message d&apos;accompagnement par défaut</span>
+              <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3}
+                className={cn(CHAMP, "mt-1 resize-y")} />
+            </label>
+          </div>
+
+          <div className="border-t border-border pt-4 space-y-4">
+            {sections.length === 0 && (
+              <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+                Aucune question pour l&apos;instant. Ajoutez une section pour commencer — ou fermez et
+                <strong> dupliquez</strong> un questionnaire existant, ce qui est plus rapide que de tout ressaisir.
+              </p>
+            )}
+
+            {sections.map((s, iS) => (
+              <section key={s.id} className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    value={s.titleFr}
+                    onChange={(e) => majSection(iS, { titleFr: e.target.value, titleEn: e.target.value })}
+                    className={cn(CHAMP, "font-black")}
+                    placeholder="Titre de la section"
+                  />
+                  <button type="button" aria-label="Monter la section" disabled={iS === 0}
+                    onClick={() => setSections((p) => deplacer(p, iS, iS - 1))}
+                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground disabled:opacity-30 cursor-pointer">
+                    <ArrowUp className="h-4 w-4" />
+                  </button>
+                  <button type="button" aria-label="Descendre la section" disabled={iS === sections.length - 1}
+                    onClick={() => setSections((p) => deplacer(p, iS, iS + 1))}
+                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground disabled:opacity-30 cursor-pointer">
+                    <ArrowDown className="h-4 w-4" />
+                  </button>
+                  <button type="button" aria-label="Retirer la section"
+                    onClick={() => setSections((p) => p.filter((_, k) => k !== iS))}
+                    className="p-1.5 rounded-lg hover:bg-error/10 hover:text-error text-muted-foreground cursor-pointer">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <ul className="space-y-2">
+                  {s.fields.map((f, iC) => (
+                    <li key={iC} className="rounded-xl border border-border bg-card p-3 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          value={f.labelFr}
+                          onChange={(e) => renommerChamp(iS, iC, e.target.value)}
+                          className={cn(CHAMP, "flex-1 min-w-[12rem]")}
+                          placeholder="Avez-vous déjà essuyé un refus de visa canadien ?"
+                        />
+                        {f.type === "repeater" ? (
+                          // Conservé tel quel : l'éditeur sait le déplacer et le
+                          // retirer, pas le composer. Le taire l'aurait fait
+                          // disparaître au premier enregistrement.
+                          <span className="rounded-lg bg-muted px-2.5 py-1.5 text-[11px] font-bold text-foreground/75">
+                            Liste répétable ({f.fields?.length ?? 0} champs)
+                          </span>
+                        ) : (
+                          <select
+                            value={f.type}
+                            onChange={(e) => majChamp(iS, iC, {
+                              type: e.target.value as ChampEditable["type"],
+                              options: (e.target.value === "select" || e.target.value === "radio")
+                                ? (f.options?.length ? f.options : [
+                                    { value: "oui", labelFr: "Oui", labelEn: "Yes" },
+                                    { value: "non", labelFr: "Non", labelEn: "No" },
+                                  ])
+                                : undefined,
+                            })}
+                            className={cn(CHAMP, "w-40")}
+                          >
+                            {TYPES_OFFERTS.map((t) => (
+                              <option key={t.valeur} value={t.valeur}>{t.libelle}</option>
+                            ))}
+                          </select>
+                        )}
+                        <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-foreground cursor-pointer">
+                          <input type="checkbox" checked={f.required}
+                            onChange={(e) => majChamp(iS, iC, { required: e.target.checked })} />
+                          Obligatoire
+                        </label>
+                        <button type="button" aria-label="Monter la question" disabled={iC === 0}
+                          onClick={() => majSection(iS, { fields: deplacer(s.fields, iC, iC - 1) })}
+                          className="p-1 rounded-lg hover:bg-muted text-muted-foreground disabled:opacity-30 cursor-pointer">
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button type="button" aria-label="Descendre la question" disabled={iC === s.fields.length - 1}
+                          onClick={() => majSection(iS, { fields: deplacer(s.fields, iC, iC + 1) })}
+                          className="p-1 rounded-lg hover:bg-muted text-muted-foreground disabled:opacity-30 cursor-pointer">
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </button>
+                        <button type="button" aria-label="Retirer la question"
+                          onClick={() => majSection(iS, { fields: s.fields.filter((_, j) => j !== iC) })}
+                          className="p-1 rounded-lg hover:bg-error/10 hover:text-error text-muted-foreground cursor-pointer">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {(f.type === "select" || f.type === "radio") && (
+                        <input
+                          value={(f.options ?? []).map((o) => o.labelFr).join(", ")}
+                          onChange={(e) => {
+                            const libelles = e.target.value.split(",").map((v) => v.trim()).filter(Boolean)
+                            majChamp(iS, iC, {
+                              options: libelles.map((l) => ({
+                                value: cleDepuis(l, new Set()), labelFr: l, labelEn: l,
+                              })),
+                            })
+                          }}
+                          className={cn(CHAMP, "text-[11px]")}
+                          placeholder="Choix séparés par des virgules — Oui, Non, Je ne sais pas"
+                        />
+                      )}
+
+                      <p className="text-[10px] text-muted-foreground font-mono">clé : {f.key}</p>
+                    </li>
+                  ))}
+                </ul>
+
+                <button type="button" onClick={() => ajouterChamp(iS)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-[11px] hover:bg-muted cursor-pointer text-foreground">
+                  <Plus className="h-3.5 w-3.5" /> Ajouter une question
+                </button>
+              </section>
+            ))}
+
+            <button type="button" onClick={ajouterSection}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border font-bold text-xs hover:bg-muted cursor-pointer text-foreground">
+              <Plus className="h-4 w-4" /> Ajouter une section
+            </button>
+          </div>
+
+          {repeaters > 0 && (
+            <p className="rounded-xl border border-border bg-muted/40 p-3 text-[11px] text-muted-foreground">
+              Ce questionnaire contient {repeaters} liste{repeaters > 1 ? "s" : ""} répétable{repeaters > 1 ? "s" : ""} —
+              emplois, études. Elles se déplacent et se retirent ici, mais se composent ailleurs :
+              elles sont <strong>conservées telles quelles</strong> à l&apos;enregistrement.
+            </p>
+          )}
         </div>
 
         <footer className="p-5 border-t border-border flex items-center justify-end gap-2">
-          <button type="button" onClick={onFermer} className="px-4 py-2 rounded-xl border border-border font-bold text-xs hover:bg-muted cursor-pointer text-foreground">
+          <button type="button" onClick={onFermer}
+            className="px-4 py-2 rounded-xl border border-border font-bold text-xs hover:bg-muted cursor-pointer text-foreground">
             Annuler
           </button>
           <button
@@ -968,15 +1239,17 @@ function ModaleCreation({
             disabled={!titre.trim() || enCours}
             onClick={() => {
               const fd = new FormData()
+              if (modele) fd.set("id", modele.id)
               fd.set("titreFr", titre)
               fd.set("descriptionFr", description)
               fd.set("messageFr", message)
+              fd.set("sections", JSON.stringify(sections))
               fd.set("locale", locale)
               onEnregistrer(fd)
             }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 disabled:opacity-40 cursor-pointer"
           >
-            <Link2 className="h-4 w-4" /> Créer
+            <CheckCircle2 className="h-4 w-4" /> {modele ? "Enregistrer" : "Créer"}
           </button>
         </footer>
       </div>
