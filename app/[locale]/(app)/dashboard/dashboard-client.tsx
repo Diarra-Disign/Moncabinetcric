@@ -3,6 +3,12 @@
 import * as React from "react"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { cn } from "@/lib/utils"
+import { DossiersRecents } from "@/components/dashboard/dossiers-recents"
+// « import type » est effacé à la compilation : rien n'est requis à
+// l'exécution, et le module « server-only » d'origine ne suit pas dans le
+// paquet du navigateur.
+import type { PageDossiersRecents } from "@/lib/data/dossiers-recents-criteres"
+import type { ResultatRecherche } from "@/lib/data/recherche"
 import { 
   FolderOpen, 
   AlertCircle, 
@@ -46,7 +52,6 @@ interface SearchItem {
 
 // Vidée : elle contenait les clients et documents d'un cabinet fictif,
 // qui remontaient dans la recherche globale d'un cabinet réel.
-const SEARCH_DATABASE: SearchItem[] = []
 
 export interface DashboardCounts {
   activeMatters: number
@@ -111,12 +116,18 @@ export function DashboardClient({
   t, 
   deadlines = [], 
   complianceScore,
-  counts = { activeMatters: 0, verifiedDocuments: 0, totalDocuments: 0 }
+  counts = { activeMatters: 0, verifiedDocuments: 0, totalDocuments: 0 },
+  dossiersRecents = { dossiers: [], total: 0 },
+  indexRecherche = [],
+  repartition = [],
 }: { 
   t: DashboardLabels
   deadlines?: DeadlineRecord[]
   complianceScore?: CiccComplianceScore
   counts?: DashboardCounts
+  dossiersRecents?: PageDossiersRecents
+  indexRecherche?: ResultatRecherche[]
+  repartition?: { programme: string; nombre: number; pourcentage: number }[]
 }) {
   const firm = useFirm()
   const router = useRouter()
@@ -201,10 +212,15 @@ export function DashboardClient({
 
   const criticalDeadlines = deadlines.filter(d => d.severity === "critical" && d.status === "open")
 
-  const filteredSearch = searchQuery.trim() === "" ? [] : SEARCH_DATABASE.filter(item =>
+  // L'index vient du serveur, et c'est le MÊME que celui de la barre du haut.
+  // Le tableau de bord en tenait un second, « const SEARCH_DATABASE = [] », qui
+  // répondait « aucun résultat » quoi qu'on tape — un champ de recherche cassé
+  // pour l'utilisateur. Deux listes pour la même question : la seconde pouvait
+  // se vider sans que la première le dise.
+  const filteredSearch = searchQuery.trim() === "" ? [] : indexRecherche.filter(item =>
     item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.subtitle.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  ).slice(0, 8)
 
   // Close search dropdown on click outside
   React.useEffect(() => {
@@ -585,61 +601,55 @@ export function DashboardClient({
       {widgetsState.trustFinance && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch animate-fadeIn">
           
-          {/* GRAPH D'AVANCEMENT & RÉPARTITION DES PROGRAMMES IRCC */}
-          <div className="lg:col-span-2 bg-card rounded-3xl border border-border shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 flex flex-col justify-between gap-5">
-            <div className="flex items-center justify-between border-b border-border pb-4">
-              <div>
-                <h3 className="font-black text-base text-foreground flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-primary-strong" />
-                  <span>Répartition des Mandats & Solde Fidéicommis (Art. 13)</span>
-                </h3>
-                <p className="text-xs text-muted-foreground font-medium mt-0.5">Ventilation des dossiers actifs et honoraires en fiducie</p>
-              </div>
-              <span className="text-xs font-black text-foreground bg-primary/10 border border-primary/30 px-3 py-1 rounded-full font-mono">
-                $42,500 CAD Fidéicommis
-              </span>
+          {/* RÉPARTITION DES PROGRAMMES — comptée, non figée.
+              Elle annonçait « 25 dossiers (55%) » avec des barres à 55/27/18
+              pour tout cabinet, y compris celui qui n'a aucun dossier. Et un
+              solde de fidéicommis de « $42,500 CAD » qui ne venait d'aucun
+              compte : sur une donnée fiduciaire, l'invention n'est pas une
+              maquette, c'est une erreur comptable affichée. */}
+          <div className="lg:col-span-2 bg-card rounded-3xl border border-border shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 flex flex-col gap-5">
+            <div className="border-b border-border pb-4">
+              <h3 className="font-black text-base text-foreground flex items-center gap-2">
+                <Activity className="w-5 h-5 text-primary-strong" />
+                <span>Répartition de vos dossiers</span>
+              </h3>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">
+                {repartition.length === 0
+                  ? "Aucun dossier ouvert pour le moment"
+                  : `Par programme, sur ${repartition.reduce((n, r) => n + r.nombre, 0)} dossiers`}
+              </p>
             </div>
 
-            <div className="flex flex-col gap-4 text-xs font-bold">
-              <div>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-foreground font-black flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-primary-strong" />
-                    <span>Résidence Permanente (PEQ & Entrée Express)</span>
-                  </span>
-                  <span className="font-mono font-black text-primary-strong">25 dossiers (55%)</span>
-                </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-primary to-primary rounded-full w-[55%]" />
-                </div>
+            {repartition.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
+                <p className="text-xs font-bold text-muted-foreground">Rien à répartir pour l&apos;instant</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  La ventilation par programme apparaîtra dès votre premier dossier.
+                </p>
               </div>
-
-              <div>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-foreground font-black flex items-center gap-1.5">
-                    <Briefcase className="w-4 h-4 text-primary-strong" />
-                    <span>Permis de Travail & EIMT B2B (Outaouais & Montréal)</span>
-                  </span>
-                  <span className="font-mono font-black text-primary-strong">12 dossiers (27%)</span>
-                </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-primary to-primary rounded-full w-[27%]" />
-                </div>
+            ) : (
+              <div className="flex flex-col gap-4 text-xs font-bold">
+                {repartition.map((r) => (
+                  <div key={r.programme}>
+                    <div className="flex justify-between gap-3 mb-1.5">
+                      <span className="text-foreground font-black flex items-center gap-1.5 min-w-0">
+                        <Award className="w-4 h-4 text-primary-strong shrink-0" />
+                        <span className="truncate">{r.programme}</span>
+                      </span>
+                      <span className="font-mono font-black text-primary-strong shrink-0">
+                        {r.nombre} dossier{r.nombre > 1 ? "s" : ""} ({r.pourcentage} %)
+                      </span>
+                    </div>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                      {/* La largeur vient de la donnée : une valeur calculée ne
+                          peut pas s'écrire en classe Tailwind, qui est statique. */}
+                      <div className="h-full bg-primary rounded-full transition-all"
+                        style={{ width: `${Math.max(r.pourcentage, 2)}%` }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <div>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-foreground font-black flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-success-strong" />
-                    <span>Permis d&apos;Études & CAQ Québec</span>
-                  </span>
-                  <span className="font-mono font-black text-success-strong">8 dossiers (18%)</span>
-                </div>
-                <div className="h-3 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-success to-success rounded-full w-[18%]" />
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* RACCOURCIS DE PRODUCTIVITÉ EN 1-CLIC */}
@@ -709,7 +719,7 @@ export function DashboardClient({
               </div>
               <div>
                 <h3 className="font-black text-base text-foreground">Agenda & Consultations du Jour</h3>
-                <p className="text-xs text-muted-foreground font-medium">3 rendez-vous confirmés et synchronisés</p>
+                <p className="text-xs text-muted-foreground font-medium">Vos rencontres du jour</p>
               </div>
             </div>
             <Link href="/calendar">
@@ -736,108 +746,11 @@ export function DashboardClient({
       {widgetsState.mattersList && (
         <div className="grid gap-6 lg:grid-cols-7 items-start animate-fadeIn">
           
-          {/* TABLEAU DES DOSSIERS PRIORITAIRES (COLONNE 4/7) */}
-          <div className="lg:col-span-4 bg-card rounded-3xl border border-border shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
-            <div className="p-6 border-b border-border flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-black text-foreground">{t.recentDocsTitle}</h2>
-                <p className="text-xs font-semibold text-muted-foreground mt-0.5">{t.recentDocsDesc}</p>
-              </div>
-              <Link href="/matters">
-                <button type="button" className="text-xs font-extrabold text-primary-strong hover:text-primary-strong flex items-center gap-1 cursor-pointer">
-                  <span>Voir tout</span>
-                  <ArrowUpRight className="w-3.5 h-3.5" />
-                </button>
-              </Link>
-            </div>
-
-            <div className="divide-y divide-border">
-              {/* Cette liste était écrite en dur : quatre documents appartenant
-                  à des clients fictifs, affichés sur un cabinet réel dont le
-                  coffre est vide. Vidée jusqu'à ce qu'elle soit alimentée par
-                  les documents du cabinet. */}
-              {([] as {
-                id: string
-                type: string
-                time: string
-                status: string
-                client: string
-                href: string
-                badge: string
-              }[]).map((item, idx) => (
-                <div 
-                  key={idx} 
-                  onClick={() => router.push(item.href as Parameters<typeof router.push>[0])}
-                  className="p-5 flex items-center justify-between hover:bg-muted/60 transition-colors cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <div className="h-10 w-10 rounded-2xl bg-primary/10 text-primary-strong flex items-center justify-center font-bold text-xs shrink-0 group-hover:scale-110 transition-transform">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-black text-foreground group-hover:text-primary-strong transition-colors">{item.id}</div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                        <span className="font-bold text-foreground">{item.client}</span>
-                        <span>•</span>
-                        <span>{item.type}</span>
-                        <span>•</span>
-                        <span>{item.time}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <span className={`px-3 py-1 rounded-full text-xs font-black border ${item.badge}`}>
-                    {item.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* CARTE STOCKAGE CHIFFRÉ & JOURNAL D'AUDIT (COLONNE 3/7) */}
-          <div className="lg:col-span-3 bg-foreground text-background rounded-3xl p-6 sm:p-8 shadow-xl border border-primary/25 relative overflow-hidden flex flex-col justify-between min-h-[380px]">
-            
-            <div className="pointer-events-none absolute -bottom-20 -right-20 w-60 h-60 rounded-full bg-primary/20 blur-3xl" />
-
-            <div>
-              <div className="flex items-center justify-between pb-4 border-b border-background/15">
-                <div className="flex items-center gap-2.5">
-                  <Database className="w-5 h-5 text-background/80" />
-                  <h3 className="text-base font-black tracking-tight text-background">{t.storageTitle}</h3>
-                </div>
-                <span className="text-[11px] font-bold font-mono bg-background/15 text-background/80 px-2.5 py-0.5 rounded-full uppercase">
-                  AES-256
-                </span>
-              </div>
-
-              {/* Jauge Circulaire Visuelle */}
-              <div className="flex flex-col items-center justify-center py-8">
-                <div className="relative flex h-36 w-36 items-center justify-center rounded-full border-8 border-background/15 shadow-inner">
-                  <div className="absolute inset-0 rounded-full border-8 border-success/50 border-t-transparent border-r-transparent transform -rotate-45" />
-                  <div className="flex flex-col items-center">
-                    <span className="text-4xl font-black text-background tracking-tight">25%</span>
-                    <span className="text-[11px] font-bold text-background/80 uppercase tracking-widest mt-0.5">Utilisé</span>
-                  </div>
-                </div>
-                <p className="text-sm font-bold text-background/90 mt-4">
-                  124 GB / 500 GB Sécurisés CICC
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-background/10 rounded-2xl p-4 backdrop-blur-md border border-background/15 flex items-center justify-between text-xs font-bold text-background/90">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-success" />
-                <span>Horodatage Infalsifiable Actif</span>
-              </div>
-              {/* Ce libellé vit sur une surface INVERSÉE, dont la polarité change
-                  avec le thème. Aucune des deux variantes du vert ne peut être
-                  juste dans les deux cas : il en faudrait une troisième, pour un
-                  seul mot. « Valide » porte déjà le sens ; il prend donc la
-                  couleur de sa surface, qui s'inverse avec elle. */}
-              <span className="text-background font-extrabold">100% Valide</span>
-            </div>
-
+          {/* DOSSIERS RÉCENTS — filtres, tri et recherche, filtrés EN BASE.
+              Remplace une boucle sur un tableau vide écrit en dur, qui n'a
+              jamais rien affiché pour aucun cabinet. */}
+          <div className="lg:col-span-7">
+            <DossiersRecents initial={dossiersRecents} />
           </div>
 
         </div>
