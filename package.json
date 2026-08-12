@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/data/__tests__/*.test.ts",
+    "test": "tsx --test lib/data/__tests__/*.test.ts lib/ententes/__tests__/*.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
