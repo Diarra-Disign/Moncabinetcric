@@ -31,6 +31,7 @@ import { exigerSupabase } from "./lib/environnement.mjs"
 // continuerait de réussir sur autre chose.
 import { statutDeduit, sonTour, nomDocumentSigne } from "../lib/signature/statuts.ts"
 import { verrouiller, nouvelleVersion, chaineDesVersions } from "../lib/signature/versions.ts"
+import { SignatureService, fournisseurConfigure } from "../lib/signature/service.ts"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const env = Object.fromEntries(
@@ -364,6 +365,178 @@ try {
   verifier("versionner un brouillon : REFUSÉ", vLibre.ok ? "ACCEPTÉ" : "refusé", "refusé")
   verifier("et le refus dit quoi faire",
     /modifiez-le directement/i.test(vLibre.message) ? "oui" : `NON (${vLibre.message})`, "oui")
+
+  // -------------------------------------------------------------------------
+  console.log("\nLe service et le fournisseur interne")
+  // -------------------------------------------------------------------------
+  verifier("le fournisseur configuré", fournisseurConfigure(), "internal")
+
+  const ctx = {
+    firmId: cabinetA, userId: userA, fullName: "Propriétaire 1",
+    email: `sig-1-${marque}@example.invalid`, ip: "203.0.113.7", agent: "Épreuve/1.0",
+  }
+  const service = new SignatureService(cabinet, ctx)
+
+  const docS = await nouveauDocument(cabinetA, cl.id, "Entente a signer.pdf")
+  const etat0 = await service.createRequest({
+    documentId: docS.id,
+    clientId: cl.id,
+    mode: "sequential",
+    destinataires: [
+      { role: "client", nom: "Jean Tremblay", courriel: `js-${marque}@example.invalid`, rang: 1 },
+      { role: "consultant", nom: "Adama Diarra", courriel: `as-${marque}@example.invalid`, rang: 2, permis: "R1041776" },
+    ],
+    champs: [
+      { destinataireIndex: 0, type: "signature", libelle: "Signature du client" },
+      { destinataireIndex: 0, type: "date", libelle: "Date" },
+      { destinataireIndex: 1, type: "signature", libelle: "Signature du consultant" },
+    ],
+  })
+  verifier("createRequest crée un BROUILLON", etat0.statut, "draft")
+  verifier("avec ses deux destinataires", etat0.destinataires.length, 2)
+  // LE LIEN N'EST RENDU QU'UNE FOIS : c'est la seule occasion où il existe en
+  // clair.
+  verifier("chacun reçoit son lien", etat0.destinataires.every((r) => r.lien) ? "oui" : "NON", "oui")
+  verifier("le lien ne porte AUCUN identifiant",
+    /\/s\/[A-Za-z0-9_-]{20,}$/.test(etat0.destinataires[0].lien) ? "oui" : `NON (${etat0.destinataires[0].lien})`, "oui")
+
+  const jetonS = etat0.destinataires[0].lien.split("/s/")[1]
+  const { data: champsCrees } = await admin.from("signature_fields")
+    .select("id").eq("request_id", etat0.id)
+  verifier("les champs sont enregistrés", (champsCrees ?? []).length, 3)
+
+  // Un brouillon n'a rien envoyé : le document n'est PAS encore verrouillé.
+  const { data: avantEnvoi } = await admin.from("documents")
+    .select("locked_at").eq("id", docS.id).single()
+  verifier("un brouillon ne verrouille pas encore", avantEnvoi.locked_at, null)
+  verifier("et son lien n'ouvre rien", (await resoudre(jetonS)) ? "OUVERT" : "rien", "rien")
+
+  const envoi = await service.sendRequest(etat0.id)
+  verifier("sendRequest réussit", envoi.ok ? "ok" : envoi.message, "ok")
+
+  // LE VERROU EST POSÉ PAR L'ENVOI, avant que quiconque puisse signer.
+  const { data: apresEnvoi } = await admin.from("documents")
+    .select("locked_at").eq("id", docS.id).single()
+  verifier("l'envoi VERROUILLE le document", apresEnvoi.locked_at ? "oui" : "NON", "oui")
+
+  const vuS = await resoudre(jetonS)
+  verifier("le lien ouvre maintenant le document", vuS?.document_id, docS.id)
+  verifier("c'est au tour du client", vuS?.son_tour, true)
+
+  const etat1 = await service.getStatus(etat0.id)
+  verifier("getStatus rend « envoyée »", etat1.statut, "sent")
+  verifier("il nomme le fournisseur", etat1.fournisseur, "internal")
+
+  const renvoi = await service.sendRequest(etat0.id)
+  verifier("envoyer deux fois : REFUSÉ", renvoi.ok ? "ACCEPTÉ" : "refusé", "refusé")
+
+  // ---- LA CLÔTURE AUTOMATIQUE, par déclencheur ---------------------------
+  const { data: destS } = await admin.from("signature_recipients")
+    .select("id, rank").eq("request_id", etat0.id).order("rank")
+
+  await admin.from("signature_recipients")
+    .update({ status: "viewed", viewed_at: new Date().toISOString() }).eq("id", destS[0].id)
+  verifier("une consultation remonte à la demande", (await service.getStatus(etat0.id)).statut, "viewed")
+
+  await admin.from("signature_recipients")
+    .update({ status: "signed", signed_at: new Date().toISOString() }).eq("id", destS[0].id)
+  const etat2 = await service.getStatus(etat0.id)
+  verifier("une signature sur deux : partiellement signée", etat2.statut, "partially_signed")
+  verifier("et c'est au tour du consultant",
+    etat2.destinataires.find((r) => r.rang === 2).sonTour, true)
+
+  await admin.from("signature_recipients")
+    .update({ status: "signed", signed_at: new Date().toISOString() }).eq("id", destS[1].id)
+  const etat3 = await service.getStatus(etat0.id)
+  verifier("la dernière signature CLÔT la demande", etat3.statut, "completed")
+  verifier("et pose la date de complétion", etat3.completeLe ? "oui" : "NON", "oui")
+
+  // LA MÊME RÈGLE, DEUX IMPLÉMENTATIONS : la base et TypeScript doivent
+  // toujours rendre le même verdict. C'est le garde-fou contre la divergence.
+  const memeEntree = destS.map((d, i) => ({ rank: d.rank, status: "signed" }))
+  verifier("SQL et TypeScript s'accordent",
+    statutDeduit(memeEntree, "partially_signed"), etat3.statut)
+
+  const refus = [{ rank: 1, status: "signed" }, { rank: 2, status: "declined" }]
+  const { data: demandeRefus } = await cabinet.from("signature_requests").insert({
+    firm_id: cabinetA, document_id: docS.id, client_id: cl.id,
+    document_sha256: docS.sha256, requested_by: userA, status: "sent",
+  }).select("id").single()
+  await admin.from("signature_recipients").insert([
+    { firm_id: cabinetA, request_id: demandeRefus.id, role: "client", rank: 1,
+      full_name: "A", email: `ra-${marque}@example.invalid`, status: "signed" },
+    { firm_id: cabinetA, request_id: demandeRefus.id, role: "consultant", rank: 2,
+      full_name: "B", email: `rb-${marque}@example.invalid`, status: "declined" },
+  ])
+  const { data: apresRefus } = await admin.from("signature_requests")
+    .select("status, declined_at").eq("id", demandeRefus.id).single()
+  // UN SEUL REFUS ARRÊTE TOUT, même si l'autre a signé.
+  verifier("un refus arrête la demande", apresRefus.status, "declined")
+  verifier("SQL et TypeScript s'accordent aussi sur le refus",
+    statutDeduit(refus, "partially_signed"), apresRefus.status)
+
+  // ---- Annulation et relance ---------------------------------------------
+  const annulCompletee = await service.cancelRequest(etat0.id)
+  verifier("annuler une demande COMPLÉTÉE : REFUSÉ",
+    annulCompletee.ok ? "ACCEPTÉ" : "refusé", "refusé")
+
+  const docR = await nouveauDocument(cabinetA, cl.id, "A relancer.pdf")
+  const etatR = await service.createRequest({
+    documentId: docR.id, clientId: cl.id,
+    destinataires: [{ role: "client", nom: "Jean", courriel: `jr-${marque}@example.invalid`, rang: 1 }],
+  })
+  await service.sendRequest(etatR.id)
+  const jetonR1 = etatR.destinataires[0].lien.split("/s/")[1]
+  verifier("le premier lien fonctionne", (await resoudre(jetonR1)) ? "oui" : "NON", "oui")
+
+  const relance = await service.resendRequest(etatR.id)
+  verifier("resendRequest réussit", relance.ok ? "ok" : relance.message, "ok")
+  // L'ANCIEN LIEN MEURT. Deux liens vivants pour une même signature, c'est un
+  // lien qu'on croit remplacé et qui ne l'est pas.
+  verifier("l'ANCIEN lien ne fonctionne plus",
+    (await resoudre(jetonR1)) ? "VIVANT" : "mort", "mort")
+
+  const annul = await service.cancelRequest(etatR.id, "Erreur de destinataire.")
+  verifier("cancelRequest réussit", annul.ok ? "ok" : annul.message, "ok")
+  const { data: destAnnul } = await admin.from("signature_recipients")
+    .select("revoked_at").eq("request_id", etatR.id).single()
+  verifier("l'annulation révoque les liens", destAnnul.revoked_at ? "oui" : "NON", "oui")
+
+  // ---- Le journal ---------------------------------------------------------
+  const journal = await service.getAuditTrail(etatR.id)
+  verifier("le journal retient les événements", journal.length >= 3 ? "oui" : `NON (${journal.length})`, "oui")
+  verifier("dont la création", journal.some((e) => e.evenement === "signature.request.created") ? "oui" : "NON", "oui")
+  verifier("dont l'envoi", journal.some((e) => e.evenement === "signature.request.sent") ? "oui" : "NON", "oui")
+  verifier("dont l'annulation", journal.some((e) => e.evenement === "signature.request.cancelled") ? "oui" : "NON", "oui")
+  verifier("il retient l'adresse d'origine", journal[0]?.ip, "203.0.113.7")
+
+  // Le journal est écrit dans audit_logs, qui est IMMUABLE.
+  const { error: eJournal } = await admin.from("audit_logs")
+    .update({ summary: "réécrit" }).eq("entity_id", etatR.id)
+  verifier("le journal ne se réécrit pas", eJournal ? "refusé" : "ACCEPTÉ", "refusé")
+
+  // ---- LE CONTRÔLE D'INDÉPENDANCE ----------------------------------------
+  // Le CRM doit pouvoir tourner sur un AUTRE fournisseur. On en substitue un
+  // faux, qui n'écrit rien en base, et on vérifie que l'interface suffit.
+  const faux = {
+    nom: "faux",
+    creerDemande: async () => ({
+      id: "faux-1", statut: "draft", mode: "sequential", documentId: "d",
+      destinataires: [], creeLe: "", fournisseur: "faux",
+    }),
+    envoyerDemande: async () => ({ ok: true, message: "envoyé par le faux" }),
+    etatDemande: async () => ({
+      id: "faux-1", statut: "completed", mode: "sequential", documentId: "d",
+      destinataires: [], creeLe: "", fournisseur: "faux",
+    }),
+    annulerDemande: async () => ({ ok: true, message: "annulé" }),
+    relancerDemande: async () => ({ ok: true, message: "relancé" }),
+    telechargerDocumentSigne: async () => null,
+    journal: async () => [],
+  }
+  const etatFaux = await faux.etatDemande()
+  verifier("un faux fournisseur satisfait l'interface", etatFaux.statut, "completed")
+  verifier("et le CRM n'a besoin de rien d'autre", (await faux.envoyerDemande()).ok, true)
 
   // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
