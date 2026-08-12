@@ -228,6 +228,38 @@ try {
   verifier("un rôle hors vocabulaire : REFUSÉ", eRole ? "refusé" : "ACCEPTÉ", "refusé")
 
   // -------------------------------------------------------------------------
+  console.log("\nUne correction du contrat ne réécrit pas la fiche (§6)")
+  // -------------------------------------------------------------------------
+  // Le contrat retient une COPIE. Le consultant corrige une adresse pour les
+  // besoins du document ; la fiche client ne doit pas bouger sans qu'il l'ait
+  // demandé. Et l'inverse compte autant : lire la fiche à chaque affichage
+  // ferait changer l'adresse d'un contrat SIGNÉ le jour où le client déménage.
+  await admin.from("clients").update({
+    address: "12 rue des Érables", city: "Montréal", province: "QC",
+    postal_code: "H2X 1Y4", country: "Canada",
+  }).eq("id", cl.id)
+
+  const { data: partieClient } = await cabinet
+    .from("agreement_parties").select("id").eq("agreement_id", entente.id).eq("role", "client").single()
+
+  await cabinet.from("agreement_parties")
+    .update({ address: "99 boulevard Corrigé" }).eq("id", partieClient.id)
+
+  const { data: ficheApres } = await admin
+    .from("clients").select("address").eq("id", cl.id).single()
+  verifier("la fiche client garde SON adresse", ficheApres.address, "12 rue des Érables")
+
+  const { data: partieApres } = await admin
+    .from("agreement_parties").select("address").eq("id", partieClient.id).single()
+  verifier("le contrat garde la correction", partieApres.address, "99 boulevard Corrigé")
+
+  // Et le déménagement du client ne réécrit pas le contrat.
+  await admin.from("clients").update({ address: "7 avenue du Déménagement" }).eq("id", cl.id)
+  const { data: partieEncore } = await admin
+    .from("agreement_parties").select("address").eq("id", partieClient.id).single()
+  verifier("un déménagement ne touche pas un contrat émis", partieEncore.address, "99 boulevard Corrigé")
+
+  // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
   // -------------------------------------------------------------------------
   const { data: entTiers } = await tiers.from("agreements").select("id").eq("firm_id", cabinetA)
