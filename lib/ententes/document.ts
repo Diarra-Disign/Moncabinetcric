@@ -5,6 +5,13 @@ import { ententePdf, type ArticleImprime, type SignataireImprime } from "./pdf"
 import type { LanguePdf } from "@/lib/pdf/primitives"
 import { nomAvecCivilite } from "@/lib/data/identite"
 import { lignesAdresse } from "@/lib/data/adresse"
+import { libelleMode } from "./echeancier"
+
+/** Ce qu'une étape vaut telle qu'elle a été figée en jsonb. */
+interface EtapeSnapshot {
+  position?: number; description?: string; declenchement?: string
+  mode?: string; montant?: number; pourcentage?: number
+}
 
 /**
  * Le PDF d'une entente, et ce qu'il faut pour l'envoyer.
@@ -46,6 +53,7 @@ export async function pdfDEntente(
     .select(
       "id, reference, title, status, kind, is_probono, fees_amount, taxes_amount, total_amount, " +
         "articles_snapshot, created_at, issued_at, client_id, lead_id, matter_id, document_id, " +
+        "services_description, services_items, payment_schedule, payment_methods, payment_conditions, excluded_fees, " +
         "matters(reference), " +
         "firms(name, owner_name, address, address_line2, city, province, postal_code, country, phone, email, website, rcic_license_number, logo_url, tax_gst_number, tax_qst_number, payment_terms)"
     )
@@ -173,6 +181,27 @@ export async function pdfDEntente(
       // morale, et jamais confondue avec son nom.
       client: blocDe(principal, principal ? txt(principal.legal_name) : ""),
       dossierReference: dossier?.reference ?? "",
+
+      // Le contenu personnalisé, tel qu'il a été FIGÉ à la création. Comme les
+      // articles, il ne se relit ni sur le modèle ni sur les paramètres : un
+      // contrat émis en mars ne change pas parce qu'on a revu sa grille en mai.
+      servicesDescription: txt(a.services_description),
+      servicesItems: (a.services_items as { position: number; libelle: string }[]) ?? [],
+      echeancier: ((a.payment_schedule as EtapeSnapshot[]) ?? []).map((x, i) => ({
+        position: Number(x.position ?? i + 1),
+        description: txt(x.description),
+        declenchement: txt(x.declenchement),
+        // Le mode est TRADUIT ici : le PDF ne connaît pas le vocabulaire des
+        // paiements, et « interac » imprimé tel quel sur un contrat ferait
+        // amateur.
+        mode: x.mode ? libelleMode(String(x.mode), langue) : "",
+        montant: Number(x.montant ?? 0),
+        pourcentage: x.pourcentage ? Number(x.pourcentage) : undefined,
+      })),
+      modesPaiement: ((a.payment_methods as string[]) ?? []).map((v) => libelleMode(v, langue)),
+      conditionsPaiement: txt(a.payment_conditions),
+      fraisNonInclus: txt(a.excluded_fees),
+
       articles,
       signataires,
       montants: {

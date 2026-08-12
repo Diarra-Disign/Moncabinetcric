@@ -7,6 +7,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { ModifierFiche } from "@/components/fiche/fiche-formulaire"
+import { EditeurContenu, CONTENU_VIDE, type ContenuContrat } from "./editeur-contenu"
+import { verifierEcheancier } from "@/lib/ententes/echeancier"
 import {
   rechercherContractant, preremplir, articlesDuModele, creerEntente,
   type ArticleEntente,
@@ -59,6 +61,8 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
   const [resultat, setResultat] = React.useState<{ ok: boolean; message: string } | null>(null)
   // §9 : corriger la fiche sans quitter le contrat en préparation.
   const [ficheAModifier, setFicheAModifier] = React.useState(false)
+  /** Le contenu personnalisé du brouillon : services, échéancier, conditions. */
+  const [contenu, setContenu] = React.useState<ContenuContrat>(CONTENU_VIDE)
 
   const proBono = (modele?.kind ?? "").includes("probono")
 
@@ -124,11 +128,22 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
    */
   const controle = React.useMemo(() => {
     if (!contexte) return null
-    return verifierAvantGeneration(
+    const base = verifierAvantGeneration(
       contexte,
       articles.filter((a) => a.enabled).map((a) => `${a.titleFr}\n${a.bodyFr}`)
     )
-  }, [contexte, articles])
+    // L'échéancier est contrôlé par la MÊME fonction que le serveur : un
+    // second calcul aurait fini par accepter ici ce que l'action refuse.
+    const echeancier = verifierEcheancier(
+      contenu.echeancier, Number(honoraires) || 0, proBono
+    )
+    if (base.ok && echeancier.length === 0) return base
+    return {
+      ok: false as const,
+      manquants: [...(base.ok ? [] : base.manquants), ...echeancier],
+      profilACompleter: base.ok ? false : base.profilACompleter,
+    }
+  }, [contexte, articles, contenu.echeancier, honoraires, proBono])
 
   /** Les deux blocs du §8, tels qu'ils s'imprimeront. */
   const blocs = React.useMemo(() => {
@@ -176,6 +191,12 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
         honoraires: Number(honoraires) || 0,
         taxes: 0,
         articles,
+        servicesDescription: contenu.servicesDescription,
+        servicesItems: contenu.servicesItems,
+        echeancier: contenu.echeancier,
+        modesPaiement: contenu.modesPaiement,
+        conditionsPaiement: contenu.conditionsPaiement,
+        fraisNonInclus: contenu.fraisNonInclus,
       })
       setResultat(r)
       if (r.ok) setTimeout(onFerme, 1400)
@@ -325,6 +346,23 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
                     </li>
                   ))}
                 </ul>
+              </section>
+            )}
+
+            {/* ---------------- Personnalisation du brouillon (§2) ----------
+                Elle vient APRÈS les articles : le modèle sert de point de
+                départ, la personnalisation vient ensuite (§16). */}
+            {modele && (
+              <section className="border-t border-border pt-4">
+                <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-3">
+                  Personnaliser le contrat
+                </h3>
+                <EditeurContenu
+                  contenu={contenu}
+                  onChange={setContenu}
+                  honoraires={Number(honoraires) || 0}
+                  proBono={proBono}
+                />
               </section>
             )}
           </div>

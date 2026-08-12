@@ -59,6 +59,18 @@ const MOTS = {
     description: "DESCRIPTION",
     montantCad: "MONTANT (CAD)",
     honorairesPro: "Honoraires professionnels",
+    servicesTitre: "DESCRIPTION DES SERVICES",
+    servicesInclus: "Services inclus",
+    echeancierTitre: "ÉCHÉANCIER DES HONORAIRES",
+    colEtape: "Étape",
+    colDescription: "Description",
+    colEcheance: "Déclenchement",
+    colMode: "Mode",
+    colMontant: "Montant",
+    totalHonoraires: "Total des honoraires",
+    modesTitre: "MODES DE PAIEMENT ACCEPTÉS",
+    conditionsTitre: "CONDITIONS PARTICULIÈRES DE PAIEMENT",
+    fraisTitre: "FRAIS NON INCLUS DANS LES HONORAIRES",
     pourLeConsultant: "POUR LE CONSULTANT",
     pourLeClient: "POUR LE CLIENT",
     nomLabel: "Nom :",
@@ -109,6 +121,18 @@ const MOTS = {
     description: "DESCRIPTION",
     montantCad: "AMOUNT (CAD)",
     honorairesPro: "Professional fees",
+    servicesTitre: "DESCRIPTION OF SERVICES",
+    servicesInclus: "Services included",
+    echeancierTitre: "FEE SCHEDULE",
+    colEtape: "Step",
+    colDescription: "Description",
+    colEcheance: "Trigger",
+    colMode: "Method",
+    colMontant: "Amount",
+    totalHonoraires: "Total fees",
+    modesTitre: "ACCEPTED PAYMENT METHODS",
+    conditionsTitre: "PARTICULAR PAYMENT TERMS",
+    fraisTitre: "FEES NOT INCLUDED",
     pourLeConsultant: "FOR THE CONSULTANT",
     pourLeClient: "FOR THE CLIENT",
     nomLabel: "Name:",
@@ -194,6 +218,19 @@ export interface EntentePdf {
   /** Le contractant — la partie représentée. */
   client: BlocPartie
   dossierReference: string
+  /** La description libre du mandat (§3, §15). */
+  servicesDescription?: string
+  /** Les services décomposés (§4), déjà ordonnés. */
+  servicesItems?: { position: number; libelle: string }[]
+  /** L'échéancier (§6), déjà calculé et ordonné. */
+  echeancier?: {
+    position: number; description: string; declenchement?: string
+    mode?: string; montant: number; pourcentage?: number
+  }[]
+  /** Les modes acceptés, déjà traduits en libellés lisibles (§11). */
+  modesPaiement?: string[]
+  conditionsPaiement?: string
+  fraisNonInclus?: string
   articles: ArticleImprime[]
   signataires: SignataireImprime[]
   montants: { honoraires: number; taxes: number; total: number }
@@ -477,6 +514,134 @@ function panneauPartie(
 }
 
 /**
+ * Un titre de section, dans le style DÉJÀ EN PLACE des titres d'article.
+ *
+ * Aucune nouvelle typographie, aucune nouvelle couleur : le §30 est explicite,
+ * le design est approuvé. Ces sections s'écrivent donc exactement comme les
+ * articles s'écrivent déjà — marine, corps 10, gras.
+ */
+function titreSection(flux: Flux, texte: string, gras: PDFFont) {
+  const p = flux.place(15)
+  ecrire(p.page, texte, { x: G, y: p.y, size: 10, font: gras, color: MARINE })
+  flux.y -= 5
+}
+
+/** Un paragraphe enveloppé, dans le corps de texte des articles. */
+function paragraphe(flux: Flux, texte: string, normal: PDFFont, largeur: number) {
+  for (const ligne of envelopper(texte, normal, 9.5, largeur)) {
+    if (!ligne) { flux.place(6); continue }
+    const p = flux.place(13)
+    ecrire(p.page, ligne, { x: G, y: p.y, size: 9.5, font: normal, color: ENCRE })
+  }
+}
+
+/**
+ * Le tableau de l'échéancier (§6, §23).
+ *
+ * Il emprunte les MÊMES bandeaux, les mêmes filets et la même échelle que le
+ * tableau des honoraires qui existe déjà : un contrat ne doit pas avoir l'air
+ * d'avoir deux tableaux venus de deux endroits. Seules les colonnes changent,
+ * parce que la lecture change.
+ *
+ * Il enjambe les pages : un mandat en huit versements ne tient pas au bas
+ * d'une page, et une ligne écrite sous le bord disparaîtrait en silence.
+ */
+function tableauEcheancier(
+  flux: Flux, e: EntentePdf, m: typeof MOTS.fr | typeof MOTS.en,
+  argent: (v: number) => string, normal: PDFFont, gras: PDFFont,
+  langue: LanguePdf
+) {
+  const etapes = e.echeancier ?? []
+  if (etapes.length === 0) return
+
+  const largeur = D - G
+  const H = 22
+  // Les colonnes n'existent que si elles portent quelque chose : un contrat
+  // sans mode par étape ne doit pas afficher une colonne « Mode » vide.
+  const avecMode = etapes.some((x) => (x.mode ?? "").trim())
+  const avecDeclenchement = etapes.some((x) => (x.declenchement ?? "").trim())
+
+  // LES COLONNES SONT POSÉES PAR LEUR BORD DROIT, de la droite vers la gauche,
+  // et chacune réserve sa largeur. Une première version les calculait par
+  // décalages successifs : « Mode » et « Montant » se chevauchaient, et les
+  // deux textes s'imprimaient l'un sur l'autre. Ici, chaque colonne connaît sa
+  // borne, et la description prend ce qui reste.
+  const LARGEUR_MONTANT = 92
+  const LARGEUR_MODE = 84
+  const LARGEUR_DECLENCHEMENT = 92
+
+  const xEtape = G + 10
+  const xDescription = G + 44
+  const xMontant = D - 10
+  const xMode = avecMode ? xMontant - LARGEUR_MONTANT : 0
+  const xDeclenchement = avecDeclenchement
+    ? (avecMode ? xMode - LARGEUR_MODE : xMontant - LARGEUR_MONTANT)
+    : 0
+  const finDescription = avecDeclenchement
+    ? xDeclenchement - LARGEUR_DECLENCHEMENT
+    : avecMode
+      ? xMode - LARGEUR_MODE
+      : xMontant - LARGEUR_MONTANT
+  const largeurDescription = Math.max(60, finDescription - xDescription - 10)
+
+  const enTete = () => {
+    const p = flux.place(H)
+    p.page.drawRectangle({ x: G, y: p.y, width: largeur, height: H, color: MARINE })
+    ecrire(p.page, m.colEtape, { x: xEtape, y: p.y + 7.5, size: 8, font: gras, color: BLANC })
+    ecrire(p.page, m.colDescription, { x: xDescription, y: p.y + 7.5, size: 8, font: gras, color: BLANC })
+    if (avecDeclenchement) droite(p.page, m.colEcheance, xDeclenchement, p.y + 7.5, gras, 8, BLANC)
+    if (avecMode) droite(p.page, m.colMode, xMode, p.y + 7.5, gras, 8, BLANC)
+    droite(p.page, m.colMontant, xMontant, p.y + 7.5, gras, 8, BLANC)
+  }
+
+  enTete()
+
+  for (const [i, etape] of etapes.entries()) {
+    // Une nouvelle page redonne l'en-tête : sans lui, la suite du tableau est
+    // une colonne de chiffres sans titre.
+    if (flux.y - H < BAS) { flux.nouvellePage(); enTete() }
+    const p = flux.place(H)
+    p.page.drawRectangle({
+      x: G, y: p.y, width: largeur, height: H, borderColor: TRAIT, borderWidth: 0.5,
+    })
+    ecrire(p.page, String(etape.position || i + 1), { x: xEtape, y: p.y + 7.5, size: 9, font: gras, color: ENCRE })
+    ecrire(p.page, couper(etape.description, normal, 9, largeurDescription), {
+      x: xDescription, y: p.y + 7.5, size: 9, font: normal, color: ENCRE,
+    })
+    if (avecDeclenchement) {
+      droite(p.page, couper(etape.declenchement ?? "", normal, 8, LARGEUR_DECLENCHEMENT), xDeclenchement, p.y + 7.5, normal, 8, GRIS)
+    }
+    if (avecMode) {
+      droite(p.page, couper(etape.mode ?? "", normal, 8, LARGEUR_MODE), xMode, p.y + 7.5, normal, 8, GRIS)
+    }
+    // Le pourcentage accompagne le montant quand il a servi à le calculer :
+    // « 1 000,00 $ (20 %) » se vérifie, « 1 000,00 $ » se croit.
+    // Le pourcentage accompagne le montant DANS LA LANGUE DU DOCUMENT :
+    // « 22.22 % » sur un contrat français se lit comme une coquille.
+    const pourcent = etape.pourcentage
+      ? new Intl.NumberFormat(langue === "en" ? "en-CA" : "fr-CA", {
+          maximumFractionDigits: 2,
+        }).format(etape.pourcentage)
+      : ""
+    const montant = pourcent
+      ? `${argent(etape.montant)} (${pourcent} %)`
+      : argent(etape.montant)
+    droite(p.page, couper(montant, gras, 9, LARGEUR_MONTANT), xMontant, p.y + 7.5, gras, 9, ENCRE)
+  }
+
+  if (flux.y - H < BAS) flux.nouvellePage()
+  const total = flux.place(H)
+  total.page.drawRectangle({ x: G, y: total.y, width: largeur, height: H, color: MARINE })
+  ecrire(total.page, m.totalHonoraires, { x: xEtape, y: total.y + 7.5, size: 9, font: gras, color: BLANC })
+  droite(
+    total.page,
+    argent(etapes.reduce((t, x) => t + (Number(x.montant) || 0), 0)),
+    xMontant, total.y + 7.5, gras, 9, BLANC
+  )
+  flux.y -= 18
+}
+
+/**
  * Le tableau des honoraires. Rend la hauteur occupée.
  *
  * CHAQUE TAXE IMPRIME SON MONTANT SUR SA PROPRE LIGNE, et le total est dans un
@@ -605,6 +770,47 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
       const p = flux.place(13)
       ecrire(p.page, ligne, { x: G, y: p.y, size: 9.5, font: normal, color: ENCRE })
     }
+    flux.y -= 14
+  }
+
+  // ---- CE QUE LE CONSULTANT A PERSONNALISÉ ---------------------------------
+  // Ces sections s'écrivent APRÈS les articles et AVANT les montants, parce
+  // que c'est l'ordre de lecture d'un contrat : ce qui est convenu, puis ce
+  // que cela coûte. Elles empruntent la typographie des articles — le §30
+  // interdit d'en inventer une seconde.
+  if ((e.servicesDescription ?? "").trim() || (e.servicesItems ?? []).length > 0) {
+    flux.y -= 6
+    titreSection(flux, m.servicesTitre, gras)
+    if ((e.servicesDescription ?? "").trim()) {
+      paragraphe(flux, e.servicesDescription!, normal, largeur)
+      flux.y -= 8
+    }
+    for (const item of e.servicesItems ?? []) {
+      // La numérotation est celle de la liste, pas celle du contrat : « 1. »
+      // ici ne renvoie pas à l'article 1.
+      const lignes = envelopper(`${item.position}. ${item.libelle}`, normal, 9.5, largeur - 14)
+      for (const [i, ligne] of lignes.entries()) {
+        const p = flux.place(13)
+        ecrire(p.page, ligne, { x: i === 0 ? G : G + 14, y: p.y, size: 9.5, font: normal, color: ENCRE })
+      }
+    }
+    flux.y -= 14
+  }
+
+  if ((e.echeancier ?? []).length > 0) {
+    titreSection(flux, m.echeancierTitre, gras)
+    flux.y -= 4
+    tableauEcheancier(flux, e, m, argent, normal, gras, langue)
+  }
+
+  for (const [titre, texte] of [
+    [m.modesTitre, (e.modesPaiement ?? []).join(" · ")],
+    [m.conditionsTitre, e.conditionsPaiement ?? ""],
+    [m.fraisTitre, e.fraisNonInclus ?? ""],
+  ] as const) {
+    if (!texte.trim()) continue
+    titreSection(flux, titre, gras)
+    paragraphe(flux, texte, normal, largeur)
     flux.y -= 14
   }
 

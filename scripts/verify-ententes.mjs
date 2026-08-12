@@ -740,6 +740,85 @@ try {
   verifier("le lieu de résidence se relit", clientRelu.residence, "International")
 
   // -------------------------------------------------------------------------
+  console.log("\nServices, échéancier et brouillon (§6, §9, §24, §26)")
+  // -------------------------------------------------------------------------
+  const { verifierEcheancier, recalculer } = await import("../lib/ententes/echeancier.ts")
+
+  const echeancier = [
+    { position: 1, description: "Paiement initial", declenchement: "À la signature", mode: "interac", base: "montant", montant: 1000 },
+    { position: 2, description: "Dossier complet", declenchement: "Étape 2", mode: "card", base: "montant", montant: 1000 },
+    { position: 3, description: "Présentation IRCC", declenchement: "Étape 3", mode: "bank_transfer", base: "montant", montant: 1500 },
+    { position: 4, description: "Fin du mandat", declenchement: "Étape 4", mode: "cheque", base: "montant", montant: 1000 },
+  ]
+  verifier("un échéancier équilibré passe la validation",
+    verifierEcheancier(echeancier, 4500).length, 0)
+
+  const { data: brouillon } = await cabinet.from("agreements").insert({
+    firm_id: cabinetA, client_id: cl.id, template_id: modele.id, template_version: "1.0",
+    reference: `ENT-SV-${marque}`, title: "Permis de travail", kind: "services",
+    status: "draft",
+    articles_snapshot: [{ position: 1, code: "objet", title_fr: "Objet", body_fr: "Texte.", level: "structural" }],
+    fees_amount: 4500, taxes_amount: 673.88, total_amount: 5173.88,
+    services_description: "Services professionnels relatifs à la préparation d'une demande de permis de travail.",
+    services_items: [
+      { position: 1, libelle: "Analyse initiale du dossier" },
+      { position: 2, libelle: "Préparation des formulaires" },
+    ],
+    payment_schedule: echeancier,
+    payment_methods: ["interac", "bank_transfer"],
+    payment_conditions: "Paiement exigible avant le début des travaux correspondants.",
+    excluded_fees: "Frais gouvernementaux, biométrie et traduction non inclus.",
+  }).select("id").single()
+  verifier("un brouillon porte son contenu personnalisé", brouillon ? "oui" : "NON", "oui")
+
+  // §24, §25 : on rouvre et on modifie.
+  const { error: eBrouillon } = await cabinet.from("agreements").update({
+    payment_schedule: recalculer(
+      [...echeancier.slice(0, 3), { ...echeancier[3], montant: 1200 }], 4700
+    ),
+    fees_amount: 4700, total_amount: 5373.88,
+  }).eq("id", brouillon.id).eq("status", "draft")
+  verifier("un BROUILLON se modifie", eBrouillon ? eBrouillon.message : "ok", "ok")
+
+  const { data: apresBrouillon } = await admin.from("agreements")
+    .select("payment_schedule, fees_amount").eq("id", brouillon.id).single()
+  verifier("la 4e étape est à jour", apresBrouillon.payment_schedule[3].montant, 1200)
+  verifier("les honoraires aussi", Number(apresBrouillon.fees_amount), 4700)
+
+  // §26 : une fois émise, elle est FIGÉE. Le filtre sur « draft » ne trouve
+  // plus rien — et c'est « zéro ligne », pas une erreur : sans relecture, on
+  // conclurait au succès. Le même piège que sur les paramètres du cabinet.
+  await cabinet.from("agreements").update({ status: "ready" }).eq("id", brouillon.id)
+  await cabinet.from("agreements")
+    .update({ services_description: "RÉÉCRIT APRÈS ÉMISSION" })
+    .eq("id", brouillon.id).eq("status", "draft")
+  const { data: apresEmise } = await admin.from("agreements")
+    .select("services_description").eq("id", brouillon.id).single()
+  verifier("une entente ÉMISE ne se modifie plus",
+    apresEmise.services_description.startsWith("Services professionnels") ? "figée" : "RÉÉCRITE", "figée")
+
+  // Le PDF porte réellement l'échéancier.
+  const { pdfDEntente: composer } = await import("../lib/ententes/document.ts")
+  const avecEcheancier = await composer(cabinet, brouillon.id)
+  const texteEch = lisiblePdf(Buffer.from(avecEcheancier.octets))
+  verifier("le PDF porte le titre de l'échéancier",
+    texteEch.includes("ÉCHÉANCIER DES HONORAIRES") ? "oui" : "NON", "oui")
+  verifier("il porte la description des services",
+    texteEch.includes("DESCRIPTION DES SERVICES") ? "oui" : "NON", "oui")
+  verifier("il porte les services décomposés",
+    texteEch.includes("Analyse initiale du dossier") ? "oui" : "NON", "oui")
+  verifier("il porte les quatre étapes",
+    ["Paiement initial", "Dossier complet", "Présentation IRCC", "Fin du mandat"]
+      .every((d) => texteEch.includes(d)) ? "oui" : "NON", "oui")
+  // Le mode est TRADUIT : « interac » imprimé tel quel ferait amateur.
+  verifier("les modes sont traduits, pas bruts",
+    texteEch.includes("Virement Interac") && !texteEch.includes("bank_transfer") ? "oui" : "NON", "oui")
+  verifier("il porte les frais non inclus",
+    texteEch.includes("FRAIS NON INCLUS") ? "oui" : "NON", "oui")
+  verifier("et le total de l'échéancier",
+    texteEch.includes("Total des honoraires") ? "oui" : "NON", "oui")
+
+  // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
   // -------------------------------------------------------------------------
   const { data: entTiers } = await tiers.from("agreements").select("id").eq("firm_id", cabinetA)

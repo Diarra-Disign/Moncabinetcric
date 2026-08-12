@@ -6,6 +6,7 @@ import { chercherContractants, chargerContractant } from "./ententes"
 import { ligneDePartie, partieDepuisCabinet } from "@/lib/ententes/contractant"
 import { verifierAvantGeneration, variablesDe, substituer } from "@/lib/ententes/variables"
 import type { ContexteEntente } from "@/lib/ententes/variables"
+import { recalculer, verifierEcheancier, type EtapePaiement } from "@/lib/ententes/echeancier"
 
 export interface Resultat {
   ok: boolean
@@ -159,6 +160,48 @@ export interface DemandeEntente {
   articles: ArticleEntente[]
   /** Corrections propres au contrat (§6) : elles ne réécrivent pas la fiche. */
   corrections?: Record<string, string>
+
+  // ── Le contenu personnalisé du brouillon ────────────────────────────────
+  /** La description libre du mandat (§3, §15). */
+  servicesDescription?: string
+  /** Les services décomposés (§4). */
+  servicesItems?: { position: number; libelle: string }[]
+  /** L'échéancier (§6). Vide : le contrat ne prévoit pas d'échelonnement. */
+  echeancier?: EtapePaiement[]
+  /** Les modes acceptés (§11). */
+  modesPaiement?: string[]
+  /** Les conditions particulières (§13). */
+  conditionsPaiement?: string
+  /** Les frais non inclus (§14). */
+  fraisNonInclus?: string
+}
+
+/**
+ * Le contenu personnalisé, prêt à écrire.
+ *
+ * Une seule fonction pour la création ET la modification d'un brouillon : deux
+ * traductions auraient fini par écrire l'échéancier d'un côté et l'oublier de
+ * l'autre — et le contrat serait parti sans ses étapes de paiement.
+ *
+ * L'échéancier est RECALCULÉ ici, sur le serveur. L'écran calcule aussi, pour
+ * répondre à chaque frappe, mais c'est cette valeur-ci qui est écrite : une
+ * charge fabriquée sans l'écran ne doit pas pouvoir poser des montants qui ne
+ * correspondent à aucun pourcentage.
+ */
+function contenuPersonnalise(d: Partial<DemandeEntente>, honoraires: number) {
+  const etapes = recalculer(d.echeancier ?? [], honoraires)
+    .map((e, i) => ({ ...e, position: i + 1, statut: e.statut ?? "a_venir" }))
+
+  return {
+    services_description: (d.servicesDescription ?? "").trim() || null,
+    services_items: (d.servicesItems ?? [])
+      .map((x, i) => ({ position: i + 1, libelle: String(x.libelle ?? "").trim() }))
+      .filter((x) => x.libelle),
+    payment_schedule: etapes,
+    payment_methods: d.modesPaiement ?? [],
+    payment_conditions: (d.conditionsPaiement ?? "").trim() || null,
+    excluded_fees: (d.fraisNonInclus ?? "").trim() || null,
+  }
 }
 
 /**
@@ -207,6 +250,16 @@ export async function creerEntente(demande: DemandeEntente): Promise<Resultat> {
       return { ok: false, message: controle.manquants.join(" ") }
     }
 
+    // L'échéancier est contrôlé ICI aussi, et pas seulement à l'écran (§9) :
+    // un contrat dont les versements ne totalisent pas les honoraires ferait
+    // naître un litige sur le solde.
+    const manquesEcheancier = verifierEcheancier(
+      demande.echeancier ?? [], demande.honoraires, demande.proBono
+    )
+    if (manquesEcheancier.length > 0) {
+      return { ok: false, message: manquesEcheancier.join(" ") }
+    }
+
     // Le texte est FIGÉ ici, substitution comprise. L'instantané ne garde pas
     // les variables mais leur résultat : le contrat doit rester lisible même
     // si la fiche change, et c'est tout l'objet du §18.
@@ -237,6 +290,7 @@ export async function creerEntente(demande: DemandeEntente): Promise<Resultat> {
         taxes_amount: demande.taxes,
         total_amount: demande.honoraires + demande.taxes,
         is_probono: demande.proBono,
+        ...contenuPersonnalise(demande, demande.honoraires),
         created_by: membre.profileId,
       })
       .select("id")
@@ -265,6 +319,104 @@ export async function creerEntente(demande: DemandeEntente): Promise<Resultat> {
 
     revalidatePath("/fr/agreements")
     return { ok: true, message: `${contexte.entente.numero} créée en brouillon.`, id: String(creee.id) }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Relit un BROUILLON pour le rouvrir dans l'éditeur (§25).
+ *
+ * Seuls les brouillons sont rendus modifiables. Une entente émise a produit un
+ * PDF, porte une empreinte et a pu être envoyée : la rouvrir « pour corriger
+ * une virgule » modifierait le document sous la signature. Le §26 l'interdit,
+ * et la réponse à une erreur découverte après coup est un AVENANT — que la
+ * colonne `replaces_id` sait déjà porter.
+ */
+export async function chargerBrouillon(id: string) {
+  const sb = await getSessionSupabase()
+  const { data } = await sb
+    .from("agreements")
+    .select("id, reference, title, kind, status, is_probono, fees_amount, taxes_amount, total_amount, template_id, client_id, lead_id, articles_snapshot, services_description, services_items, payment_schedule, payment_methods, payment_conditions, excluded_fees")
+    .eq("id", id)
+    .maybeSingle()
+
+  if (!data) return null
+  return {
+    id: String(data.id),
+    reference: String(data.reference ?? ""),
+    titre: String(data.title ?? ""),
+    kind: String(data.kind ?? ""),
+    statut: String(data.status ?? "draft"),
+    modifiable: data.status === "draft",
+    proBono: data.is_probono === true,
+    honoraires: Number(data.fees_amount ?? 0),
+    taxes: Number(data.taxes_amount ?? 0),
+    templateId: data.template_id ? String(data.template_id) : "",
+    contractantType: (data.client_id ? "client" : "lead") as "client" | "lead",
+    contractantId: String(data.client_id ?? data.lead_id ?? ""),
+    articles: (data.articles_snapshot as { code: string; title_fr: string; body_fr: string; level: string; position: number }[]) ?? [],
+    servicesDescription: String(data.services_description ?? ""),
+    servicesItems: (data.services_items as { position: number; libelle: string }[]) ?? [],
+    echeancier: (data.payment_schedule as EtapePaiement[]) ?? [],
+    modesPaiement: (data.payment_methods as string[]) ?? [],
+    conditionsPaiement: String(data.payment_conditions ?? ""),
+    fraisNonInclus: String(data.excluded_fees ?? ""),
+  }
+}
+
+/**
+ * Enregistre les modifications d'un BROUILLON (§24).
+ *
+ * Le consultant n'a pas à terminer un contrat en une seule séance. Ce qui est
+ * réenregistré ici est le contenu personnalisé et les montants — pas le
+ * contractant ni le modèle, qui définissent l'identité du document : les
+ * changer reviendrait à faire un autre contrat sous le même numéro.
+ *
+ * LE VERROU EST EN BASE, PAS ICI. Le filtre `.eq("status", "draft")` fait que
+ * l'UPDATE ne trouve AUCUNE ligne sur une entente émise — et `.select("id")`
+ * transforme ce « zéro ligne » en refus explicite. Sans lui, PostgREST rendrait
+ * « succès, zéro ligne » et l'écran annoncerait un enregistrement qui n'a pas
+ * eu lieu. C'est exactement le défaut corrigé sur les paramètres du cabinet.
+ */
+export async function modifierBrouillon(
+  id: string,
+  demande: Partial<DemandeEntente> & { honoraires: number; taxes: number }
+): Promise<Resultat> {
+  try {
+    await moi()
+    const sb = await getSessionSupabase()
+
+    const manques = verifierEcheancier(
+      demande.echeancier ?? [], demande.honoraires, demande.proBono
+    )
+    if (manques.length > 0) return { ok: false, message: manques.join(" ") }
+
+    const { data, error } = await sb
+      .from("agreements")
+      .update({
+        fees_amount: demande.honoraires,
+        taxes_amount: demande.taxes,
+        total_amount: demande.honoraires + demande.taxes,
+        ...contenuPersonnalise(demande, demande.honoraires),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("status", "draft")
+      .select("id")
+
+    if (error) return { ok: false, message: error.message }
+    if (!data || data.length === 0) {
+      return {
+        ok: false,
+        message:
+          "Cette entente n'est plus un brouillon : elle a été émise et son " +
+          "document est figé. Créez un avenant pour la modifier.",
+      }
+    }
+
+    revalidatePath("/fr/agreements")
+    return { ok: true, message: "Brouillon enregistré.", id }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
