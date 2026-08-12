@@ -79,7 +79,7 @@ export async function updateLead(id: string, updates: Partial<Lead>): Promise<Le
  */
 export async function convertLeadToClient(
   leadId: string
-): Promise<{ client: ClientRecord; alreadyConverted: boolean; questionnairesTransferes: number; membresFamilleTransferes: number }> {
+): Promise<{ client: ClientRecord; alreadyConverted: boolean; questionnairesTransferes: number; membresFamilleTransferes: number; ententesTransferees: number }> {
   if (isSupabaseSource()) return (await sbWrites()).convertLeadToClient(leadId)
 
   const stores = _getStores()
@@ -87,7 +87,7 @@ export async function convertLeadToClient(
   if (!lead) throw new Error(`Prospect « ${leadId} » introuvable.`)
 
   const existant = stores.clientsStore.find(c => c.email === lead.email)
-  if (existant) return { client: existant, alreadyConverted: true, questionnairesTransferes: 0, membresFamilleTransferes: 0 }
+  if (existant) return { client: existant, alreadyConverted: true, questionnairesTransferes: 0, membresFamilleTransferes: 0, ententesTransferees: 0 }
 
   const annee = new Date().getFullYear()
   const rang = String(stores.clientsStore.length + 1).padStart(4, "0")
@@ -115,7 +115,7 @@ export async function convertLeadToClient(
   // En mémoire, les questionnaires de prospect n'existent pas : la
   // bibliothèque et les envois ne vivent qu'en base. Zéro est donc la
   // vérité ici, pas un raccourci.
-  return { client, alreadyConverted: false, questionnairesTransferes: 0, membresFamilleTransferes: 0 }
+  return { client, alreadyConverted: false, questionnairesTransferes: 0, membresFamilleTransferes: 0, ententesTransferees: 0 }
 }
 
 /** Enregistre un rendez-vous. En mode mock, il reste en mémoire. */

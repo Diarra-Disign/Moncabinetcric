@@ -417,7 +417,7 @@ export async function updateFirmSettings(data: {
  */
 export async function convertLeadToClient(
   leadId: string
-): Promise<{ client: ClientRecord; alreadyConverted: boolean; questionnairesTransferes: number; membresFamilleTransferes: number }> {
+): Promise<{ client: ClientRecord; alreadyConverted: boolean; questionnairesTransferes: number; membresFamilleTransferes: number; ententesTransferees: number }> {
   const firmId = await currentFirmId()
   const supabase = await db()
 
@@ -442,7 +442,7 @@ export async function convertLeadToClient(
     // Zéro, et non « inconnu » : le transfert a déjà eu lieu à la première
     // conversion, il ne reste rien à déplacer. C'est ce qui rend le second
     // clic sans conséquence de bout en bout.
-    if (existant) return { client: toClient(existant), alreadyConverted: true, questionnairesTransferes: 0, membresFamilleTransferes: 0 }
+    if (existant) return { client: toClient(existant), alreadyConverted: true, questionnairesTransferes: 0, membresFamilleTransferes: 0, ententesTransferees: 0 }
   }
 
   // Le numéro est calculé en base : deux conversions simultanées y
@@ -549,11 +549,38 @@ export async function convertLeadToClient(
     console.error("convertLeadToClient : client créé, famille non transférée —", fErr.message)
   }
 
+  // Les ententes de service suivent le même geste, et c'est le §22.
+  //
+  // Le cas est celui-ci, et il est ordinaire : le consultant fait signer une
+  // entente de consultation AU PROSPECT, puis le convertit. Sans ce transfert,
+  // le contrat resterait accroché au lead_id — invisible depuis la fiche du
+  // client, et détruit le jour où le prospect serait effacé, `lead_id` étant
+  // « on delete cascade ». Un contrat signé perdu par un ménage de pipeline.
+  //
+  // Un seul UPDATE, les deux colonnes ensemble : agreements_destinataire
+  // impose (client_id is not null) <> (lead_id is not null), et refuserait
+  // l'état intermédiaire.
+  //
+  // Le PDF déjà émis, lui, ne bouge pas : il vit dans `documents`, il porte son
+  // empreinte, et son chemin de stockage est figé. Le déplacer casserait la
+  // signature apposée dessus — ce que l'empreinte sert précisément à empêcher.
+  const { data: ententes, error: eErr } = await supabase
+    .from("agreements")
+    .update({ client_id: created.id, lead_id: null })
+    .eq("firm_id", firmId)
+    .eq("lead_id", lead.id)
+    .select("id")
+
+  if (eErr) {
+    console.error("convertLeadToClient : client créé, ententes non transférées —", eErr.message)
+  }
+
   return {
     client: toClient(created),
     alreadyConverted: false,
     questionnairesTransferes: qErr ? 0 : (transferes?.length ?? 0),
     membresFamilleTransferes: fErr ? 0 : (famille?.length ?? 0),
+    ententesTransferees: eErr ? 0 : (ententes?.length ?? 0),
   }
 }
 

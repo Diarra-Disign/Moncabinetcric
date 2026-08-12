@@ -405,11 +405,29 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     if (isConverting) return
     setIsConverting(true)
     try {
-      const { client, alreadyConverted } = await convertLeadToClient(lead.id)
+      const {
+        client, alreadyConverted,
+        questionnairesTransferes, membresFamilleTransferes, ententesTransferees,
+      } = await convertLeadToClient(lead.id)
+
+      // Ce qui a SUIVI le prospect est nommé. Ces transferts avaient lieu en
+      // silence : le consultant ne savait pas que le questionnaire rempli, la
+      // famille saisie et l'entente signée étaient désormais au dossier du
+      // client — et pouvait les redemander.
+      const suivis = [
+        questionnairesTransferes > 0 &&
+          `${questionnairesTransferes} questionnaire${questionnairesTransferes > 1 ? "s" : ""}`,
+        membresFamilleTransferes > 0 &&
+          `${membresFamilleTransferes} membre${membresFamilleTransferes > 1 ? "s" : ""} de la famille`,
+        ententesTransferees > 0 &&
+          `${ententesTransferees} entente${ententesTransferees > 1 ? "s" : ""} de service`,
+      ].filter(Boolean).join(", ")
+
       setConversionSuccess(
         alreadyConverted
           ? `« ${lead.company || lead.name} » était déjà converti — dossier ${client.fileNumber}.`
-          : `Client « ${client.name} » créé sous le dossier ${client.fileNumber}. Le prospect est conservé et marqué converti.`
+          : `Client « ${client.name} » créé sous le dossier ${client.fileNumber}. Le prospect est conservé et marqué converti.` +
+            (suivis ? ` Ont suivi : ${suivis}.` : "")
       )
       // Le prospect reste dans le pipeline, à l'étape signée : on perdrait
       // sinon l'historique du cycle de vente.

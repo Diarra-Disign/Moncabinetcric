@@ -174,11 +174,17 @@ professionnels pro bono.
 - [x] `./cric ententes` passe de 26 à 46 contrôles : PDF réel de 3 pages,
       empreinte comparée aux octets déposés, réémission refusée
 
-### Tâche 7 — La conversion (est. 15 min)
+### Tâche 7 — La conversion (est. 15 min) ✅
 
-- [ ] `convertLeadToClient()` : les ententes suivent, un seul UPDATE
+- [x] `convertLeadToClient()` : les ententes suivent, un seul UPDATE
       (`client_id` posé, `lead_id` vidé), même motif que questionnaires et
       famille — et même raison : `lead_id` est `on delete cascade`
+- [x] Le PDF déjà émis ne bouge PAS : il vit dans `documents`, porte son
+      empreinte, et son chemin est figé — le déplacer casserait la signature
+- [x] Le message de conversion NOMME enfin ce qui a suivi. Les comptes étaient
+      rendus par l'action et jetés par l'écran depuis le début
+- [x] Épreuve : le prospect est effacé, l'entente transférée survit ; un
+      transfert écrit en deux temps est refusé par la contrainte
 
 ---
 

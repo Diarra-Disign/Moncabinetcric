@@ -442,6 +442,61 @@ try {
   verifier("aucune variable inconnue dans leurs textes", [...inconnues].join(", ") || "aucune", "aucune")
 
   // -------------------------------------------------------------------------
+  console.log("\nLa conversion emmène les ententes (§22)")
+  // -------------------------------------------------------------------------
+  // Le cas est ordinaire : le consultant fait signer une entente de
+  // consultation AU PROSPECT, puis le convertit. `lead_id` est « on delete
+  // cascade » — sans transfert, un ménage de pipeline détruirait un contrat
+  // signé.
+  const { data: prospect2 } = await admin.from("leads").insert({
+    firm_id: cabinetA, name: "Kofi Mensah", email: `kofi-${marque}@example.invalid`,
+    phone: "+1 514 555 0177", type: "b2c", visa_type: "Résidence permanente",
+    estimated_value: 3200, score: 65, score_label: "med", stage: "consultation",
+    last_contact: new Date().toISOString().slice(0, 10), notes: "", civility: "mr",
+  }).select("id").single()
+
+  const { data: entProspect } = await cabinet.from("agreements").insert({
+    firm_id: cabinetA, lead_id: prospect2.id, template_id: modele.id,
+    template_version: "1.0", reference: `ENT-CV-${marque}`,
+    title: "Consultation initiale", kind: "consultation", status: "draft",
+    articles_snapshot: [], fees_amount: 200, total_amount: 200,
+  }).select("id").single()
+
+  const { data: client2 } = await admin.from("clients").insert({
+    firm_id: cabinetA, name: "Kofi Mensah", email: `kofi-cli-${marque}@example.invalid`,
+    file_number: `DOS-C-${String(marque).slice(-6)}`, program: "Résidence permanente",
+    status: "active", client_type: "individual", civility: "mr",
+  }).select("id").single()
+
+  // Le geste exact de convertLeadToClient() : UN SEUL update, les deux
+  // colonnes ensemble, parce que agreements_destinataire refuse l'état
+  // intermédiaire.
+  const { error: eSuivi } = await cabinet.from("agreements")
+    .update({ client_id: client2.id, lead_id: null })
+    .eq("firm_id", cabinetA).eq("lead_id", prospect2.id)
+  verifier("l'entente suit la conversion", eSuivi ? eSuivi.message : "ok", "ok")
+
+  // Poser client_id SANS vider lead_id doit être refusé : c'est l'état que la
+  // contrainte existe pour empêcher, et c'est celui qu'un transfert écrit en
+  // deux temps produirait.
+  const { data: entDeuxTemps } = await cabinet.from("agreements").insert({
+    firm_id: cabinetA, lead_id: prospect2.id, template_id: modele.id,
+    template_version: "1.0", reference: `ENT-2T-${marque}`, title: "Deux temps",
+    kind: "consultation", status: "draft", articles_snapshot: [],
+  }).select("id").single()
+  const { error: eDeuxTemps } = await cabinet.from("agreements")
+    .update({ client_id: client2.id }).eq("id", entDeuxTemps.id)
+  verifier("un transfert en deux temps : REFUSÉ", eDeuxTemps ? "refusé" : "ACCEPTÉ", "refusé")
+
+  // LE CONTRÔLE QUI COMPTE. Le prospect est effacé ; l'entente transférée doit
+  // survivre. C'est ce que vider lead_id protège.
+  await admin.from("leads").delete().eq("id", prospect2.id)
+  const { data: survivante } = await admin
+    .from("agreements").select("id, client_id").eq("id", entProspect.id).maybeSingle()
+  verifier("effacer le prospect ne détruit pas l'entente", survivante ? "elle vit" : "DÉTRUITE", "elle vit")
+  verifier("et elle est désormais au dossier du client", survivante?.client_id, client2.id)
+
+  // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
   // -------------------------------------------------------------------------
   const { data: entTiers } = await tiers.from("agreements").select("id").eq("firm_id", cabinetA)
