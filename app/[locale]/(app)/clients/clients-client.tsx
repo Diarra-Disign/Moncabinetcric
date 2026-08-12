@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils"
 import { SelecteurCivilite } from "@/components/ui/civilite"
 import { nomAvecCivilite, type Civilite } from "@/lib/data/identite"
 import { PROGRAM_GROUPS } from "@/lib/data/services-immigration"
+import { ChampsAdresse, ADRESSE_VIDE, type ValeursAdresse } from "@/components/ui/adresse-postale"
 
 export type { ClientRecord }
 
@@ -131,7 +132,11 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   // valeur RÉELLE de la liste, sinon le premier client créé sans toucher au
   // menu porte un programme qui n'y figure pas.
   const [newProgram, setNewProgram] = React.useState(PROGRAM_GROUPS[1].options[0].value)
-  const [newProvince, setNewProvince] = React.useState("Québec")
+  // L'ADRESSE POSTALE remplace le champ `newProvince`, qui valait « Québec »
+  // pour TOUS les clients : il n'avait aucun sélecteur à l'écran et sa valeur
+  // par défaut partait telle quelle en base. Une colonne qui ne dit qu'une
+  // seule chose ne dit rien.
+  const [newAdresse, setNewAdresse] = React.useState<ValeursAdresse>(ADRESSE_VIDE)
   const [intakeNotes, setIntakeNotes] = React.useState("")
 
   // Ce tableau associait en dur c-1 à c-4 aux dossiers de démonstration, et
@@ -176,7 +181,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
       phone: newPhone,
       citizenship: clientType === "employer" ? "Canada (Employeur)" : (newCitizenship || "Non spécifié"),
       residence: residenceLocation === "canada" ? "Canada" : "International",
-      province: newProvince,
+      ...newAdresse,
       program: newProgram,
       status: "active",
       intakeMotif: intakeNotes || "Dossier initialisé depuis la section Mon Cabinet CRIC.",
@@ -197,6 +202,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
       // Reset form
       setNewFirstName("")
       setNewLastName("")
+      setNewAdresse(ADRESSE_VIDE)
       setCompanyName("")
       setNeqNumber("")
       setNewEmail("")
@@ -757,6 +763,21 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                   onChange={(e) => setNewPhone(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
                 />
+              </div>
+
+              {/* ADRESSE POSTALE
+                  Distincte de « Nationalité » et de « Lieu de résidence », qui
+                  sont des PAYS et servent au dossier d'immigration. Aucun des
+                  deux ne dit où le client habite — et c'est cette adresse-ci
+                  qui identifie la partie sur une entente de service. */}
+              <div className="sm:col-span-2 border-t border-border pt-4">
+                <p className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider mb-3">
+                  Adresse postale
+                  <span className="ml-2 normal-case font-semibold text-[11px] text-muted-foreground/80">
+                    reprise sur les ententes de service et les factures
+                  </span>
+                </p>
+                <ChampsAdresse valeurs={newAdresse} onChange={setNewAdresse} prefixe="client" />
               </div>
 
               <div className="flex flex-col gap-1.5 sm:col-span-2">

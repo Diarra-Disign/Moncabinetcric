@@ -42,6 +42,22 @@ export const ENCRE = rgb(0.06, 0.09, 0.16)
 export const GRIS = rgb(0.42, 0.45, 0.5)
 export const TRAIT = rgb(0.85, 0.87, 0.9)
 export const PALE = rgb(0.93, 0.94, 0.96)
+/**
+ * Les deux couleurs des pièces officielles : le bandeau et son accent.
+ *
+ * MARINE est l'ENCRE du reste de l'application — le même bleu nuit, employé en
+ * aplat plutôt qu'en texte. Elle n'appartient donc à aucun cabinet en
+ * particulier : c'est le jeton du système de design, et le logo reste le seul
+ * élément propre à chaque cabinet.
+ *
+ * OR n'est qu'un filet et une ligne de sous-titre. Assez pour qu'un document
+ * ait l'air composé, trop peu pour concurrencer le logo.
+ */
+export const MARINE = rgb(0.09, 0.16, 0.30)
+export const OR = rgb(0.78, 0.65, 0.32)
+/** Fond des panneaux d'identification — assez pâle pour rester imprimable. */
+export const VOILE = rgb(0.96, 0.97, 0.99)
+export const BLANC = rgb(1, 1, 1)
 
 export const LARGEUR = 595.28
 export const HAUTEUR = 841.89

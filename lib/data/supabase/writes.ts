@@ -149,6 +149,15 @@ export async function createLead(data: Omit<Lead, "id"> & { id?: string }): Prom
     // le navigateur et la base : aucune colonne ne la recevait. Elle existe.
     contact_intent: data.contactIntent ?? null,
     civility: data.civility ?? null,
+    // L'adresse postale, dès le prospect. Les colonnes existaient depuis la
+    // veille et rien ne les remplissait : une colonne que personne n'écrit
+    // vaut une colonne absente, et l'entente de service la réclamera.
+    address: data.address ?? null,
+    address_line2: data.addressLine2 ?? null,
+    city: data.city ?? null,
+    province: data.province ?? null,
+    postal_code: data.postalCode ?? null,
+    country: data.country ?? null,
   }
 
   const { data: inserted, error } = await (await db())
@@ -191,6 +200,12 @@ export async function updateLead(id: string, updates: Partial<Lead>): Promise<Le
   if (updates.email !== undefined) payload.email = updates.email
   if (updates.phone !== undefined) payload.phone = updates.phone
   if (updates.notes !== undefined) payload.notes = updates.notes
+  if (updates.address !== undefined) payload.address = updates.address || null
+  if (updates.addressLine2 !== undefined) payload.address_line2 = updates.addressLine2 || null
+  if (updates.city !== undefined) payload.city = updates.city || null
+  if (updates.province !== undefined) payload.province = updates.province || null
+  if (updates.postalCode !== undefined) payload.postal_code = updates.postalCode?.toUpperCase() || null
+  if (updates.country !== undefined) payload.country = updates.country || null
 
   const { data, error } = await (await db())
     .from("leads")
@@ -251,7 +266,15 @@ export async function createClient(data: Omit<ClientRecord, "id"> & { id?: strin
     phone: data.phone || '',
     citizenship: data.citizenship || '',
     residence: data.residence || '',
+    // L'adresse POSTALE. `citizenship` et `residence` sont des PAYS : ni l'un
+    // ni l'autre ne dit où le client habite, et c'est cette adresse-ci qui
+    // identifie la partie sur une entente de service.
+    address: data.address ?? null,
+    address_line2: data.addressLine2 ?? null,
+    city: data.city ?? null,
     province: data.province,
+    postal_code: data.postalCode ?? null,
+    country: data.country ?? null,
     program: data.program || '',
     status: data.status || 'active',
     intake_motif: data.intakeMotif || '',

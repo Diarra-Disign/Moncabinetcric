@@ -2,9 +2,9 @@ import "server-only"
 
 import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib"
 import {
-  ENCRE, GRIS, TRAIT, LARGEUR, HAUTEUR, G, D,
-  argentDe, ecrire, couper, envelopper, droite,
-  enTete, bloc, pagination, filigrane,
+  ENCRE, GRIS, TRAIT, MARINE, OR, VOILE, BLANC, LARGEUR, HAUTEUR, G, D,
+  argentDe, ecrire, couper, envelopper, droite, centre,
+  logoEnOctets, filigrane,
   type LanguePdf, type CabinetPdf,
 } from "@/lib/pdf/primitives"
 
@@ -39,13 +39,32 @@ const MOTS = {
   fr: {
     entente: "ENTENTE DE SERVICE",
     consultantCric: "Consultant réglementé CRIC",
-    entre: "ENTRE — LE CONSULTANT",
-    et: "ET — LE CLIENT",
+    entre: "CONSULTANT / REPRÉSENTANT",
+    et: "CLIENT / CONTRACTANT",
     date: "DATE",
     permisAbrege: "Permis CRIC",
     tel: "Tél.",
     parties: "Ci-après collectivement désignés les « Parties ».",
-    numero: "N° D'ENTENTE",
+    surTitre: "CONTRAT DE REPRÉSENTATION",
+    sousTitre: "EN IMMIGRATION CANADIENNE",
+    numero: "N° DE CONTRAT",
+    dateContrat: "DATE DU CONTRAT",
+    dossierRef: "DOSSIER / RÉFÉRENCE",
+    regi: [
+      "Le présent contrat est régi par les lois du Canada et par les",
+      "règlements du Collège des consultants en immigration et en",
+      "citoyenneté (CCIC).",
+    ],
+    consultantLong: "Consultant réglementé en immigration canadienne",
+    description: "DESCRIPTION",
+    montantCad: "MONTANT (CAD)",
+    honorairesPro: "Honoraires professionnels",
+    pourLeConsultant: "POUR LE CONSULTANT",
+    pourLeClient: "POUR LE CLIENT",
+    nomLabel: "Nom :",
+    signatureLabel: "Signature :",
+    dateLabel: "Date :",
+    piedConfidentiel: "Vos informations sont confidentielles et protégées.",
     honoraires: "HONORAIRES",
     proBono: "PRO BONO",
     sansHonoraires: "Sans honoraires",
@@ -70,13 +89,32 @@ const MOTS = {
   en: {
     entente: "SERVICE AGREEMENT",
     consultantCric: "Regulated Canadian Immigration Consultant",
-    entre: "BETWEEN — THE CONSULTANT",
-    et: "AND — THE CLIENT",
+    entre: "CONSULTANT / REPRESENTATIVE",
+    et: "CLIENT / CONTRACTING PARTY",
     date: "DATE",
     permisAbrege: "RCIC licence",
     tel: "Tel.",
     parties: "Hereinafter collectively referred to as the « Parties ».",
-    numero: "AGREEMENT NUMBER",
+    surTitre: "REPRESENTATION AGREEMENT",
+    sousTitre: "CANADIAN IMMIGRATION",
+    numero: "AGREEMENT NO.",
+    dateContrat: "AGREEMENT DATE",
+    dossierRef: "MATTER / REFERENCE",
+    regi: [
+      "This agreement is governed by the laws of Canada and by the",
+      "regulations of the College of Immigration and Citizenship",
+      "Consultants (CICC).",
+    ],
+    consultantLong: "Regulated Canadian Immigration Consultant",
+    description: "DESCRIPTION",
+    montantCad: "AMOUNT (CAD)",
+    honorairesPro: "Professional fees",
+    pourLeConsultant: "FOR THE CONSULTANT",
+    pourLeClient: "FOR THE CLIENT",
+    nomLabel: "Name:",
+    signatureLabel: "Signature:",
+    dateLabel: "Date:",
+    piedConfidentiel: "Your information is confidential and protected.",
     honoraires: "FEES",
     proBono: "PRO BONO",
     sansHonoraires: "No fees",
@@ -162,8 +200,13 @@ export interface EntentePdf {
   langue?: LanguePdf
 }
 
-/** Plancher du contenu : sous cette ligne, il ne reste que la pagination. */
-const BAS = 96
+/**
+ * Plancher du contenu : sous cette ligne, il ne reste que le bandeau de pied.
+ *
+ * Le bandeau fait trente points de haut et il est PLEIN : y écrire du texte le
+ * rendrait illisible, pas seulement mal placé.
+ */
+const BAS = 76
 /**
  * La hauteur qu'occupera le bloc de signature, selon le nombre de signataires.
  *
@@ -175,7 +218,7 @@ const BAS = 96
  *
  * Deux signataires par rangée, une rangée par paire, plus le titre.
  */
-const hauteurSignatures = (nombre: number) => 20 + Math.max(1, Math.ceil(nombre / 2)) * 74
+const hauteurSignatures = (nombre: number) => 20 + Math.max(1, Math.ceil(nombre / 2)) * 76
 
 /**
  * Le flux de pages.
@@ -216,11 +259,27 @@ class Flux {
     this.pages.push(premiere)
   }
 
-  /** Réserve `hauteur` points, en changeant de page si nécessaire. */
-  place(hauteur: number): number {
+  /**
+   * Réserve `hauteur` points, en changeant de page si nécessaire.
+   *
+   * Rend LA PAGE ET L'ORDONNÉE, jamais l'ordonnée seule — et c'est une garde,
+   * pas une commodité. Écrit d'un trait,
+   *
+   *     ecrire(flux.page, ligne, { y: flux.place(13) })
+   *
+   * JavaScript évalue « flux.page » AVANT « flux.place() ». Quand place()
+   * ouvrait une page, la ligne partait donc sur l'ANCIENNE page à l'ordonnée
+   * de la NOUVELLE : la première ligne de chaque page s'imprimait par-dessus
+   * l'en-tête de la précédente. Rien ne levait, et cela ne se voyait que sur un
+   * contrat assez long pour déborder.
+   *
+   * En rendant les deux ensemble, l'appelant ne PEUT plus tenir une page
+   * périmée : le défaut est écarté par la forme, pas par la vigilance.
+   */
+  place(hauteur: number): { page: PDFPage; y: number } {
     if (this.y - hauteur < BAS) this.nouvellePage()
     this.y -= hauteur
-    return this.y
+    return { page: this.page, y: this.y }
   }
 
   nouvellePage() {
@@ -234,63 +293,246 @@ class Flux {
       x: G, y: 792, size: 8, font: this.normal, color: GRIS,
     })
     droite(page, `${this.entete.numero} · ${this.entete.suite}`, D, 792, this.normal, 8, GRIS)
-    page.drawLine({ start: { x: G, y: 784 }, end: { x: D, y: 784 }, thickness: 0.6, color: TRAIT })
+    page.drawLine({ start: { x: G, y: 784 }, end: { x: G + 40, y: 784 }, thickness: 1.6, color: OR })
+    page.drawLine({ start: { x: G + 40, y: 784 }, end: { x: D, y: 784 }, thickness: 0.6, color: TRAIT })
     this.y = 760
   }
 }
 
 /**
- * Un bloc d'identification de partie. Rend la HAUTEUR occupée.
+ * L'en-tête du contrat : le cabinet à gauche, le titre et les repères à droite.
  *
- * Aucune ligne vide n'est écrite (§4) : chaque élément absent ne consomme pas
- * de place. C'est pour cela que la hauteur est rendue plutôt que supposée —
- * le bloc du consultant, plus fourni, décide seul de la suite de la page.
+ * Il ne réutilise PAS `enTete()` des primitives, et c'est le seul écart assumé
+ * de tout ce fichier. Cet en-tête-là convient à une facture, où le titre suffit
+ * et où l'adresse n'est qu'un repère. Un contrat s'ouvre autrement : il faut y
+ * lire, avant toute chose, QUI s'engage et SOUS QUEL NUMÉRO. Les primitives de
+ * dessin — translittération, coupe, alignement — restent partagées ; c'est la
+ * composition qui diffère, comme elle diffère sur le papier.
+ *
+ * Rend l'ordonnée où la suite reprend.
  */
-function blocPartie(
+async function enTeteContrat(
+  doc: PDFDocument, page: PDFPage, e: EntentePdf, c: CabinetPdf,
+  m: typeof MOTS.fr | typeof MOTS.en, normal: PDFFont, gras: PDFFont
+): Promise<number> {
+  const HAUT = 792
+  const xDroite = 300
+  let yGauche = HAUT
+
+  // ---- Colonne gauche : l'identité du cabinet ----
+  const logo = await logoEnOctets(c.logoUrl)
+  if (logo) {
+    try {
+      const image = logo.type === "jpg" ? await doc.embedJpg(logo.octets) : await doc.embedPng(logo.octets)
+      const h = 44
+      const l = (image.width / image.height) * h
+      page.drawImage(image, { x: G, y: yGauche - h, width: Math.min(l, 170), height: h })
+      yGauche -= h + 12
+    } catch {
+      // Format non reconnu : le nom du cabinet suffit à l'identifier.
+    }
+  }
+
+  ecrire(page, couper(c.nom, gras, 15, 220), { x: G, y: yGauche - 12, size: 15, font: gras, color: MARINE })
+  yGauche -= 28
+
+  const identite = [
+    e.consultant.nom,
+    m.consultantLong,
+    c.numeroPermis ? `${m.permisAbrege} ${c.numeroPermis}` : "",
+  ]
+  for (const [i, ligne] of identite.entries()) {
+    if (!ligne.trim()) continue
+    ecrire(page, couper(ligne, i === 0 ? gras : normal, 9, 230), {
+      x: G, y: yGauche, size: 9, font: i === 0 ? gras : normal, color: i === 0 ? ENCRE : GRIS,
+    })
+    yGauche -= 12
+  }
+
+  // LES COORDONNÉES NE SONT PAS RÉPÉTÉES ICI. Le panneau « 1. Consultant /
+  // Représentant », quelques centimètres plus bas, porte l'adresse, le
+  // téléphone et le courriel. Les imprimer deux fois sur la même page faisait
+  // lire le document comme un dépliant, et obligerait à corriger deux endroits
+  // le jour d'un déménagement. L'en-tête dit QUI ; le panneau dit OÙ.
+
+  // ---- Colonne droite : le bandeau de titre ----
+  const largeurBandeau = D - xDroite
+  const hauteurBandeau = 46
+  page.drawRectangle({
+    x: xDroite, y: HAUT - hauteurBandeau, width: largeurBandeau, height: hauteurBandeau, color: MARINE,
+  })
+  centre(page, m.surTitre, xDroite + largeurBandeau / 2, HAUT - 22, gras, 13, BLANC)
+  centre(page, m.sousTitre, xDroite + largeurBandeau / 2, HAUT - 37, normal, 10, OR)
+
+  let yDroite = HAUT - hauteurBandeau - 24
+
+  // Les trois repères, chacun sur son filet — la forme d'un contrat qu'on
+  // remplit à la main, celle que le consultant reconnaît.
+  for (const [etiquette, valeur] of [
+    [m.numero, e.numero],
+    [m.dateContrat, e.date],
+    [m.dossierRef, e.dossierReference || "—"],
+  ] as const) {
+    ecrire(page, etiquette, { x: xDroite, y: yDroite, size: 8, font: gras, color: ENCRE })
+    const xValeur = xDroite + 118
+    ecrire(page, couper(valeur, normal, 9, D - xValeur), {
+      x: xValeur, y: yDroite, size: 9, font: normal, color: ENCRE,
+    })
+    page.drawLine({
+      start: { x: xValeur, y: yDroite - 4 }, end: { x: D, y: yDroite - 4 },
+      thickness: 0.5, color: TRAIT,
+    })
+    yDroite -= 20
+  }
+
+  // L'encadré du droit applicable. Il dit ce qui gouverne le contrat sans rien
+  // promettre : « régi par » n'est pas « conforme à », et le §1 interdit la
+  // seconde formule.
+  yDroite -= 6
+  const hauteurNote = 14 + m.regi.length * 11
+  page.drawRectangle({
+    x: xDroite, y: yDroite - hauteurNote + 8, width: largeurBandeau, height: hauteurNote, color: VOILE,
+  })
+  page.drawRectangle({
+    x: xDroite, y: yDroite - hauteurNote + 8, width: 2.5, height: hauteurNote, color: OR,
+  })
+  let yNote = yDroite - 4
+  for (const ligne of m.regi) {
+    ecrire(page, ligne, { x: xDroite + 12, y: yNote, size: 7.5, font: normal, color: ENCRE })
+    yNote -= 11
+  }
+  yDroite -= hauteurNote + 6
+
+  return Math.min(yGauche, yDroite) - 14
+}
+
+/**
+ * Un panneau d'identification de partie. Rend la HAUTEUR occupée.
+ *
+ * LE §8 EXIGE DEUX BLOCS DISTINCTS, et le panneau est ce qui le rend visible :
+ * une barre de titre pleine, un fond teinté, une bordure. Deux colonnes de
+ * texte nu se touchant au milieu de la page peuvent se lire comme une seule ;
+ * deux panneaux, non.
+ *
+ * Aucune ligne vide n'est écrite (§4) : ce qui manque ne consomme pas de place,
+ * et c'est pour cela que la hauteur est RENDUE plutôt que supposée — le
+ * panneau le plus fourni décide seul de la suite de la page.
+ */
+function panneauPartie(
   page: PDFPage, x: number, y: number, largeur: number,
   titre: string, p: BlocPartie,
   m: typeof MOTS.fr | typeof MOTS.en,
   normal: PDFFont, gras: PDFFont
 ): number {
-  let curseur = y
+  // Deux passes : on mesure d'abord, on dessine ensuite. Le fond doit être
+  // posé AVANT le texte — l'inverse le recouvrirait — et sa hauteur ne se
+  // connaît qu'une fois les lignes comptées.
+  const lignes: { texte: string; taille: number; police: PDFFont; couleur: typeof ENCRE; saut: number }[] = []
 
-  ecrire(page, titre, { x, y: curseur, size: 7.5, font: gras, color: GRIS })
-  curseur -= 16
+  lignes.push({ texte: p.nom, taille: 10, police: gras, couleur: ENCRE, saut: 13 })
 
-  ecrire(page, couper(p.nom, gras, 10, largeur), { x, y: curseur, size: 10, font: gras, color: ENCRE })
-  curseur -= 13
-
-  // La raison sociale sous le nom, et seulement si elle en diffère : « Adama
-  // Diarra » puis « Adama Diarra » serait un doublon, pas une précision.
   if (p.organisation && p.organisation.trim() && p.organisation.trim() !== p.nom.trim()) {
-    ecrire(page, couper(p.organisation, gras, 9, largeur), { x, y: curseur, size: 9, font: gras, color: ENCRE })
-    curseur -= 12
+    lignes.push({ texte: p.organisation, taille: 9, police: gras, couleur: ENCRE, saut: 12 })
   }
-
   if (p.permis) {
-    // Le permis est en ENCRE, pas en gris : c'est le renseignement qui atteste
-    // que cette partie-ci est autorisée à représenter devant IRCC.
-    ecrire(page, couper(`${m.permisAbrege} ${p.permis}`, normal, 8.5, largeur),
-      { x, y: curseur, size: 8.5, font: normal, color: ENCRE })
-    curseur -= 12
+    // En ENCRE et non en gris : c'est le renseignement qui atteste que cette
+    // partie-ci est autorisée à représenter devant IRCC.
+    lignes.push({ texte: m.consultantLong, taille: 8, police: normal, couleur: GRIS, saut: 11 })
+    lignes.push({ texte: `${m.permisAbrege} ${p.permis}`, taille: 8.5, police: gras, couleur: ENCRE, saut: 13 })
   }
-
-  for (const ligne of p.lignesAdresse) {
-    ecrire(page, couper(ligne, normal, 8.5, largeur), { x, y: curseur, size: 8.5, font: normal, color: GRIS })
-    curseur -= 11
+  for (const l of p.lignesAdresse) {
+    lignes.push({ texte: l, taille: 8.5, police: normal, couleur: GRIS, saut: 11 })
   }
-
-  for (const ligne of [
+  for (const l of [
     p.telephone ? `${m.tel} ${p.telephone}` : "",
     p.courriel ?? "",
     p.siteWeb ?? "",
   ]) {
-    if (!ligne.trim()) continue
-    ecrire(page, couper(ligne, normal, 8.5, largeur), { x, y: curseur, size: 8.5, font: normal, color: GRIS })
-    curseur -= 11
+    if (!l.trim()) continue
+    lignes.push({ texte: l, taille: 8.5, police: normal, couleur: GRIS, saut: 11 })
   }
 
+  const HAUTEUR_BARRE = 18
+  const corps = lignes.reduce((t, l) => t + l.saut, 0) + 16
+  const hauteur = HAUTEUR_BARRE + corps
+
+  page.drawRectangle({
+    x, y: y - hauteur, width: largeur, height: corps, color: VOILE,
+    borderColor: TRAIT, borderWidth: 0.5,
+  })
+  page.drawRectangle({
+    x, y: y - HAUTEUR_BARRE, width: largeur, height: HAUTEUR_BARRE, color: MARINE,
+  })
+  ecrire(page, titre, { x: x + 10, y: y - 12.5, size: 8, font: gras, color: BLANC })
+
+  let curseur = y - HAUTEUR_BARRE - 14
+  for (const l of lignes) {
+    ecrire(page, couper(l.texte, l.police, l.taille, largeur - 20), {
+      x: x + 10, y: curseur, size: l.taille, font: l.police, color: l.couleur,
+    })
+    curseur -= l.saut
+  }
+
+  return hauteur
+}
+
+/**
+ * Le tableau des honoraires. Rend la hauteur occupée.
+ *
+ * CHAQUE TAXE IMPRIME SON MONTANT SUR SA PROPRE LIGNE, et le total est dans un
+ * bandeau plein : c'est le nombre que le client cherche, et le chercher dans
+ * une colonne de chiffres identiques est ce qui fait qu'on repose le document.
+ */
+function tableauHonoraires(
+  page: PDFPage, x: number, y: number, largeur: number,
+  e: EntentePdf, m: typeof MOTS.fr | typeof MOTS.en,
+  argent: (v: number) => string, normal: PDFFont, gras: PDFFont
+): number {
+  const HAUTEUR_LIGNE = 22
+  const xMontant = x + largeur - 10
+  const lignes: [string, number, boolean][] = [[m.honorairesPro, e.montants.honoraires, false]]
+  if (e.montants.taxes > 0) lignes.push([m.taxes, e.montants.taxes, false])
+
+  let curseur = y
+
+  page.drawRectangle({ x, y: curseur - HAUTEUR_LIGNE, width: largeur, height: HAUTEUR_LIGNE, color: MARINE })
+  ecrire(page, m.description, { x: x + 10, y: curseur - 14.5, size: 8, font: gras, color: BLANC })
+  droite(page, m.montantCad, xMontant, curseur - 14.5, gras, 8, BLANC)
+  curseur -= HAUTEUR_LIGNE
+
+  for (const [libelle, montant] of lignes) {
+    page.drawRectangle({
+      x, y: curseur - HAUTEUR_LIGNE, width: largeur, height: HAUTEUR_LIGNE,
+      borderColor: TRAIT, borderWidth: 0.5,
+    })
+    ecrire(page, libelle, { x: x + 10, y: curseur - 14.5, size: 9, font: normal, color: ENCRE })
+    droite(page, argent(montant), xMontant, curseur - 14.5, normal, 9, ENCRE)
+    curseur -= HAUTEUR_LIGNE
+  }
+
+  page.drawRectangle({ x, y: curseur - HAUTEUR_LIGNE, width: largeur, height: HAUTEUR_LIGNE, color: MARINE })
+  ecrire(page, m.total, { x: x + 10, y: curseur - 14.5, size: 9, font: gras, color: BLANC })
+  droite(page, argent(e.montants.total), xMontant, curseur - 14.5, gras, 9, BLANC)
+  curseur -= HAUTEUR_LIGNE
+
   return y - curseur
+}
+
+/**
+ * Le pied de page, sur chaque page.
+ *
+ * Il porte le numéro du contrat à côté de la pagination : une page détachée
+ * doit pouvoir être rattachée à son document, et « Page 2 sur 4 » seule ne le
+ * permet pas.
+ */
+function piedContrat(
+  page: PDFPage, m: typeof MOTS.fr | typeof MOTS.en,
+  reference: string, n: number, total: number, normal: PDFFont, gras: PDFFont
+) {
+  const HAUTEUR_PIED = 30
+  page.drawRectangle({ x: 0, y: 0, width: LARGEUR, height: HAUTEUR_PIED, color: MARINE })
+  ecrire(page, m.piedConfidentiel, { x: G, y: 11, size: 7.5, font: normal, color: BLANC })
+  droite(page, `${reference}  ·  ${m.page(n, total)}`, D, 11, gras, 7.5, BLANC)
 }
 
 export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Array> {
@@ -303,58 +545,28 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
   const normal = await doc.embedFont(StandardFonts.Helvetica)
   const gras = await doc.embedFont(StandardFonts.HelveticaBold)
 
-  let y = await enTete(doc, premiere, c, normal, gras, m.entente, m.consultantCric)
+  let y = await enTeteContrat(doc, premiere, e, c, m, normal, gras)
 
-  // ---- Le bandeau : quand, sous quel numéro, pour combien ------------------
-  const xMilieu = 300
+  // ---- LES DEUX PARTIES, EN PANNEAUX NUMÉROTÉS (§8) -----------------------
+  // Numérotés « 1. » et « 2. » : le contrat se lit et se cite, et « la partie
+  // désignée au paragraphe 1 » a besoin d'un paragraphe 1.
+  const largeurPartie = (D - G - 18) / 2
+  const xDroite = G + largeurPartie + 18
 
-  bloc(premiere, G, y, m.date, e.date, normal, gras, false, 9.5)
-  bloc(premiere, xMilieu, y, m.numero, e.numero, normal, gras, false, 9.5)
-  // Pro bono : l'absence d'honoraires est le PROPOS du contrat, pas un oubli.
-  // Imprimer « 0,00 $ » laisserait croire à une grille tarifaire non remplie.
-  bloc(
-    premiere, D, y, e.proBono ? m.proBono : m.honoraires,
-    e.proBono ? m.sansHonoraires : argent(e.montants.total),
-    normal, gras, true, e.proBono ? 11 : 14
+  const hauteurParties = Math.max(
+    panneauPartie(premiere, G, y, largeurPartie, `1. ${m.entre}`, e.consultant, m, normal, gras),
+    panneauPartie(premiere, xDroite, y, largeurPartie, `2. ${m.et}`, e.client, m, normal, gras)
   )
 
-  y -= 34
-  if (e.dossierReference) {
-    ecrire(premiere, `${m.dossier} ${e.dossierReference}`, { x: G, y, size: 8.5, font: normal, color: GRIS })
-    y -= 12
-  }
-
-  premiere.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 1.6, color: ENCRE })
-  y -= 22
-
-  // ---- LES DEUX PARTIES, CÔTE À CÔTE (§8) ---------------------------------
-  // Un filet vertical les sépare. Ce n'est pas de l'ornement : les deux
-  // adresses ne doivent jamais pouvoir se lire comme une seule, et un lecteur
-  // qui cherche « où joindre le consultant » doit trouver la réponse d'un
-  // regard, sans démêler deux colonnes de texte qui se touchent.
-  const largeurPartie = 215
-  const xDroite = 320
-
-  const hauteurGauche = blocPartie(premiere, G, y, largeurPartie, m.entre, e.consultant, m, normal, gras)
-  const hauteurDroite = blocPartie(premiere, xDroite, y, largeurPartie, m.et, e.client, m, normal, gras)
-  const hauteurParties = Math.max(hauteurGauche, hauteurDroite)
-
-  premiere.drawLine({
-    start: { x: xDroite - 26, y: y + 4 }, end: { x: xDroite - 26, y: y - hauteurParties + 6 },
-    thickness: 0.6, color: TRAIT,
-  })
-
   y -= hauteurParties + 14
-  ecrire(premiere, m.parties, { x: G, y, size: 8.5, font: normal, color: GRIS })
+  ecrire(premiere, m.parties, { x: G, y, size: 8, font: normal, color: GRIS })
   y -= 22
 
-  premiere.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 0.6, color: TRAIT })
-  y -= 26
-
-  // Le titre du mandat, sous le filet : c'est de CE service qu'il s'agit, et
-  // le numéro d'entente ne le dit pas.
-  ecrire(premiere, couper(e.titre, gras, 13, D - G), { x: G, y, size: 13, font: gras, color: ENCRE })
-  y -= 26
+  // Le titre du mandat, souligné d'un filet d'or : c'est de CE service qu'il
+  // s'agit, et le numéro de contrat ne le dit pas.
+  ecrire(premiere, couper(e.titre, gras, 13, D - G), { x: G, y, size: 13, font: gras, color: MARINE })
+  premiere.drawLine({ start: { x: G, y: y - 7 }, end: { x: G + 54, y: y - 7 }, thickness: 2, color: OR })
+  y -= 28
 
   // ---- Les articles -------------------------------------------------------
   const flux = new Flux(
@@ -366,7 +578,8 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
 
   if (e.articles.length === 0) {
     // Un contrat vide ne doit pas ressembler à un contrat court : il le dit.
-    ecrire(flux.page, m.aucunArticle, { x: G, y: flux.place(14), size: 9.5, font: normal, color: GRIS })
+    const vide = flux.place(14)
+    ecrire(vide.page, m.aucunArticle, { x: G, y: vide.y, size: 9.5, font: normal, color: GRIS })
   }
 
   for (const [index, article] of e.articles.entries()) {
@@ -381,93 +594,99 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
     if (flux.y - solidaire < BAS) flux.nouvellePage()
 
     for (const ligne of lignesTitre) {
-      ecrire(flux.page, ligne, { x: G, y: flux.place(13), size: 10, font: gras, color: ENCRE })
+      const p = flux.place(13)
+      ecrire(p.page, ligne, { x: G, y: p.y, size: 10, font: gras, color: MARINE })
     }
-    flux.y -= 3
+    flux.y -= 5
     for (const ligne of lignesCorps) {
       // Une ligne vide sépare deux alinéas : elle ne s'écrit pas, elle se
       // laisse.
       if (!ligne) { flux.place(6); continue }
-      ecrire(flux.page, ligne, { x: G, y: flux.place(13), size: 9.5, font: normal, color: ENCRE })
+      const p = flux.place(13)
+      ecrire(p.page, ligne, { x: G, y: p.y, size: 9.5, font: normal, color: ENCRE })
     }
     flux.y -= 14
   }
 
-  // ---- Le récapitulatif des montants --------------------------------------
+  // ---- Le tableau des honoraires ------------------------------------------
   // Pro bono excepté : une ligne « Total 0,00 $ » sous un contrat sans
   // contrepartie contredirait ses propres articles.
   if (!e.proBono) {
-    const xLibelle = 470
-    if (flux.y - 70 < BAS) flux.nouvellePage()
-    flux.y -= 6
-    flux.page.drawLine({
-      start: { x: 340, y: flux.y + 9 }, end: { x: D, y: flux.y + 9 }, thickness: 0.6, color: TRAIT,
-    })
-    let yM = flux.place(16)
-    droite(flux.page, m.sousTotal, xLibelle, yM, normal, 9.5, GRIS)
-    droite(flux.page, argent(e.montants.honoraires), D, yM, normal, 9.5)
-    if (e.montants.taxes > 0) {
-      yM = flux.place(16)
-      droite(flux.page, m.taxes, xLibelle, yM, normal, 9.5, GRIS)
-      droite(flux.page, `+${argent(e.montants.taxes)}`, D, yM, normal, 9.5)
-    }
-    flux.page.drawLine({
-      start: { x: 340, y: flux.y - 5 }, end: { x: D, y: flux.y - 5 }, thickness: 1.6, color: ENCRE,
-    })
-    yM = flux.place(22)
-    droite(flux.page, m.total, xLibelle, yM, gras, 11)
-    droite(flux.page, argent(e.montants.total), D, yM, gras, 11)
-    flux.y -= 18
+    const hauteurTableau = 22 * (e.montants.taxes > 0 ? 4 : 3)
+    if (flux.y - hauteurTableau < BAS) flux.nouvellePage()
+    flux.y -= tableauHonoraires(flux.page, G, flux.y, D - G, e, m, argent, normal, gras) + 22
   }
 
-  // ---- Les signatures -----------------------------------------------------
+  // ---- Les signatures, en encadrés ----------------------------------------
   // Réservées d'un bloc : une ligne de signature coupée entre deux pages
   // laisserait signer sous le vide.
+  //
+  // ENCADRÉES plutôt qu'alignées sur un simple filet. Un contrat qu'on tend à
+  // signer doit montrer OÙ signer sans qu'on le demande — et l'encadré porte
+  // aussi le nom déjà imprimé, pour qu'aucune des deux parties ne signe à la
+  // place de l'autre.
   if (flux.y - hauteurSignatures(e.signataires.length) < BAS) flux.nouvellePage()
 
-  let yS = flux.place(20)
-  ecrire(flux.page, m.signatures, { x: G, y: yS, size: 8, font: gras, color: GRIS })
+  const entete = flux.place(20)
+  ecrire(entete.page, m.signatures, { x: G, y: entete.y, size: 8, font: gras, color: GRIS })
+  entete.page.drawLine({
+    start: { x: G, y: entete.y - 6 }, end: { x: G + 40, y: entete.y - 6 }, thickness: 1.6, color: OR,
+  })
 
-  // Deux colonnes fixes plutôt qu'une répartition calculée : au-delà de deux
-  // signataires, on descend d'une rangée. Un contrat à six parties reste
-  // lisible, et aucune colonne ne rétrécit jusqu'à l'illisible.
-  const colonnes = [G, 320]
-  const largeurColonne = 215
+  const largeurCase = (D - G - 18) / 2
+  const colonnes = [G, G + largeurCase + 18]
+
   for (let i = 0; i < e.signataires.length; i += 2) {
     const rangee = e.signataires.slice(i, i + 2)
-    const yLigne = flux.place(56)
+    const HAUT_CASE = 68
+    const { page: pageCase, y: yCase } = flux.place(HAUT_CASE + 8)
     rangee.forEach((s, j) => {
       const x = colonnes[j]
-      flux.page.drawLine({
-        start: { x, y: yLigne + 22 }, end: { x: x + largeurColonne, y: yLigne + 22 },
-        thickness: 0.8, color: ENCRE,
+      pageCase.drawRectangle({
+        x, y: yCase, width: largeurCase, height: HAUT_CASE,
+        borderColor: TRAIT, borderWidth: 0.6,
       })
-      ecrire(flux.page, couper(s.nom, gras, 9.5, largeurColonne), {
-        x, y: yLigne + 10, size: 9.5, font: gras, color: ENCRE,
-      })
+
+      const enTeteCase = s.permis ? m.pourLeConsultant : m.pourLeClient
+      ecrire(pageCase, enTeteCase, { x: x + 10, y: yCase + HAUT_CASE - 15, size: 7.5, font: gras, color: MARINE })
+
       const role = m.roles[s.role] ?? m.roles.other
       // La mention réglementaire REMPLACE le rôle au lieu de s'y ajouter :
       // « Consultant · Consultant réglementé CRIC R1041776 » disait deux fois
       // le même mot sous une ligne de signature.
-      const dessous = s.permis ? `${m.consultantCric} ${s.permis}` : role
-      ecrire(flux.page, couper(dessous, normal, 8, largeurColonne), {
-        x, y: yLigne, size: 8, font: normal, color: GRIS,
+      const qualite = s.permis ? `${m.permisAbrege} ${s.permis}` : role
+      ecrire(pageCase, couper(`${m.nomLabel} ${s.nom}`, gras, 9, largeurCase - 20), {
+        x: x + 10, y: yCase + HAUT_CASE - 32, size: 9, font: gras, color: ENCRE,
       })
-      ecrire(flux.page, m.signeLe, { x, y: yLigne - 14, size: 8, font: normal, color: GRIS })
-      flux.page.drawLine({
-        start: { x: x + 44, y: yLigne - 13 }, end: { x: x + largeurColonne, y: yLigne - 13 },
-        thickness: 0.5, color: TRAIT,
+      ecrire(pageCase, couper(qualite, normal, 7.5, largeurCase - 20), {
+        x: x + 10, y: yCase + HAUT_CASE - 43, size: 7.5, font: normal, color: GRIS,
+      })
+
+      // Signature et date sur la même ligne : c'est l'ordre dans lequel on
+      // les remplit, et la date isolée sur sa propre ligne se saute.
+      const yLigne = yCase + 14
+      ecrire(pageCase, m.signatureLabel, { x: x + 10, y: yLigne, size: 7.5, font: normal, color: GRIS })
+      const xTrait = x + 10 + normal.widthOfTextAtSize(m.signatureLabel, 7.5) + 4
+      const xDate = x + largeurCase - 78
+      pageCase.drawLine({
+        start: { x: xTrait, y: yLigne - 3 }, end: { x: xDate - 8, y: yLigne - 3 },
+        thickness: 0.5, color: ENCRE,
+      })
+      ecrire(pageCase, m.dateLabel, { x: xDate, y: yLigne, size: 7.5, font: normal, color: GRIS })
+      pageCase.drawLine({
+        start: { x: xDate + normal.widthOfTextAtSize(m.dateLabel, 7.5) + 4, y: yLigne - 3 },
+        end: { x: x + largeurCase - 10, y: yLigne - 3 },
+        thickness: 0.5, color: ENCRE,
       })
     })
-    flux.y -= 18
   }
 
-  // ---- Pagination et filigrane, en dernier --------------------------------
+  // ---- Pied de page et filigrane, en dernier ------------------------------
   // La pagination ne peut s'écrire qu'ICI : « Page 2 sur 4 » suppose de savoir
   // qu'il y en a quatre, et on ne le sait qu'une fois le texte posé.
   const total = flux.pages.length
   flux.pages.forEach((page, i) => {
-    pagination(page, normal, m.page(i + 1, total))
+    piedContrat(page, m, e.numero, i + 1, total, normal, gras)
     if (e.statut === "draft") filigrane(page, m.brouillon, gras, 48, 150)
   })
 

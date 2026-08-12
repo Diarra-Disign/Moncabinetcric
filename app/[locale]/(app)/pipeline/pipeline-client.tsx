@@ -3,6 +3,7 @@
 import * as React from "react"
 import { 
   Building2, 
+  MapPin,
   User, 
   Search, 
   Plus, 
@@ -45,6 +46,7 @@ import { PageHeader } from "@/components/app-shell/page-header"
 import { matchesPerson } from "@/lib/utils/search"
 import { createLead, updateLead, moveLeadStage, convertLeadToClient } from "@/lib/data/actions"
 import { SelecteurCivilite } from "@/components/ui/civilite"
+import { ChampsAdresse, ADRESSE_VIDE, type ValeursAdresse } from "@/components/ui/adresse-postale"
 import { nomAvecCivilite, type Civilite } from "@/lib/data/identite"
 import { PROGRAM_GROUPS } from "@/lib/data/services-immigration"
 
@@ -218,6 +220,11 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
   const [newLeadFeasibility, setNewLeadFeasibility] = React.useState<"high" | "med" | "low">("high")
   const [newLeadSource, setNewLeadSource] = React.useState("Site Web moncabinetcric")
   const [newLeadNotes, setNewLeadNotes] = React.useState("")
+  // L'ADRESSE, DÈS LE PROSPECT. Les colonnes existaient et rien ne les
+  // remplissait. Facultative ici — on ne la demande pas au premier appel —
+  // mais saisissable au moment où on l'apprend : la refuser obligerait à la
+  // retaper au moment du contrat, ce que le §30 interdit.
+  const [newLeadAdresse, setNewLeadAdresse] = React.useState<ValeursAdresse>(ADRESSE_VIDE)
 
   // Également état pour l'édition dans le modal de détails
   const [isEditingSelectedLead, setIsEditingSelectedLead] = React.useState(false)
@@ -480,6 +487,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
       lmiaPositions: newLeadType === "b2b" ? Number(newLeadPositions) : undefined,
       source: newLeadSource,
       contactIntent: newLeadIntent,
+      ...newLeadAdresse,
     }
 
     const previous = leads
@@ -1319,6 +1327,25 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                   value={newLeadPhone}
                   onChange={(e) => setNewLeadPhone(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-xs font-medium rounded-xl bg-muted/50 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
+                />
+              </div>
+
+              {/* SECTION 2b : ADRESSE POSTALE
+                  Facultative. Elle n'est pas là pour le CRM — elle est là
+                  parce que l'entente de service l'exigera, et qu'on ne
+                  redemande pas une information déjà donnée. */}
+              <div className="sm:col-span-2 border-t border-border pt-4">
+                <p className="text-xs font-extrabold text-foreground/80 uppercase tracking-wider flex items-center gap-1 mb-3">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Adresse postale</span>
+                  <span className="ml-1 normal-case font-semibold text-[11px] text-muted-foreground">
+                    facultative — reprise sur les ententes de service
+                  </span>
+                </p>
+                <ChampsAdresse
+                  valeurs={newLeadAdresse}
+                  onChange={setNewLeadAdresse}
+                  prefixe="prospect"
                 />
               </div>
 

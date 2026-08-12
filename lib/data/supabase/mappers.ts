@@ -67,6 +67,11 @@ export function toClient(r: Row): ClientRecord {
     phone: str(r.phone),
     citizenship: str(r.citizenship),
     residence: str(r.residence),
+    address: optStr(r.address),
+    addressLine2: optStr(r.address_line2),
+    city: optStr(r.city),
+    postalCode: optStr(r.postal_code),
+    country: optStr(r.country),
     province: optStr(r.province),
     program: str(r.program),
     status: r.status as ClientRecord["status"],
@@ -98,6 +103,12 @@ export function toLead(r: Row): Lead {
     source: optStr(r.source),
     contactIntent: (optStr(r.contact_intent) as Lead["contactIntent"]) ?? undefined,
     civility: optStr(r.civility) ?? null,
+    address: optStr(r.address),
+    addressLine2: optStr(r.address_line2),
+    city: optStr(r.city),
+    postalCode: optStr(r.postal_code),
+    country: optStr(r.country),
+    province: optStr(r.province),
   }
 }
 

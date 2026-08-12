@@ -411,8 +411,16 @@ try {
   // ---- LES DEUX BLOCS D'IDENTIFICATION (§8) -------------------------------
   // Le contrat n'identifiait qu'une des deux parties qui s'engagent : le
   // cabinet ne figurait que dans l'en-tête, avec une adresse d'UNE ligne.
-  verifier("le bloc du consultant s'imprime", texte.includes("ENTRE") ? "oui" : "NON", "oui")
-  verifier("le bloc du client s'imprime", texte.includes("ET ") ? "oui" : "NON", "oui")
+  // Les panneaux sont NUMÉROTÉS : un contrat se cite, et « la partie désignée
+  // au paragraphe 1 » a besoin d'un paragraphe 1.
+  verifier("le panneau 1 — consultant",
+    texte.includes("1. CONSULTANT / REPRÉSENTANT") ? "oui" : "NON", "oui")
+  verifier("le panneau 2 — client",
+    texte.includes("2. CLIENT / CONTRACTANT") ? "oui" : "NON", "oui")
+  // Le pied porte la référence à côté de la pagination : une page détachée
+  // doit pouvoir être rattachée à son document.
+  verifier("le pied rattache la page à son contrat",
+    texte.includes(`ENT-EM-${marque}  ·  Page`) ? "oui" : "NON", "oui")
   verifier("l'adresse professionnelle y figure en entier",
     texte.includes("Gatineau (Québec) J8X 0B9") ? "oui" : "NON", "oui")
   verifier("l'adresse du client y figure en entier",

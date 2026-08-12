@@ -35,6 +35,18 @@ export interface Lead {
   contactIntent?: "info" | "consultation" | "mandate"
   /** Code de civilité — mr | mrs | mx | other. Voir lib/data/identite.ts. */
   civility?: string | null
+  /**
+   * L'adresse postale du prospect. Facultative, et c'est délibéré : on ne la
+   * demande pas au premier appel. Mais elle se saisit DÈS ce moment-là si on
+   * l'a, parce que c'est elle que l'entente de service exigera — et la
+   * conversion l'emmène au dossier du client.
+   */
+  address?: string
+  addressLine2?: string
+  city?: string
+  province?: string
+  postalCode?: string
+  country?: string
 }
 
 /**
@@ -103,7 +115,21 @@ export interface ClientRecord {
   phone: string
   citizenship: string
   residence: string
+  /**
+   * L'ADRESSE POSTALE, distincte de `citizenship` et `residence`.
+   *
+   * Ces deux-là sont des PAYS — la nationalité et le pays de résidence, qui
+   * servent au dossier d'immigration. Aucun des deux ne dit où l'on habite, et
+   * on ne peut pas écrire « demeurant au Canada » en tête d'une entente et
+   * appeler cela l'identification d'une partie.
+   */
+  address?: string
+  /** Appartement, bureau, unité. */
+  addressLine2?: string
+  city?: string
   province?: string
+  postalCode?: string
+  country?: string
   program: string
   status: "active" | "consultation" | "pending"
   intakeMotif: string
