@@ -597,6 +597,126 @@ try {
   verifier("une demande inconnue ne fait rien lever", rVide.faits.length, 0)
 
   // -------------------------------------------------------------------------
+  console.log("\nSigner par le lien public — sans compte, sans session")
+  // -------------------------------------------------------------------------
+  const docP = await nouveauDocument(cabinetA, cl.id, "Contrat public.pdf")
+  const etatP = await service.createRequest({
+    documentId: docP.id, clientId: cl.id, mode: "sequential",
+    destinataires: [
+      { role: "client", nom: "Jean Tremblay", courriel: `jp-${marque}@example.invalid`, rang: 1 },
+      { role: "consultant", nom: "Adama Diarra", courriel: `ap-${marque}@example.invalid`, rang: 2, permis: "R1041776" },
+    ],
+    champs: [
+      { destinataireIndex: 0, type: "signature", libelle: "Signature" },
+      { destinataireIndex: 0, type: "checkbox", libelle: "J'ai lu et j'accepte", obligatoire: true },
+      { destinataireIndex: 1, type: "signature", libelle: "Signature du consultant" },
+    ],
+  })
+  await service.sendRequest(etatP.id)
+  const jClient = etatP.destinataires[0].lien.split("/s/")[1]
+  const jConsultant = etatP.destinataires[1].lien.split("/s/")[1]
+
+  const signerRpc = async (jeton, courriel, champs = [], trace = "data:image/png;base64,AAA") => {
+    const { data } = await admin.rpc("signer_par_jeton", {
+      p_token_hash: empreinte(jeton), p_courriel: courriel,
+      p_trace: trace, p_champs: champs, p_ip: "198.51.100.9", p_agent: "Épreuve/1.0",
+    })
+    return data ?? {}
+  }
+
+  // LE TOUR : le consultant ne peut pas prendre les devants.
+  const avance = await signerRpc(jConsultant, `ap-${marque}@example.invalid`)
+  verifier("signer avant son tour : REFUSÉ", avance.motif, "PAS_VOTRE_TOUR")
+
+  // LE COURRIEL : un lien transféré ne se signe pas par n'importe qui.
+  const mauvais = await signerRpc(jClient, "quelquun@ailleurs.invalid")
+  verifier("un courriel discordant : REFUSÉ", mauvais.motif, "COURRIEL")
+
+  // La casse et les espaces ne doivent PAS faire échouer : refuser
+  // « Jean@Example.ca » pour une majuscule ferait abandonner des gens de
+  // bonne foi.
+  const { data: champsClient } = await admin.from("signature_fields")
+    .select("id, kind").eq("request_id", etatP.id).order("position")
+  const caseAcocher = champsClient.find((c) => c.kind === "checkbox")
+
+  const sansCase = await signerRpc(jClient, ` JP-${marque}@Example.Invalid `.toUpperCase())
+  verifier("un champ obligatoire vide : REFUSÉ", sansCase.motif, "CHAMPS")
+
+  const ok1 = await signerRpc(
+    jClient, ` JP-${marque}@Example.Invalid `,
+    [{ id: caseAcocher.id, valeur: "true" }]
+  )
+  verifier("le client signe", ok1.ok, true)
+  verifier("la demande n'est pas encore complète", ok1.complete, false)
+
+  const deuxFois = await signerRpc(jClient, `jp-${marque}@example.invalid`)
+  verifier("signer deux fois : REFUSÉ", deuxFois.motif, "DEJA_SIGNE")
+
+  // LE PERMIS EST ENFIN ÉCRIT — le défaut C4 de l'audit.
+  const ok2 = await signerRpc(jConsultant, `ap-${marque}@example.invalid`)
+  verifier("le consultant signe à son tour", ok2.ok, true)
+  verifier("et la demande est COMPLÈTE", ok2.complete, true)
+
+  const { data: sigs } = await admin.from("signatures")
+    .select("signer_name, signer_role, rcic_number, document_sha256, ip_address")
+    .eq("request_id", etatP.id).order("signed_at")
+  verifier("deux signatures sont enregistrées", (sigs ?? []).length, 2)
+  verifier("le PERMIS du consultant y figure", sigs[1].rcic_number, "R1041776")
+  // L'empreinte est imposée par le déclencheur, pas par l'appelant : on avait
+  // transmis « imposé par la base ».
+  verifier("l'empreinte est celle du document", sigs[0].document_sha256, docP.sha256)
+  verifier("l'adresse d'origine est retenue", sigs[0].ip_address, "198.51.100.9")
+
+  const etatFinal = await service.getStatus(etatP.id)
+  verifier("la demande est clôturée", etatFinal.statut, "completed")
+
+  // UN DOCUMENT MODIFIÉ NE SE SIGNE PLUS — mais il est aussi VERROUILLÉ, donc
+  // on ne peut même pas le modifier. Les deux gardes se superposent.
+  const { error: eModif } = await admin.from("documents")
+    .update({ sha256: "apres".padEnd(64, "0") }).eq("id", docP.id)
+  verifier("le document signé reste verrouillé", eModif ? "refusé" : "ACCEPTÉ", "refusé")
+
+  // ---- Le refus -----------------------------------------------------------
+  const docR2 = await nouveauDocument(cabinetA, cl.id, "A refuser.pdf")
+  const etatR2 = await service.createRequest({
+    documentId: docR2.id, clientId: cl.id,
+    destinataires: [{ role: "client", nom: "Jean", courriel: `jf-${marque}@example.invalid`, rang: 1 }],
+  })
+  await service.sendRequest(etatR2.id)
+  const jRefus = etatR2.destinataires[0].lien.split("/s/")[1]
+
+  const { data: refusPublic } = await admin.rpc("refuser_par_jeton", {
+    p_token_hash: empreinte(jRefus), p_motif: "Montant non conforme.",
+    p_ip: null, p_agent: null,
+  })
+  verifier("un signataire peut REFUSER", refusPublic.ok, true)
+  const etatRefus = await service.getStatus(etatR2.id)
+  verifier("la demande passe à « refusée »", etatRefus.statut, "declined")
+
+  const apresRefusSig = await signerRpc(jRefus, `jf-${marque}@example.invalid`)
+  verifier("signer après avoir refusé : REFUSÉ", apresRefusSig.ok, false)
+
+  // ---- Le journal du parcours public --------------------------------------
+  await admin.rpc("consulter_par_jeton", {
+    p_token_hash: empreinte(jRefus), p_ip: "198.51.100.9", p_agent: "Épreuve/1.0",
+  })
+  const journalP = await service.getAuditTrail(etatP.id)
+  verifier("le journal retient la signature",
+    journalP.some((e) => e.evenement === "signature.signed") ? "oui" : "NON", "oui")
+  verifier("et la complétion",
+    journalP.some((e) => e.evenement === "signature.completed") ? "oui" : "NON", "oui")
+  verifier("avec l'adresse du signataire",
+    journalP.find((e) => e.evenement === "signature.signed")?.ip, "198.51.100.9")
+
+  // Les fonctions publiques ne sont PAS exposées au navigateur.
+  const { error: eExpose } = await tiers.rpc("signer_par_jeton", {
+    p_token_hash: empreinte(jClient), p_courriel: "x", p_trace: null,
+    p_champs: [], p_ip: null, p_agent: null,
+  })
+  verifier("signer_par_jeton n'est pas exposée au navigateur",
+    eExpose ? "refusée" : "EXPOSÉE", "refusée")
+
+  // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
   // -------------------------------------------------------------------------
   const { data: destTiers } = await tiers
