@@ -41,6 +41,9 @@ import { creerDossierPourClient } from "@/lib/data/matter-creation"
 import { TYPES_DE_DOSSIER } from "@/lib/data/matter-types"
 import { ConfirmationEnvoi } from "@/components/ui/confirmation-envoi"
 import { cn } from "@/lib/utils"
+import { SelecteurCivilite } from "@/components/ui/civilite"
+import { nomAvecCivilite, type Civilite } from "@/lib/data/identite"
+import { PROGRAM_GROUPS } from "@/lib/data/services-immigration"
 
 export type { ClientRecord }
 
@@ -123,7 +126,11 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [newPhone, setNewPhone] = React.useState("")
   const [newCitizenship, setNewCitizenship] = React.useState("France")
   const [residenceLocation, setResidenceLocation] = React.useState<"canada" | "international">("canada")
-  const [newProgram, setNewProgram] = React.useState("Résidence Permanente (PEQ / Entrée Express)")
+  const [newCivility, setNewCivility] = React.useState<Civilite | "">("")
+  // La valeur par défaut vient du catalogue partagé : elle doit être une
+  // valeur RÉELLE de la liste, sinon le premier client créé sans toucher au
+  // menu porte un programme qui n'y figure pas.
+  const [newProgram, setNewProgram] = React.useState(PROGRAM_GROUPS[1].options[0].value)
   const [newProvince, setNewProvince] = React.useState("Québec")
   const [intakeNotes, setIntakeNotes] = React.useState("")
 
@@ -162,6 +169,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
     const createdData: Omit<ClientRecord, "id"> = {
       fileNumber,
       name: clientDisplayName,
+      civility: newCivility || null,
       firstName: newFirstName,
       lastName: newLastName,
       email: newEmail,
@@ -666,6 +674,15 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                 </div>
               </div>
 
+              {/* La civilité précède le prénom : c'est l'ordre dans lequel on
+                  s'adresse à quelqu'un, et celui dans lequel elle sera imprimée
+                  sur l'entente de service et les formulaires IRCC. */}
+              <div className="flex flex-col gap-1.5 sm:col-span-2 sm:max-w-[14rem]">
+                <label htmlFor="civilite-client" className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Civilité</label>
+                <SelecteurCivilite id="civilite-client" valeur={newCivility} onChange={setNewCivility}
+                  className="px-4 py-2.5 rounded-2xl bg-muted" />
+              </div>
+
               {/* PRÉNOM ET NOM SÉPARÉS */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Prénom</label>
@@ -749,10 +766,16 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                   onChange={(e) => setNewProgram(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs font-bold rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all text-foreground cursor-pointer"
                 >
-                  <option value="Résidence Permanente (PEQ / Entrée Express)">Résidence Permanente (PEQ Québec & Entrée Express)</option>
-                  <option value="Permis de Travail (EIMT / LMIA Exemption)">Permis de Travail & EIMT B2B (Employeurs)</option>
-                  <option value="Permis d'études + CAQ Québec">Permis d&apos;études + CAQ Québec (MIFI)</option>
-                  <option value="Parrainage Familial & Spousal">Parrainage Familial & Époux / Conjoint de fait</option>
+                  {/* Le MÊME catalogue que le pipeline. Deux listes divergentes
+                      enregistraient le même service sous deux chaînes selon
+                      l'écran qui avait créé la fiche. */}
+                  {PROGRAM_GROUPS.map((groupe) => (
+                    <optgroup key={groupe.label} label={groupe.label}>
+                      {groupe.options.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
               </div>
             </div>

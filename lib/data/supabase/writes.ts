@@ -241,6 +241,10 @@ export async function createClient(data: Omit<ClientRecord, "id"> & { id?: strin
     legacy_id: legacyId,
     file_number: data.fileNumber,
     name: data.name,
+    // La civilité est écrite ici comme partout : un champ à l'écran qui
+    // n'arrive pas en base n'est qu'un décor — c'est exactement ce qui est
+    // arrivé à l'intention de contact du formulaire prospect.
+    civility: data.civility ?? null,
     first_name: data.firstName,
     last_name: data.lastName,
     email: data.email,

@@ -46,46 +46,11 @@ import { matchesPerson } from "@/lib/utils/search"
 import { createLead, updateLead, moveLeadStage, convertLeadToClient } from "@/lib/data/actions"
 import { SelecteurCivilite } from "@/components/ui/civilite"
 import { nomAvecCivilite, type Civilite } from "@/lib/data/identite"
+import { PROGRAM_GROUPS } from "@/lib/data/services-immigration"
 
 export type { Lead }
 
-export const PROGRAM_GROUPS = [
-  {
-    label: "Information & Renseignements",
-    options: [
-      { value: "Renseignements Généraux Cabinet", label: "Renseignements Généraux sur le Cabinet", defaultPrice: 0 },
-      { value: "Consultation Initiale d'Évaluation", label: "Consultation Initiale d'Évaluation (Payante)", defaultPrice: 150 },
-      { value: "Analyse de Refus & Conseils IRCC", label: "Analyse d'un Refus IRCC & Recommandations", defaultPrice: 500 },
-    ]
-  },
-  {
-    label: "Résidence Permanente (IRCC / MIFI)",
-    options: [
-      { value: "Résidence Permanente (Entrée Express)", label: "Entrée Express (FSW / CEC / FST)", defaultPrice: 4500 },
-      { value: "PEQ - Expérience Québécoise", label: "PEQ - Programme de l'Expérience Québécoise", defaultPrice: 4200 },
-      { value: "PRTQ - Travailleurs Qualifiés Québec", label: "PRTQ - Travailleurs Qualifiés Québec (MIFI)", defaultPrice: 4200 },
-      { value: "Parrainage d'Époux / Conjoint / Famille", label: "Parrainage Familial (Conjoint / Enfants)", defaultPrice: 3800 },
-      { value: "Programme Régional / PNP", label: "Programme des Candidats des Provinces (PCP/PNP)", defaultPrice: 4800 },
-    ]
-  },
-  {
-    label: "Résidence Temporaire (Visas & Permis)",
-    options: [
-      { value: "Permis d'Études & CAQ", label: "Permis d'Études & CAQ Québec", defaultPrice: 2500 },
-      { value: "EIMT / Permis de Travail (LMIA)", label: "EIMT & Permis de Travail (LMIA)", defaultPrice: 4500 },
-      { value: "Visa de Visiteur / AVE / Super Visa", label: "Visa de Visiteur / AVE / Super Visa Parents", defaultPrice: 1800 },
-      { value: "Prolongation de Statut / Rétablissement", label: "Prolongation de Statut ou Rétablissement", defaultPrice: 1500 },
-    ]
-  },
-  {
-    label: "Services aux Employeurs (B2B)",
-    options: [
-      { value: "EIMT - Recrutement International", label: "EIMT Volet Haute-Basse Rémunération", defaultPrice: 6500 },
-      { value: "Conformité Employeur IRCC", label: "Audit de Conformité Employeur & Inspection IRCC", defaultPrice: 3500 },
-    ]
-  }
-]
-
+export { PROGRAM_GROUPS } from "@/lib/data/services-immigration"
 
 interface PipelineClientProps {
   t: {
