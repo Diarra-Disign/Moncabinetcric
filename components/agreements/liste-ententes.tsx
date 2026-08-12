@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { FileText, Eye, Send, CheckCircle2, Clock, Loader2, Stamp } from "lucide-react"
+import { FileText, Eye, Send, CheckCircle2, Clock, Loader2, Stamp, Pencil } from "lucide-react"
 import { emettreEntente, envoyerPourSignature, type EntenteListee } from "@/lib/data/ententes-actions"
 import { cn } from "@/lib/utils"
 
@@ -61,7 +61,14 @@ const BOUTON =
   "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-colors " +
   "disabled:opacity-50 disabled:cursor-not-allowed"
 
-export function ListeEntentes({ ententes }: { ententes: EntenteListee[] }) {
+export function ListeEntentes({
+  ententes,
+  onModifier,
+}: {
+  ententes: EntenteListee[]
+  /** Rouvre un brouillon dans l'écran de rédaction (§25). */
+  onModifier?: (id: string) => void
+}) {
   const [enCours, setEnCours] = React.useState<string | null>(null)
   const [message, setMessage] = React.useState<{ ok: boolean; texte: string } | null>(null)
 
@@ -155,6 +162,20 @@ export function ListeEntentes({ ententes }: { ententes: EntenteListee[] }) {
                         <Eye className="w-3.5 h-3.5" />
                         <span>Voir le PDF</span>
                       </a>
+
+                      {/* §25 — reprendre un brouillon. Le bouton n'existe QUE
+                          sur un brouillon : une entente émise porte un PDF et
+                          une empreinte, la rouvrir modifierait le document
+                          sous la signature. */}
+                      {e.statut === "draft" && onModifier && (
+                        <button
+                          onClick={() => onModifier(e.id)}
+                          className={cn(BOUTON, "bg-muted hover:bg-border text-foreground")}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>Modifier le brouillon</span>
+                        </button>
+                      )}
 
                       {e.statut === "draft" && (
                         <button

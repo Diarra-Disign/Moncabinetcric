@@ -9,6 +9,7 @@ import { SmartAgreementBuilder } from "./smart-agreement-builder"
 import { CreerEntente } from "@/components/agreements/creer-entente"
 import { ListeEntentes } from "@/components/agreements/liste-ententes"
 import type { EntenteListee } from "@/lib/data/ententes-actions"
+import { useRouter } from "@/i18n/routing"
 import { 
   FileSignature, 
   Plus, 
@@ -50,6 +51,9 @@ export function AgreementsClient({
   // place tant qu'il n'est pas remplacé de bout en bout : le §34 demande de
   // connecter, pas de reconstruire.
   const [creation, setCreation] = useState(false)
+  /** L'identifiant du brouillon rouvert, s'il y en a un (§25). */
+  const [brouillon, setBrouillon] = useState<string | null>(null)
+  const router = useRouter()
   const firm = useFirm()
   const [agreements, setAgreements] = useState<AgreementRecord[]>(initialAgreements)
   const [searchQuery, setSearchQuery] = useState("")
@@ -94,6 +98,21 @@ export function AgreementsClient({
 
       {creation && (
         <CreerEntente modeles={modelesEntente} onFerme={() => setCreation(false)} />
+      )}
+
+      {/* Le MÊME écran, en reprise (§25). Un second écran d'édition aurait
+          divergé au premier champ ajouté. */}
+      {brouillon && (
+        <CreerEntente
+          modeles={modelesEntente}
+          brouillonId={brouillon}
+          onFerme={() => {
+            setBrouillon(null)
+            // La liste vient du serveur : sans relecture, le total et l'objet
+            // resteraient ceux d'avant la modification.
+            router.refresh()
+          }}
+        />
       )}
       
       {/* NOTICE BANNER */}
@@ -190,7 +209,7 @@ export function AgreementsClient({
         <h2 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground">
           Vos ententes
         </h2>
-        <ListeEntentes ententes={ententes} />
+        <ListeEntentes ententes={ententes} onModifier={setBrouillon} />
       </section>
 
       {/* FILTER BAR & SEARCH */}

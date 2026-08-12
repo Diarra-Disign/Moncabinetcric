@@ -11,6 +11,7 @@ import { EditeurContenu, CONTENU_VIDE, type ContenuContrat } from "./editeur-con
 import { verifierEcheancier } from "@/lib/ententes/echeancier"
 import {
   rechercherContractant, preremplir, articlesDuModele, creerEntente,
+  chargerBrouillon, modifierBrouillon,
   type ArticleEntente,
 } from "@/lib/data/ententes-actions"
 import {
@@ -49,7 +50,28 @@ const CHAMP =
   "w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 
-export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme: () => void }) {
+export function CreerEntente({
+  modeles,
+  onFerme,
+  brouillonId,
+}: {
+  modeles: Modele[]
+  onFerme: () => void
+  /**
+   * Rouvre un brouillon existant (§25).
+   *
+   * LE MÊME ÉCRAN sert à créer et à reprendre. Un second écran d'édition
+   * aurait divergé au premier champ ajouté — c'est déjà arrivé entre la
+   * création et la modification d'une fiche client, et le remède avait été le
+   * même : un composant, deux modes.
+   *
+   * Ce qui NE se reprend pas : le contractant et le modèle. Ils définissent
+   * l'identité du document ; les changer reviendrait à faire un autre contrat
+   * sous le même numéro.
+   */
+  brouillonId?: string
+}) {
+  const reprise = Boolean(brouillonId)
   const [modele, setModele] = React.useState<Modele | null>(null)
   const [recherche, setRecherche] = React.useState("")
   const [trouves, setTrouves] = React.useState<Trouve[]>([])
@@ -63,8 +85,65 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
   const [ficheAModifier, setFicheAModifier] = React.useState(false)
   /** Le contenu personnalisé du brouillon : services, échéancier, conditions. */
   const [contenu, setContenu] = React.useState<ContenuContrat>(CONTENU_VIDE)
+  const [chargement, setChargement] = React.useState(Boolean(brouillonId))
+  /** La référence du brouillon repris, pour l'annoncer en tête. */
+  const [reference, setReference] = React.useState("")
 
   const proBono = (modele?.kind ?? "").includes("probono")
+
+  /**
+   * Reprise d'un brouillon : tout est relu EN BASE, jamais reçu de la liste.
+   *
+   * Une liste affichée il y a dix minutes montre l'état d'il y a dix minutes.
+   * Rouvrir dessus ferait réenregistrer des valeurs périmées par-dessus celles
+   * d'un confrère — le même raisonnement que pour la fiche client.
+   */
+  React.useEffect(() => {
+    if (!brouillonId) return
+    let vivant = true
+    ;(async () => {
+      const b = await chargerBrouillon(brouillonId)
+      if (!vivant || !b) { setChargement(false); return }
+
+      setReference(b.reference)
+      setHonoraires(String(b.honoraires || ""))
+      // LE TITRE DU CONTRAT, pas celui du modèle. Un contrat porte son propre
+      // objet — « Permis de travail » — même s'il est né d'un modèle intitulé
+      // « Entente de consultation initiale ». Afficher le second ferait croire
+      // qu'on a rouvert le mauvais document.
+      const trouve = modeles.find((m) => m.id === b.templateId)
+      setModele(trouve ? { ...trouve, titre: b.titre } : {
+        // Le modèle a pu être supprimé depuis. Le contrat, lui, garde ses
+        // articles : on reconstitue juste ce qu'il faut pour l'afficher.
+        id: b.templateId, duCabinet: false, code: "", kind: b.kind,
+        titre: b.titre, description: "", version: "1.0", parDefaut: false,
+      })
+      setArticles(b.articles.map((a, i) => ({
+        code: a.code, titleFr: a.title_fr, bodyFr: a.body_fr,
+        level: a.level, enabled: true, position: a.position || i + 1,
+      })))
+      setContenu({
+        servicesDescription: b.servicesDescription,
+        servicesItems: b.servicesItems,
+        echeancier: b.echeancier,
+        modesPaiement: b.modesPaiement,
+        conditionsPaiement: b.conditionsPaiement,
+        fraisNonInclus: b.fraisNonInclus,
+      })
+      // Le contractant est relu pour que l'aperçu et les deux blocs
+      // d'identification restent exacts.
+      const p = await preremplir(b.contractantType, b.contractantId)
+      if (!vivant) return
+      setSource(p)
+      setChoisi({
+        type: b.contractantType, id: b.contractantId,
+        nom: [p?.partie.firstName, p?.partie.lastName].filter(Boolean).join(" "),
+        courriel: p?.partie.email ?? "", telephone: p?.partie.phone ?? "", detail: "",
+      })
+      setChargement(false)
+    })()
+    return () => { vivant = false }
+  }, [brouillonId, modeles])
 
   // La recherche est temporisée : sans cela « Diallo » enverrait six requêtes,
   // et les réponses reviendraient dans le désordre.
@@ -181,6 +260,25 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
     if (!modele || !choisi) return
     setEnCours(true)
     try {
+      // §24 — reprendre un brouillon réenregistre son CONTENU et ses montants.
+      // Ni le contractant ni le modèle : ils font l'identité du document.
+      if (brouillonId) {
+        const r = await modifierBrouillon(brouillonId, {
+          honoraires: Number(honoraires) || 0,
+          taxes: 0,
+          proBono,
+          servicesDescription: contenu.servicesDescription,
+          servicesItems: contenu.servicesItems,
+          echeancier: contenu.echeancier,
+          modesPaiement: contenu.modesPaiement,
+          conditionsPaiement: contenu.conditionsPaiement,
+          fraisNonInclus: contenu.fraisNonInclus,
+        })
+        setResultat(r)
+        if (r.ok) setTimeout(onFerme, 1400)
+        return
+      }
+
       const r = await creerEntente({
         templateId: modele.id,
         contractantType: choisi.type,
@@ -210,10 +308,13 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
       <div className="bg-card w-full max-w-5xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[92vh]">
         <header className="p-5 border-b border-border flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-black text-foreground">Créer une entente</h2>
+            <h2 className="text-base font-black text-foreground">
+              {reprise ? `Modifier le brouillon${reference ? ` ${reference}` : ""}` : "Créer une entente"}
+            </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               {modele ? modele.titre : "Choisissez d'abord un modèle"}
               {choisi ? ` · ${choisi.nom}` : ""}
+              {reprise ? " · Le contractant et le modèle ne changent plus." : ""}
             </p>
           </div>
           <button type="button" onClick={onFerme} aria-label="Fermer"
@@ -225,6 +326,11 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
         <div className="flex-1 overflow-y-auto grid gap-0 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
           {/* ---------------- Édition ---------------- */}
           <div className="p-5 space-y-5">
+            {/* Le MODÈLE et le CONTRACTANT ne s'affichent qu'à la création.
+                En reprise, ils sont figés : les changer reviendrait à faire un
+                autre contrat sous le même numéro. Les montrer sans pouvoir les
+                changer ferait chercher pourquoi ils ne réagissent pas. */}
+            {!reprise && (
             <section>
               <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">
                 1. Le modèle
@@ -249,7 +355,9 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
                 ))}
               </div>
             </section>
+            )}
 
+            {!reprise && (
             <section>
               <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">
                 2. Le contractant
@@ -297,11 +405,12 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
                 </div>
               )}
             </section>
+            )}
 
             {!proBono && (
               <section>
                 <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">
-                  3. Les honoraires
+                  {reprise ? "Les honoraires" : "3. Les honoraires"}
                 </h3>
                 <input type="number" min="0" step="0.01" value={honoraires}
                   onChange={(e) => setHonoraires(e.target.value)}
@@ -489,16 +598,21 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
         <footer className="p-5 border-t border-border flex items-center justify-between gap-2">
           <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
             <User className="h-3.5 w-3.5" />
-            Le brouillon reste modifiable. Rien n&apos;est envoyé à cette étape.
+            {reprise
+              ? "Tant qu'elle est un brouillon, elle reste modifiable. Une fois émise, elle est figée."
+              : "Le brouillon reste modifiable. Rien n'est envoyé à cette étape."}
           </p>
           <div className="flex items-center gap-2">
             <button type="button" onClick={onFerme}
               className="px-4 py-2 rounded-xl border border-border font-bold text-xs hover:bg-muted cursor-pointer text-foreground">
               Annuler
             </button>
-            <button type="button" disabled={!modele || !choisi || enCours} onClick={enregistrer}
+            <button type="button" disabled={!modele || !choisi || enCours || chargement} onClick={enregistrer}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 disabled:opacity-40 cursor-pointer">
-              <FileText className="h-4 w-4" /> {enCours ? "Création…" : "Créer le brouillon"}
+              <FileText className="h-4 w-4" />
+              {enCours
+                ? (reprise ? "Enregistrement…" : "Création…")
+                : reprise ? "Enregistrer le brouillon" : "Créer le brouillon"}
             </button>
           </div>
         </footer>
