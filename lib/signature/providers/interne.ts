@@ -235,7 +235,7 @@ export class FournisseurInterne implements FournisseurSignature {
   async etatDemande(requestId: string): Promise<EtatDemande | null> {
     const { data: d } = await this.sb
       .from("signature_requests")
-      .select("id, status, signing_mode, document_id, provider, provider_ref, requested_at, completed_at, expires_at")
+      .select("id, status, signing_mode, document_id, signed_document_id, provider, provider_ref, requested_at, completed_at, expires_at")
       .eq("id", requestId)
       .maybeSingle()
     if (!d) return null
@@ -249,22 +249,15 @@ export class FournisseurInterne implements FournisseurSignature {
     const rec = (lignes ?? []) as unknown as LigneDestinataire[]
     const mode = String(d.signing_mode ?? "sequential") as ModeSignature
 
-    // Le document signé, s'il existe : une ligne de `documents` qui remplace
-    // celle qui a été signée.
-    const { data: signe } = await this.sb
-      .from("documents")
-      .select("id")
-      .eq("supersedes_id", d.document_id)
-      .eq("category", "contract")
-      .not("locked_at", "is", null)
-      .maybeSingle()
-
     return {
       id: String(d.id),
       statut: String(d.status) as StatutDemande,
       mode,
       documentId: String(d.document_id),
-      documentSigneId: signe ? String(signe.id) : null,
+      // DÉSIGNÉ, pas déduit : une déduction par « la version qui remplace
+      // celle-ci » se trompe dès qu'une seconde version apparaît pour une
+      // autre raison.
+      documentSigneId: d.signed_document_id ? String(d.signed_document_id) : null,
       creeLe: String(d.requested_at ?? ""),
       completeLe: d.completed_at ? String(d.completed_at) : null,
       expireLe: d.expires_at ? String(d.expires_at) : null,

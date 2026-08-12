@@ -28,6 +28,17 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
 let cache: SupabaseClient | null = null
 
+/**
+ * Le client de service, exposé pour la SUITE de la signature — composer le
+ * document final, déclencher les réactions du CRM.
+ *
+ * Exposé, mais pas ouvert : la règle de l'en-tête vaut pour tout appelant.
+ * Ce client ne sert qu'à des gestes déclenchés par un jeton déjà vérifié.
+ */
+export function clientService(): SupabaseClient {
+  return service()
+}
+
 function service(): SupabaseClient {
   if (cache) return cache
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -156,6 +167,8 @@ export interface ResultatPublic {
   ok: boolean
   message: string
   complete?: boolean
+  /** La demande concernée, quand la base a pu la nommer. */
+  demandeId?: string
 }
 
 export async function signerParJeton(
@@ -182,11 +195,16 @@ export async function signerParJeton(
     return { ok: false, message: "La signature n'a pas pu être enregistrée. Réessayez." }
   }
 
-  const r = (data ?? {}) as { ok?: boolean; message?: string; complete?: boolean }
+  const r = (data ?? {}) as {
+    ok?: boolean; message?: string; complete?: boolean; request_id?: string
+  }
   return {
     ok: r.ok === true,
     message: r.message ?? (r.ok ? "Signature enregistrée." : "Signature refusée."),
     complete: r.complete === true,
+    // La demande est rendue par la base : après une signature, le jeton du
+    // signataire ne résout plus rien d'utile — sa demande peut être close.
+    demandeId: r.request_id ? String(r.request_id) : undefined,
   }
 }
 

@@ -24,6 +24,7 @@ import { readFileSync } from "node:fs"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import { randomBytes, createHash } from "node:crypto"
+import { inflateSync } from "node:zlib"
 import { createClient } from "@supabase/supabase-js"
 import { exigerSupabase } from "./lib/environnement.mjs"
 // Les règles pures sont importées TELLES QUELLES : les recopier ici
@@ -33,6 +34,7 @@ import { statutDeduit, sonTour, nomDocumentSigne } from "../lib/signature/statut
 import { verrouiller, nouvelleVersion, chaineDesVersions } from "../lib/signature/versions.ts"
 import { SignatureService, fournisseurConfigure } from "../lib/signature/service.ts"
 import { reagirASignature } from "../lib/workflow/signature-reactions.ts"
+import { finaliser } from "../lib/signature/finalisation.ts"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const env = Object.fromEntries(
@@ -62,6 +64,30 @@ const verifier = (intitule, obtenu, attendu) => {
 const marque = Date.now()
 const mdp = "Epreuve-" + randomBytes(9).toString("base64url")
 const empreinte = (jeton) => createHash("sha256").update(jeton).digest("hex")
+/**
+ * Le texte lisible d'un PDF.
+ *
+ * pdf-lib écrit les chaînes en HEXADÉCIMAL : chercher un mot en clair
+ * échouerait sur un document parfaitement rempli. Le piège avait déjà mordu
+ * deux fois sur l'épreuve du PDF de facture.
+ */
+const lisiblePdf = (octets) => {
+  let sortie = ""
+  let i = 0
+  while ((i = octets.indexOf("stream", i)) !== -1) {
+    let debut = i + 6
+    if (octets[debut] === 0x0d) debut++
+    if (octets[debut] === 0x0a) debut++
+    const fin = octets.indexOf("endstream", debut)
+    if (fin === -1) break
+    try { sortie += inflateSync(octets.subarray(debut, fin)).toString("latin1") }
+    catch { sortie += octets.subarray(debut, fin).toString("latin1") }
+    i = fin + 9
+  }
+  return sortie.replace(/<([0-9A-Fa-f]{4,})>/g, (_, hex) =>
+    Buffer.from(hex, "hex").toString("latin1"))
+}
+
 /** Ce que voit un porteur de jeton. Défini une fois, employé partout. */
 const resoudre = async (jeton) => {
   const { data } = await admin.rpc("resolve_signature_token", { p_token_hash: empreinte(jeton) })
@@ -715,6 +741,112 @@ try {
   })
   verifier("signer_par_jeton n'est pas exposée au navigateur",
     eExpose ? "refusée" : "EXPOSÉE", "refusée")
+
+  // -------------------------------------------------------------------------
+  console.log("\nLe document signé et son certificat")
+  // -------------------------------------------------------------------------
+  // Un VRAI PDF : composer un certificat par-dessus un fichier illisible ne
+  // prouverait rien.
+  const { PDFDocument, StandardFonts } = await import("pdf-lib")
+  const pdfSource = await PDFDocument.create()
+  const p1 = pdfSource.addPage([595, 842])
+  const policeSource = await pdfSource.embedFont(StandardFonts.Helvetica)
+  p1.drawText("CONTRAT DE SERVICES", { x: 56, y: 760, size: 18, font: policeSource })
+  pdfSource.addPage([595, 842])
+  const octetsSource = Buffer.from(await pdfSource.save())
+  const shaSource = createHash("sha256").update(octetsSource).digest("hex")
+
+  const { data: docF } = await admin.from("documents").insert({
+    firm_id: cabinetA, client_id: cl.id, name: "Contrat a finaliser.pdf",
+    type: "Entente de service", category: "contract", uploaded_by: "Épreuve",
+    source: "cabinet", status: "valid", mime_type: "application/pdf",
+    size_bytes: octetsSource.length,
+  }).select("id").single()
+  const cheminF = `${cabinetA}/${cl.id}/${docF.id}/contrat.pdf`
+  await admin.storage.from("documents").upload(cheminF, octetsSource, {
+    contentType: "application/pdf", upsert: true,
+  })
+  await admin.from("documents").update({ storage_path: cheminF, sha256: shaSource }).eq("id", docF.id)
+
+  const etatF = await service.createRequest({
+    documentId: docF.id, clientId: cl.id,
+    destinataires: [
+      { role: "client", nom: "Jean Tremblay", courriel: `jfin-${marque}@example.invalid`, rang: 1 },
+      { role: "consultant", nom: "Adama Diarra", courriel: `afin-${marque}@example.invalid`, rang: 2, permis: "R1041776" },
+    ],
+    champs: [{ destinataireIndex: 0, type: "signature", libelle: "Signature" }],
+  })
+  await service.sendRequest(etatF.id)
+  const jF1 = etatF.destinataires[0].lien.split("/s/")[1]
+  const jF2 = etatF.destinataires[1].lien.split("/s/")[1]
+
+  const avant = await finaliser(cabinet, ctx, etatF.id)
+  verifier("finaliser avant la fin : REFUSÉ", avant.ok ? "ACCEPTÉ" : "refusé", "refusé")
+
+  await signerRpc(jF1, `jfin-${marque}@example.invalid`)
+  await signerRpc(jF2, `afin-${marque}@example.invalid`)
+
+  const fin = await finaliser(cabinet, ctx, etatF.id)
+  verifier("le document signé se compose", fin.ok ? "ok" : fin.message, "ok")
+
+  const { data: docSigne } = await admin.from("documents")
+    .select("id, name, supersedes_id, locked_at, sha256, storage_path, version")
+    .eq("id", fin.documentId).single()
+  verifier("il porte le nom du signataire",
+    /SIGNE_Jean_Tremblay\.pdf$/.test(docSigne.name) ? "oui" : `NON (${docSigne.name})`, "oui")
+  verifier("il remplace l'original", docSigne.supersedes_id, docF.id)
+  verifier("il est verrouillé dès sa naissance", docSigne.locked_at ? "oui" : "NON", "oui")
+  verifier("il porte sa propre empreinte",
+    /^[0-9a-f]{64}$/.test(docSigne.sha256 ?? "") ? "oui" : "NON", "oui")
+  // L'empreinte du FINAL diffère de celle de l'original : il porte le
+  // certificat en plus. Celle qui fait preuve est imprimée DANS le certificat.
+  verifier("et elle diffère de celle de l'original",
+    docSigne.sha256 !== shaSource ? "oui" : "IDENTIQUE", "oui")
+
+  const { data: demandeF } = await admin.from("signature_requests")
+    .select("signed_document_id").eq("id", etatF.id).single()
+  verifier("la demande DÉSIGNE son document signé", demandeF.signed_document_id, fin.documentId)
+
+  // Idempotence : deux signataires qui terminent à quelques secondes
+  // d'intervalle ne doivent pas produire deux documents.
+  const encore = await finaliser(cabinet, ctx, etatF.id)
+  verifier("finaliser deux fois ne refait rien", encore.dejaFait ? "oui" : "NON", "oui")
+  verifier("et rend le même document", encore.documentId, fin.documentId)
+
+  // ---- Ce que le PDF final contient réellement ---------------------------
+  const { data: signeF } = await admin.storage.from("documents")
+    .createSignedUrl(docSigne.storage_path, 60)
+  const octetsFinal = Buffer.from(await (await fetch(signeF.signedUrl, { cache: "no-store" })).arrayBuffer())
+  const pdfFinal = await PDFDocument.load(octetsFinal)
+  // Deux pages d'origine + au moins une de certificat.
+  verifier("les pages d'origine sont conservées",
+    pdfFinal.getPageCount() >= 3 ? `oui (${pdfFinal.getPageCount()})` : `NON (${pdfFinal.getPageCount()})`,
+    `oui (${pdfFinal.getPageCount()})`)
+
+  const texteFinal = lisiblePdf(octetsFinal)
+  verifier("le certificat est présent",
+    texteFinal.includes("CERTIFICAT DE SIGNATURE") ? "oui" : "NON", "oui")
+  // LE CŒUR DE LA PREUVE : l'empreinte de l'original est imprimée.
+  verifier("l'empreinte de L'ORIGINAL y figure",
+    texteFinal.includes(shaSource) ? "oui" : "NON", "oui")
+  verifier("les deux signataires y figurent",
+    texteFinal.includes("Jean Tremblay") && texteFinal.includes("Adama Diarra") ? "oui" : "NON", "oui")
+  verifier("le permis du consultant aussi",
+    texteFinal.includes("R1041776") ? "oui" : "NON", "oui")
+  verifier("le journal des événements aussi",
+    texteFinal.includes("JOURNAL DES") ? "oui" : "NON", "oui")
+  verifier("et la mention de vérification",
+    texteFinal.includes("permet de v") ? "oui" : "NON", "oui")
+
+  // Le document final est verrouillé : il ne se modifie plus.
+  const { error: eFinal } = await admin.from("documents")
+    .update({ sha256: "detourne".padEnd(64, "0") }).eq("id", fin.documentId)
+  verifier("le document signé ne se modifie plus", eFinal ? "refusé" : "ACCEPTÉ", "refusé")
+
+  // Le service sait le rendre.
+  const telecharge = await service.getSignedDocument(etatF.id)
+  verifier("getSignedDocument le rend", telecharge?.octets?.length > 1000 ? "oui" : "NON", "oui")
+  verifier("avec sa référence d'intégrité", telecharge?.referenceIntegrite, docSigne.sha256)
 
   // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")

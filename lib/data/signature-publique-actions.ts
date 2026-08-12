@@ -48,7 +48,50 @@ export async function apposerSignature(
   champs: { id: string; valeur: string }[]
 ): Promise<ResultatPublic> {
   const { ip, agent } = await origine()
-  return signerParJeton(jeton, courriel, trace, champs, ip, agent)
+  const r = await signerParJeton(jeton, courriel, trace, champs, ip, agent)
+
+  // LA DERNIÈRE SIGNATURE DÉCLENCHE LA SUITE, et seulement elle.
+  //
+  // Ni la finalisation ni les réactions du CRM ne font échouer la signature :
+  // elle est déjà enregistrée en base, scellée par un déclencheur. Si le PDF
+  // final ne se compose pas, on le reproduira — refuser la signature pour
+  // autant serait absurde à expliquer au signataire, qui a bel et bien signé.
+  if (r.ok && r.complete) {
+    try {
+      // L'identifiant vient de la BASE, pas d'une seconde résolution du jeton :
+      // après la dernière signature, la demande est close et le jeton ne
+      // résout plus rien.
+      if (r.demandeId) await conclure(r.demandeId)
+    } catch (e) {
+      console.error("apposerSignature : suite non exécutée —", e instanceof Error ? e.message : e)
+    }
+  }
+
+  return r
+}
+
+/**
+ * Ce qui suit la dernière signature : le document final, puis les réactions.
+ *
+ * Séparée pour être appelable seule — si la composition du PDF échoue une
+ * fois, on la rejoue sans redemander de signature à personne.
+ */
+async function conclure(demandeId: string) {
+  const { clientService } = await import("@/lib/signature/public")
+  const sb = clientService()
+
+  const { data: demande } = await sb
+    .from("signature_requests").select("firm_id").eq("id", demandeId).maybeSingle()
+  if (!demande) return
+
+  const ctx = { firmId: String(demande.firm_id), fullName: "Système" }
+
+  const { finaliser } = await import("@/lib/signature/finalisation")
+  const f = await finaliser(sb, ctx, demandeId)
+  if (!f.ok) console.error("conclure : finalisation —", f.message)
+
+  const { reagirASignature } = await import("@/lib/workflow/signature-reactions")
+  await reagirASignature(sb, ctx, "signature.completed", demandeId)
 }
 
 export async function declinerSignature(jeton: string, motif: string): Promise<ResultatPublic> {
