@@ -30,6 +30,7 @@ import { exigerSupabase } from "./lib/environnement.mjs"
 // éprouverait une copie, et le jour où l'originale changerait, l'épreuve
 // continuerait de réussir sur autre chose.
 import { statutDeduit, sonTour, nomDocumentSigne } from "../lib/signature/statuts.ts"
+import { verrouiller, nouvelleVersion, chaineDesVersions } from "../lib/signature/versions.ts"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const env = Object.fromEntries(
@@ -59,6 +60,11 @@ const verifier = (intitule, obtenu, attendu) => {
 const marque = Date.now()
 const mdp = "Epreuve-" + randomBytes(9).toString("base64url")
 const empreinte = (jeton) => createHash("sha256").update(jeton).digest("hex")
+/** Ce que voit un porteur de jeton. Défini une fois, employé partout. */
+const resoudre = async (jeton) => {
+  const { data } = await admin.rpc("resolve_signature_token", { p_token_hash: empreinte(jeton) })
+  return (data ?? [])[0] ?? null
+}
 let cabinetA, cabinetB, userA, userB
 
 const nouveauCabinet = async (suffixe) => {
@@ -193,11 +199,6 @@ try {
   // -------------------------------------------------------------------------
   console.log("\nLe jeton : ce qu'il ouvre, et ce qu'il n'ouvre pas")
   // -------------------------------------------------------------------------
-  const resoudre = async (jeton) => {
-    const { data } = await admin.rpc("resolve_signature_token", { p_token_hash: empreinte(jeton) })
-    return (data ?? [])[0] ?? null
-  }
-
   const vuClient = await resoudre(jetonClient)
   verifier("un jeton valide ouvre SON document", vuClient?.document_id, doc.id)
   verifier("il nomme le destinataire", vuClient?.full_name, "Jean Tremblay")
@@ -259,6 +260,110 @@ try {
   verifier("le nom du fichier signé",
     nomDocumentSigne("Contrat de services", "Jean Tremblay"),
     "Contrat_de_services_SIGNE_Jean_Tremblay.pdf")
+
+  // -------------------------------------------------------------------------
+  console.log("\nLe verrouillage de version — la garantie du §10")
+  // -------------------------------------------------------------------------
+  const docV = await nouveauDocument(cabinetA, cl.id, "Contrat a verrouiller.pdf")
+
+  // Avant verrouillage, le contenu se modifie librement : un brouillon doit
+  // rester un brouillon.
+  const { error: eLibre } = await cabinet.from("documents")
+    .update({ sha256: "libre".padEnd(64, "0") }).eq("id", docV.id)
+  verifier("un document NON verrouillé se modifie", eLibre ? eLibre.message : "ok", "ok")
+
+  verifier("le verrou se pose", await verrouiller(cabinet, docV.id) ? "oui" : "NON", "oui")
+
+  // LE CONTRÔLE QUI COMPTE. Sans lui, on ferait signer une version et on
+  // présenterait l'autre.
+  const { error: eContenu } = await cabinet.from("documents")
+    .update({ sha256: "detourne".padEnd(64, "0") }).eq("id", docV.id)
+  verifier("le CONTENU ne se modifie plus", eContenu ? "refusé" : "ACCEPTÉ", "refusé")
+
+  const { error: eChemin } = await cabinet.from("documents")
+    .update({ storage_path: "ailleurs/detourne.pdf" }).eq("id", docV.id)
+  verifier("le FICHIER ne se remplace plus", eChemin ? "refusé" : "ACCEPTÉ", "refusé")
+
+  // Le verrou ne se retire pas : sans cela il ne serait qu'une convention.
+  const { error: eDeverrou } = await cabinet.from("documents")
+    .update({ locked_at: null }).eq("id", docV.id)
+  verifier("le VERROU lui-même ne se retire pas", eDeverrou ? "refusé" : "ACCEPTÉ", "refusé")
+
+  const { error: eSuppr } = await cabinet.from("documents").delete().eq("id", docV.id)
+  verifier("un document verrouillé ne se supprime pas", eSuppr ? "refusé" : "ACCEPTÉ", "refusé")
+
+  // MÊME AVEC LES PLEINS POUVOIRS. C'est la différence entre une garantie et
+  // une convention : le rôle de service contourne RLS, pas les déclencheurs.
+  const { error: eService } = await admin.from("documents")
+    .update({ sha256: "service".padEnd(64, "0") }).eq("id", docV.id)
+  verifier("même en service_role : REFUSÉ", eService ? "refusé" : "ACCEPTÉ", "refusé")
+
+  // Ce qui N'EST PAS verrouillé, et c'est délibéré : renommer une pièce ne
+  // change pas ce qui a été signé.
+  const { error: eNom } = await cabinet.from("documents")
+    .update({ name: "Contrat renommé.pdf" }).eq("id", docV.id)
+  verifier("le NOM reste modifiable", eNom ? eNom.message : "ok", "ok")
+
+  // Un cabinet ne verrouille pas le document d'un autre — malgré
+  // SECURITY DEFINER, la fonction vérifie le cabinet.
+  const docTiers = await nouveauDocument(cabinetB, null, "Chez B.pdf")
+  verifier("on ne verrouille pas le document d'un autre cabinet",
+    await verrouiller(cabinet, docTiers.id) ? "VERROUILLÉ" : "refusé", "refusé")
+
+  // -------------------------------------------------------------------------
+  console.log("\nAnnuler et reprendre — la sortie du verrou")
+  // -------------------------------------------------------------------------
+  const { data: demandeV } = await cabinet.from("signature_requests").insert({
+    firm_id: cabinetA, document_id: docV.id, client_id: cl.id,
+    document_sha256: docV.sha256, requested_by: userA, status: "sent",
+  }).select("id").single()
+  const jetonV = randomBytes(32).toString("base64url")
+  await cabinet.from("signature_recipients").insert({
+    firm_id: cabinetA, request_id: demandeV.id, role: "client", rank: 1,
+    full_name: "Jean Tremblay", email: `jeanv-${marque}@example.invalid`,
+    token_hash: empreinte(jetonV),
+  })
+  verifier("le lien de la version 1 fonctionne",
+    (await resoudre(jetonV)) ? "oui" : "NON", "oui")
+
+  const membreV = { firmId: cabinetA, fullName: "Propriétaire 1", email: "" }
+  const v2 = await nouvelleVersion(cabinet, membreV, docV.id, "Faute dans l'article 3.")
+  verifier("une nouvelle version se crée", v2.ok ? "ok" : v2.message, "ok")
+  verifier("elle porte le numéro 2", v2.version, 2)
+
+  // LE POINT CRITIQUE : l'ancien lien meurt avec l'ancienne version. Sans cela,
+  // un client pourrait signer le contrat périmé pendant que le nouveau circule.
+  verifier("le lien de la version 1 est MORT",
+    (await resoudre(jetonV)) ? "VIVANT" : "révoqué", "révoqué")
+
+  const { data: apresAnnulation } = await admin.from("signature_requests")
+    .select("status").eq("id", demandeV.id).single()
+  verifier("sa demande est annulée", apresAnnulation.status, "cancelled")
+
+  const { data: ancienne } = await admin.from("documents")
+    .select("locked_at, sha256").eq("id", docV.id).single()
+  verifier("l'ancienne version reste au dossier, verrouillée",
+    ancienne.locked_at ? "oui" : "NON", "oui")
+
+  const { data: neuve } = await admin.from("documents")
+    .select("supersedes_id, version, sha256, locked_at").eq("id", v2.documentId).single()
+  verifier("la neuve désigne la précédente", neuve.supersedes_id, docV.id)
+  verifier("elle repart LIBRE", neuve.locked_at, null)
+  // Le fichier n'est PAS recopié : une copie identique passerait pour une
+  // correction.
+  verifier("et sans fichier — c'est à la production de le lui donner",
+    neuve.sha256 === null ? "aucun" : "COPIÉ", "aucun")
+
+  const chaine = await chaineDesVersions(cabinet, v2.documentId)
+  verifier("la chaîne des versions se lit", chaine.length, 2)
+  verifier("dans l'ordre, la première d'abord", chaine[0].version, 1)
+
+  // Un document jamais verrouillé n'a pas besoin de version.
+  const docLibre = await nouveauDocument(cabinetA, cl.id, "Brouillon.pdf")
+  const vLibre = await nouvelleVersion(cabinet, membreV, docLibre.id)
+  verifier("versionner un brouillon : REFUSÉ", vLibre.ok ? "ACCEPTÉ" : "refusé", "refusé")
+  verifier("et le refus dit quoi faire",
+    /modifiez-le directement/i.test(vLibre.message) ? "oui" : `NON (${vLibre.message})`, "oui")
 
   // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
