@@ -43,3 +43,16 @@ même sens, ce qui est assez rare pour être noté.
 Une région se déclare ici, mais elle se CONSTATE sur un déploiement. Le
 contrôle est décrit dans `docs/conformite/EFVP-2026-08-12.md`, section 5.2 :
 toute modification de la région déclenche une réévaluation.
+
+## Vérifié le 12 août 2026
+
+```
+$ curl -sI https://moncabinetcric.com/api/…/pdf
+HTTP/2 404
+x-vercel-id: yul1::yul1::bs6lp-…
+```
+
+L'en-tête nomme la région qui a **routé** la requête, puis celle qui l'a
+**exécutée**. Les deux sont `yul1`. Le contrôle porte volontairement sur une
+route serveur — celle qui compose un PDF — et non sur une page statique :
+c'est là que les renseignements sont manipulés.
