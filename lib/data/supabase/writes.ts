@@ -368,73 +368,28 @@ export async function restoreDocumentRecord(id: string): Promise<DocumentRecord 
   return data ? toDocument(data) : undefined
 }
 
-export async function updateFirmSettings(data: {
-  name?: string
-  rcicNumber?: string
-  rcicName?: string
-  address?: string
-  addressLine2?: string
-  city?: string
-  province?: string
-  postalCode?: string
-  country?: string
-  phone?: string
-  email?: string
-  logoUrl?: string
-  replyToEmail?: string
-  emailSenderName?: string
-  taxGstNumber?: string
-  taxQstNumber?: string
-  taxGstRate?: number
-  taxQstRate?: number
-  invoicePrefix?: string
-  paymentTerms?: string
-}): Promise<boolean> {
+/**
+ * Enregistre l'identité du cabinet.
+ *
+ * ELLE NE REND PLUS `true` À L'AVEUGLE. La version précédente lisait l'erreur
+ * de PostgREST et concluait au succès en son absence — or une écriture
+ * refusée par Row Level Security n'est PAS une erreur : elle ne trouve
+ * simplement aucune ligne, et rend « succès, zéro ligne ».
+ *
+ * La politique `firms_owner_update` exige `is_firm_owner()`. Un collaborateur
+ * enregistrait donc dans le vide, et l'écran le félicitait.
+ *
+ * La logique vit dans `lib/data/parametres-cabinet.ts`, hors du module de
+ * session, pour rester appelable par une épreuve : c'est faute de pouvoir
+ * l'appeler que ce défaut a vécu si longtemps.
+ */
+export async function updateFirmSettings(
+  data: import("../parametres-cabinet").IdentiteCabinet
+): Promise<{ ok: boolean; message: string }> {
   const firmId = await currentFirmId()
-  const payload: Record<string, unknown> = {
-    updated_at: new Date().toISOString(),
-  }
-  if (data.name !== undefined) payload.name = data.name
-  if (data.rcicNumber !== undefined) payload.rcic_license_number = data.rcicNumber
-  if (data.rcicName !== undefined) payload.owner_name = data.rcicName
-  if (data.address !== undefined) payload.address = data.address
-  // Les morceaux de l'adresse professionnelle. Une chaîne vide vaut « pas
-  // renseigné » et se range en NULL : c'est ce que lignesAdresse() attend pour
-  // sauter la ligne au lieu d'en imprimer une vide.
-  if (data.addressLine2 !== undefined) payload.address_line2 = data.addressLine2.trim() || null
-  if (data.city !== undefined) payload.city = data.city.trim() || null
-  if (data.province !== undefined) payload.province = data.province.trim() || null
-  if (data.postalCode !== undefined) payload.postal_code = data.postalCode.trim().toUpperCase() || null
-  if (data.country !== undefined) payload.country = data.country.trim() || null
-  if (data.phone !== undefined) payload.phone = data.phone
-  if (data.email !== undefined) payload.email = data.email
-  if (data.logoUrl !== undefined) payload.logo_url = data.logoUrl
-  // Une chaîne vide vaut « pas d'adresse » et NON une adresse vide : la
-  // contrainte de la base refuserait '' comme adresse invalide, et le
-  // consultant qui efface le champ verrait un refus au lieu d'un retour au
-  // comportement par défaut.
-  if (data.replyToEmail !== undefined) payload.reply_to_email = data.replyToEmail.trim() || null
-  if (data.emailSenderName !== undefined) payload.email_sender_name = data.emailSenderName.trim() || null
-  if (data.taxGstNumber !== undefined) payload.tax_gst_number = data.taxGstNumber.trim() || null
-  if (data.taxQstNumber !== undefined) payload.tax_qst_number = data.taxQstNumber.trim() || null
-  if (data.invoicePrefix !== undefined) payload.invoice_prefix = data.invoicePrefix.trim().toUpperCase() || null
-  if (data.paymentTerms !== undefined) payload.payment_terms = data.paymentTerms.trim() || null
-  // Les taux arrivent en POURCENTAGE depuis l'écran — c'est ainsi qu'un
-  // comptable les énonce — et se rangent en fraction, qui est ce que le
-  // calcul multiplie. Convertir ici plutôt qu'à chaque lecture évite qu'un
-  // seul appel oublie la division et facture cinq cents pour cent.
-  if (data.taxGstRate !== undefined) payload.tax_gst_rate = data.taxGstRate / 100
-  if (data.taxQstRate !== undefined) payload.tax_qst_rate = data.taxQstRate / 100
-
-  const { error } = await (await db())
-    .from("firms")
-    .update(payload)
-    .eq("id", firmId)
-
-  if (error) fail("updateFirmSettings", error.message)
-  return true
+  const { updateFirmSettingsAvec } = await import("../parametres-cabinet")
+  return updateFirmSettingsAvec(await db(), firmId, data)
 }
-
 
 /**
  * Convertit un prospect en client.

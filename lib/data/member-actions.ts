@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 import { exigerPermission } from "@/lib/auth/permissions"
 import { synchroniserSiegesStripe } from "@/lib/billing/seat-sync"
+import { STATUTS_MEMBRE, type StatutMembre } from "./membre-criteres"
 
 /**
  * Gestion des membres d'un cabinet, depuis l'écran Paramètres.
@@ -136,14 +137,6 @@ export async function changerRole(formData: FormData): Promise<ResultatMembre> {
   }
 }
 
-/**
- * Statuts qu'un propriétaire peut poser sur un membre de son cabinet.
- *
- * `revoked` est définitif du point de vue de l'usage courant, mais reste
- * techniquement réversible : c'est une décision, pas une destruction.
- */
-export const STATUTS_MEMBRE = ["active", "suspended", "revoked"] as const
-export type StatutMembre = (typeof STATUTS_MEMBRE)[number]
 
 const LIBELLE_STATUT: Record<StatutMembre, string> = {
   active: "réactivé : l'accès est rouvert immédiatement",

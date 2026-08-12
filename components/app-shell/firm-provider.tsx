@@ -12,6 +12,27 @@ const FirmContext = React.createContext<FirmIdentity>(EMPTY_FIRM)
  * transmise ici. Les composants clients n'ont donc ni à la coder en dur, ni
  * à la recharger.
  */
+/**
+ * ─── LA COPIE DANS LE NAVIGATEUR EST SUPPRIMÉE ─────────────────────────────
+ *
+ * Ce fournisseur relisait `localStorage.cric_firm_settings` et le réappliquait
+ * PAR-DESSUS l'identité venue du serveur, à chaque montage et à chaque
+ * événement « cric-firm-updated ».
+ *
+ * Elle ne couvrait que SEPT champs : nom, permis, consultant, rue, téléphone,
+ * courriel, logo. Conséquence exacte du défaut signalé — quand l'écriture en
+ * base échouait (ce qu'elle faisait en silence pour tout membre non
+ * propriétaire), ces sept-là « persistaient » depuis le navigateur, tandis que
+ * la VILLE, la PROVINCE, le CODE POSTAL et le NUMÉRO DE BUREAU, absents de la
+ * copie, disparaissaient au rechargement.
+ *
+ * Une moitié de la fiche tenait, l'autre s'effaçait. Et la moitié qui tenait
+ * ne venait pas de la base : elle venait du poste de travail. Sur un autre
+ * ordinateur, tout avait disparu.
+ *
+ * Il n'y a plus qu'une source de vérité : la table `firms`, lue par le layout
+ * applicatif à chaque rendu serveur (§16).
+ */
 export function FirmProvider({
   firm,
   children,
@@ -19,44 +40,7 @@ export function FirmProvider({
   firm: FirmIdentity
   children: React.ReactNode
 }) {
-  const [currentFirm, setCurrentFirm] = React.useState<FirmIdentity>(firm)
-  const [prevPropFirm, setPrevPropFirm] = React.useState<FirmIdentity>(firm)
-
-  if (firm !== prevPropFirm) {
-    setPrevPropFirm(firm)
-    setCurrentFirm(firm)
-  }
-
-  React.useEffect(() => {
-    const applySavedSettings = () => {
-      const saved = localStorage.getItem("cric_firm_settings")
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved)
-          setCurrentFirm(prev => ({
-            ...prev,
-            name: parsed.companyName || prev.name,
-            rcicNumber: parsed.rcicNumber || prev.rcicNumber,
-            rcicName: parsed.rcicName || prev.rcicName,
-            address: parsed.address || prev.address,
-            phone: parsed.phone || prev.phone,
-            email: parsed.email || prev.email,
-            logoUrl: parsed.logoUrl !== undefined ? parsed.logoUrl : prev.logoUrl,
-          }))
-        } catch {
-          // Ignore parse errors
-        }
-      }
-    }
-
-    applySavedSettings()
-
-    const handleFirmUpdate = () => applySavedSettings()
-    window.addEventListener("cric-firm-updated", handleFirmUpdate)
-    return () => window.removeEventListener("cric-firm-updated", handleFirmUpdate)
-  }, [])
-
-  return <FirmContext.Provider value={currentFirm}>{children}</FirmContext.Provider>
+  return <FirmContext.Provider value={firm}>{children}</FirmContext.Provider>
 }
 
 export function useFirm(): FirmIdentity {

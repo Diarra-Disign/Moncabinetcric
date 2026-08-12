@@ -39,6 +39,8 @@ export function SettingsClient() {
   const [activeTab, setActiveTab] = React.useState<"cabinet" | "taxes" | "stripe" | "zoom">("cabinet")
   const [notice, setNotice] = React.useState<string | null>(null)
   const [isSaving, setIsSaving] = React.useState(false)
+  /** §10 : l'échec doit se voir, et dire pourquoi. */
+  const [erreur, setErreur] = React.useState<string | null>(null)
 
   // Cabinet state
   const [companyName, setCompanyName] = React.useState(firm.name)
@@ -166,41 +168,43 @@ export function SettingsClient() {
       logoUrl,
     }
 
-    // 1. Sauvegarde locale immédiate dans localStorage
+    // ── PLUS DE COPIE DANS LE NAVIGATEUR ───────────────────────────────
+    //
+    // Une copie de sept champs était rangée dans localStorage et réappliquée
+    // par-dessus les données du serveur au chargement. Elle ne servait à rien
+    // et masquait tout : quand l'écriture en base échouait, ces sept champs
+    // « persistaient » depuis le navigateur, tandis que la ville, la province,
+    // le code postal et le numéro de bureau — absents de la copie —
+    // disparaissaient. D'où le symptôme : une moitié de la fiche tient,
+    // l'autre s'efface.
+    //
+    // Il n'y a plus qu'une source : la table `firms` (§16).
     try {
-      localStorage.setItem("cric_firm_settings", JSON.stringify({
-        companyName,
-        rcicNumber,
-        rcicName,
-        address,
-        addressLine2,
-        city,
-        province,
-        postalCode,
-        country,
-        phone,
-        email,
-        replyToEmail,
-        emailSenderName,
-        logoUrl,
-      }))
-      window.dispatchEvent(new Event("cric-firm-updated"))
-    } catch {
-      // Ignorer si localStorage désactivé
-    }
-
-    // 2. Sauvegarde backend / Supabase
-    try {
-      await updateFirmSettings(payload)
-    } catch (err) {
-      console.error("Erreur enregistrement paramètres cabinet :", err)
-    } finally {
+      const r = await updateFirmSettings(payload)
       setIsSaving(false)
-    }
 
-    setNotice("Paramètres du cabinet et logo enregistrés avec succès !")
-    setTimeout(() => setNotice(null), 5000)
-    router.refresh()
+      if (!r.ok) {
+        // §10 : ne JAMAIS faire croire à un enregistrement qui n'a pas eu
+        // lieu. Le message du serveur est repris tel quel — il nomme la cause.
+        setErreur(r.message)
+        setTimeout(() => setErreur(null), 12000)
+        return
+      }
+
+      setNotice("Paramètres du cabinet enregistrés avec succès.")
+      setTimeout(() => setNotice(null), 5000)
+      // Le rafraîchissement relit la base : c'est LUI qui prouve que
+      // l'enregistrement a eu lieu, et non les champs restés remplis.
+      router.refresh()
+    } catch (err) {
+      setIsSaving(false)
+      setErreur(
+        `Impossible d'enregistrer les paramètres : ${
+          err instanceof Error ? err.message : "erreur inattendue"
+        }`
+      )
+      setTimeout(() => setErreur(null), 12000)
+    }
   }
 
   // Détection si l'URL saisie pointe vers un dossier au lieu d'un fichier image
@@ -214,6 +218,23 @@ export function SettingsClient() {
   return (
     <div className="flex flex-col gap-8 pb-16">
       
+      {/* §10 — L'ÉCHEC SE VOIT, ET DIT POURQUOI.
+          Il n'y avait aucun bandeau d'erreur : l'exception était écrite dans
+          la console du navigateur, puis « enregistré avec succès » s'affichait
+          quand même. */}
+      {erreur && (
+        <div
+          role="alert"
+          className="bg-error/10 border border-error/40 text-error-strong rounded-3xl p-4 flex items-start gap-3 shadow-md animate-fadeIn"
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-xs sm:text-sm">Les paramètres n&apos;ont PAS été enregistrés.</p>
+            <p className="text-xs mt-0.5">{erreur}</p>
+          </div>
+        </div>
+      )}
+
       {/* NOTICE BANNER */}
       {notice && (
         <div className="bg-success/10 border border-success/30 text-success-strong rounded-3xl p-4 flex items-center justify-between shadow-md animate-fadeIn">

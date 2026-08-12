@@ -311,30 +311,14 @@ export async function searchLegislationAction(
   return { items: matched.slice(0, limit), total: matched.length }
 }
 
-export async function updateFirmSettings(data: {
-  replyToEmail?: string
-  emailSenderName?: string
-  taxGstNumber?: string
-  taxQstNumber?: string
-  taxGstRate?: number
-  taxQstRate?: number
-  invoicePrefix?: string
-  paymentTerms?: string
-  name?: string
-  rcicNumber?: string
-  rcicName?: string
-  address?: string
-  addressLine2?: string
-  city?: string
-  province?: string
-  postalCode?: string
-  country?: string
-  phone?: string
-  email?: string
-  logoUrl?: string
-}): Promise<boolean> {
+export async function updateFirmSettings(
+  data: import("./parametres-cabinet").IdentiteCabinet
+): Promise<{ ok: boolean; message: string }> {
   if (isSupabaseSource()) return (await sbWrites()).updateFirmSettings(data)
-  return true
+  // En mémoire, il n'y a pas de cabinet à écrire. On le DIT plutôt que de
+  // rendre un succès : un écran qui annonce « enregistré » sans base est
+  // exactement le défaut qu'on vient de corriger.
+  return { ok: false, message: "Aucune base de données : paramètres non enregistrés." }
 }
 
 // --- Questionnaires Clients -------------------------------------------
