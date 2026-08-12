@@ -158,12 +158,21 @@ professionnels pro bono.
 - [ ] Aperçu à droite (§19)
 - [ ] `ConfirmationEnvoi` pour l'envoi (§24) — **composant existant, rien à écrire**
 
-### Tâche 6 — PDF et classement (est. 30 min)
+### Tâche 6 — PDF et classement (est. 30 min) ✅
 
-- [ ] `pdfEntente()` réutilise les primitives de `lib/invoices/pdf.ts`
-- [ ] Le PDF est **inséré dans `documents`** avec son `sha256`, puis
-      `agreements.document_id` le désigne
-- [ ] La demande de signature réutilise `signature_requests` — aucune table neuve
+- [x] Les primitives de `lib/invoices/pdf.ts` sont EXTRAITES dans
+      `lib/pdf/primitives.ts` (et `lib/pdf/texte.ts`, pur, donc éprouvable)
+      plutôt que recopiées : un seul en-tête, une seule translittération
+- [x] `ententePdf()` enveloppe le texte au lieu de le tronquer, et enjambe les
+      pages — les deux endroits où une erreur retire du texte sans rien lever
+- [x] Le PDF est **inséré dans `documents`** (catégorie `contract`) avec son
+      `sha256`, puis `agreements.document_id` le désigne
+- [x] `emettre(sb, membre, id)` vit hors de l'action serveur pour rester
+      éprouvable — c'est là qu'une erreur produit une entente listée dont le
+      fichier ne s'ouvre jamais
+- [x] La demande de signature réutilise `signature_requests` — aucune table neuve
+- [x] `./cric ententes` passe de 26 à 46 contrôles : PDF réel de 3 pages,
+      empreinte comparée aux octets déposés, réémission refusée
 
 ### Tâche 7 — La conversion (est. 15 min)
 

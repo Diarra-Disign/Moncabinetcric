@@ -58,6 +58,56 @@ export async function listerModelesEntente() {
   }))
 }
 
+export interface EntenteListee {
+  id: string
+  reference: string
+  titre: string
+  statut: string
+  proBono: boolean
+  total: number
+  date: string
+  contractant: string
+  /** Le PDF, une fois émis. Absent, l'entente est encore un brouillon. */
+  documentId: string | null
+}
+
+/**
+ * Les ententes du cabinet, les vraies.
+ *
+ * L'écran affichait jusqu'ici `getAgreements()`, qui rend un tableau VIDE dès
+ * que la source est Supabase — la liste était donc peuplée par des données de
+ * démonstration en développement et désespérément vide en production. Ce
+ * lecteur-ci passe par le client de session, donc par RLS.
+ */
+export async function listerEntentes(limite = 100): Promise<EntenteListee[]> {
+  const sb = await getSessionSupabase()
+  const { data } = await sb
+    .from("agreements")
+    // Un LITTÉRAL, jamais une chaîne assemblée : l'analyseur de types de
+    // PostgREST lit le texte de la sélection, et une concaténation le rend
+    // incapable de dire ce qu'il rendra. Le piège avait déjà mordu dans
+    // ententes.ts.
+    .select("id, reference, title, status, is_probono, total_amount, issued_at, created_at, document_id, clients(name), leads(name)")
+    .order("created_at", { ascending: false })
+    .limit(limite)
+
+  return (data ?? []).map((e) => {
+    const client = e.clients as unknown as { name?: string } | null
+    const prospect = e.leads as unknown as { name?: string } | null
+    return {
+      id: String(e.id),
+      reference: String(e.reference ?? ""),
+      titre: String(e.title ?? ""),
+      statut: String(e.status ?? "draft"),
+      proBono: e.is_probono === true,
+      total: Number(e.total_amount ?? 0),
+      date: String(e.issued_at ?? e.created_at ?? "").slice(0, 10),
+      contractant: client?.name ?? prospect?.name ?? "",
+      documentId: e.document_id ? String(e.document_id) : null,
+    }
+  })
+}
+
 /** Les articles d'un modèle, dans l'ordre, prêts à cocher et à réordonner. */
 export async function articlesDuModele(templateId: string): Promise<ArticleEntente[]> {
   const sb = await getSessionSupabase()
@@ -219,6 +269,80 @@ export async function creerEntente(demande: DemandeEntente): Promise<Resultat> {
 
     revalidatePath("/fr/agreements")
     return { ok: true, message: `${contexte.entente.numero} créée en brouillon.`, id: String(creee.id) }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Émet l'entente : le PDF est composé, CLASSÉ au dossier, puis désigné.
+ *
+ * UN CONTRAT EST UN DOCUMENT, et c'est toute l'architecture de cette étape. La
+ * chaîne de signature du produit s'accroche à `documents` — `signature_requests`
+ * porte un `document_id` et une empreinte. Créer au contrat sa propre chaîne
+ * aurait dupliqué ce qui existe, et donné deux façons de répondre à
+ * « ce fichier est-il encore celui qui a été signé ? ».
+ *
+ * L'ordre importe. La FICHE d'abord, le FICHIER ensuite : `deposerFichier()` a
+ * besoin de l'identifiant du document pour le ranger, et un fichier déposé sans
+ * fiche serait un objet du stockage que rien ne référence. Si le dépôt échoue,
+ * la fiche est retirée — un document qui s'affiche au dossier et ne s'ouvre
+ * jamais est pire que pas de document.
+ *
+ * L'empreinte n'est pas calculée ici : `deposerFichier()` la calcule sur les
+ * octets réellement déposés. C'est elle qui rendra la signature opposable, et
+ * une empreinte calculée sur autre chose que le fichier déposé n'atteste rien.
+ */
+export async function emettreEntente(id: string): Promise<Resultat> {
+  try {
+    const membre = await moi()
+    const sb = await getSessionSupabase()
+
+    const { emettre } = await import("@/lib/ententes/emission")
+    const resultat = await emettre(sb, membre, id)
+
+    if (resultat.ok) {
+      revalidatePath("/fr/agreements")
+      revalidatePath("/[locale]/matters/[id]", "page")
+    }
+    return { ok: resultat.ok, message: resultat.message, id: resultat.documentId }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Ouvre la demande de signature sur l'entente émise.
+ *
+ * AUCUNE TABLE NEUVE : `demanderSignature()` fige l'empreinte du fichier et
+ * refusera plus tard toute signature apposée sur un contenu différent. Le §25
+ * était déjà satisfait par le produit — il fallait seulement lui donner un
+ * document à signer.
+ */
+export async function envoyerPourSignature(id: string, note?: string): Promise<Resultat> {
+  try {
+    const sb = await getSessionSupabase()
+
+    const { data: entente } = await sb
+      .from("agreements")
+      .select("reference, status, document_id")
+      .eq("id", id)
+      .maybeSingle()
+
+    if (!entente) return { ok: false, message: "Cette entente est introuvable." }
+    if (!entente.document_id) {
+      return { ok: false, message: "Émettez d'abord l'entente : il n'y a pas encore de document à signer." }
+    }
+
+    const { demanderSignature } = await import("./signatures")
+    const demande = await demanderSignature(String(entente.document_id), note)
+    if (!demande.ok) return { ok: false, message: demande.erreur ?? "Demande refusée." }
+
+    const { error } = await sb.from("agreements").update({ status: "sent" }).eq("id", id)
+    if (error) return { ok: false, message: error.message }
+
+    revalidatePath("/fr/agreements")
+    return { ok: true, message: `${entente.reference} est en attente de signature.`, id: demande.requestId }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }

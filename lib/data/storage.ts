@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto"
 import { getSessionSupabase, getCurrentMember, getCurrentPortalClient } from "@/lib/supabase/session"
+import { deposerOctets, BUCKET, type ResultatDepot } from "./depot"
 
 /**
  * Dépôt et récupération des fichiers.
@@ -19,51 +20,6 @@ import { getSessionSupabase, getCurrentMember, getCurrentPortalClient } from "@/
  * filtre ne peut pas ouvrir l'accès, la base refusant d'elle-même.
  */
 
-const BUCKET = "documents"
-
-/**
- * Types acceptés, alignés sur la contrainte du compartiment.
- *
- * Ce contrôle-ci ne fait que donner un message clair : le verrou réel est
- * en base, sur le compartiment, et s'applique même à un appel direct de
- * l'API qui contournerait cette application.
- */
-const TYPES_ACCEPTES = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  // Format par défaut des iPhone.
-  "image/heic",
-])
-
-const TAILLE_MAX = 20 * 1024 * 1024
-
-export interface ResultatDepot {
-  ok: boolean
-  erreur?: string
-  sha256?: string
-  chemin?: string
-  taille?: number
-}
-
-/**
- * Nettoie un nom de fichier avant de l'employer dans un chemin.
- *
- * Un nom venu du navigateur peut contenir des séparateurs ou « .. » : sans
- * cette précaution, un client pourrait viser le dossier d'un autre en
- * nommant son fichier « ../autre-client/piece.pdf ».
- */
-function nomSur(nom: string): string {
-  return (
-    nom
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^\w.\- ]+/g, "_")
-      .replace(/\.{2,}/g, ".")
-      .slice(0, 120) || "fichier"
-  )
-}
-
 /**
  * Dépose un fichier et renvoie son empreinte.
  *
@@ -76,16 +32,6 @@ export async function deposerFichier(
   clientId: string,
   fichier: File
 ): Promise<ResultatDepot> {
-  if (!TYPES_ACCEPTES.has(fichier.type)) {
-    return { ok: false, erreur: `Type de fichier refusé : ${fichier.type || "inconnu"}.` }
-  }
-  if (fichier.size > TAILLE_MAX) {
-    return { ok: false, erreur: `Fichier trop volumineux (maximum ${TAILLE_MAX / 1024 / 1024} Mo).` }
-  }
-  if (fichier.size === 0) {
-    return { ok: false, erreur: "Fichier vide." }
-  }
-
   // Le cabinet vient de la session, jamais d'un paramètre : un identifiant
   // de cabinet transmis par l'appelant serait modifiable.
   const membre = await getCurrentMember()
@@ -98,51 +44,15 @@ export async function deposerFichier(
     return { ok: false, erreur: "Dépôt refusé." }
   }
 
-  const octets = Buffer.from(await fichier.arrayBuffer())
-  const sha256 = createHash("sha256").update(octets).digest("hex")
-
-  const chemin = `${firmId}/${clientId}/${documentId}/${nomSur(fichier.name)}`
   const supabase = await getSessionSupabase()
-
-  const { error } = await supabase.storage.from(BUCKET).upload(chemin, octets, {
-    contentType: fichier.type,
-    // Sans cette consigne, une vérification d'intégrité ultérieure pourrait
-    // lire une copie en cache et conclure à tort que le fichier est intact.
-    cacheControl: "no-store",
-    // Pas d'écrasement : une pièce remplacée doit laisser une trace, et le
-    // client n'a de toute façon pas le droit de mettre à jour.
-    upsert: false,
+  return deposerOctets(supabase, {
+    firmId,
+    sousDossier: clientId,
+    documentId,
+    nom: fichier.name,
+    octets: new Uint8Array(await fichier.arrayBuffer()),
+    mime: fichier.type,
   })
-
-  if (error) {
-    return {
-      ok: false,
-      erreur: /exists/i.test(error.message)
-        ? "Un fichier porte déjà ce nom pour cette pièce."
-        : error.message,
-    }
-  }
-
-  // La fiche ne porte l'empreinte qu'une fois le fichier réellement déposé :
-  // l'inverse laisserait croire à un contenu vérifié qui n'existe pas.
-  const { error: majErreur } = await supabase
-    .from("documents")
-    .update({
-      storage_path: chemin,
-      sha256,
-      mime_type: fichier.type,
-      size_bytes: fichier.size,
-    })
-    .eq("id", documentId)
-
-  if (majErreur) {
-    // La fiche n'a pas suivi : on retire le fichier pour ne pas laisser un
-    // dépôt que rien ne référence.
-    await supabase.storage.from(BUCKET).remove([chemin])
-    return { ok: false, erreur: majErreur.message }
-  }
-
-  return { ok: true, sha256, chemin, taille: fichier.size }
 }
 
 /**

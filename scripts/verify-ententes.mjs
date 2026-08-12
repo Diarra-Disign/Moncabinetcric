@@ -23,11 +23,18 @@ import { readFileSync } from "node:fs"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import { randomBytes } from "node:crypto"
+import { inflateSync } from "node:zlib"
 import { createClient } from "@supabase/supabase-js"
 // Le module de substitution est importé TEL QUEL : contrôler les modèles
 // contre une liste de variables recopiée ici les aurait éprouvés contre une
 // copie, qui aurait divergé au premier ajout.
 import { variablesDe, substituer } from "../lib/ententes/variables.ts"
+// L'émission est importée TELLE QUELLE, pour la même raison. C'est elle qui
+// compose le PDF, le classe dans « documents » et pose l'empreinte : la
+// réécrire ici éprouverait une copie, et le jour où l'originale changerait,
+// l'épreuve continuerait de réussir sur autre chose.
+import { emettre } from "../lib/ententes/emission.ts"
+import { PDFDocument } from "pdf-lib"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const env = Object.fromEntries(
@@ -46,6 +53,10 @@ const session = async (courriel, mdp) => {
 }
 
 let echecs = 0
+/** Chemins déposés dans le stockage : le cabinet supprimé n'emporte pas ses
+ *  objets, et une épreuve qui laisse des fichiers finit par coûter cher. */
+const deposes = []
+
 /** jsonb réordonne les clés d'un objet, et cet ordre ne veut rien dire. */
 const canonique = (v) =>
   Array.isArray(v) ? `[${v.map(canonique).join(",")}]`
@@ -264,6 +275,141 @@ try {
   verifier("un déménagement ne touche pas un contrat émis", partieEncore.address, "99 boulevard Corrigé")
 
   // -------------------------------------------------------------------------
+  console.log("\nL'émission : le PDF, son classement, son empreinte")
+  // -------------------------------------------------------------------------
+  // Un contrat EST un document. Ce que ces contrôles cherchent à prendre en
+  // défaut, c'est l'entente qui figure dans la liste et dont le fichier ne
+  // s'ouvre jamais — la fiche posée sans son fichier, ou l'inverse.
+  const membre = { firmId: cabinetA, userId: userA, fullName: "Propriétaire 1", email: "" }
+
+  // Des articles LONGS et en alinéas : c'est ce qui force l'enveloppement du
+  // texte et le passage à la page suivante, les deux endroits où une erreur
+  // fait disparaître du texte sans rien lever.
+  const corps =
+    "Le consultant s'engage à representer le Client devant Immigration, Refugies et " +
+    "Citoyennete Canada dans le cadre du mandat decrit au present article.\n\n" +
+    "a) Le present mandat ne comporte aucune garantie de resultat, la decision " +
+    "appartenant exclusivement a l'autorite competente.\n" +
+    "b) Le Client demeure responsable de l'exactitude des renseignements fournis."
+  const longs = Array.from({ length: 9 }, (_, i) => ({
+    position: i + 1, code: `art_${i + 1}`,
+    title_fr: `Article numero ${i + 1}`, title_en: `Article ${i + 1}`,
+    body_fr: corps, level: i === 0 ? "structural" : "free",
+  }))
+
+  const { data: aEmettre } = await cabinet.from("agreements").insert({
+    firm_id: cabinetA, client_id: cl.id, template_id: modele.id, template_version: "1.0",
+    reference: `ENT-EM-${marque}`, title: "Entente de services professionnels",
+    kind: "services", status: "draft", articles_snapshot: longs,
+    fees_amount: 4500, taxes_amount: 673.88, total_amount: 5173.88,
+  }).select("id").single()
+
+  await cabinet.from("agreement_parties").insert([
+    { firm_id: cabinetA, agreement_id: aEmettre.id, role: "client", civility: "mrs",
+      first_name: "Awa", last_name: "Diallo", legal_name: "", email: `awa-${marque}@example.invalid`,
+      phone: "", address: "12 rue des Erables", city: "Montreal", province: "QC",
+      postal_code: "H2X 1Y4", country: "Canada", signing_order: 1 },
+    { firm_id: cabinetA, agreement_id: aEmettre.id, role: "consultant", civility: "mr",
+      first_name: "", last_name: "Proprietaire 1", legal_name: "", email: "",
+      phone: "", address: "", city: "", province: "", postal_code: "", country: "", signing_order: 2 },
+  ])
+
+  const emission = await emettre(cabinet, membre, aEmettre.id)
+  verifier("l'entente s'émet", emission.ok ? "ok" : emission.message, "ok")
+
+  const { data: apresEmission } = await admin
+    .from("agreements").select("document_id, status, issued_at").eq("id", aEmettre.id).single()
+  verifier("elle désigne son document", apresEmission.document_id ? "oui" : "NON", "oui")
+  verifier("son statut passe à « prête »", apresEmission.status, "ready")
+  verifier("et elle porte sa date d'émission", apresEmission.issued_at ? "oui" : "NON", "oui")
+
+  const { data: piece } = await admin
+    .from("documents")
+    .select("category, status, sha256, storage_path, mime_type, size_bytes, client_id")
+    .eq("id", apresEmission.document_id).single()
+  if (piece?.storage_path) deposes.push(piece.storage_path)
+
+  verifier("classée comme un contrat", piece.category, "contract")
+  verifier("rattachée au client", piece.client_id, cl.id)
+  verifier("le fichier est là", piece.storage_path ? "oui" : "NON", "oui")
+  // L'empreinte est ce qui rendra la signature opposable. Une fiche sans
+  // empreinte donnerait une signature qu'on ne peut rattacher à rien.
+  verifier("elle porte son empreinte", /^[0-9a-f]{64}$/.test(piece.sha256 ?? "") ? "oui" : "NON", "oui")
+  verifier("et sa taille réelle", piece.size_bytes > 1000 ? "oui" : `NON (${piece.size_bytes})`, "oui")
+
+  // L'empreinte enregistrée doit être celle du fichier RÉELLEMENT déposé, pas
+  // celle d'octets calculés à côté.
+  const { data: signe } = await admin.storage.from("documents").createSignedUrl(piece.storage_path, 60)
+  const octetsDeposes = Buffer.from(await (await fetch(signe.signedUrl, { cache: "no-store" })).arrayBuffer())
+  const { createHash } = await import("node:crypto")
+  verifier("l'empreinte correspond aux octets déposés",
+    createHash("sha256").update(octetsDeposes).digest("hex"), piece.sha256)
+
+  // ---- Le contenu du PDF --------------------------------------------------
+  const lisiblePdf = (octets) => {
+    let sortie = ""
+    let i = 0
+    while ((i = octets.indexOf("stream", i)) !== -1) {
+      let debut = i + 6
+      if (octets[debut] === 0x0d) debut++
+      if (octets[debut] === 0x0a) debut++
+      const fin = octets.indexOf("endstream", debut)
+      if (fin === -1) break
+      try {
+        sortie += inflateSync(octets.subarray(debut, fin)).toString("latin1")
+      } catch {
+        sortie += octets.subarray(debut, fin).toString("latin1")
+      }
+      i = fin + 9
+    }
+    // pdf-lib écrit les chaînes en HEXADÉCIMAL : <5A656E697468> est « Zenith ».
+    // Chercher le mot en clair échouerait donc sur un document parfaitement
+    // rempli.
+    return sortie.replace(/<([0-9A-Fa-f]{4,})>/g, (_, hex) => Buffer.from(hex, "hex").toString("latin1"))
+  }
+
+  const texte = lisiblePdf(octetsDeposes)
+  const pages = (await PDFDocument.load(octetsDeposes)).getPageCount()
+
+  // NEUF articles longs ne tiennent pas sur une page. Si le document en compte
+  // une seule, c'est que le texte a débordé dans le vide — le défaut le plus
+  // grave possible ici, puisqu'il est invisible.
+  verifier("le document enjambe les pages", pages > 1 ? `oui (${pages})` : "UNE SEULE", `oui (${pages})`)
+
+  // Chaque article doit s'y trouver. Un article manquant dans un contrat signé
+  // se découvrirait devant le Collège.
+  const absents = longs.filter((a) => !texte.includes(a.title_fr.toUpperCase())).map((a) => a.code)
+  verifier("tous les articles sont imprimés", absents.join(", ") || "tous", "tous")
+
+  verifier("la référence figure au document", texte.includes(`ENT-EM-${marque}`) ? "oui" : "NON", "oui")
+  // Le permis atteste que le signataire est autorisé à représenter devant
+  // IRCC. Un contrat qui ne le porte pas n'identifie pas son consultant.
+  const { data: cabLu } = await admin.from("firms").select("rcic_license_number").eq("id", cabinetA).single()
+  verifier("le permis du consultant y figure", texte.includes(cabLu.rcic_license_number) ? "oui" : "NON", "oui")
+  // Le §25 : le consultant signe aussi. Deux blocs de signature, pas un.
+  verifier("le client ET le consultant signent",
+    texte.includes("Diallo") && texte.includes("Consultant") ? "oui" : "NON", "oui")
+  // Les alinéas du modèle ne doivent pas devenir des « ? ». Le retour à la
+  // ligne n'appartient pas au WinAnsi : assaini avant d'être découpé, il
+  // effaçait les alinéas de tous les articles.
+  verifier("les alinéas ne deviennent pas des « ? »", texte.includes("??") ? "OUI" : "non", "non")
+
+  // ---- Réémettre --------------------------------------------------------
+  // Le PDF a pu être envoyé, voire signé. Le remplacer changerait le document
+  // sous la signature — ce que l'empreinte sert précisément à empêcher.
+  const seconde = await emettre(cabinet, membre, aEmettre.id)
+  verifier("réémettre une entente déjà émise : REFUSÉ", seconde.ok ? "ACCEPTÉ" : "refusé", "refusé")
+
+  // ---- La signature réutilise la chaîne existante -------------------------
+  const { data: demande, error: eDem } = await cabinet.from("signature_requests").insert({
+    firm_id: cabinetA, document_id: apresEmission.document_id, client_id: cl.id,
+    document_sha256: piece.sha256, requested_by: userA,
+    expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+  }).select("id, document_sha256").single()
+  verifier("une demande de signature s'ouvre dessus", eDem ? eDem.message : "ok", "ok")
+  verifier("elle fige l'empreinte du document", demande?.document_sha256, piece.sha256)
+
+  // -------------------------------------------------------------------------
   console.log("\nLes modèles fournis n'emploient aucune variable inconnue")
   // -------------------------------------------------------------------------
   // Une variable que la substitution ne connaît pas reste écrite « {{…}} »
@@ -310,6 +456,7 @@ try {
 
   await admin.from("agreement_templates").delete().eq("id", systeme.id)
 } finally {
+  if (deposes.length) await admin.storage.from("documents").remove(deposes)
   for (const id of [cabinetA, cabinetB]) if (id) await admin.from("firms").delete().eq("id", id)
   for (const id of [userA, userB]) if (id) await admin.auth.admin.deleteUser(id)
   console.log("\nCabinets et comptes d'épreuve supprimés.")

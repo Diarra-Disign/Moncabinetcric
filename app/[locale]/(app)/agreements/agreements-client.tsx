@@ -7,6 +7,8 @@ import { useFirm } from "@/components/app-shell/firm-provider"
 import { triggerDocumentPdfDownload } from "@/lib/utils/download-helper"
 import { SmartAgreementBuilder } from "./smart-agreement-builder"
 import { CreerEntente } from "@/components/agreements/creer-entente"
+import { ListeEntentes } from "@/components/agreements/liste-ententes"
+import type { EntenteListee } from "@/lib/data/ententes-actions"
 import { 
   FileSignature, 
   Plus, 
@@ -33,6 +35,8 @@ interface AgreementsClientProps {
     id: string; duCabinet: boolean; code: string; kind: string
     titre: string; description: string; version: string; parDefaut: boolean
   }[]
+  /** Les ententes réelles du cabinet, lues par RLS. */
+  ententes?: EntenteListee[]
 }
 
 export function AgreementsClient({
@@ -40,6 +44,7 @@ export function AgreementsClient({
   governmentFees,
   clauses,
   modelesEntente = [],
+  ententes = [],
 }: AgreementsClientProps) {
   // La création d'entente sur les vraies données. L'ancien parcours reste en
   // place tant qu'il n'est pas remplacé de bout en bout : le §34 demande de
@@ -173,6 +178,20 @@ export function AgreementsClient({
           </div>
         </div>
       </div>
+
+      {/* LES ENTENTES RÉELLES.
+          Le tableau qui suit lit getAgreements(), qui rend un tableau VIDE dès
+          que la source est Supabase : il montrait donc des données de
+          démonstration en développement et rien du tout en production. Celui-ci
+          lit la base. Les deux coexistent tant que l'ancien parcours n'est pas
+          remplacé de bout en bout — le §34 demande de connecter, pas de
+          reconstruire. */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground">
+          Vos ententes
+        </h2>
+        <ListeEntentes ententes={ententes} />
+      </section>
 
       {/* FILTER BAR & SEARCH */}
       <div className="bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
