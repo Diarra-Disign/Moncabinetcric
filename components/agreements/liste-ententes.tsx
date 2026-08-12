@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { FileText, Eye, Send, CheckCircle2, Clock, Loader2, Stamp, Pencil } from "lucide-react"
+import { FileText, Eye, Send, CheckCircle2, Clock, Loader2, Stamp, Pencil, CircleDollarSign } from "lucide-react"
 import { emettreEntente, envoyerPourSignature, type EntenteListee } from "@/lib/data/ententes-actions"
 import { cn } from "@/lib/utils"
 
@@ -64,10 +64,13 @@ const BOUTON =
 export function ListeEntentes({
   ententes,
   onModifier,
+  onEcheancier,
 }: {
   ententes: EntenteListee[]
   /** Rouvre un brouillon dans l'écran de rédaction (§25). */
   onModifier?: (id: string) => void
+  /** Ouvre le suivi de l'échéancier et sa facturation (§27, §28). */
+  onEcheancier?: (id: string, reference: string) => void
 }) {
   const [enCours, setEnCours] = React.useState<string | null>(null)
   const [message, setMessage] = React.useState<{ ok: boolean; texte: string } | null>(null)
@@ -185,6 +188,20 @@ export function ListeEntentes({
                         >
                           {occupe ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Stamp className="w-3.5 h-3.5" />}
                           <span>Émettre</span>
+                        </button>
+                      )}
+
+                      {/* §28 — le suivi n'a de sens qu'une fois l'entente
+                          émise : un brouillon peut encore changer de montant,
+                          et facturer un engagement mouvant ferait naître un
+                          litige sur le solde. */}
+                      {e.statut !== "draft" && onEcheancier && (
+                        <button
+                          onClick={() => onEcheancier(e.id, e.reference)}
+                          className={cn(BOUTON, "bg-muted hover:bg-border text-foreground")}
+                        >
+                          <CircleDollarSign className="w-3.5 h-3.5" />
+                          <span>Échéancier</span>
                         </button>
                       )}
 

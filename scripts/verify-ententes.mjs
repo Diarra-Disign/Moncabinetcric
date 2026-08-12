@@ -819,6 +819,102 @@ try {
     texteEch.includes("Total des honoraires") ? "oui" : "NON", "oui")
 
   // -------------------------------------------------------------------------
+  console.log("\nDu contrat à la facture : facturer une étape (§27, §28)")
+  // -------------------------------------------------------------------------
+  const { facturerEtape, suivreEcheancier } = await import("../lib/ententes/facturation.ts")
+  const membreFact = { firmId: cabinetA }
+
+  // L'entente ENT-SV est passée en « ready » plus haut, avec quatre étapes.
+  const suivi0 = await suivreEcheancier(cabinet, brouillon.id)
+  verifier("le suivi rend les quatre étapes", suivi0.etapes.length, 4)
+  verifier("aucune n'est facturée au départ", suivi0.etapes[0].statutCalcule, "a_venir")
+  verifier("mais elles sont facturables", suivi0.etapes[0].facturable ? "oui" : "NON", "oui")
+
+  const f1 = await facturerEtape(cabinet, membreFact, brouillon.id, 1)
+  verifier("l'étape 1 se facture", f1.ok ? "ok" : f1.message, "ok")
+  verifier("la facture porte un numéro", /\d/.test(f1.numero ?? "") ? "oui" : "NON", "oui")
+
+  const { data: factureLue } = await admin.from("invoices")
+    .select("agreement_id, agreement_step, amount, client_id").eq("id", f1.factureId).single()
+  verifier("elle est rattachée à l'entente", factureLue.agreement_id, brouillon.id)
+  verifier("et à l'étape 1", factureLue.agreement_step, 1)
+  // LE MONTANT EST TAXES COMPRISES. `sync_invoice_amount` le calcule depuis
+  // les lignes et les taux du cabinet : l'étape vaut 1 000 $ d'honoraires, la
+  // facture 1 149,75 $. C'est voulu — le contrat annonce des honoraires
+  // hors taxes, la facture réclame ce que le client doit payer.
+  verifier("son montant est taxes comprises", Number(factureLue.amount) > 1000 ? "oui" : `NON (${factureLue.amount})`, "oui")
+
+  // §28 — le statut est DÉDUIT, pas recopié.
+  const suivi1 = await suivreEcheancier(cabinet, brouillon.id)
+  verifier("l'étape 1 est désormais « facturée »", suivi1.etapes[0].statutCalcule, "facture")
+  verifier("elle porte le numéro de sa facture",
+    suivi1.etapes[0].factureNumero === f1.numero ? "oui" : "NON", "oui")
+  verifier("elle n'est plus facturable", suivi1.etapes[0].facturable ? "OUI" : "non", "non")
+  verifier("les autres restent à venir", suivi1.etapes[1].statutCalcule, "a_venir")
+
+  // UNE ÉTAPE NE SE FACTURE QU'UNE FOIS. L'index unique le tient en base :
+  // deux clics ne peuvent pas produire deux factures pour le même versement.
+  const f1bis = await facturerEtape(cabinet, membreFact, brouillon.id, 1)
+  verifier("refacturer la même étape : REFUSÉ", f1bis.ok ? "ACCEPTÉ" : "refusé", "refusé")
+  verifier("et le refus est en français",
+    /déjà sa facture/.test(f1bis.message) ? "oui" : `NON (${f1bis.message})`, "oui")
+
+  // Un encaissement PARTIEL déplace le statut, sans qu'on l'écrive nulle part.
+  await admin.from("invoices").update({ status: "issued" }).eq("id", f1.factureId)
+  await admin.from("payments").insert({
+    firm_id: cabinetA, client_id: cl.id, invoice_id: f1.factureId,
+    amount: 400, paid_on: new Date().toISOString().slice(0, 10),
+    // « business », pas « operating » : la contrainte n'accepte que « trust »
+    // ou « business ». Un libellé inventé faisait échouer l'insert en silence.
+    method: "interac", destination: "business",
+  })
+  const suivi2 = await suivreEcheancier(cabinet, brouillon.id)
+  verifier("un encaissement partiel se voit", suivi2.etapes[0].statutCalcule, "partiellement_paye")
+  verifier("et le montant encaissé aussi", suivi2.etapes[0].regle, 400)
+
+  // Le solde règle la facture : l'étape passe à « payé » SANS écriture dans
+  // l'échéancier. C'est tout l'objet du §28.
+  const { data: totaux } = await admin.rpc("invoice_totals", { p_invoice_id: f1.factureId })
+  const reste = Number((Array.isArray(totaux) ? totaux[0] : totaux)?.total ?? 0) - 400
+  await admin.from("payments").insert({
+    firm_id: cabinetA, client_id: cl.id, invoice_id: f1.factureId,
+    amount: reste, paid_on: new Date().toISOString().slice(0, 10),
+    method: "interac", destination: "business",
+  })
+  const suivi3 = await suivreEcheancier(cabinet, brouillon.id)
+  verifier("le solde encaissé fait passer l'étape à « payé »", suivi3.etapes[0].statutCalcule, "paye")
+
+  const { data: echeancierEnBase } = await admin.from("agreements")
+    .select("payment_schedule").eq("id", brouillon.id).single()
+  // LE CONTRÔLE QUI COMPTE : rien n'a été écrit dans le contrat. Le statut se
+  // déduit, il ne se recopie pas — sinon le contrat dirait « payé » et le
+  // registre « il reste 500 $ ».
+  verifier("le contrat n'a PAS été réécrit",
+    echeancierEnBase.payment_schedule[0].statut ?? "a_venir", "a_venir")
+
+  // Un BROUILLON ne se facture pas : son montant peut encore changer.
+  const { data: brouillon2 } = await cabinet.from("agreements").insert({
+    firm_id: cabinetA, client_id: cl.id, template_id: modele.id, template_version: "1.0",
+    reference: `ENT-BR-${marque}`, title: "Brouillon", kind: "services", status: "draft",
+    articles_snapshot: [], fees_amount: 1000, total_amount: 1000,
+    payment_schedule: [{ position: 1, description: "Acompte", base: "montant", montant: 1000 }],
+  }).select("id").single()
+  const fBrouillon = await facturerEtape(cabinet, membreFact, brouillon2.id, 1)
+  verifier("facturer un BROUILLON : REFUSÉ", fBrouillon.ok ? "ACCEPTÉ" : "refusé", "refusé")
+
+  // Une entente qui vise un PROSPECT n'a pas de destinataire de facture.
+  const { data: entProspect2 } = await cabinet.from("agreements").insert({
+    firm_id: cabinetA, lead_id: prospect.id, template_id: modele.id, template_version: "1.0",
+    reference: `ENT-PR-${marque}`, title: "Prospect", kind: "services", status: "ready",
+    articles_snapshot: [], fees_amount: 500, total_amount: 500,
+    payment_schedule: [{ position: 1, description: "Acompte", base: "montant", montant: 500 }],
+  }).select("id").single()
+  const fProspect = await facturerEtape(cabinet, membreFact, entProspect2.id, 1)
+  verifier("facturer un PROSPECT : REFUSÉ", fProspect.ok ? "ACCEPTÉ" : "refusé", "refusé")
+  verifier("et le refus dit quoi faire",
+    /Convertissez/.test(fProspect.message) ? "oui" : `NON (${fProspect.message})`, "oui")
+
+  // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
   // -------------------------------------------------------------------------
   const { data: entTiers } = await tiers.from("agreements").select("id").eq("firm_id", cabinetA)

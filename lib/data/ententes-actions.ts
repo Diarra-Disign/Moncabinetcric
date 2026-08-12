@@ -460,6 +460,43 @@ export async function emettreEntente(id: string): Promise<Resultat> {
 }
 
 /**
+ * L'échéancier d'une entente, avec l'état réel de chaque étape (§28).
+ */
+export async function suiviEcheancier(id: string) {
+  const sb = await getSessionSupabase()
+  const { suivreEcheancier } = await import("@/lib/ententes/facturation")
+  return suivreEcheancier(sb, id)
+}
+
+/**
+ * Crée la facture d'une étape (§27).
+ *
+ * JAMAIS AUTOMATIQUE. Une facture émise porte un numéro dans une suite
+ * continue, et ce numéro ne se reprend pas : une facture créée toute seule au
+ * mauvais moment devrait être annulée — pas supprimée — et laisserait un trou
+ * à expliquer dans le registre du cabinet.
+ */
+export async function facturerEtapeEntente(
+  id: string,
+  rang: number,
+  dueOn?: string
+): Promise<Resultat & { numero?: string }> {
+  try {
+    const membre = await moi()
+    const sb = await getSessionSupabase()
+    const { facturerEtape } = await import("@/lib/ententes/facturation")
+    const r = await facturerEtape(sb, membre, id, rang, { dueOn })
+    if (r.ok) {
+      revalidatePath("/fr/agreements")
+      revalidatePath("/fr/billing")
+    }
+    return r
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
  * Ouvre la demande de signature sur l'entente émise.
  *
  * AUCUNE TABLE NEUVE : `demanderSignature()` fige l'empreinte du fichier et

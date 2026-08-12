@@ -2,7 +2,7 @@ import { test, describe } from "node:test"
 import assert from "node:assert/strict"
 import {
   recalculer, etatEcheancier, repartirEnParts, verifierEcheancier,
-  libelleMode, type EtapePaiement,
+  libelleMode, statutEtape, type EtapePaiement,
 } from "@/lib/ententes/echeancier"
 
 /**
@@ -157,5 +157,45 @@ describe("les modes de paiement", () => {
 
   test("un mode inconnu se rend tel quel plutôt que de disparaître", () => {
     assert.equal(libelleMode("crypto"), "crypto")
+  })
+})
+
+describe("statutEtape — DÉDUIT, jamais recopié", () => {
+  test("sans facture, l'étape est à venir", () => {
+    assert.equal(statutEtape({}), "a_venir")
+  })
+
+  test("le consultant peut la marquer « à facturer »", () => {
+    // C'est la SEULE part du statut qu'il décide seul : la facture n'existe
+    // pas encore, donc rien ne peut la déduire.
+    assert.equal(statutEtape({ statut: "a_facturer" }), "a_facturer")
+  })
+
+  test("l'état de la FACTURE l'emporte sur ce qui est stocké", () => {
+    // Le contrat dit ce qui est convenu ; la facturation dit ce qui est
+    // encaissé. Recopier « payé » dans l'échéancier créerait une seconde
+    // vérité qui dériverait au premier encaissement saisi ailleurs.
+    assert.equal(statutEtape({ statut: "a_venir" }, "paid"), "paye")
+    assert.equal(statutEtape({ statut: "paye" }, "issued"), "facture")
+  })
+
+  test("chaque état de facture a son équivalent", () => {
+    assert.equal(statutEtape({}, "issued"), "facture")
+    assert.equal(statutEtape({}, "draft"), "facture")
+    assert.equal(statutEtape({}, "partial"), "partiellement_paye")
+    assert.equal(statutEtape({}, "paid"), "paye")
+    assert.equal(statutEtape({}, "overdue"), "en_retard")
+  })
+
+  test("une facture ANNULÉE remet l'étape à facturer", () => {
+    // Elle n'a pas disparu — son numéro reste dans la suite — mais le
+    // versement est de nouveau dû.
+    assert.equal(statutEtape({}, "cancelled"), "a_facturer")
+  })
+
+  test("un état inconnu vaut « facturé » plutôt que « à venir »", () => {
+    // Prudence délibérée : dire « à venir » d'une étape qui a une facture
+    // ferait facturer deux fois.
+    assert.equal(statutEtape({}, "quelque_chose_de_neuf"), "facture")
   })
 })

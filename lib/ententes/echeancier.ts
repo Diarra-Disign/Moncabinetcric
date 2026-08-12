@@ -63,6 +63,35 @@ export const libelleMode = (valeur: string, locale = "fr"): string => {
   return m ? (locale === "en" ? m.en : m.fr) : valeur
 }
 
+/**
+ * L'état d'une étape, DÉDUIT et non stocké.
+ *
+ * `invoice_status()` calcule déjà l'état réel d'une facture à partir des
+ * paiements encaissés. Recopier « payé » dans l'échéancier créerait une
+ * seconde vérité qui dériverait au premier encaissement saisi ailleurs : le
+ * contrat dirait « payé » et le registre « il reste 500 $ ».
+ *
+ * Ce qui est STOCKÉ sur l'étape, c'est le fait — a-t-elle une facture ? — et
+ * la seule décision que le consultant prend seul : « celle-ci est à facturer
+ * maintenant ». Tout le reste se déduit.
+ */
+export function statutEtape(
+  etape: { statut?: string },
+  statutFacture?: string | null
+): StatutEtape {
+  if (statutFacture) {
+    switch (statutFacture) {
+      case "paid": return "paye"
+      case "partial": return "partiellement_paye"
+      case "overdue": return "en_retard"
+      case "cancelled": return "a_facturer"
+      // « draft » et « issued » : la facture existe, elle n'est pas réglée.
+      default: return "facture"
+    }
+  }
+  return etape.statut === "a_facturer" ? "a_facturer" : "a_venir"
+}
+
 export interface EtapePaiement {
   position: number
   description: string
@@ -78,7 +107,15 @@ export interface EtapePaiement {
   pourcentage?: number
   datePrevue?: string
   note?: string
+  /**
+   * La seule part du statut que le consultant décide : « à facturer ».
+   * Le reste — facturé, partiellement payé, payé, en retard — se déduit de la
+   * facture par `statutEtape()`.
+   */
   statut?: StatutEtape
+  /** La facture née de cette étape, s'il y en a une. */
+  factureId?: string
+  factureNumero?: string
 }
 
 const cents = (v: number) => Math.round((Number(v) || 0) * 100)

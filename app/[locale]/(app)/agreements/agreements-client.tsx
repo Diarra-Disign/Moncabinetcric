@@ -8,6 +8,7 @@ import { triggerDocumentPdfDownload } from "@/lib/utils/download-helper"
 import { SmartAgreementBuilder } from "./smart-agreement-builder"
 import { CreerEntente } from "@/components/agreements/creer-entente"
 import { ListeEntentes } from "@/components/agreements/liste-ententes"
+import { SuiviEcheancier } from "@/components/agreements/suivi-echeancier"
 import type { EntenteListee } from "@/lib/data/ententes-actions"
 import { useRouter } from "@/i18n/routing"
 import { 
@@ -53,6 +54,8 @@ export function AgreementsClient({
   const [creation, setCreation] = useState(false)
   /** L'identifiant du brouillon rouvert, s'il y en a un (§25). */
   const [brouillon, setBrouillon] = useState<string | null>(null)
+  /** L'entente dont on suit l'échéancier (§28). */
+  const [echeancier, setEcheancier] = useState<{ id: string; reference: string } | null>(null)
   const router = useRouter()
   const firm = useFirm()
   const [agreements, setAgreements] = useState<AgreementRecord[]>(initialAgreements)
@@ -98,6 +101,19 @@ export function AgreementsClient({
 
       {creation && (
         <CreerEntente modeles={modelesEntente} onFerme={() => setCreation(false)} />
+      )}
+
+      {echeancier && (
+        <SuiviEcheancier
+          agreementId={echeancier.id}
+          reference={echeancier.reference}
+          onFerme={() => {
+            setEcheancier(null)
+            // La liste ne montre pas l'échéancier, mais une facture créée
+            // change ce que la page Facturation affichera.
+            router.refresh()
+          }}
+        />
       )}
 
       {/* Le MÊME écran, en reprise (§25). Un second écran d'édition aurait
@@ -209,7 +225,11 @@ export function AgreementsClient({
         <h2 className="text-sm font-extrabold uppercase tracking-wider text-muted-foreground">
           Vos ententes
         </h2>
-        <ListeEntentes ententes={ententes} onModifier={setBrouillon} />
+        <ListeEntentes
+          ententes={ententes}
+          onModifier={setBrouillon}
+          onEcheancier={(id, reference) => setEcheancier({ id, reference })}
+        />
       </section>
 
       {/* FILTER BAR & SEARCH */}
