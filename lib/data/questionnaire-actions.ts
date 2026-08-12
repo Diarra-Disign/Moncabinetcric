@@ -7,6 +7,7 @@ import { envoyerCourriel, envoiConfigure, adresseDeReponse } from "@/lib/email/s
 import { siteUrl } from "@/lib/site-url"
 import { identiteCourriel } from "./questionnaires"
 import { verifierSections } from "./questionnaire-structure"
+import { libelleCivilite, nomAvecCivilite } from "./identite"
 
 /**
  * Actions de la bibliothèque de questionnaires.
@@ -83,6 +84,9 @@ function prefillDepuis(p: Record<string, unknown>): Record<string, unknown> {
   poser("email", p.email)
   poser("phone", p.phone)
   poser("citizenship", p.citizenship)
+  // La civilité voyage avec la personne : un questionnaire qui la redemande
+  // laisse croire au destinataire que le cabinet ne l'a pas notée.
+  poser("civility", p.civility)
   return prefill
 }
 
@@ -128,8 +132,8 @@ export async function envoyerQuestionnaire(formData: FormData): Promise<Resultat
     const table = type === "client" ? "clients" : "leads"
     const colonnes =
       type === "client"
-        ? "id, name, first_name, last_name, email, phone, citizenship"
-        : "id, name, first_name, last_name, email, phone"
+        ? "id, name, first_name, last_name, email, phone, citizenship, civility"
+        : "id, name, first_name, last_name, email, phone, civility"
     const { data: personne } = await sb.from(table).select(colonnes).eq("id", destinataireId).maybeSingle()
     if (!personne) return { ok: false, message: "Ce destinataire est introuvable." }
 
@@ -148,6 +152,15 @@ export async function envoyerQuestionnaire(formData: FormData): Promise<Resultat
         "Prénom": prenom,
         Prenom: prenom,
         Nom: nom,
+        // « Monsieur Adama Diarra », ou le nom seul si la civilité manque —
+        // jamais un espace en tête. Un courriel qui commence par «  Diarra »
+        // se remarque, et c'est celui qu'on envoie à un futur client.
+        Civilite: libelleCivilite(String(p.civility ?? ""), locale),
+        "Civilité": libelleCivilite(String(p.civility ?? ""), locale),
+        "Nom complet": nomAvecCivilite(
+          { civility: String(p.civility ?? ""), name: nom, firstName: prenom },
+          locale
+        ),
         "Date limite": dueDate || "",
       }
     )

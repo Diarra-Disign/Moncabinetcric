@@ -44,6 +44,8 @@ import { Lead } from "@/lib/data/types"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { matchesPerson } from "@/lib/utils/search"
 import { createLead, updateLead, moveLeadStage, convertLeadToClient } from "@/lib/data/actions"
+import { SelecteurCivilite } from "@/components/ui/civilite"
+import { nomAvecCivilite, type Civilite } from "@/lib/data/identite"
 
 export type { Lead }
 
@@ -238,6 +240,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
 
   // Form State pour un nouveau prospect (Renseignements, Consultation ou Mandat)
   const [newLeadType, setNewLeadType] = React.useState<"b2b" | "b2c">("b2c")
+  const [newLeadCivility, setNewLeadCivility] = React.useState<Civilite | "">("")
   const [newLeadFirstName, setNewLeadFirstName] = React.useState("")
   const [newLeadLastName, setNewLeadLastName] = React.useState("")
   const [newLeadCompany, setNewLeadCompany] = React.useState("")
@@ -475,6 +478,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     const created: Lead = {
       id: `lead-${Date.now()}`,
       name: fullName || newLeadCompany,
+      civility: newLeadCivility || null,
       firstName: newLeadFirstName,
       lastName: newLeadLastName,
       company: newLeadType === "b2b" ? newLeadCompany : undefined,
@@ -781,12 +785,12 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                           <div className="flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full ${lead.type === "b2b" ? "bg-accent" : "bg-primary"}`} />
                             <span className="font-black text-xs text-foreground group-hover:text-primary-strong transition-colors">
-                              {lead.company || lead.name}
+                              {lead.company || nomAvecCivilite(lead)}
                             </span>
                           </div>
                           {lead.company && (
                             <span className="text-[11px] font-semibold text-muted-foreground block mt-0.5">
-                              Contact : {lead.name}
+                              Contact : {nomAvecCivilite(lead)}
                             </span>
                           )}
                         </div>
@@ -1245,6 +1249,19 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
 
             {/* SECTION 2 : COORDONNÉES IDENTITÉ */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* La civilité vient AVANT le prénom : c'est l'ordre dans lequel
+                  on s'adresse à quelqu'un, et l'ordre dans lequel elle sera
+                  imprimée sur l'entente de service. Facultative — on ne la
+                  connaît pas toujours au premier appel, et l'imposer ferait
+                  inventer une réponse qui finirait sur un document. */}
+              <div className="flex flex-col gap-1.5 sm:col-span-2 sm:max-w-[14rem]">
+                <label htmlFor="civilite-prospect" className="text-xs font-extrabold text-foreground/80 uppercase tracking-wider flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Civilité</span>
+                </label>
+                <SelecteurCivilite id="civilite-prospect" valeur={newLeadCivility} onChange={setNewLeadCivility} />
+              </div>
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-extrabold text-foreground/80 uppercase tracking-wider flex items-center gap-1">
                   <User className="w-3.5 h-3.5 text-muted-foreground" />
