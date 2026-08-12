@@ -24,6 +24,10 @@ import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import { randomBytes } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
+// Le module de substitution est importé TEL QUEL : contrôler les modèles
+// contre une liste de variables recopiée ici les aurait éprouvés contre une
+// copie, qui aurait divergé au premier ajout.
+import { variablesDe, substituer } from "../lib/ententes/variables.ts"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const env = Object.fromEntries(
@@ -258,6 +262,38 @@ try {
   const { data: partieEncore } = await admin
     .from("agreement_parties").select("address").eq("id", partieClient.id).single()
   verifier("un déménagement ne touche pas un contrat émis", partieEncore.address, "99 boulevard Corrigé")
+
+  // -------------------------------------------------------------------------
+  console.log("\nLes modèles fournis n'emploient aucune variable inconnue")
+  // -------------------------------------------------------------------------
+  // Une variable que la substitution ne connaît pas reste écrite « {{…}} »
+  // dans le contrat imprimé. Silencieuse à la génération, visible pour le seul
+  // client. Les quatre modèles fournis sont donc passés au crible.
+  const connues = variablesDe({
+    contractant: { civility: "mrs", firstName: "A", lastName: "B", email: "a@b.ca",
+      phone: "1", address: "1 rue", city: "V", province: "QC", postalCode: "H0H 0H0", country: "Canada" },
+    cabinet: { nom: "C", consultant: "D", permis: "R1", adresse: "a", courriel: "c@d.ca", telephone: "t" },
+    montants: { honoraires: 1, taxes: 0, total: 1 },
+    entente: { numero: "N", date: "2026-08-11", titre: "T" },
+    locale: "fr",
+  })
+
+  const { data: modelesSysteme } = await admin
+    .from("agreement_templates").select("code").is("firm_id", null).like("code", "sys\\_%")
+  verifier("les quatre modèles fournis existent", (modelesSysteme ?? []).length, 4)
+
+  const { data: tousArticles } = await admin
+    .from("agreement_template_articles")
+    .select("code, title_fr, body_fr, body_en, template_id, agreement_templates!inner(code, firm_id)")
+    .is("firm_id", null)
+
+  const inconnues = new Set()
+  for (const a of tousArticles ?? []) {
+    for (const texte of [a.title_fr, a.body_fr, a.body_en]) {
+      for (const v of substituer(String(texte ?? ""), connues).inconnues) inconnues.add(`${a.code}:${v}`)
+    }
+  }
+  verifier("aucune variable inconnue dans leurs textes", [...inconnues].join(", ") || "aucune", "aucune")
 
   // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
