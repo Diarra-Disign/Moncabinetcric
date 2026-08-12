@@ -6,6 +6,7 @@ import { AgreementRecord, ClauseDefinition, GovernmentFee } from "@/lib/data/typ
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { triggerDocumentPdfDownload } from "@/lib/utils/download-helper"
 import { SmartAgreementBuilder } from "./smart-agreement-builder"
+import { CreerEntente } from "@/components/agreements/creer-entente"
 import { 
   FileSignature, 
   Plus, 
@@ -27,13 +28,23 @@ interface AgreementsClientProps {
   initialAgreements: AgreementRecord[]
   governmentFees: GovernmentFee[]
   clauses: ClauseDefinition[]
+  /** Les modèles d'entente réels, système et du cabinet. */
+  modelesEntente?: {
+    id: string; duCabinet: boolean; code: string; kind: string
+    titre: string; description: string; version: string; parDefaut: boolean
+  }[]
 }
 
 export function AgreementsClient({
   initialAgreements,
   governmentFees,
-  clauses
+  clauses,
+  modelesEntente = [],
 }: AgreementsClientProps) {
+  // La création d'entente sur les vraies données. L'ancien parcours reste en
+  // place tant qu'il n'est pas remplacé de bout en bout : le §34 demande de
+  // connecter, pas de reconstruire.
+  const [creation, setCreation] = useState(false)
   const firm = useFirm()
   const [agreements, setAgreements] = useState<AgreementRecord[]>(initialAgreements)
   const [searchQuery, setSearchQuery] = useState("")
@@ -75,6 +86,10 @@ export function AgreementsClient({
 
   return (
     <div className="flex flex-col gap-8 pb-16">
+
+      {creation && (
+        <CreerEntente modeles={modelesEntente} onFerme={() => setCreation(false)} />
+      )}
       
       {/* NOTICE BANNER */}
       {notice && (
@@ -91,11 +106,11 @@ export function AgreementsClient({
 
       {/* PAGE HEADER */}
       <PageHeader 
-        title="Ententes de Service CICC"
-        subtitle="Pilier A : Rédigez, validez et suivez la signature des contrats de services réglementés (Conformité Art. 13 Fidéicommis)."
+        title="Ententes de service"
+        subtitle="Rédigez, personnalisez et suivez vos ententes de service et vos contrats de mandat."
         action={
           <button 
-            onClick={() => setShowBuilder(true)}
+            onClick={() => setCreation(true)}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-extrabold text-xs shadow-md transition-all"
           >
             <Plus className="w-4 h-4" />

@@ -1,0 +1,337 @@
+"use client"
+
+import * as React from "react"
+import {
+  Search, X, FileText, Check, ArrowUp, ArrowDown, Lock, AlertTriangle, User,
+} from "lucide-react"
+import {
+  rechercherContractant, preremplir, articlesDuModele, creerEntente,
+  type ArticleEntente,
+} from "@/lib/data/ententes-actions"
+import { variablesDe, substituer } from "@/lib/ententes/variables"
+import { cn } from "@/lib/utils"
+
+/**
+ * Créer une entente : modèle → contractant → articles → aperçu.
+ *
+ * L'APERÇU EMPLOIE LE MÊME MODULE QUE LE SERVEUR. variables.ts est pur — ni
+ * « server-only », ni accès base — précisément pour que ce qui s'affiche ici
+ * soit ce que le PDF composera. Deux implémentations donneraient un aperçu qui
+ * ne correspond pas au document envoyé, et c'est l'écart qu'on ne découvre
+ * qu'après l'avoir envoyé.
+ *
+ * LES ARTICLES STRUCTURELS NE SE DÉCOCHENT PAS. Ce ne sont pas ceux qui sont
+ * « validés » : ce sont ceux dont l'absence rendrait l'entente incomplète pour
+ * un consultant réglementé — portée du mandat, absence de garantie de
+ * résultat, recours au Collège, protection des renseignements personnels. Le
+ * cadenas le dit à l'écran plutôt que de laisser découvrir le refus après coup.
+ */
+
+interface Modele {
+  id: string; duCabinet: boolean; code: string; kind: string
+  titre: string; description: string; version: string; parDefaut: boolean
+}
+
+type Trouve = Awaited<ReturnType<typeof rechercherContractant>>[number]
+type Prerempli = Awaited<ReturnType<typeof preremplir>>
+
+const CHAMP =
+  "w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+
+export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme: () => void }) {
+  const [modele, setModele] = React.useState<Modele | null>(null)
+  const [recherche, setRecherche] = React.useState("")
+  const [trouves, setTrouves] = React.useState<Trouve[]>([])
+  const [choisi, setChoisi] = React.useState<Trouve | null>(null)
+  const [source, setSource] = React.useState<Prerempli>(null)
+  const [articles, setArticles] = React.useState<ArticleEntente[]>([])
+  const [honoraires, setHonoraires] = React.useState("")
+  const [enCours, setEnCours] = React.useState(false)
+  const [resultat, setResultat] = React.useState<{ ok: boolean; message: string } | null>(null)
+
+  const proBono = (modele?.kind ?? "").includes("probono")
+
+  // La recherche est temporisée : sans cela « Diallo » enverrait six requêtes,
+  // et les réponses reviendraient dans le désordre.
+  React.useEffect(() => {
+    if (recherche.trim().length < 2) { setTrouves([]); return }
+    const t = setTimeout(async () => setTrouves(await rechercherContractant(recherche)), 250)
+    return () => clearTimeout(t)
+  }, [recherche])
+
+  React.useEffect(() => {
+    if (!modele) return
+    articlesDuModele(modele.id).then(setArticles)
+  }, [modele])
+
+  const choisir = async (t: Trouve) => {
+    setChoisi(t)
+    setTrouves([])
+    setRecherche("")
+    setSource(await preremplir(t.type, t.id))
+  }
+
+  const deplacer = (i: number, vers: number) => {
+    if (vers < 0 || vers >= articles.length) return
+    const copie = [...articles]
+    const [pris] = copie.splice(i, 1)
+    copie.splice(vers, 0, pris)
+    setArticles(copie.map((a, k) => ({ ...a, position: k + 1 })))
+  }
+
+  /** L'aperçu, composé exactement comme le sera le PDF. */
+  const apercu = React.useMemo(() => {
+    if (!source) return []
+    const montant = Number(honoraires) || 0
+    const variables = variablesDe({
+      contractant: source.partie,
+      cabinet: source.cabinet,
+      montants: { honoraires: montant, taxes: 0, total: montant },
+      entente: { numero: "—", date: new Date().toISOString().slice(0, 10), titre: modele?.titre ?? "" },
+      locale: "fr",
+      proBono,
+    })
+    return articles.filter((a) => a.enabled).map((a) => ({
+      code: a.code,
+      titre: substituer(a.titleFr, variables).texte,
+      corps: substituer(a.bodyFr, variables).texte,
+    }))
+  }, [source, articles, honoraires, modele, proBono])
+
+  const enregistrer = async () => {
+    if (!modele || !choisi) return
+    setEnCours(true)
+    try {
+      const r = await creerEntente({
+        templateId: modele.id,
+        contractantType: choisi.type,
+        contractantId: choisi.id,
+        titre: modele.titre,
+        kind: modele.kind,
+        proBono,
+        honoraires: Number(honoraires) || 0,
+        taxes: 0,
+        articles,
+      })
+      setResultat(r)
+      if (r.ok) setTimeout(onFerme, 1400)
+    } finally {
+      setEnCours(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/50 p-4">
+      <div className="bg-card w-full max-w-5xl rounded-2xl border border-border shadow-2xl flex flex-col max-h-[92vh]">
+        <header className="p-5 border-b border-border flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-base font-black text-foreground">Créer une entente</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {modele ? modele.titre : "Choisissez d'abord un modèle"}
+              {choisi ? ` · ${choisi.nom}` : ""}
+            </p>
+          </div>
+          <button type="button" onClick={onFerme} aria-label="Fermer"
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground cursor-pointer">
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto grid gap-0 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-border">
+          {/* ---------------- Édition ---------------- */}
+          <div className="p-5 space-y-5">
+            <section>
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">
+                1. Le modèle
+              </h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {modeles.map((m) => (
+                  <button key={m.id} type="button" onClick={() => setModele(m)}
+                    className={cn(
+                      "text-left rounded-xl border p-3 transition-colors cursor-pointer",
+                      modele?.id === m.id
+                        ? "border-primary bg-primary/10"
+                        : "border-border hover:bg-muted"
+                    )}>
+                    <span className="block text-xs font-black text-foreground">{m.titre}</span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">{m.description}</span>
+                    {!m.duCabinet && (
+                      <span className="mt-1 inline-block text-[10px] font-bold text-muted-foreground">
+                        Modèle fourni
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">
+                2. Le contractant
+              </h3>
+              {choisi ? (
+                <div className="rounded-xl border border-border bg-muted/30 p-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-foreground">{choisi.nom}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {choisi.courriel || "aucun courriel"} · {choisi.detail}
+                    </p>
+                    {source && source.famille.length > 0 && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {source.famille.length} proche(s) connu(s) — ajoutables comme parties.
+                      </p>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => { setChoisi(null); setSource(null) }}
+                    className="text-[11px] font-bold text-muted-foreground hover:text-foreground cursor-pointer shrink-0">
+                    Changer
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <input value={recherche} onChange={(e) => setRecherche(e.target.value)}
+                    placeholder="Rechercher un prospect ou un client…"
+                    aria-label="Rechercher un contractant"
+                    className={cn(CHAMP, "pl-9 placeholder:text-foreground/55")} />
+                  {trouves.length > 0 && (
+                    <ul className="mt-2 rounded-xl border border-border divide-y divide-border overflow-hidden">
+                      {trouves.map((t) => (
+                        <li key={`${t.type}-${t.id}`}>
+                          <button type="button" onClick={() => choisir(t)}
+                            className="w-full text-left px-3 py-2 hover:bg-muted cursor-pointer">
+                            <span className="text-xs font-bold text-foreground">{t.nom}</span>
+                            <span className="block text-[11px] text-muted-foreground">
+                              {t.type === "client" ? "Client" : "Prospect"} · {t.courriel || "aucun courriel"} · {t.detail}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {!proBono && (
+              <section>
+                <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">
+                  3. Les honoraires
+                </h3>
+                <input type="number" min="0" step="0.01" value={honoraires}
+                  onChange={(e) => setHonoraires(e.target.value)}
+                  placeholder="4500.00" aria-label="Honoraires"
+                  className={cn(CHAMP, "font-mono")} />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Les taxes seront calculées d&apos;après vos Paramètres à l&apos;émission.
+                </p>
+              </section>
+            )}
+
+            {modele && (
+              <section>
+                <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-2">
+                  {proBono ? "3" : "4"}. Les articles ({articles.filter((a) => a.enabled).length}/{articles.length})
+                </h3>
+                <ul className="space-y-1.5">
+                  {articles.map((a, i) => (
+                    <li key={a.code}
+                      className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                      <input type="checkbox" checked={a.enabled}
+                        disabled={a.level === "structural"}
+                        aria-label={`Inclure « ${a.titleFr} »`}
+                        onChange={(e) => setArticles((p) =>
+                          p.map((x, k) => (k === i ? { ...x, enabled: e.target.checked } : x)))} />
+                      <span className="flex-1 text-xs font-bold text-foreground truncate">{a.titleFr}</span>
+                      {a.level === "structural" && (
+                        <span title="Article indispensable à une entente réglementée">
+                          <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                        </span>
+                      )}
+                      <button type="button" aria-label="Monter" disabled={i === 0}
+                        onClick={() => deplacer(i, i - 1)}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground disabled:opacity-30 cursor-pointer">
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button type="button" aria-label="Descendre" disabled={i === articles.length - 1}
+                        onClick={() => deplacer(i, i + 1)}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground disabled:opacity-30 cursor-pointer">
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+
+          {/* ---------------- Aperçu ---------------- */}
+          <div className="p-5 bg-muted/20">
+            <h3 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground mb-3">
+              Aperçu
+            </h3>
+            {!source ? (
+              <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+                <FileText className="mx-auto h-7 w-7 text-muted-foreground/70" />
+                <p className="mt-2 text-xs font-bold text-foreground">L&apos;aperçu attend un contractant</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Les informations du prospect ou du client rempliront le contrat.
+                </p>
+              </div>
+            ) : (
+              <article className="rounded-xl border border-border bg-card p-5 space-y-4 text-foreground">
+                <header className="border-b border-border pb-3">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
+                    {source.cabinet.nom}
+                  </p>
+                  <h4 className="text-sm font-black mt-1">{modele?.titre}</h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {source.cabinet.consultant} · permis {source.cabinet.permis || "—"}
+                  </p>
+                </header>
+                {apercu.map((a, i) => (
+                  <section key={a.code}>
+                    <h5 className="text-xs font-black">{i + 1}. {a.titre}</h5>
+                    <p className="text-[11px] text-muted-foreground whitespace-pre-wrap mt-1 leading-relaxed">
+                      {a.corps}
+                    </p>
+                  </section>
+                ))}
+              </article>
+            )}
+          </div>
+        </div>
+
+        {resultat && (
+          <div className={cn(
+            "mx-5 mb-3 rounded-xl border p-3 text-xs font-bold flex items-start gap-2",
+            resultat.ok
+              ? "border-success/40 bg-success/10 text-success-strong"
+              : "border-error/40 bg-error/10 text-error-strong"
+          )}>
+            {resultat.ok ? <Check className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}
+            <span>{resultat.message}</span>
+          </div>
+        )}
+
+        <footer className="p-5 border-t border-border flex items-center justify-between gap-2">
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+            <User className="h-3.5 w-3.5" />
+            Le brouillon reste modifiable. Rien n&apos;est envoyé à cette étape.
+          </p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={onFerme}
+              className="px-4 py-2 rounded-xl border border-border font-bold text-xs hover:bg-muted cursor-pointer text-foreground">
+              Annuler
+            </button>
+            <button type="button" disabled={!modele || !choisi || enCours} onClick={enregistrer}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 disabled:opacity-40 cursor-pointer">
+              <FileText className="h-4 w-4" /> {enCours ? "Création…" : "Créer le brouillon"}
+            </button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  )
+}
