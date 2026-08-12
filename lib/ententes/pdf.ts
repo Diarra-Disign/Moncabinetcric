@@ -68,6 +68,12 @@ const MOTS = {
     colMode: "Mode",
     colMontant: "Montant",
     totalHonoraires: "Total des honoraires",
+    fiducieMarque: "fidéicommis",
+    fiducieMention: [
+      "Les versements marqués « fidéicommis » sont détenus en fiducie conformément à l'article 13",
+      "du règlement du Collège. Ils ne sont virés au compte général du cabinet qu'au fur et à mesure",
+      "des services rendus.",
+    ],
     modesTitre: "MODES DE PAIEMENT ACCEPTÉS",
     conditionsTitre: "CONDITIONS PARTICULIÈRES DE PAIEMENT",
     fraisTitre: "FRAIS NON INCLUS DANS LES HONORAIRES",
@@ -130,6 +136,11 @@ const MOTS = {
     colMode: "Method",
     colMontant: "Amount",
     totalHonoraires: "Total fees",
+    fiducieMarque: "in trust",
+    fiducieMention: [
+      "Payments marked \"in trust\" are held in trust under section 13 of the College's regulation.",
+      "They are transferred to the firm's general account only as services are rendered.",
+    ],
     modesTitre: "ACCEPTED PAYMENT METHODS",
     conditionsTitre: "PARTICULAR PAYMENT TERMS",
     fraisTitre: "FEES NOT INCLUDED",
@@ -226,6 +237,8 @@ export interface EntentePdf {
   echeancier?: {
     position: number; description: string; declenchement?: string
     mode?: string; montant: number; pourcentage?: number
+    /** Ce versement est détenu en fiducie (art. 13). */
+    fideicommis?: boolean
   }[]
   /** Les modes acceptés, déjà traduits en libellés lisibles (§11). */
   modesPaiement?: string[]
@@ -611,6 +624,16 @@ function tableauEcheancier(
     if (avecDeclenchement) {
       droite(p.page, couper(etape.declenchement ?? "", normal, 8, LARGEUR_DECLENCHEMENT), xDeclenchement, p.y + 7.5, normal, 8, GRIS)
     }
+    // LA MARQUE DE FIDUCIE, sous la description et non dans une colonne à
+    // elle : elle ne concerne qu'une partie des versements, et une colonne
+    // vide sur les autres lignes ferait chercher ce qui manque.
+    if (etape.fideicommis) {
+      ecrire(p.page, `(${m.fiducieMarque})`, {
+        x: xDescription + couper(etape.description, normal, 9, largeurDescription).length * 0 +
+          normal.widthOfTextAtSize(couper(etape.description, normal, 9, largeurDescription), 9) + 6,
+        y: p.y + 7.5, size: 7.5, font: gras, color: MARINE,
+      })
+    }
     if (avecMode) {
       droite(p.page, couper(etape.mode ?? "", normal, 8, LARGEUR_MODE), xMode, p.y + 7.5, normal, 8, GRIS)
     }
@@ -638,7 +661,18 @@ function tableauEcheancier(
     argent(etapes.reduce((t, x) => t + (Number(x.montant) || 0), 0)),
     xMontant, total.y + 7.5, gras, 9, BLANC
   )
-  flux.y -= 18
+  flux.y -= 10
+
+  // LA MENTION DE L'ARTICLE 13, et seulement si un versement est concerné.
+  // L'imprimer sur tous les contrats en ferait une formule qu'on cesse de
+  // lire — or celle-ci engage le cabinet sur le maniement des sommes.
+  if (etapes.some((x) => x.fideicommis)) {
+    for (const ligne of m.fiducieMention) {
+      const p = flux.place(11)
+      ecrire(p.page, ligne, { x: G, y: p.y, size: 8, font: normal, color: GRIS })
+    }
+    flux.y -= 10
+  }
 }
 
 /**

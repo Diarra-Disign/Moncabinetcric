@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Trash2, ArrowUp, ArrowDown, AlertTriangle, Check, Split } from "lucide-react"
+import { Plus, Trash2, ArrowUp, ArrowDown, AlertTriangle, Check, Split, Landmark } from "lucide-react"
 import {
   MODES_PAIEMENT, etatEcheancier, recalculer, repartirEnParts,
   type EtapePaiement,
@@ -89,7 +89,12 @@ export function EditeurContenu({
 
   const majEtape = (i: number, champ: keyof EtapePaiement, valeur: string | number) => {
     const copie = [...etapes]
-    copie[i] = { ...copie[i], [champ]: valeur }
+    // `fideicommis` est un booléen : il arrive en 1 ou 0 pour passer par la
+    // même fonction que les autres champs, plutôt que d'en écrire une seconde.
+    copie[i] = {
+      ...copie[i],
+      [champ]: champ === "fideicommis" ? valeur === 1 : valeur,
+    }
     // Le montant suit le pourcentage à la frappe : voir le résultat pendant
     // qu'on tape est ce qui évite de découvrir un déséquilibre à la fin.
     maj({ echeancier: recalculer(copie, honoraires) })
@@ -304,6 +309,36 @@ export function EditeurContenu({
                         )}
                       </div>
                     </div>
+
+                    {/* ── FIDÉICOMMIS (art. 13) ──────────────────────────
+                        Une somme reçue AVANT que le service ne soit rendu
+                        n'appartient pas encore au cabinet. Le décider ICI, à
+                        la rédaction, plutôt qu'au moment d'encaisser, c'est
+                        le décider quand on y réfléchit encore — et l'acompte
+                        à la signature est le cas le plus fréquent. */}
+                    <label className={cn(
+                      "flex items-start gap-2 rounded-lg border px-2.5 py-2 cursor-pointer transition-colors",
+                      e.fideicommis
+                        ? "border-primary/40 bg-primary/5"
+                        : "border-border hover:bg-muted/40"
+                    )}>
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 accent-[var(--color-primary)]"
+                        checked={e.fideicommis === true}
+                        onChange={(ev) => majEtape(i, "fideicommis", ev.target.checked ? 1 : 0)}
+                      />
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 text-[11px] font-bold text-foreground">
+                          <Landmark className="h-3 w-3 text-primary-strong" />
+                          Ce versement entre en fidéicommis (art. 13)
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          À cocher lorsque la somme est reçue AVANT que le service ne soit rendu.
+                          La facture le mentionnera, et le reçu aussi.
+                        </span>
+                      </span>
+                    </label>
                   </li>
                 ))}
               </ul>

@@ -116,6 +116,20 @@ export interface EtapePaiement {
   /** La facture née de cette étape, s'il y en a une. */
   factureId?: string
   factureNumero?: string
+  /**
+   * Ce versement entre-t-il EN FIDÉICOMMIS (art. 13) ?
+   *
+   * Ce n'est pas un détail comptable : une somme reçue AVANT que le service ne
+   * soit rendu n'appartient pas encore au cabinet. L'article 13 du règlement
+   * du Collège impose de la détenir en fiducie et de ne la virer au compte
+   * général qu'au fur et à mesure des services rendus.
+   *
+   * L'acompte à la signature est le cas le plus fréquent — et le plus souvent
+   * mal traité, parce que rien n'obligeait à y penser au moment du contrat.
+   * Le dire ICI, à la rédaction, plutôt qu'au moment d'encaisser, c'est le
+   * décider quand on y réfléchit encore.
+   */
+  fideicommis?: boolean
 }
 
 const cents = (v: number) => Math.round((Number(v) || 0) * 100)

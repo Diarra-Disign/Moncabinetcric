@@ -745,7 +745,10 @@ try {
   const { verifierEcheancier, recalculer } = await import("../lib/ententes/echeancier.ts")
 
   const echeancier = [
-    { position: 1, description: "Paiement initial", declenchement: "À la signature", mode: "interac", base: "montant", montant: 1000 },
+    // L'étape 1 est un ACOMPTE : la somme arrive avant tout service rendu, donc
+    // elle entre en fidéicommis (art. 13). C'est le cas le plus fréquent, et
+    // le plus souvent mal traité.
+    { position: 1, description: "Paiement initial", declenchement: "À la signature", mode: "interac", base: "montant", montant: 1000, fideicommis: true },
     { position: 2, description: "Dossier complet", declenchement: "Étape 2", mode: "card", base: "montant", montant: 1000 },
     { position: 3, description: "Présentation IRCC", declenchement: "Étape 3", mode: "bank_transfer", base: "montant", montant: 1500 },
     { position: 4, description: "Fin du mandat", declenchement: "Étape 4", mode: "cheque", base: "montant", montant: 1000 },
@@ -891,6 +894,45 @@ try {
   // registre « il reste 500 $ ».
   verifier("le contrat n'a PAS été réécrit",
     echeancierEnBase.payment_schedule[0].statut ?? "a_venir", "a_venir")
+
+  // ---- LE FIDÉICOMMIS SUIT LE CONTRAT (art. 13) ---------------------------
+  // Une somme reçue AVANT que le service ne soit rendu n'appartient pas encore
+  // au cabinet. L'intention déclarée au contrat doit suivre jusqu'à la facture,
+  // sinon il faut y penser une seconde fois au moment d'encaisser — et c'est
+  // là qu'on l'oublie.
+  const { data: factureFiducie } = await admin.from("invoices")
+    .select("is_trust_account").eq("id", f1.factureId).single()
+  verifier("l'étape en fidéicommis marque sa facture",
+    factureFiducie.is_trust_account === true ? "oui" : "NON", "oui")
+
+  // Une étape ORDINAIRE ne marque pas la sienne : la mention de l'article 13
+  // sur un honoraire déjà gagné serait fausse.
+  const f2 = await facturerEtape(cabinet, membreFact, brouillon.id, 2)
+  verifier("l'étape 2 se facture", f2.ok ? "ok" : f2.message, "ok")
+  const { data: facture2 } = await admin.from("invoices")
+    .select("is_trust_account").eq("id", f2.factureId).single()
+  verifier("une étape ordinaire ne l'est PAS",
+    facture2.is_trust_account === true ? "OUI" : "non", "non")
+
+  // Le PDF porte la marque ET la mention réglementaire.
+  const avecFiducie = await composer(cabinet, brouillon.id)
+  const texteFid = lisiblePdf(Buffer.from(avecFiducie.octets))
+  verifier("le contrat marque le versement en fiducie",
+    texteFid.includes("(fidéicommis)") ? "oui" : "NON", "oui")
+  verifier("et porte la mention de l'article 13",
+    texteFid.includes("détenus en fiducie") ? "oui" : "NON", "oui")
+
+  // Un encaissement vers le compte de FIDUCIE alimente le registre — c'est le
+  // déclencheur `payments_trust_deposit` qui l'écrit, pas nous.
+  await admin.from("payments").insert({
+    firm_id: cabinetA, client_id: cl.id, invoice_id: f2.factureId,
+    amount: 100, paid_on: new Date().toISOString().slice(0, 10),
+    method: "interac", destination: "trust",
+  })
+  const { data: registre } = await admin.from("trust_ledger")
+    .select("entry_type, amount").eq("invoice_id", f2.factureId)
+  verifier("un encaissement en fiducie entre au registre", (registre ?? []).length, 1)
+  verifier("comme un dépôt", registre?.[0]?.entry_type, "deposit")
 
   // Un BROUILLON ne se facture pas : son montant peut encore changer.
   const { data: brouillon2 } = await cabinet.from("agreements").insert({

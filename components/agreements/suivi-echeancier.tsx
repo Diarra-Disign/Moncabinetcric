@@ -133,6 +133,7 @@ export function SuiviEcheancier({
                           {[
                             e.declenchement,
                             e.mode ? libelleMode(e.mode) : "",
+                            e.fideicommis ? "En fidéicommis (art. 13)" : "",
                             e.factureNumero ? `Facture ${e.factureNumero}` : "",
                           ].filter(Boolean).join(" · ") || "—"}
                         </p>

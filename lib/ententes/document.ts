@@ -10,7 +10,7 @@ import { libelleMode } from "./echeancier"
 /** Ce qu'une étape vaut telle qu'elle a été figée en jsonb. */
 interface EtapeSnapshot {
   position?: number; description?: string; declenchement?: string
-  mode?: string; montant?: number; pourcentage?: number
+  mode?: string; montant?: number; pourcentage?: number; fideicommis?: boolean
 }
 
 /**
@@ -197,6 +197,7 @@ export async function pdfDEntente(
         mode: x.mode ? libelleMode(String(x.mode), langue) : "",
         montant: Number(x.montant ?? 0),
         pourcentage: x.pourcentage ? Number(x.pourcentage) : undefined,
+        fideicommis: x.fideicommis === true,
       })),
       modesPaiement: ((a.payment_methods as string[]) ?? []).map((v) => libelleMode(v, langue)),
       conditionsPaiement: txt(a.payment_conditions),

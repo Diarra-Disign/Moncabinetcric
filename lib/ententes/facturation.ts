@@ -184,6 +184,16 @@ export async function facturerEtape(
         date: new Date().toISOString().slice(0, 10),
         due_on: options.dueOn || null,
         status: "draft",
+        // L'INTENTION DU CONTRAT SUIT LA FACTURE. Une étape déclarée en
+        // fidéicommis produit une facture marquée comme telle, et le reçu
+        // portera la mention de l'article 13 sans que personne n'ait à y
+        // penser au moment d'encaisser.
+        //
+        // Elle ne DÉCIDE pas la destination du paiement : celle-ci est choisie
+        // à l'encaissement, sans valeur par défaut, ici comme en base. Un
+        // virement peut arriver sur le mauvais compte, et le registre doit
+        // dire ce qui s'est passé, pas ce qui était prévu.
+        is_trust_account: etape.fideicommis === true,
         service_description: `${entente.reference} — ${etape.description}`,
       })
       .select("id")
