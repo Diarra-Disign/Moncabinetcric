@@ -265,6 +265,28 @@ try {
   const { data: avantTransfert } = await admin
     .from("client_questionnaires").select("answers, status, token_hash").eq("id", envoi.id).single()
 
+  // La composition familiale suit le même chemin que le questionnaire — et
+  // c'est le même piège : lead_id est « on delete cascade », donc l'oublier
+  // ferait disparaître conjoints et enfants avec le prospect.
+  const { error: eFamille } = await cabinet.from("family_members").insert({
+    firm_id: cabinetA, lead_id: prospect.id, relation: "spouse",
+    immigration_role: "accompanying_spouse", civility: "mrs",
+    first_name: "Fatou", last_name: "Diallo", birth_date: "1990-05-04",
+  })
+  verifier("un conjoint se rattache au prospect", eFamille ? eFamille.message : "ok", "ok")
+
+  const { error: eDeuxCotes } = await cabinet.from("family_members").insert({
+    firm_id: cabinetA, lead_id: prospect.id, client_id: prospect.id,
+    relation: "child", first_name: "Deux", last_name: "Côtés",
+  })
+  verifier("rattaché à un client ET un prospect : REFUSÉ", eDeuxCotes ? "refusé" : "ACCEPTÉ", "refusé")
+
+  const { error: eCivilite } = await cabinet.from("family_members").insert({
+    firm_id: cabinetA, lead_id: prospect.id, relation: "child",
+    civility: "docteur", first_name: "Civilité", last_name: "Inventée",
+  })
+  verifier("une civilité hors vocabulaire : REFUSÉE", eCivilite ? "refusée" : "ACCEPTÉE", "refusée")
+
   const { data: clientIssu, error: eClient } = await admin.from("clients").insert({
     firm_id: cabinetA, name: "Awa Diallo", email: `awa-cli-${marque}@example.invalid`,
     file_number: `DOS-CV-${String(marque).slice(-6)}`, program: "Permis d'études",
@@ -304,12 +326,27 @@ try {
   verifier("et sert les mêmes réponses",
     JSON.stringify(ouvertApres?.answers ?? {}), JSON.stringify(avantTransfert.answers))
 
+  const { data: familleDeplacee, error: eMoveF } = await cabinet
+    .from("family_members")
+    .update({ client_id: clientIssu.id, lead_id: null })
+    .eq("firm_id", cabinetA).eq("lead_id", prospect.id)
+    .select("id, first_name")
+  verifier("la famille suit le client", eMoveF ? eMoveF.message : "ok", "ok")
+  verifier("le conjoint est bien du voyage", (familleDeplacee ?? []).length, 1)
+
+  const { data: tiersVoitFamille } = await tiers
+    .from("family_members").select("id").eq("firm_id", cabinetA)
+  verifier("un autre cabinet ne voit pas cette famille", (tiersVoitFamille ?? []).length, 0)
+
   // Effacer le prospect ne doit plus emporter le questionnaire : lead_id est
   // « on delete cascade », et c'est précisément pourquoi on le vide.
   await admin.from("leads").delete().eq("id", prospect.id)
   const { data: survivant } = await admin
     .from("client_questionnaires").select("id").eq("id", envoi.id).maybeSingle()
   verifier("effacer le prospect n'emporte plus ses réponses", survivant ? "conservé" : "PERDU", "conservé")
+  const { data: familleSurvivante } = await admin
+    .from("family_members").select("id").eq("client_id", clientIssu.id)
+  verifier("ni sa famille", (familleSurvivante ?? []).length, 1)
 
   // -------------------------------------------------------------------------
   console.log("\nLe statut « expiré » se calcule, il ne se stocke pas")

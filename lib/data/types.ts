@@ -33,6 +33,8 @@ export interface Lead {
   lmiaPositions?: number
   source?: string
   contactIntent?: "info" | "consultation" | "mandate"
+  /** Code de civilité — mr | mrs | mx | other. Voir lib/data/identite.ts. */
+  civility?: string | null
 }
 
 /**
@@ -107,6 +109,8 @@ export interface ClientRecord {
   intakeMotif: string
   clientType?: "individual" | "employer"
   neqNumber?: string
+  /** Code de civilité — mr | mrs | mx | other. Voir lib/data/identite.ts. */
+  civility?: string | null
 }
 
 export interface DocumentRecord {

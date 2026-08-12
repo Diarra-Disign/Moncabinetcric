@@ -145,6 +145,10 @@ export async function createLead(data: Omit<Lead, "id"> & { id?: string }): Prom
     notes: data.notes || '',
     lmia_positions: data.lmiaPositions,
     source: data.source,
+    // L'intention de contact était collectée par le formulaire et jetée entre
+    // le navigateur et la base : aucune colonne ne la recevait. Elle existe.
+    contact_intent: data.contactIntent ?? null,
+    civility: data.civility ?? null,
   }
 
   const { data: inserted, error } = await (await db())
@@ -409,7 +413,7 @@ export async function updateFirmSettings(data: {
  */
 export async function convertLeadToClient(
   leadId: string
-): Promise<{ client: ClientRecord; alreadyConverted: boolean; questionnairesTransferes: number }> {
+): Promise<{ client: ClientRecord; alreadyConverted: boolean; questionnairesTransferes: number; membresFamilleTransferes: number }> {
   const firmId = await currentFirmId()
   const supabase = await db()
 
@@ -434,7 +438,7 @@ export async function convertLeadToClient(
     // Zéro, et non « inconnu » : le transfert a déjà eu lieu à la première
     // conversion, il ne reste rien à déplacer. C'est ce qui rend le second
     // clic sans conséquence de bout en bout.
-    if (existant) return { client: toClient(existant), alreadyConverted: true, questionnairesTransferes: 0 }
+    if (existant) return { client: toClient(existant), alreadyConverted: true, questionnairesTransferes: 0, membresFamilleTransferes: 0 }
   }
 
   // Le numéro est calculé en base : deux conversions simultanées y
@@ -463,6 +467,10 @@ export async function convertLeadToClient(
         .join(" — "),
       client_type: lead.type === "b2b" ? "employer" : "individual",
       neq_number: lead.type === "b2b" ? null : null,
+      // La civilité suit la personne. La perdre ici obligerait à la redemander
+      // à quelqu'un qui vient de la donner — et l'entente de service partirait
+      // entre-temps avec « Diarra » au lieu de « Monsieur Adama Diarra ».
+      civility: lead.civility ?? null,
     })
     .select("*")
     .single()
@@ -519,10 +527,29 @@ export async function convertLeadToClient(
     console.error("convertLeadToClient : client créé, questionnaires non transférés —", qErr.message)
   }
 
+  // La composition familiale suit le même chemin que les questionnaires, et
+  // pour la même raison : un seul UPDATE, les deux colonnes ensemble, parce
+  // que la contrainte family_members_rattachement refuse l'état intermédiaire.
+  //
+  // Vider lead_id protège autant qu'il range : la colonne est « on delete
+  // cascade », donc effacer le prospect plus tard emporterait la famille du
+  // client — des conjoints et des enfants saisis un par un.
+  const { data: famille, error: fErr } = await supabase
+    .from("family_members")
+    .update({ client_id: created.id, lead_id: null })
+    .eq("firm_id", firmId)
+    .eq("lead_id", lead.id)
+    .select("id")
+
+  if (fErr) {
+    console.error("convertLeadToClient : client créé, famille non transférée —", fErr.message)
+  }
+
   return {
     client: toClient(created),
     alreadyConverted: false,
     questionnairesTransferes: qErr ? 0 : (transferes?.length ?? 0),
+    membresFamilleTransferes: fErr ? 0 : (famille?.length ?? 0),
   }
 }
 

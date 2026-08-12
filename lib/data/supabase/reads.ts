@@ -108,10 +108,22 @@ export async function getClientById(id: string): Promise<ClientRecord | undefine
 // --- Prospects --------------------------------------------------------
 
 export async function getLeads(): Promise<Lead[]> {
+  // Un prospect converti quitte le pipeline.
+  //
+  // Il y restait indéfiniment : la conversion posait bien converted_client_id,
+  // mais personne ne le lisait. La colonne « Signé » accumulait donc des
+  // prospects devenus clients des mois plus tôt, et le compte de prospects
+  // actifs — celui qui sert à juger si la prospection porte — grossissait de
+  // gens qui n'en étaient plus.
+  //
+  // Ils ne sont pas effacés : la fiche reste, avec sa date de conversion et le
+  // client qu'elle a produit. Elle cesse simplement de se présenter comme une
+  // affaire à conclure.
   const { data, error } = await (await db())
     .from("leads")
     .select("*")
     .eq("firm_id", await currentFirmId())
+    .is("converted_client_id", null)
     .order("score", { ascending: false })
 
   if (error) fail("leads", error.message)

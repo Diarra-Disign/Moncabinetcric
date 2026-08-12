@@ -73,6 +73,7 @@ export function toClient(r: Row): ClientRecord {
     intakeMotif: str(r.intake_motif),
     clientType: (r.client_type as ClientRecord["clientType"]) ?? undefined,
     neqNumber: optStr(r.neq_number),
+    civility: optStr(r.civility) ?? null,
   }
 }
 
@@ -95,6 +96,8 @@ export function toLead(r: Row): Lead {
     notes: str(r.notes),
     lmiaPositions: optNum(r.lmia_positions),
     source: optStr(r.source),
+    contactIntent: (optStr(r.contact_intent) as Lead["contactIntent"]) ?? undefined,
+    civility: optStr(r.civility) ?? null,
   }
 }
 
