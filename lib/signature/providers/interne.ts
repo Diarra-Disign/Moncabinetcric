@@ -4,12 +4,15 @@ import { randomBytes, createHash } from "node:crypto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { siteUrl } from "@/lib/site-url"
 import { verrouiller } from "../versions"
+import { journaliser } from "../evenements"
 import type {
   FournisseurSignature, ContexteSignature, DemandeSignature,
   EtatDemande, DestinataireEtat, ResultatSignature,
   DocumentSigne, EntreeJournalSignature,
 } from "../contrat"
-import type { ModeSignature, StatutDemande, StatutDestinataire } from "../statuts"
+import type {
+  ModeSignature, StatutDemande, StatutDestinataire, EvenementSignature,
+} from "../statuts"
 
 /**
  * Le fournisseur de signature interne — celui de la V1.
@@ -66,26 +69,20 @@ export class FournisseurInterne implements FournisseurSignature {
     this.ctx = ctx
   }
 
-  /** Écrit un événement au journal. Jamais bloquant : voir la note plus bas. */
-  private async evenement(
+  /**
+   * Écrit un événement au journal.
+   *
+   * Délègue à `journaliser()` : un seul point d'écriture pour tous les
+   * fournisseurs, plutôt qu'un appel RPC recopié dans chacun. Le jour où
+   * PandaDoc écrira ses événements, il passera par la même porte.
+   */
+  private evenement(
     requestId: string,
-    evenement: string,
+    evenement: EvenementSignature,
     destinataireId?: string | null,
     details?: Record<string, unknown>
   ) {
-    const { error } = await this.sb.rpc("signature_event", {
-      p_request_id: requestId,
-      p_event: evenement,
-      p_actor: this.ctx.fullName || this.ctx.email || "",
-      p_recipient_id: destinataireId ?? null,
-      p_ip: this.ctx.ip ?? null,
-      p_agent: this.ctx.agent ?? null,
-      p_details: details ?? {},
-    })
-    // Le journal ne fait pas échouer l'acte. Refuser une signature parce que sa
-    // trace n'a pas pu s'écrire punirait le signataire pour un défaut qui n'est
-    // pas le sien — et le journal, lui, dirait qu'il n'a rien signé.
-    if (error) console.error("signature_event :", evenement, "—", error.message)
+    return journaliser(this.sb, this.ctx, { requestId, evenement, destinataireId, details })
   }
 
   async creerDemande(d: DemandeSignature): Promise<EtatDemande> {

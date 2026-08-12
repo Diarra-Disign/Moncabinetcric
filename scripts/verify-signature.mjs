@@ -32,6 +32,7 @@ import { exigerSupabase } from "./lib/environnement.mjs"
 import { statutDeduit, sonTour, nomDocumentSigne } from "../lib/signature/statuts.ts"
 import { verrouiller, nouvelleVersion, chaineDesVersions } from "../lib/signature/versions.ts"
 import { SignatureService, fournisseurConfigure } from "../lib/signature/service.ts"
+import { reagirASignature } from "../lib/workflow/signature-reactions.ts"
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..")
 const env = Object.fromEntries(
@@ -537,6 +538,63 @@ try {
   const etatFaux = await faux.etatDemande()
   verifier("un faux fournisseur satisfait l'interface", etatFaux.statut, "completed")
   verifier("et le CRM n'a besoin de rien d'autre", (await faux.envoyerDemande()).ok, true)
+
+  // -------------------------------------------------------------------------
+  console.log("\nLes réactions du CRM — sans que la signature ne les connaisse")
+  // -------------------------------------------------------------------------
+  // Le module de signature n'importe RIEN d'ici : la flèche ne va que dans un
+  // sens. C'est ce qui rendra PandaDoc substituable sans emporter les règles
+  // du cabinet.
+  const { data: modeleSys } = await admin.from("agreement_templates")
+    .select("id").is("firm_id", null).limit(1).single()
+
+  const docE = await nouveauDocument(cabinetA, cl.id, "Entente liee.pdf")
+  const { data: ententeLiee } = await admin.from("agreements").insert({
+    firm_id: cabinetA, client_id: cl.id, template_id: modeleSys.id, template_version: "1.0",
+    reference: `ENT-SIG-${String(marque).slice(-4)}`, title: "Entente à signer",
+    kind: "services", status: "sent", articles_snapshot: [],
+    fees_amount: 1000, total_amount: 1000, document_id: docE.id,
+  }).select("id, status").single()
+
+  const etatE = await service.createRequest({
+    documentId: docE.id, clientId: cl.id,
+    destinataires: [{ role: "client", nom: "Jean", courriel: `je-${marque}@example.invalid`, rang: 1 }],
+  })
+  await service.sendRequest(etatE.id)
+
+  const ctxR = { firmId: cabinetA, fullName: "Propriétaire 1" }
+  const r1 = await reagirASignature(cabinet, ctxR, "signature.completed", etatE.id)
+  verifier("la réaction agit", r1.faits.length > 0 ? "oui" : "NON", "oui")
+
+  const { data: ententeApres } = await admin.from("agreements")
+    .select("status").eq("id", ententeLiee.id).single()
+  // L'ENTENTE SUIT SON DOCUMENT — par une relation qui existait déjà et que
+  // personne ne lisait.
+  verifier("l'entente devient signée", ententeApres.status, "signed")
+
+  const { data: notifs } = await admin.from("notifications")
+    .select("kind, title, entity_id").eq("firm_id", cabinetA)
+  verifier("une notification est déposée", (notifs ?? []).length >= 1 ? "oui" : "NON", "oui")
+  verifier("elle nomme l'événement", notifs?.[0]?.kind, "signature.completed")
+  verifier("et désigne la demande", notifs?.[0]?.entity_id, etatE.id)
+
+  // ON NE REDESCEND JAMAIS UN ÉTAT : une entente signée ne redevient pas
+  // « partiellement signée » parce qu'un événement arrive dans le désordre.
+  await reagirASignature(cabinet, ctxR, "signature.signed", etatE.id)
+  const { data: ententeEncore } = await admin.from("agreements")
+    .select("status").eq("id", ententeLiee.id).single()
+  verifier("un événement en retard ne DÉFAIT rien", ententeEncore.status, "signed")
+
+  // AUCUNE FACTURE N'EST CRÉÉE AUTOMATIQUEMENT. Un numéro de facture ne se
+  // reprend pas : le consultant décide.
+  const { data: facturesAuto } = await admin.from("invoices")
+    .select("id").eq("firm_id", cabinetA)
+  verifier("aucune facture n'est créée d'office", (facturesAuto ?? []).length, 0)
+
+  // Une réaction sur une demande inconnue ne lève pas : elle ne fait rien.
+  const rVide = await reagirASignature(cabinet, ctxR, "signature.completed",
+    "00000000-0000-0000-0000-000000000000")
+  verifier("une demande inconnue ne fait rien lever", rVide.faits.length, 0)
 
   // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
