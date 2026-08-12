@@ -51,6 +51,7 @@ case "$commande" in
   ententes)     exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-ententes.mjs "$@" ;;
   parametres)   exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-parametres.mjs "$@" ;;
   signature)    exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-signature.mjs "$@" ;;
+  onglet-signature) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-onglet-signature.mjs "$@" ;;
   bandeau)      exec node scripts/verify-bandeau.mjs "$@" ;;
   dossier-client) exec node scripts/verify-dossier-client.mjs "$@" ;;
   facturation-lignes) exec node scripts/verify-facturation.mjs "$@" ;;
@@ -163,6 +164,11 @@ Usage : ./cric <commande> [options]
   contraste    Mesure le contraste réel des pastilles de statut sous les
                cinq thèmes de cabinet, couleurs composées par le navigateur.
                  ./cric contraste
+
+  onglet-signature
+               Ouvre l'onglet Signature d'un dossier dans un vrai navigateur,
+               envoie une demande et vérifie qu'elle s'affiche ensuite.
+                 ./cric onglet-signature
 
   courriel     Éprouve la fabrication de l'en-tête « De » : nom du cabinet
                recollé sur l'adresse d'expédition sans la casser

@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation"
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
-  Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Wand2
+  Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Wand2, PenLine
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
+import { OngletSignature } from "@/components/signature/onglet-signature"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import {
   ajouterEcheance, changerEtatEcheance, declarerDossier, demanderValidation,
   enregistrerPaiement, marquerRecue, marquerVerifiee,
@@ -43,7 +45,7 @@ import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-
 
 type Onglet =
   | "apercu" | "documents" | "formulaires" | "facturation"
-  | "paiements" | "echeances" | "portail" | "argumentaire"
+  | "paiements" | "echeances" | "signature" | "portail" | "argumentaire"
 
 const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
   { cle: "apercu", libelle: "Vue d'ensemble", icone: ShieldCheck },
@@ -52,6 +54,11 @@ const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
   { cle: "facturation", libelle: "Facturation", icone: Receipt },
   { cle: "paiements", libelle: "Paiements", icone: Banknote },
   { cle: "echeances", libelle: "Échéances", icone: CalendarClock },
+  // La signature vit DANS le dossier, aux côtés des documents et de la
+  // facturation. Une expérience détachée obligerait à retrouver deux fois le
+  // même client. L'écran Signatures d'ensemble reste, pour le survol du
+  // cabinet ; celui-ci répond à « où en est CE dossier ».
+  { cle: "signature", libelle: "Signature", icone: PenLine },
   { cle: "portail", libelle: "Portail client", icone: Users },
   { cle: "argumentaire", libelle: "Argumentaire IRCC", icone: Wand2 },
 ]
@@ -108,6 +115,9 @@ export function DossierOnglets({
   programName: string
 }) {
   const [onglet, setOnglet] = React.useState<Onglet>("apercu")
+  // L'identité du cabinet vient du contexte, donc des Paramètres : le permis
+  // du consultant ne se retape pas, ici pas plus qu'ailleurs.
+  const firmIdentite = useFirm()
   const [resultat, setResultat] = React.useState<Resultat | null>(null)
   const [enCours, demarrer] = React.useTransition()
   const routeur = useRouter()
@@ -1214,6 +1224,19 @@ export function DossierOnglets({
       )}
 
       {/* ------------------------------------------------------------ */}
+      {onglet === "signature" && (
+        <OngletSignature
+          matterId={matterId}
+          clientNom={clientName}
+          // Le consultant vient des PARAMÈTRES du cabinet, jamais retapé : son
+          // permis atteste qu'il était autorisé à représenter au moment où il
+          // signe, et un numéro recopié à la main finirait par diverger.
+          consultantNom={firmIdentite.rcicName || consultant.name}
+          consultantCourriel={firmIdentite.email}
+          consultantPermis={firmIdentite.rcicNumber}
+        />
+      )}
+
       {onglet === "portail" && (
         <div className="space-y-4">
           {sansClient ? (

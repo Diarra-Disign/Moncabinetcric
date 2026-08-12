@@ -124,3 +124,112 @@ export function courrielAccuseDemande(opts: { langue: Langue; nom: string }): Co
     texte: `Bonjour ${opts.nom}, votre demande de démonstration nous est parvenue. Nous vous écrirons pour convenir d'un moment.`,
   }
 }
+
+/**
+ * Les trois courriels de la signature.
+ *
+ * ─── POURQUOI LE LIEN N'EST PAS UN BOUTON SEUL ─────────────────────────────
+ *
+ * L'adresse est aussi écrite en toutes lettres. Beaucoup de clients d'un
+ * cabinet d'immigration lisent leur courrier depuis un téléphone bas de gamme
+ * ou une messagerie qui bloque les liens des expéditeurs inconnus. Un bouton
+ * qui ne s'ouvre pas laisse la personne sans recours ; une adresse se recopie.
+ *
+ * ─── CE QUE CES MESSAGES NE FONT PAS ───────────────────────────────────────
+ *
+ * Ils ne joignent PAS le document. Une pièce jointe circule ensuite sans
+ * contrôle, survit à la révocation du lien, et ne dit pas si elle est la
+ * dernière version. Le lien, lui, meurt quand il doit mourir.
+ */
+
+export function courrielSignatureDemandee(opts: {
+  langue: Langue
+  cabinet: string
+  nom: string
+  document: string
+  lien: string
+  jours: number
+}): CourrielCompose {
+  const { langue, cabinet, nom, document, lien, jours } = opts
+
+  if (langue === "en") {
+    return {
+      sujet: `Signature requested — ${document}`,
+      html: coquille(
+        "A document awaits your signature",
+        `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Hello ${nom},</p>
+         <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;"><strong>${cabinet}</strong> invites you to read and sign <strong>${document}</strong>.</p>
+         ${bouton(lien, "Read and sign")}
+         <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#64748b;">If the button does not work, copy this address into your browser:<br><span style="word-break:break-all;">${lien}</span></p>
+         <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">This link is personal and expires in ${jours} days. Do not forward it: it carries your signature.</p>`,
+        "You are receiving this message because a document was sent to you for signature."
+      ),
+      texte: `Hello ${nom},
+
+${cabinet} invites you to read and sign: ${document}
+
+${lien}
+
+This link is personal and expires in ${jours} days. Do not forward it.`,
+    }
+  }
+
+  return {
+    sujet: `Signature demandée — ${document}`,
+    html: coquille(
+      "Un document attend votre signature",
+      `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Bonjour ${nom},</p>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;"><strong>${cabinet}</strong> vous invite à prendre connaissance de <strong>${document}</strong> et à le signer.</p>
+       ${bouton(lien, "Lire et signer")}
+       <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#64748b;">Si le bouton ne fonctionne pas, recopiez cette adresse dans votre navigateur :<br><span style="word-break:break-all;">${lien}</span></p>
+       <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Ce lien vous est personnel et expire dans ${jours} jours. Ne le transférez pas : il porte votre signature.</p>`,
+      "Vous recevez ce message parce qu'un document vous a été transmis pour signature."
+    ),
+    texte: `Bonjour ${nom},
+
+${cabinet} vous invite à lire et signer : ${document}
+
+${lien}
+
+Ce lien vous est personnel et expire dans ${jours} jours. Ne le transférez pas.`,
+  }
+}
+
+export function courrielSignatureFaite(opts: {
+  langue: Langue
+  cabinet: string
+  nom: string
+  document: string
+}): CourrielCompose {
+  const { langue, cabinet, nom, document } = opts
+
+  if (langue === "en") {
+    return {
+      sujet: `Signed — ${document}`,
+      html: coquille(
+        "Your document is signed",
+        `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Hello ${nom},</p>
+         <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;"><strong>${document}</strong> has been signed by every party. ${cabinet} keeps a copy, along with a certificate listing the signatories, the timestamps and the document fingerprint.</p>
+         <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Ask ${cabinet} for a copy at any time.</p>`,
+        "You are receiving this message because you signed this document."
+      ),
+      texte: `Hello ${nom},
+
+${document} has been signed by every party. ${cabinet} keeps a copy and its certificate.`,
+    }
+  }
+
+  return {
+    sujet: `Signé — ${document}`,
+    html: coquille(
+      "Votre document est signé",
+      `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Bonjour ${nom},</p>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;"><strong>${document}</strong> a été signé par toutes les parties. ${cabinet} en conserve une copie, accompagnée d'un certificat qui nomme les signataires, les horodatages et l'empreinte du document.</p>
+       <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Vous pouvez en demander une copie à ${cabinet} à tout moment.</p>`,
+      "Vous recevez ce message parce que vous avez signé ce document."
+    ),
+    texte: `Bonjour ${nom},
+
+${document} a été signé par toutes les parties. ${cabinet} en conserve une copie et son certificat.`,
+  }
+}

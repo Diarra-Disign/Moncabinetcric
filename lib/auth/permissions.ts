@@ -22,6 +22,7 @@ export const PERMISSIONS = [
   "invoices.write",
   "portal.manage",
   "signatures.request",
+  "signatures.manage",
   "audit.read",
   "firm.settings",
   "firm.members",

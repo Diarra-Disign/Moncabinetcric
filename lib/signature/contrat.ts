@@ -129,6 +129,16 @@ export interface EntreeJournalSignature {
 export interface ResultatSignature {
   ok: boolean
   message: string
+  /**
+   * Les liens fraîchement engendrés, quand le geste en produit.
+   *
+   * FACULTATIF, ET IL DOIT LE RESTER. Un fournisseur tiers écrit lui-même à
+   * ses destinataires et ne rendra jamais ce champ : le CRM doit donc traiter
+   * son absence comme normale, pas comme un échec. C'est le fournisseur
+   * interne qui délègue l'envoi, parce qu'il n'a pas de service de courriel à
+   * lui — pas l'inverse.
+   */
+  liens?: { nom: string; courriel: string; lien: string }[]
 }
 
 export interface DocumentSigne {

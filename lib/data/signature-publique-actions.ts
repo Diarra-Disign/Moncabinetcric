@@ -56,12 +56,15 @@ export async function apposerSignature(
   // elle est déjà enregistrée en base, scellée par un déclencheur. Si le PDF
   // final ne se compose pas, on le reproduira — refuser la signature pour
   // autant serait absurde à expliquer au signataire, qui a bel et bien signé.
-  if (r.ok && r.complete) {
+  if (r.ok && r.demandeId) {
     try {
       // L'identifiant vient de la BASE, pas d'une seconde résolution du jeton :
       // après la dernière signature, la demande est close et le jeton ne
       // résout plus rien.
-      if (r.demandeId) await conclure(r.demandeId)
+      if (r.complete) await conclure(r.demandeId)
+      // SINON, LE TOUR PASSE AU SUIVANT — et il faut le lui dire. C'est le
+      // seul moment où on peut : personne d'autre ne sait que la file a avancé.
+      else await prevenirSuivant(r.demandeId)
     } catch (e) {
       console.error("apposerSignature : suite non exécutée —", e instanceof Error ? e.message : e)
     }
@@ -92,6 +95,19 @@ async function conclure(demandeId: string) {
 
   const { reagirASignature } = await import("@/lib/workflow/signature-reactions")
   await reagirASignature(sb, ctx, "signature.completed", demandeId)
+
+  // Les signataires apprennent que c'est fini. Après la notification, parce
+  // qu'un courriel qui ne part pas ne doit pas priver le consultant de la
+  // seule trace qui reste dans l'application.
+  const { prevenirSignatureFaite } = await import("@/lib/workflow/signature-courriels")
+  await prevenirSignatureFaite(sb, demandeId)
+}
+
+/** Le tour a changé de main : on écrit à celui qui l'a maintenant. */
+async function prevenirSuivant(demandeId: string) {
+  const { clientService } = await import("@/lib/signature/public")
+  const { prevenirProchain } = await import("@/lib/workflow/signature-courriels")
+  await prevenirProchain(clientService(), demandeId)
 }
 
 export async function declinerSignature(jeton: string, motif: string): Promise<ResultatPublic> {

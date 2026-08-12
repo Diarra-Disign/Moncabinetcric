@@ -198,7 +198,7 @@ export class FournisseurInterne implements FournisseurSignature {
   async envoyerDemande(requestId: string): Promise<ResultatSignature> {
     const { data: demande } = await this.sb
       .from("signature_requests")
-      .select("id, status, document_id")
+      .select("id, status, document_id, signing_mode")
       .eq("id", requestId)
       .maybeSingle()
 
@@ -222,11 +222,24 @@ export class FournisseurInterne implements FournisseurSignature {
       .eq("id", requestId)
     if (error) return { ok: false, message: error.message }
 
-    await this.sb
+    // `sent_at` DIT « SON LIEN LUI A ÉTÉ TRANSMIS », pas « la demande est
+    // partie ». En séquentiel, le second signataire ne reçoit rien tant que le
+    // premier n'a pas signé : l'estampiller ici mentirait au journal — et,
+    // pire, ferait croire à `prevenirProchain()` qu'il a déjà été prévenu,
+    // de sorte que personne ne lui écrirait jamais.
+    let cibles = this.sb
       .from("signature_recipients")
       .update({ sent_at: maintenant })
       .eq("request_id", requestId)
       .is("sent_at", null)
+
+    if (String(demande.signing_mode ?? "sequential") !== "parallel") {
+      const { data: premiers } = await this.sb
+        .from("signature_recipients")
+        .select("rank").eq("request_id", requestId).order("rank").limit(1)
+      cibles = cibles.eq("rank", Number(premiers?.[0]?.rank ?? 1))
+    }
+    await cibles
 
     await this.evenement(requestId, "signature.request.sent")
     return { ok: true, message: "Demande envoyée." }
@@ -346,7 +359,7 @@ export class FournisseurInterne implements FournisseurSignature {
     // UN JETON NEUF, ET L'ANCIEN MEURT. Laisser vivre les deux ferait circuler
     // deux liens pour la même signature — et le premier resterait valide bien
     // après qu'on l'ait cru remplacé.
-    const liens: { courriel: string; lien: string }[] = []
+    const liens: { nom: string; courriel: string; lien: string }[] = []
     for (const c of cibles) {
       const jeton = jetonNeuf()
       const { error } = await this.sb
@@ -354,7 +367,11 @@ export class FournisseurInterne implements FournisseurSignature {
         .update({ token_hash: empreinteJeton(jeton), revoked_at: null })
         .eq("id", c.id)
       if (error) return { ok: false, message: error.message }
-      liens.push({ courriel: String(c.email), lien: lienDe(jeton) })
+      liens.push({
+        nom: String(c.full_name ?? ""),
+        courriel: String(c.email),
+        lien: lienDe(jeton),
+      })
     }
 
     await this.evenement(requestId, "signature.request.sent", destinataireId ?? null, {
@@ -363,6 +380,10 @@ export class FournisseurInterne implements FournisseurSignature {
 
     return {
       ok: true,
+      // LES LIENS REMONTENT. Ce fournisseur n'envoie pas de courriel — c'est le
+      // CRM qui écrit. Sans ce champ, le lien n'existerait en clair qu'ici, et
+      // il faudrait redemander au consultant de le transmettre à la main.
+      liens,
       message: liens.length === 1
         ? "Un nouveau lien a été engendré ; le précédent ne fonctionne plus."
         : `${liens.length} nouveaux liens ont été engendrés ; les précédents ne fonctionnent plus.`,

@@ -450,6 +450,17 @@ try {
   verifier("le lien ouvre maintenant le document", vuS?.document_id, docS.id)
   verifier("c'est au tour du client", vuS?.son_tour, true)
 
+  // ---- QUI A VRAIMENT REÇU SON LIEN --------------------------------------
+  // En séquentiel, le second ne reçoit rien tant que le premier n'a pas signé.
+  // Estampiller son `sent_at` à l'envoi le ferait passer pour déjà prévenu, et
+  // plus personne ne lui écrirait quand son tour arriverait.
+  const { data: estampilles } = await admin.from("signature_recipients")
+    .select("rank, sent_at").eq("request_id", etat0.id).order("rank")
+  verifier("le premier est marqué comme prévenu",
+    estampilles[0].sent_at ? "oui" : "NON", "oui")
+  verifier("le second ne l'est PAS encore",
+    estampilles[1].sent_at ? "MARQUÉ" : "non", "non")
+
   const etat1 = await service.getStatus(etat0.id)
   verifier("getStatus rend « envoyée »", etat1.statut, "sent")
   verifier("il nomme le fournisseur", etat1.fournisseur, "internal")
@@ -471,6 +482,20 @@ try {
   verifier("une signature sur deux : partiellement signée", etat2.statut, "partially_signed")
   verifier("et c'est au tour du consultant",
     etat2.destinataires.find((r) => r.rang === 2).sonTour, true)
+
+  // ---- LE LIEN DU SUIVANT EXISTE, ET REMONTE -----------------------------
+  // C'est ce que `prevenirProchain()` appelle. Sans le champ `liens`, le jeton
+  // neuf n'existerait en clair nulle part et la chaîne s'arrêterait ici.
+  const suivant = etat2.destinataires.find((r) => r.rang === 2)
+  const relanceSuivant = await service.resendRequest(etat0.id, suivant.id)
+  verifier("relancer le suivant réussit", relanceSuivant.ok ? "ok" : relanceSuivant.message, "ok")
+  verifier("et rend un lien utilisable",
+    relanceSuivant.liens?.[0]?.lien?.includes("/s/") ? "oui" : "NON", "oui")
+  verifier("le lien nomme bien le suivant", relanceSuivant.liens?.[0]?.courriel, suivant.courriel)
+  const jetonSuivant = relanceSuivant.liens?.[0]?.lien.split("/s/")[1]
+  const vuSuivant = await resoudre(jetonSuivant)
+  verifier("ce lien ouvre le document", vuSuivant?.document_id, docS.id)
+  verifier("et c'est bien son tour", vuSuivant?.son_tour, true)
 
   await admin.from("signature_recipients")
     .update({ status: "signed", signed_at: new Date().toISOString() }).eq("id", destS[1].id)
