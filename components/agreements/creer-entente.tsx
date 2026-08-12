@@ -6,6 +6,7 @@ import {
   Building2, Settings,
 } from "lucide-react"
 import Link from "next/link"
+import { ModifierFiche } from "@/components/fiche/modifier-fiche"
 import {
   rechercherContractant, preremplir, articlesDuModele, creerEntente,
   type ArticleEntente,
@@ -56,6 +57,8 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
   const [honoraires, setHonoraires] = React.useState("")
   const [enCours, setEnCours] = React.useState(false)
   const [resultat, setResultat] = React.useState<{ ok: boolean; message: string } | null>(null)
+  // §9 : corriger la fiche sans quitter le contrat en préparation.
+  const [ficheAModifier, setFicheAModifier] = React.useState(false)
 
   const proBono = (modele?.kind ?? "").includes("probono")
 
@@ -348,6 +351,25 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
                 {/* LES DEUX JEUX DE DONNÉES, VISIBLES AVANT LA GÉNÉRATION (§9).
                     Côte à côte et séparés : le consultant doit pouvoir vérifier
                     d'un regard que rien ne s'est mélangé. */}
+                {blocs && choisi && (
+                  <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                    {/* §9 ET §10 : le bouton dit CE QU'IL MODIFIE. Un
+                        « Modifier » nu laisserait croire qu'on ne retouche que
+                        ce contrat-ci, alors qu'on écrit dans le CRM. */}
+                    <p className="text-[11px] text-muted-foreground">
+                      Une erreur dans les coordonnées ? La correction s&apos;applique à la fiche.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setFicheAModifier(true)}
+                      className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[11px] font-bold text-foreground hover:bg-muted cursor-pointer"
+                    >
+                      <User className="h-3 w-3" />
+                      Modifier la fiche {choisi.type === "client" ? "client" : "prospect"}
+                    </button>
+                  </div>
+                )}
+
                 {blocs && (
                   <div className="grid gap-3 sm:grid-cols-2 border-b border-border pb-4">
                     {([
@@ -443,6 +465,21 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
           </div>
         </footer>
       </div>
+      {/* Le MÊME formulaire que partout ailleurs. Après enregistrement, le
+          pré-remplissage est relu : le contrat en préparation prend la
+          correction, et l'aperçu la montre immédiatement. */}
+      {ficheAModifier && choisi && (
+        <ModifierFiche
+          type={choisi.type}
+          id={choisi.id}
+          nomAffiche={choisi.nom}
+          onFerme={() => setFicheAModifier(false)}
+          onEnregistre={async () => {
+            setSource(await preremplir(choisi.type, choisi.id))
+          }}
+        />
+      )}
+
     </div>
   )
 }

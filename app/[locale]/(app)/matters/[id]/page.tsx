@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { DossierOnglets } from "./dossier-onglets"
 import { getDossierComplet } from "@/lib/data/matter-file"
+import { BoutonModifierFiche } from "@/components/fiche/bouton-modifier-fiche"
 
 export default async function MatterDetailPage({
   params,
@@ -155,6 +156,20 @@ export default async function MatterDetailPage({
             <span className="inline-flex items-center gap-1.5 font-bold text-primary">
               {completionPct}% {t("checklistComplete")}
             </span>
+
+            {/* LA TROISIÈME PORTE (§8). Le même formulaire que Clients et que
+                Prospects : une adresse se corrige depuis l'endroit où l'on
+                s'aperçoit qu'elle est fausse, c'est-à-dire le plus souvent
+                depuis le dossier. */}
+            {dossier?.clientId && (
+              <BoutonModifierFiche
+                type="client"
+                id={dossier.clientId}
+                nomAffiche={matter.clientName}
+                libelle={isFr ? "Modifier la fiche client" : "Edit client record"}
+                className="ml-auto"
+              />
+            )}
           </div>
 
           {/* Barre de progression */}

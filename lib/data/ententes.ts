@@ -5,6 +5,10 @@ import {
   partieDepuisClient, partieDepuisProspect, cabinetDepuisFirm,
 } from "@/lib/ententes/contractant"
 import type { PartieContractante, CabinetContrat } from "@/lib/ententes/variables"
+import { chargerContractantAvec, type PreRemplissage } from "./contractant-lecture"
+
+export { chargerContractantAvec }
+export type { PreRemplissage }
 
 /**
  * Retrouver un contractant, et ce que le cabinet sait déjà de lui.
@@ -81,54 +85,13 @@ export async function chercherContractants(recherche: string, limite = 12): Prom
     .slice(0, limite)
 }
 
-export interface PreRemplissage {
-  partie: PartieContractante
-  cabinet: CabinetContrat
-  /** Les proches déjà connus, pour les proposer comme parties au contrat (§8). */
-  famille: { id: string; relation: string; civility: string | null; firstName: string; lastName: string }[]
-}
 
+/** Même chose, la session étant tirée du contexte de la requête. */
 export async function chargerContractant(
   type: "client" | "lead",
   id: string
 ): Promise<PreRemplissage | null> {
   const sb = await getSessionSupabase()
   const membre = await getCurrentMember()
-
-  // Deux sélections écrites en toutes lettres plutôt qu'une chaîne assemblée :
-  // l'analyseur de types de PostgREST lit le littéral, et une interpolation le
-  // rend incapable de dire ce qu'il rendra.
-  const { data: personne } =
-    type === "client"
-      ? await sb.from("clients")
-          .select("civility, first_name, last_name, name, email, phone, address, city, province, postal_code, country, file_number")
-          .eq("id", id).maybeSingle()
-      : await sb.from("leads")
-          .select("civility, first_name, last_name, name, email, phone, address, city, province, postal_code, country")
-          .eq("id", id).maybeSingle()
-  if (!personne) return null
-
-  const [{ data: firm }, { data: famille }, { data: profil }] = await Promise.all([
-    sb.from("firms").select("name, owner_name, rcic_license_number, address, address_line2, city, province, postal_code, country, email, phone, website")
-      .eq("id", membre?.firmId ?? "").maybeSingle(),
-    sb.from("family_members")
-      .select("id, relation, civility, first_name, last_name")
-      .eq(type === "client" ? "client_id" : "lead_id", id),
-    // La civilité du consultant : il signe l'entente, et « Signé par Diarra »
-    // vaut moins que « Signé par Monsieur Adama Diarra ».
-    sb.from("profiles").select("civility").eq("id", membre?.profileId ?? "").maybeSingle(),
-  ])
-
-  const ligne = personne as unknown as Record<string, unknown>
-  return {
-    partie: type === "client" ? partieDepuisClient(ligne) : partieDepuisProspect(ligne),
-    cabinet: cabinetDepuisFirm(firm ?? {}, (profil as { civility?: string } | null)?.civility ?? null),
-    famille: (famille ?? []).map((m) => ({
-      id: String(m.id),
-      relation: String(m.relation ?? ""),
-      civility: m.civility ? String(m.civility) : null,
-      firstName: String(m.first_name ?? ""),
-      lastName: String(m.last_name ?? ""),
-    })),
-  }
+  return chargerContractantAvec(sb, membre, type, id)
 }

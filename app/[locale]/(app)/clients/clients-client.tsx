@@ -25,6 +25,7 @@ import {
   Trash2,
   FolderOpen,
   FolderPlus,
+  Pencil,
   Receipt,
   ChevronRight,
   X,
@@ -45,6 +46,7 @@ import { SelecteurCivilite } from "@/components/ui/civilite"
 import { nomAvecCivilite, type Civilite } from "@/lib/data/identite"
 import { PROGRAM_GROUPS } from "@/lib/data/services-immigration"
 import { ChampsAdresse, ADRESSE_VIDE, type ValeursAdresse } from "@/components/ui/adresse-postale"
+import { ModifierFiche } from "@/components/fiche/modifier-fiche"
 
 export type { ClientRecord }
 
@@ -72,6 +74,9 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [actionNotice, setActionNotice] = React.useState<string | null>(null)
   /** Le client pour lequel on ouvre un dossier, ou null. */
   const [dossierPour, setDossierPour] = React.useState<ClientRecord | null>(null)
+  // La modification d'une fiche client N'EXISTAIT PAS : ni bouton, ni action,
+  // ni écriture. Un client qui déménageait obligeait à créer une seconde fiche.
+  const [ficheAModifier, setFicheAModifier] = React.useState<ClientRecord | null>(null)
 
   // Identité du cabinet connecté, pour signer le courriel d'accès. Elle vient
   // du contexte et jamais d'une constante : c'est ce qui a fait disparaître
@@ -578,6 +583,15 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
 
                       <button
                         type="button"
+                        onClick={(e) => { e.stopPropagation(); setFicheAModifier(client) }}
+                        title="Modifier la fiche du client"
+                        className="p-1.5 text-muted-foreground hover:text-primary-strong hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => router.push("/billing")}
                         title="Créer une facture pour ce client"
                         className="p-1.5 text-muted-foreground hover:text-success-strong hover:bg-success/10 rounded-xl transition-colors cursor-pointer"
@@ -830,6 +844,21 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
       )}
 
       {/* MODAL TRANSMISSION ACCÈS PORTAIL CLIENT */}
+      {/* LE MÊME formulaire que Prospects et que le dossier (§8). */}
+      {ficheAModifier && (
+        <ModifierFiche
+          type="client"
+          id={ficheAModifier.id}
+          nomAffiche={ficheAModifier.name}
+          onFerme={() => setFicheAModifier(null)}
+          onEnregistre={(msg) => {
+            setActionNotice(msg)
+            setTimeout(() => setActionNotice(null), 5000)
+            router.refresh()
+          }}
+        />
+      )}
+
       {selectedPortalClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-md p-4 animate-fadeIn" onClick={() => setSelectedPortalClient(null)}>
           <div className="bg-card w-full max-w-lg rounded-3xl border border-primary/40 shadow-2xl p-6 sm:p-8 flex flex-col gap-5 overflow-hidden" onClick={(e) => e.stopPropagation()}>

@@ -49,6 +49,7 @@ import { SelecteurCivilite } from "@/components/ui/civilite"
 import { ChampsAdresse, ADRESSE_VIDE, type ValeursAdresse } from "@/components/ui/adresse-postale"
 import { nomAvecCivilite, type Civilite } from "@/lib/data/identite"
 import { PROGRAM_GROUPS } from "@/lib/data/services-immigration"
+import { ModifierFiche } from "@/components/fiche/modifier-fiche"
 
 export type { Lead }
 
@@ -226,70 +227,21 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
   // retaper au moment du contrat, ce que le §30 interdit.
   const [newLeadAdresse, setNewLeadAdresse] = React.useState<ValeursAdresse>(ADRESSE_VIDE)
 
-  // Également état pour l'édition dans le modal de détails
-  const [isEditingSelectedLead, setIsEditingSelectedLead] = React.useState(false)
-  const [editLeadName, setEditLeadName] = React.useState("")
-  const [editLeadCompany, setEditLeadCompany] = React.useState("")
-  const [editLeadEmail, setEditLeadEmail] = React.useState("")
-  const [editLeadPhone, setEditLeadPhone] = React.useState("")
-  const [editLeadVisa, setEditLeadVisa] = React.useState("")
-  const [editLeadValue, setEditLeadValue] = React.useState("")
-  const [editLeadScoreLabel, setEditLeadScoreLabel] = React.useState<"high" | "med" | "low">("high")
-  const [editLeadNotes, setEditLeadNotes] = React.useState("")
+  /**
+   * LA MODIFICATION D'UNE FICHE PROSPECT passe par le formulaire PARTAGÉ.
+   *
+   * Un formulaire d'édition vivait ici, en ligne dans la fenêtre de détail :
+   * huit champs, sans civilité, sans adresse, sans journal. Le §8 interdit
+   * exactement cela — trois portes, trois formulaires, trois logiques — et
+   * c'est déjà ce qui se produisait : le prospect s'éditait ici, le client ne
+   * s'éditait NULLE PART, et aucun des deux ne laissait de trace.
+   *
+   * Ce qui remplace ces lignes n'est pas plus pauvre : c'est le même écran que
+   * Clients et que le dossier, avec l'adresse, le nom légal, les seconds moyens
+   * de contact et l'historique des modifications.
+   */
+  const [ficheAModifier, setFicheAModifier] = React.useState<Lead | null>(null)
 
-  const handleStartEditLead = () => {
-    if (!selectedLead) return
-    setEditLeadName(selectedLead.name)
-    setEditLeadCompany(selectedLead.company || "")
-    setEditLeadEmail(selectedLead.email)
-    setEditLeadPhone(selectedLead.phone)
-    setEditLeadVisa(selectedLead.visaType)
-    setEditLeadValue(String(selectedLead.estimatedValue))
-    setEditLeadScoreLabel(selectedLead.scoreLabel)
-    setEditLeadNotes(selectedLead.notes || "")
-    setIsEditingSelectedLead(true)
-  }
-
-  const handleSaveEditLead = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedLead) return
-
-    const scoreMap = { high: 90, med: 72, low: 55 }
-    const numValue = Number(editLeadValue) || 0
-
-    const updates: Partial<Lead> = {
-      name: editLeadName,
-      company: selectedLead.type === "b2b" ? editLeadCompany : undefined,
-      email: editLeadEmail,
-      phone: editLeadPhone,
-      visaType: editLeadVisa,
-      estimatedValue: numValue,
-      scoreLabel: editLeadScoreLabel,
-      score: scoreMap[editLeadScoreLabel],
-      notes: editLeadNotes,
-    }
-
-    const previous = leads
-    setLeads(leads.map(l => l.id === selectedLead.id ? { ...l, ...updates } : l))
-
-    try {
-      await updateLead(selectedLead.id, updates)
-    } catch (err) {
-      // L'échec était auparavant relégué à la console : l'écran affichait
-      // une fiche modifiée que la base n'avait jamais reçue.
-      setLeads(previous)
-      notifyError(
-        `Les modifications de « ${selectedLead.company || selectedLead.name} » n'ont pas été enregistrées : ${
-          err instanceof Error ? err.message : "erreur inconnue"
-        }`
-      )
-    }
-
-    setSelectedLead(prev => prev ? { ...prev, ...updates } : null)
-    setIsEditingSelectedLead(false)
-    setConversionSuccess(`Fiche prospect "${editLeadName}" mise à jour avec succès !`)
-    setTimeout(() => setConversionSuccess(null), 4000)
-  }
 
   const handleIntentChange = (intent: "info" | "consultation" | "mandate") => {
     setNewLeadIntent(intent)
@@ -395,7 +347,6 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
     setLeads(prev => prev.filter(l => l.id !== id))
     if (selectedLead?.id === id) {
       setSelectedLead(null)
-      setIsEditingSelectedLead(false)
     }
     setConversionSuccess(`Prospect "${targetLead?.company || targetLead?.name}" supprimé avec succès !`)
     setTimeout(() => setConversionSuccess(null), 5000)
@@ -440,7 +391,6 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
       // sinon l'historique du cycle de vente.
       setLeads(leads.map(l => (l.id === lead.id ? { ...l, stage: "signed" as const } : l)))
       setSelectedLead(null)
-      setIsEditingSelectedLead(false)
       router.refresh()
     } catch (err) {
       setConversionSuccess(
@@ -892,8 +842,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                 type="button"
                 onClick={() => {
                   setSelectedLead(null)
-                  setIsEditingSelectedLead(false)
-                }}
+                            }}
                 className="w-8 h-8 rounded-full bg-muted hover:bg-muted text-muted-foreground font-bold flex items-center justify-center transition-colors cursor-pointer"
               >
                 ✕
@@ -901,131 +850,10 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
             </div>
 
             {/* SI MODE ÉDITION ACTIF */}
-            {isEditingSelectedLead ? (
-              <form onSubmit={handleSaveEditLead} className="flex flex-col gap-4 text-xs">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="font-extrabold text-muted-foreground uppercase tracking-wider">Nom complet / Contact</label>
-                    <input
-                      type="text"
-                      required
-                      value={editLeadName}
-                      onChange={(e) => setEditLeadName(e.target.value)}
-                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-border bg-card focus:outline-none focus:border-primary/40"
-                    />
-                  </div>
-
-                  {selectedLead.type === "b2b" && (
-                    <div className="flex flex-col gap-1.5">
-                      <label className="font-extrabold text-muted-foreground uppercase tracking-wider">Raison Sociale de l&apos;Entreprise</label>
-                      <input
-                        type="text"
-                        required
-                        value={editLeadCompany}
-                        onChange={(e) => setEditLeadCompany(e.target.value)}
-                        className="w-full px-3.5 py-2 font-medium rounded-xl border border-border bg-card focus:outline-none focus:border-primary/40"
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="font-extrabold text-muted-foreground uppercase tracking-wider">Courriel</label>
-                    <input
-                      type="email"
-                      required
-                      value={editLeadEmail}
-                      onChange={(e) => setEditLeadEmail(e.target.value)}
-                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-border bg-card focus:outline-none focus:border-primary/40"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="font-extrabold text-muted-foreground uppercase tracking-wider">Téléphone</label>
-                    <input
-                      type="tel"
-                      required
-                      value={editLeadPhone}
-                      onChange={(e) => setEditLeadPhone(e.target.value)}
-                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-border bg-card focus:outline-none focus:border-primary/40"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 sm:col-span-2">
-                    <label className="font-extrabold text-muted-foreground uppercase tracking-wider">Programme ou Service Souhaité</label>
-                    <select
-                      value={editLeadVisa}
-                      onChange={(e) => setEditLeadVisa(e.target.value)}
-                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-border bg-card focus:outline-none focus:border-primary/40"
-                    >
-                      {PROGRAM_GROUPS.map((group) => (
-                        <optgroup key={group.label} label={group.label}>
-                          {group.options.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="font-extrabold text-muted-foreground uppercase tracking-wider">Valeur Estimée ($ CAD)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="50"
-                      required
-                      value={editLeadValue}
-                      onChange={(e) => setEditLeadValue(e.target.value)}
-                      className="w-full px-3.5 py-2 font-mono font-bold rounded-xl border border-primary/40 bg-primary/15 focus:outline-none focus:border-primary/40"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="font-extrabold text-muted-foreground uppercase tracking-wider">Praticabilité CICC</label>
-                    <select
-                      value={editLeadScoreLabel}
-                      onChange={(e) => setEditLeadScoreLabel(e.target.value as "high" | "med" | "low")}
-                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-border bg-card focus:outline-none focus:border-primary/40"
-                    >
-                      <option value="high">Haute (90%) - Dossier Solide</option>
-                      <option value="med">Moyenne (72%) - Analyse Requise</option>
-                      <option value="low">Faible (55%) - Risque d&apos;Admissibilité</option>
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 sm:col-span-2">
-                    <label className="font-extrabold text-muted-foreground uppercase tracking-wider">Notes & Remarques</label>
-                    <textarea
-                      rows={3}
-                      value={editLeadNotes}
-                      onChange={(e) => setEditLeadNotes(e.target.value)}
-                      className="w-full px-3.5 py-2 font-medium rounded-xl border border-border bg-card focus:outline-none focus:border-primary/40"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingSelectedLead(false)}
-                    className="px-4 py-2 rounded-xl border border-border font-bold text-muted-foreground hover:bg-muted cursor-pointer"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Enregistrer les Modifications</span>
-                  </button>
-                </div>
-              </form>
-            ) : (
-              /* MODE AFFICHAGE NORMAL */
-              <>
+            {/* MODE AFFICHAGE. L'édition passe par ModifierFiche, ouvert
+                en surimpression — le même écran que Clients et que le
+                dossier (§8). */}
+            <>
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div className="bg-muted p-3.5 rounded-2xl border border-border">
                     <span className="text-muted-foreground font-semibold block">Courriel du prospect</span>
@@ -1066,7 +894,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
 
                     <button
                       type="button"
-                      onClick={handleStartEditLead}
+                      onClick={() => setFicheAModifier(selectedLead)}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl border border-border text-xs font-bold text-foreground hover:bg-muted transition-colors cursor-pointer"
                     >
                       <Edit3 className="w-3.5 h-3.5 text-primary-strong" />
@@ -1087,8 +915,7 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
                     <span>{isConverting ? "Conversion…" : "Convertir en client"}</span>
                   </button>
                 </div>
-              </>
-            )}
+            </>
 
           </div>
         </div>
@@ -1466,6 +1293,22 @@ export function PipelineClient({ t, initialLeads }: PipelineClientProps) {
             </div>
           </form>
         </div>
+      )}
+
+      {/* LE MÊME formulaire que Clients et que le dossier (§8). */}
+      {ficheAModifier && (
+        <ModifierFiche
+          type="lead"
+          id={ficheAModifier.id}
+          nomAffiche={ficheAModifier.name}
+          onFerme={() => setFicheAModifier(null)}
+          onEnregistre={(msg) => {
+            setConversionSuccess(msg)
+            setTimeout(() => setConversionSuccess(null), 6000)
+            setSelectedLead(null)
+            router.refresh()
+          }}
+        />
       )}
 
     </div>

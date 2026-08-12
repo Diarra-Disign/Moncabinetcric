@@ -564,6 +564,106 @@ try {
   verifier("et elle est désormais au dossier du client", survivante?.client_id, client2.id)
 
   // -------------------------------------------------------------------------
+  console.log("\nModifier la fiche : les documents passés ne bougent pas (§5)")
+  // -------------------------------------------------------------------------
+  // LE SCÉNARIO DU §14, JOUÉ EN ENTIER. C'est le contrôle qui compte le plus de
+  // tout ce fichier : un client déménage, et le contrat qu'il a signé le mois
+  // dernier doit rester exactement ce qu'il a signé.
+  const { modifierFiche } = await import("../lib/data/fiche-modification.ts")
+  const { journalDeLaFiche } = await import("../lib/data/journal.ts")
+  // Le PROFIL, pas l'utilisateur : audit_logs.actor_member_id est NOT NULL et
+  // référence profiles. Passer null faisait échouer l'insertion du journal —
+  // en silence, puisque le journal ne doit pas faire échouer la modification.
+  // C'est cette épreuve qui l'a montré.
+  const { data: profilA } = await admin
+    .from("profiles").select("id").eq("user_id", userA).single()
+  const membreFiche = {
+    firmId: cabinetA, profileId: profilA.id, userId: userA,
+    fullName: "Propriétaire 1", email: "", role: "owner",
+  }
+
+  // L'entente ENT-EM a été émise plus haut, avec l'adresse « 456 rue Exemple ».
+  const { data: avantModif } = await admin
+    .from("agreement_parties").select("address, city")
+    .eq("agreement_id", aEmettre.id).eq("role", "client").single()
+  verifier("le contrat porte l'adresse d'origine", avantModif.address, "456 rue Exemple")
+
+  const r = await modifierFiche(cabinet, membreFiche, "client", cl.id, {
+    address: "999 boulevard du Déménagement",
+    city: "Québec",
+    postal_code: "G1R 2B5",
+  })
+  verifier("la fiche se modifie", r.ok ? "ok" : r.message, "ok")
+
+  const { data: apresModif } = await admin
+    .from("clients").select("address, city, postal_code").eq("id", cl.id).single()
+  verifier("la fiche porte la nouvelle adresse", apresModif.address, "999 boulevard du Déménagement")
+
+  // LE CONTRÔLE QUI COMPTE (§5). Le contrat signé ne bouge pas.
+  const { data: partieApresModif } = await admin
+    .from("agreement_parties").select("address, city")
+    .eq("agreement_id", aEmettre.id).eq("role", "client").single()
+  verifier("le contrat DÉJÀ ÉMIS garde son adresse", partieApresModif.address, "456 rue Exemple")
+  verifier("et sa ville", partieApresModif.city, "Montreal")
+
+  // Le PDF classé au dossier non plus : son empreinte le prouve.
+  const { data: pieceApres } = await admin
+    .from("documents").select("sha256").eq("id", apresEmission.document_id).single()
+  verifier("le PDF classé est intact", pieceApres.sha256, piece.sha256)
+
+  // Un NOUVEAU contrat prend la nouvelle adresse (§4).
+  const { chargerContractantAvec } = await import("../lib/data/contractant-lecture.ts")
+  const source = await chargerContractantAvec(cabinet, { firmId: cabinetA }, "client", cl.id)
+  verifier("un nouveau contrat prendrait la nouvelle adresse",
+    source.partie.address, "999 boulevard du Déménagement")
+
+  // ---- Le journal (§6) ----------------------------------------------------
+  const entrees = await journalDeLaFiche(cabinet, "client", cl.id)
+  verifier("la modification est journalisée", entrees.length > 0 ? "oui" : "NON", "oui")
+  const champs = (entrees[0]?.changements ?? []).map((c) => c.champ).sort().join(",")
+  verifier("le journal nomme les champs modifiés", champs, "address,city,postal_code")
+  const adresseJournal = (entrees[0]?.changements ?? []).find((c) => c.champ === "address")
+  // La valeur d'avant est celle de la FICHE, pas celle du contrat : le contrôle
+  // précédent visait la copie figée dans agreement_parties, celui-ci vise le
+  // CRM. La fiche portait « 7 avenue du Déménagement » depuis l'épreuve du §6.
+  verifier("il garde la valeur d'AVANT", adresseJournal?.avant, "7 avenue du Déménagement")
+  verifier("et celle d'APRÈS", adresseJournal?.apres, "999 boulevard du Déménagement")
+  verifier("il nomme l'auteur", entrees[0]?.acteur, "Propriétaire 1")
+
+  // Une modification qui ne change RIEN n'écrit rien : ouvrir un formulaire et
+  // le refermer ne doit pas gonfler le journal.
+  await modifierFiche(cabinet, membreFiche, "client", cl.id, { city: "Québec" })
+  const entrees2 = await journalDeLaFiche(cabinet, "client", cl.id)
+  verifier("une modification sans changement n'écrit rien", entrees2.length, entrees.length)
+
+  // LE JOURNAL EST IMMUABLE, et le contrôle porte sur le RÉSULTAT, pas sur le
+  // code de retour.
+  //
+  // PostgREST ne rend AUCUNE erreur ici : RLS ne publie qu'une politique
+  // d'insertion et une de lecture, donc un UPDATE ne trouve simplement aucune
+  // ligne à modifier et rend « succès, zéro ligne ». Chercher une erreur
+  // aurait donc conclu à tort que le journal est réécrivable. Ce qui compte
+  // est qu'il n'ait PAS bougé — et il faut le relire pour le savoir.
+  await cabinet.from("audit_logs").update({ summary: "réécrit" }).eq("id", entrees[0].id)
+  const { data: apresTentativeMaj } = await admin
+    .from("audit_logs").select("summary").eq("id", entrees[0].id).maybeSingle()
+  verifier("réécrire le journal ne change rien", apresTentativeMaj?.summary, entrees[0].resume)
+
+  await cabinet.from("audit_logs").delete().eq("id", entrees[0].id)
+  const { data: apresTentativeSup } = await admin
+    .from("audit_logs").select("id").eq("id", entrees[0].id).maybeSingle()
+  verifier("l'effacer ne l'efface pas", apresTentativeSup ? "toujours là" : "EFFACÉ", "toujours là")
+
+  // Et même avec les pleins pouvoirs — le déclencheur, lui, LÈVE.
+  const { error: eForce } = await admin
+    .from("audit_logs").update({ summary: "forcé" }).eq("id", entrees[0].id)
+  verifier("même en service_role : REFUSÉ", eForce ? "refusé" : "ACCEPTÉ", "refusé")
+
+  // Un autre cabinet ne lit pas ce journal.
+  const { data: jTiers } = await tiers.from("audit_logs").select("id").eq("entity_id", cl.id)
+  verifier("un autre cabinet ne voit pas le journal", (jTiers ?? []).length, 0)
+
+  // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
   // -------------------------------------------------------------------------
   const { data: entTiers } = await tiers.from("agreements").select("id").eq("firm_id", cabinetA)
