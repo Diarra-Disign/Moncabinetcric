@@ -54,7 +54,9 @@ export function ecarts(
 
 export interface Acteur {
   firmId: string
-  profileId?: string
+  /** NULL accepté : audit_logs le refuse, et l'échec est alors journalisé
+   *  plutôt que de faire échouer la modification elle-même. */
+  profileId?: string | null
   fullName?: string
   email?: string
   role?: string

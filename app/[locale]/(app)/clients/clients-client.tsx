@@ -4,49 +4,33 @@ import * as React from "react"
 import { 
   Users, 
   Search, 
-  Plus, 
   CheckCircle2, 
   ShieldCheck, 
   Mail, 
   Phone, 
-  MapPin, 
-  MoreVertical, 
   UserPlus, 
-  FileText,
-  AlertCircle,
   Clock,
-  Filter,
   Download,
-  ArrowUpRight,
-  Globe,
   Building2,
-  User,
-  Calculator,
   Trash2,
   FolderOpen,
   FolderPlus,
   Pencil,
   Receipt,
-  ChevronRight,
   X,
   KeyRound,
   ExternalLink
 } from "lucide-react"
-import { Link, useRouter } from "@/i18n/routing"
+import { useRouter } from "@/i18n/routing"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { ClientRecord, Matter } from "@/lib/data/types"
 import { matchesPerson } from "@/lib/utils/search"
-import { createClient } from "@/lib/data/actions"
 import { ouvrirAccesPortail } from "@/lib/data/portal-access"
 import { creerDossierPourClient } from "@/lib/data/matter-creation"
 import { TYPES_DE_DOSSIER } from "@/lib/data/matter-types"
 import { ConfirmationEnvoi } from "@/components/ui/confirmation-envoi"
 import { cn } from "@/lib/utils"
-import { SelecteurCivilite } from "@/components/ui/civilite"
-import { nomAvecCivilite, type Civilite } from "@/lib/data/identite"
-import { PROGRAM_GROUPS } from "@/lib/data/services-immigration"
-import { ChampsAdresse, ADRESSE_VIDE, type ValeursAdresse } from "@/components/ui/adresse-postale"
-import { ModifierFiche } from "@/components/fiche/modifier-fiche"
+import { ModifierFiche, CreerFiche } from "@/components/fiche/fiche-formulaire"
 
 export type { ClientRecord }
 
@@ -119,30 +103,21 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
     else setPortalError(r.message)
   }
 
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
-  // Form states for new client modal (NOM ET PRÉNOM SÉPARÉS)
-  const [clientType, setClientType] = React.useState<"individual" | "employer">("individual")
-  const [newFirstName, setNewFirstName] = React.useState("")
-  const [newLastName, setNewLastName] = React.useState("")
-  const [companyName, setCompanyName] = React.useState("")
-  const [neqNumber, setNeqNumber] = React.useState("")
-  const [newEmail, setNewEmail] = React.useState("")
-  const [newPhone, setNewPhone] = React.useState("")
-  const [newCitizenship, setNewCitizenship] = React.useState("France")
-  const [residenceLocation, setResidenceLocation] = React.useState<"canada" | "international">("canada")
-  const [newCivility, setNewCivility] = React.useState<Civilite | "">("")
-  // La valeur par défaut vient du catalogue partagé : elle doit être une
-  // valeur RÉELLE de la liste, sinon le premier client créé sans toucher au
-  // menu porte un programme qui n'y figure pas.
-  const [newProgram, setNewProgram] = React.useState(PROGRAM_GROUPS[1].options[0].value)
-  // L'ADRESSE POSTALE remplace le champ `newProvince`, qui valait « Québec »
-  // pour TOUS les clients : il n'avait aucun sélecteur à l'écran et sa valeur
-  // par défaut partait telle quelle en base. Une colonne qui ne dit qu'une
-  // seule chose ne dit rien.
-  const [newAdresse, setNewAdresse] = React.useState<ValeursAdresse>(ADRESSE_VIDE)
-  const [intakeNotes, setIntakeNotes] = React.useState("")
+  /**
+   * LA CRÉATION D'UN CLIENT N'A PLUS D'ÉTAT ICI.
+   *
+   * Onze champs d'état et deux cents lignes de panneau faisaient le même
+   * travail que le formulaire de modification, avec moins de champs et un
+   * autre langage visuel. `<CreerFiche>` est le MÊME composant que
+   * `<ModifierFiche>`, à un mode près.
+   *
+   * Le NUMÉRO DE DOSSIER partait d'ici aussi, composé dans le navigateur à
+   * partir de la longueur de la liste affichée : deux consultants créant une
+   * fiche en même temps obtenaient le même. Il vient désormais de
+   * `next_client_file_number()`, comme à la conversion d'un prospect.
+   */
+
 
   // Ce tableau associait en dur c-1 à c-4 aux dossiers de démonstration, et
   // renvoyait DOS-35695 pour tout le reste. Sur des clients réels, il
@@ -165,61 +140,6 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
     return matchesStatus && matchesSearch
   })
 
-  const handleCreateClient = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const fullName = `${newFirstName.trim()} ${newLastName.trim()}`.trim()
-    const clientDisplayName = clientType === "employer" 
-      ? `${companyName} (${fullName || "Représentant RH"})`
-      : fullName
-
-    if (!clientDisplayName.trim() || isSubmitting) return
-
-    const nextSeq = 100 + clients.length + 1
-    const fileNumber = `CRIC-2026-0${nextSeq}`
-    const createdData: Omit<ClientRecord, "id"> = {
-      fileNumber,
-      name: clientDisplayName,
-      civility: newCivility || null,
-      firstName: newFirstName,
-      lastName: newLastName,
-      email: newEmail,
-      phone: newPhone,
-      citizenship: clientType === "employer" ? "Canada (Employeur)" : (newCitizenship || "Non spécifié"),
-      residence: residenceLocation === "canada" ? "Canada" : "International",
-      ...newAdresse,
-      program: newProgram,
-      status: "active",
-      intakeMotif: intakeNotes || "Dossier initialisé depuis la section Mon Cabinet CRIC.",
-      clientType,
-      neqNumber: clientType === "employer" ? neqNumber : undefined
-    }
-
-    setIsSubmitting(true)
-    setErrorMessage(null)
-
-    try {
-      const created = await createClient(createdData)
-      setClients(prev => [created, ...prev])
-      setShowNewModal(false)
-      setActionNotice(`Nouveau dossier client CICC ${created.fileNumber} créé avec succès !`)
-      setTimeout(() => setActionNotice(null), 5000)
-      
-      // Reset form
-      setNewFirstName("")
-      setNewLastName("")
-      setNewAdresse(ADRESSE_VIDE)
-      setCompanyName("")
-      setNeqNumber("")
-      setNewEmail("")
-      setNewPhone("")
-      setIntakeNotes("")
-      router.refresh()
-    } catch (err) {
-      setErrorMessage(`Erreur lors de l'enregistrement du client : ${err instanceof Error ? err.message : "échec inattendu"}`)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
 
   const handleDeleteClient = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -644,206 +564,25 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
         </div>
       </div>
 
-      {/* MODAL : CRÉATION FICHE CLIENT (SÉPARATION PRÉNOM ET NOM) */}
+      {/* LA CRÉATION EMPLOIE LE MÊME COMPOSANT QUE LA MODIFICATION (§17).
+          Le panneau qui vivait ici avait déjà divergé de « Modifier » : ni nom
+          légal, ni date de naissance, ni second courriel ni second téléphone.
+          Et il composait le NUMÉRO DE DOSSIER dans le navigateur, à partir de
+          la longueur de sa propre liste — deux consultants créant une fiche en
+          même temps obtenaient le même numéro, et un filtre actif en donnait
+          un faux. Il vient maintenant de la base, comme à la conversion. */}
       {showNewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-md p-4 animate-fadeIn overflow-y-auto">
-          <form
-            onSubmit={handleCreateClient}
-            className="bg-card w-full max-w-xl rounded-3xl border border-border shadow-2xl p-6 sm:p-8 flex flex-col gap-5 relative overflow-hidden my-8"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <div>
-                <span className="inline-block bg-primary/15 text-primary-strong border border-primary/40 font-mono text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-1">
-                  Enregistrement Registre CICC
-                </span>
-                <h3 className="text-xl font-black text-foreground">Nouvelle Fiche Client Officielle</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowNewModal(false)}
-                className="w-8 h-8 rounded-full bg-muted hover:bg-muted text-muted-foreground font-bold flex items-center justify-center transition-colors cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Type de Client</label>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="clientType"
-                      checked={clientType === "individual"}
-                      onChange={() => setClientType("individual")}
-                      className="text-primary-strong focus:ring-0"
-                    />
-                    <span>Particulier (B2C)</span>
-                  </label>
-                  <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
-                    <input
-                      type="radio"
-                      name="clientType"
-                      checked={clientType === "employer"}
-                      onChange={() => setClientType("employer")}
-                      className="text-accent-strong focus:ring-0"
-                    />
-                    <span>Employeur / Entreprise (B2B)</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* La civilité précède le prénom : c'est l'ordre dans lequel on
-                  s'adresse à quelqu'un, et celui dans lequel elle sera imprimée
-                  sur l'entente de service et les formulaires IRCC. */}
-              <div className="flex flex-col gap-1.5 sm:col-span-2 sm:max-w-[14rem]">
-                <label htmlFor="civilite-client" className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Civilité</label>
-                <SelecteurCivilite id="civilite-client" valeur={newCivility} onChange={setNewCivility}
-                  className="px-4 py-2.5 rounded-2xl bg-muted" />
-              </div>
-
-              {/* PRÉNOM ET NOM SÉPARÉS */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Prénom</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="ex: Adama"
-                  value={newFirstName}
-                  onChange={(e) => setNewFirstName(e.target.value)}
-                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Nom de Famille</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="ex : Nom de famille"
-                  value={newLastName}
-                  onChange={(e) => setNewLastName(e.target.value)}
-                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
-                />
-              </div>
-
-              {clientType === "employer" && (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Raison Sociale</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="ex : Nom de l'entreprise"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Numéro NEQ (Québec)</label>
-                    <input
-                      type="text"
-                      placeholder="ex: NEQ 1178923412"
-                      value={neqNumber}
-                      onChange={(e) => setNeqNumber(e.target.value)}
-                      className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all font-mono"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Courriel</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="adiarra@consulting.ca"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Téléphone</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="+1 (514) 555-0101"
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all"
-                />
-              </div>
-
-              {/* ADRESSE POSTALE
-                  Distincte de « Nationalité » et de « Lieu de résidence », qui
-                  sont des PAYS et servent au dossier d'immigration. Aucun des
-                  deux ne dit où le client habite — et c'est cette adresse-ci
-                  qui identifie la partie sur une entente de service. */}
-              <div className="sm:col-span-2 border-t border-border pt-4">
-                <p className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider mb-3">
-                  Adresse postale
-                  <span className="ml-2 normal-case font-semibold text-[11px] text-muted-foreground/80">
-                    reprise sur les ententes de service et les factures
-                  </span>
-                </p>
-                <ChampsAdresse valeurs={newAdresse} onChange={setNewAdresse} prefixe="client" />
-              </div>
-
-              <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Programme / Mandat Souhaité</label>
-                <select
-                  value={newProgram}
-                  onChange={(e) => setNewProgram(e.target.value)}
-                  className="w-full px-4 py-2.5 text-xs font-bold rounded-2xl bg-muted border border-border focus:bg-card focus:border-primary/40 focus:outline-none transition-all text-foreground cursor-pointer"
-                >
-                  {/* Le MÊME catalogue que le pipeline. Deux listes divergentes
-                      enregistraient le même service sous deux chaînes selon
-                      l'écran qui avait créé la fiche. */}
-                  {PROGRAM_GROUPS.map((groupe) => (
-                    <optgroup key={groupe.label} label={groupe.label}>
-                      {groupe.options.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {errorMessage && (
-              <div className="bg-error/15 border border-error/40 text-error-strong rounded-2xl p-3 text-xs font-bold flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-error-strong" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setShowNewModal(false)}
-                disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-2xl border border-border text-xs font-bold text-foreground hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Annuler
-              </button>
-              <button 
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? "Création en cours..." : "Créer la Fiche Client CICC"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <CreerFiche
+          type="client"
+          onFerme={() => setShowNewModal(false)}
+          onEnregistre={(msg) => {
+            setActionNotice(msg)
+            setTimeout(() => setActionNotice(null), 6000)
+            router.refresh()
+          }}
+        />
       )}
 
-      {/* MODAL TRANSMISSION ACCÈS PORTAIL CLIENT */}
       {/* LE MÊME formulaire que Prospects et que le dossier (§8). */}
       {ficheAModifier && (
         <ModifierFiche

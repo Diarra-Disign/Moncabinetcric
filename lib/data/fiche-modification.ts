@@ -48,12 +48,14 @@ const COLONNES: Record<"client" | "lead", (keyof ChampsFiche)[]> = {
     "email", "email_secondary", "phone", "phone_secondary",
     "address", "address_line2", "city", "province", "postal_code", "country",
     "program", "citizenship", "residence", "intake_motif", "neq_number",
+    "client_type",
   ],
   lead: [
     "civility", "first_name", "last_name", "legal_name", "birth_date",
     "email", "email_secondary", "phone", "phone_secondary",
     "address", "address_line2", "city", "province", "postal_code", "country",
     "company", "visa_type", "source", "contact_intent", "notes",
+    "type", "estimated_value", "score_label", "lmia_positions",
   ],
 }
 

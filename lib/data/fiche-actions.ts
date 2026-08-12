@@ -75,6 +75,37 @@ export async function modifierFiche(
   }
 }
 
+/**
+ * Crée une fiche. Enveloppe mince, même motif que la modification.
+ */
+export async function creerFiche(
+  type: "client" | "lead",
+  champs: ChampsFiche
+): Promise<Resultat & { id?: string; reference?: string }> {
+  try {
+    const membre = await moi()
+    const sb = await getSessionSupabase()
+
+    const { creerFiche: appliquer } = await import("./fiche-creation")
+    const r = await appliquer(sb, {
+      firmId: membre.firmId,
+      profileId: membre.profileId,
+      userId: membre.userId,
+      fullName: membre.fullName,
+      email: membre.email,
+      role: membre.ciccRole,
+    }, type, champs)
+
+    if (r.ok) {
+      revalidatePath("/fr/clients")
+      revalidatePath("/fr/pipeline")
+    }
+    return r
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
 /** La fiche telle qu'elle est en base, pour ouvrir le formulaire dessus. */
 export async function chargerFiche(
   type: "client" | "lead",

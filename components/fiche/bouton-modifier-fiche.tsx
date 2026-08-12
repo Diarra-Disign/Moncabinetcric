@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Pencil } from "lucide-react"
 import { useRouter } from "@/i18n/routing"
-import { ModifierFiche } from "./modifier-fiche"
+import { ModifierFiche } from "./fiche-formulaire"
 import { cn } from "@/lib/utils"
 
 /**

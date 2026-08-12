@@ -664,6 +664,82 @@ try {
   verifier("un autre cabinet ne voit pas le journal", (jTiers ?? []).length, 0)
 
   // -------------------------------------------------------------------------
+  console.log("\nCréer une fiche : le MÊME chemin que la modifier (§17)")
+  // -------------------------------------------------------------------------
+  const { creerFiche } = await import("../lib/data/fiche-creation.ts")
+
+  const rProspect = await creerFiche(cabinet, membreFiche, "lead", {
+    civility: "mrs", first_name: "Aïcha", last_name: "Ndiaye",
+    email: `aicha-${marque}@example.invalid`, phone: "+1 514 555 0188",
+    address: "789 rue Neuve", address_line2: "Appartement 12",
+    city: "Laval", province: "Québec", postal_code: "H7N 1A1", country: "Canada",
+    visa_type: "Permis de travail", estimated_value: 3200, score_label: "high",
+    contact_intent: "mandate", source: "Épreuve",
+  })
+  verifier("un prospect se crée", rProspect.ok ? "ok" : rProspect.message, "ok")
+
+  const { data: prospectCree } = await admin
+    .from("leads")
+    .select("name, civility, address, address_line2, city, province, postal_code, country, score, stage, type")
+    .eq("id", rProspect.id).single()
+  // L'ADRESSE COMPLÈTE est disponible IMMÉDIATEMENT (§19) : c'est tout l'objet
+  // du lot. Le formulaire de création la collectait sans que la colonne
+  // address_line2 existe.
+  verifier("son nom est composé", prospectCree.name, "Aïcha Ndiaye")
+  verifier("son appartement est enregistré", prospectCree.address_line2, "Appartement 12")
+  verifier("sa province aussi", prospectCree.province, "Québec")
+  // Le score chiffré suit l'étiquette : c'est lui que le pipeline trie.
+  verifier("le score suit la faisabilité", prospectCree.score, 90)
+  verifier("il entre à l'étape « nouveau »", prospectCree.stage, "newLead")
+
+  // Sans nom ni courriel, la création est REFUSÉE — à l'action, pas seulement
+  // à l'écran : l'action reste appelable sans lui.
+  const rVide = await creerFiche(cabinet, membreFiche, "lead", { first_name: "Sans" })
+  verifier("sans nom ni courriel : REFUSÉ", rVide.ok ? "ACCEPTÉ" : "refusé", "refusé")
+  const rCourriel = await creerFiche(cabinet, membreFiche, "lead", {
+    last_name: "Test", email: "pas-un-courriel",
+  })
+  verifier("un courriel incomplet : REFUSÉ", rCourriel.ok ? "ACCEPTÉ" : "refusé", "refusé")
+
+  const rClient = await creerFiche(cabinet, membreFiche, "client", {
+    civility: "mr", first_name: "Ibrahim", last_name: "Sow",
+    email: `ibrahim-${marque}@example.invalid`, phone: "+1 438 555 0199",
+    address: "12 avenue Neuve", city: "Sherbrooke", province: "Québec",
+    postal_code: "J1H 1A1", country: "Canada",
+    program: "Résidence permanente", citizenship: "Sénégal", residence: "International",
+  })
+  verifier("un client se crée", rClient.ok ? "ok" : rClient.message, "ok")
+  // LE NUMÉRO VIENT DE LA BASE, pas du navigateur : l'écran le composait à
+  // partir de la longueur de sa propre liste, donc deux consultants créant une
+  // fiche en même temps obtenaient le même.
+  verifier("son numéro de dossier est attribué",
+    /^[A-Z]+-\d{4}-\d+$/.test(rClient.reference ?? "") ? "oui" : `NON (${rClient.reference})`, "oui")
+
+  // Deux créations de suite ne peuvent pas porter le même numéro.
+  const rClient2 = await creerFiche(cabinet, membreFiche, "client", {
+    last_name: "Bis", email: `bis-${marque}@example.invalid`,
+  })
+  verifier("deux clients, deux numéros",
+    rClient2.reference !== rClient.reference ? "oui" : `MÊME (${rClient.reference})`, "oui")
+
+  // La création est journalisée elle aussi.
+  const jCreation = await journalDeLaFiche(cabinet, "client", rClient.id)
+  verifier("la création entre au journal", jCreation.length > 0 ? "oui" : "NON", "oui")
+  verifier("et nomme le dossier attribué",
+    jCreation[0]?.resume?.includes(rClient.reference) ? "oui" : "NON", "oui")
+
+  // §21 : ce qui a été SAISI se relit tel quel dans le formulaire de
+  // modification. C'est la cohérence que le §18 exige entre les deux modes.
+  const { data: clientRelu } = await admin
+    .from("clients")
+    .select("civility, first_name, last_name, address, city, province, postal_code, country, citizenship, residence")
+    .eq("id", rClient.id).single()
+  verifier("la civilité se relit", clientRelu.civility, "mr")
+  verifier("l'adresse se relit", clientRelu.address, "12 avenue Neuve")
+  verifier("la province se relit", clientRelu.province, "Québec")
+  verifier("le lieu de résidence se relit", clientRelu.residence, "International")
+
+  // -------------------------------------------------------------------------
   console.log("\nCloisonnement entre cabinets")
   // -------------------------------------------------------------------------
   const { data: entTiers } = await tiers.from("agreements").select("id").eq("firm_id", cabinetA)

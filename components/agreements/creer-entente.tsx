@@ -6,7 +6,7 @@ import {
   Building2, Settings,
 } from "lucide-react"
 import Link from "next/link"
-import { ModifierFiche } from "@/components/fiche/modifier-fiche"
+import { ModifierFiche } from "@/components/fiche/fiche-formulaire"
 import {
   rechercherContractant, preremplir, articlesDuModele, creerEntente,
   type ArticleEntente,
