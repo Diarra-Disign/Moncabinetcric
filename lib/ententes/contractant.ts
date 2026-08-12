@@ -22,6 +22,7 @@ import type { PartieContractante, CabinetContrat } from "./variables"
 /** Ce qu'on lit sur une ligne `clients`. */
 export interface LigneClient {
   civility?: string | null
+  address_line2?: string | null
   first_name?: string | null
   last_name?: string | null
   name?: string | null
@@ -67,6 +68,7 @@ function partieDepuis(r: LigneClient): PartieContractante {
     email: txt(r.email),
     phone: txt(r.phone),
     address: txt(r.address),
+    addressLine2: txt(r.address_line2),
     city: txt(r.city),
     province: txt(r.province),
     postalCode: txt(r.postal_code),
@@ -83,12 +85,24 @@ export interface LigneCabinet {
   owner_name?: string | null
   rcic_license_number?: string | null
   address?: string | null
+  address_line2?: string | null
+  city?: string | null
+  province?: string | null
+  postal_code?: string | null
+  country?: string | null
   email?: string | null
   phone?: string | null
   website?: string | null
 }
 
-/** Le consultant vient des Paramètres (§9), jamais retapé dans un contrat. */
+/**
+ * Le consultant vient des Paramètres (§9), jamais retapé dans un contrat.
+ *
+ * C'est LE point du §11 : il n'existe pas d'identité professionnelle propre
+ * aux contrats. Les Paramètres sont la source, et une adresse corrigée
+ * là-bas s'applique aux contrats SUIVANTS — jamais à ceux déjà établis, dont
+ * la copie est figée dans agreement_parties au moment de la création.
+ */
 export function cabinetDepuisFirm(r: LigneCabinet, civiliteConsultant?: string | null): CabinetContrat {
   return {
     nom: txt(r.name),
@@ -96,9 +110,43 @@ export function cabinetDepuisFirm(r: LigneCabinet, civiliteConsultant?: string |
     civiliteConsultant: civiliteConsultant ?? null,
     permis: txt(r.rcic_license_number),
     adresse: txt(r.address),
+    adresseComplement: txt(r.address_line2),
+    ville: txt(r.city),
+    province: txt(r.province),
+    codePostal: txt(r.postal_code),
+    pays: txt(r.country),
     courriel: txt(r.email),
     telephone: txt(r.phone),
     siteWeb: txt(r.website),
+  }
+}
+
+/**
+ * Le consultant, en tant que PARTIE au contrat.
+ *
+ * Sa copie était incomplète : `emettreEntente()` n'écrivait que la première
+ * ligne de son adresse dans agreement_parties, et le PDF d'un contrat ancien
+ * n'aurait donc jamais retrouvé sa ville. Ici, tout est recopié — c'est cette
+ * copie-là qui fait foi une fois le contrat établi.
+ */
+export function partieDepuisCabinet(f: CabinetContrat): PartieContractante {
+  return {
+    civility: f.civiliteConsultant ?? null,
+    firstName: "",
+    lastName: f.consultant,
+    // La raison sociale : le contrat engage le CABINET, le consultant le
+    // signe. Les deux doivent figurer, et « legal_name » est la colonne qui
+    // porte déjà cette distinction pour un client constitué en société.
+    legalName: f.nom,
+    email: f.courriel ?? "",
+    phone: f.telephone ?? "",
+    address: f.adresse ?? "",
+    addressLine2: f.adresseComplement ?? "",
+    city: f.ville ?? "",
+    licenseNumber: f.permis ?? "",
+    province: f.province ?? "",
+    postalCode: f.codePostal ?? "",
+    country: f.pays ?? "",
   }
 }
 
@@ -125,6 +173,8 @@ export function ligneDePartie(
     email: p.email ?? "",
     phone: p.phone ?? "",
     address: p.address ?? "",
+    address_line2: p.addressLine2 ?? "",
+    license_number: p.licenseNumber ?? "",
     city: p.city ?? "",
     province: p.province ?? "",
     postal_code: p.postalCode ?? "",

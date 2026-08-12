@@ -16,7 +16,14 @@ export interface FirmIdentity {
   name: string
   rcicNumber: string
   rcicName: string
+  /** Numéro et rue — première ligne de l'adresse professionnelle. */
   address: string
+  /** Appartement, bureau, unité. */
+  addressLine2: string
+  city: string
+  province: string
+  postalCode: string
+  country: string
   phone: string
   email: string
   /** Adresse qui reçoit les réponses aux courriels envoyés aux clients. */
@@ -55,6 +62,11 @@ export const EMPTY_FIRM: FirmIdentity = {
   rcicNumber: "",
   rcicName: "",
   address: "",
+  addressLine2: "",
+  city: "",
+  province: "",
+  postalCode: "",
+  country: "",
   phone: "",
   email: "",
   replyToEmail: "",
@@ -81,6 +93,11 @@ export interface FirmRow {
   rcic_license_number: string | null
   owner_name: string | null
   address: string | null
+  address_line2?: string | null
+  city?: string | null
+  province?: string | null
+  postal_code?: string | null
+  country?: string | null
   phone: string | null
   email: string | null
   reply_to_email?: string | null
@@ -107,6 +124,13 @@ export function mapFirmRow(row: FirmRow): FirmIdentity {
     rcicNumber: row.rcic_license_number ?? "",
     rcicName: row.owner_name ?? "",
     address: row.address ?? "",
+    addressLine2: row.address_line2 ?? "",
+    city: row.city ?? "",
+    province: row.province ?? "",
+    postalCode: row.postal_code ?? "",
+    // Un cabinet CRIC exerce depuis le Canada : c'est la seule valeur par
+    // défaut qu'on puisse poser sans rien inventer.
+    country: row.country ?? "Canada",
     phone: row.phone ?? "",
     email: row.email ?? "",
     replyToEmail: row.reply_to_email ?? "",

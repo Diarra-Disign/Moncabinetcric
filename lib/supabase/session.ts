@@ -93,7 +93,7 @@ export async function getCurrentFirm(): Promise<FirmIdentity> {
 
   const { data, error } = await supabase
     .from("firms")
-    .select("id, name, rcic_license_number, owner_name, address, phone, email, reply_to_email, email_sender_name, tax_gst_number, tax_qst_number, tax_gst_rate, tax_qst_rate, invoice_prefix, payment_terms, logo_letter, logo_url, plan, status, trial_ends_at")
+    .select("id, name, rcic_license_number, owner_name, address, address_line2, city, province, postal_code, country, phone, email, website, reply_to_email, email_sender_name, tax_gst_number, tax_qst_number, tax_gst_rate, tax_qst_rate, invoice_prefix, payment_terms, logo_letter, logo_url, plan, status, trial_ends_at")
     .eq("id", profile.firm_id)
     .maybeSingle()
 

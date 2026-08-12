@@ -33,7 +33,7 @@ export async function getPlatformOperatorFirm(): Promise<FirmIdentity> {
   const { data, error } = await supabase
     .from("firms")
     .select(
-      "id, name, rcic_license_number, owner_name, address, phone, email, website, logo_letter, logo_url, plan, status, trial_ends_at"
+      "id, name, rcic_license_number, owner_name, address, address_line2, city, province, postal_code, country, phone, email, website, logo_letter, logo_url, plan, status, trial_ends_at"
     )
     .eq("is_platform_operator", true)
     .maybeSingle()

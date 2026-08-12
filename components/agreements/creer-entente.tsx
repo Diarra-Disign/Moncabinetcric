@@ -3,12 +3,19 @@
 import * as React from "react"
 import {
   Search, X, FileText, Check, ArrowUp, ArrowDown, Lock, AlertTriangle, User,
+  Building2, Settings,
 } from "lucide-react"
+import Link from "next/link"
 import {
   rechercherContractant, preremplir, articlesDuModele, creerEntente,
   type ArticleEntente,
 } from "@/lib/data/ententes-actions"
-import { variablesDe, substituer } from "@/lib/ententes/variables"
+import {
+  variablesDe, substituer, verifierAvantGeneration,
+  lignesAdresseCabinet, adresseDuContractant,
+} from "@/lib/ententes/variables"
+import { lignesAdresse } from "@/lib/data/adresse"
+import { nomAvecCivilite } from "@/lib/data/identite"
 import { cn } from "@/lib/utils"
 
 /**
@@ -80,24 +87,77 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
     setArticles(copie.map((a, k) => ({ ...a, position: k + 1 })))
   }
 
-  /** L'aperçu, composé exactement comme le sera le PDF. */
-  const apercu = React.useMemo(() => {
-    if (!source) return []
+  /** Le contexte du contrat — le MÊME que celui que le serveur assemblera. */
+  const contexte = React.useMemo(() => {
+    if (!source) return null
     const montant = Number(honoraires) || 0
-    const variables = variablesDe({
+    return {
       contractant: source.partie,
       cabinet: source.cabinet,
       montants: { honoraires: montant, taxes: 0, total: montant },
       entente: { numero: "—", date: new Date().toISOString().slice(0, 10), titre: modele?.titre ?? "" },
       locale: "fr",
       proBono,
-    })
+    }
+  }, [source, honoraires, modele, proBono])
+
+  /** L'aperçu, composé exactement comme le sera le PDF. */
+  const apercu = React.useMemo(() => {
+    if (!contexte) return []
+    const variables = variablesDe(contexte)
     return articles.filter((a) => a.enabled).map((a) => ({
       code: a.code,
       titre: substituer(a.titleFr, variables).texte,
       corps: substituer(a.bodyFr, variables).texte,
     }))
-  }, [source, articles, honoraires, modele, proBono])
+  }, [contexte, articles])
+
+  /**
+   * Le contrôle du §29 joué À L'ÉCRAN, avec la MÊME fonction que le serveur.
+   *
+   * Il ne remplace pas celui de l'action — l'action reste la frontière, et elle
+   * est appelable sans cet écran. Il évite au consultant de composer un contrat
+   * entier pour se voir refuser à la dernière seconde, et il dit OÙ corriger.
+   */
+  const controle = React.useMemo(() => {
+    if (!contexte) return null
+    return verifierAvantGeneration(
+      contexte,
+      articles.filter((a) => a.enabled).map((a) => `${a.titleFr}\n${a.bodyFr}`)
+    )
+  }, [contexte, articles])
+
+  /** Les deux blocs du §8, tels qu'ils s'imprimeront. */
+  const blocs = React.useMemo(() => {
+    if (!source) return null
+    return {
+      consultant: {
+        nom: nomAvecCivilite(
+          { civility: source.cabinet.civiliteConsultant, name: source.cabinet.consultant }, "fr"
+        ),
+        organisation: source.cabinet.nom,
+        permis: source.cabinet.permis,
+        adresse: lignesAdresseCabinet(source.cabinet),
+        telephone: source.cabinet.telephone ?? "",
+        courriel: source.cabinet.courriel ?? "",
+      },
+      client: {
+        nom: nomAvecCivilite(
+          {
+            civility: source.partie.civility,
+            firstName: source.partie.firstName,
+            lastName: source.partie.lastName,
+          },
+          "fr"
+        ),
+        organisation: source.partie.legalName ?? "",
+        permis: "",
+        adresse: lignesAdresse(adresseDuContractant(source.partie)),
+        telephone: source.partie.phone ?? "",
+        courriel: source.partie.email ?? "",
+      },
+    }
+  }, [source])
 
   const enregistrer = async () => {
     if (!modele || !choisi) return
@@ -282,14 +342,65 @@ export function CreerEntente({ modeles, onFerme }: { modeles: Modele[]; onFerme:
             ) : (
               <article className="rounded-xl border border-border bg-card p-5 space-y-4 text-foreground">
                 <header className="border-b border-border pb-3">
-                  <p className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">
-                    {source.cabinet.nom}
-                  </p>
-                  <h4 className="text-sm font-black mt-1">{modele?.titre}</h4>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {source.cabinet.consultant} · permis {source.cabinet.permis || "—"}
-                  </p>
+                  <h4 className="text-sm font-black">{modele?.titre}</h4>
                 </header>
+
+                {/* LES DEUX JEUX DE DONNÉES, VISIBLES AVANT LA GÉNÉRATION (§9).
+                    Côte à côte et séparés : le consultant doit pouvoir vérifier
+                    d'un regard que rien ne s'est mélangé. */}
+                {blocs && (
+                  <div className="grid gap-3 sm:grid-cols-2 border-b border-border pb-4">
+                    {([
+                      { cle: "consultant", titre: "Consultant / Représentant", Icone: Building2, d: blocs.consultant },
+                      { cle: "client", titre: "Client / Contractant", Icone: User, d: blocs.client },
+                    ] as const).map(({ cle, titre, Icone, d }) => (
+                      <div key={cle} className="rounded-lg border border-border bg-muted/30 p-3">
+                        <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                          <Icone className="h-3 w-3" /> {titre}
+                        </p>
+                        <p className="mt-1.5 text-xs font-black">{d.nom || "—"}</p>
+                        {d.organisation && d.organisation !== d.nom && (
+                          <p className="text-[11px] font-bold">{d.organisation}</p>
+                        )}
+                        {d.permis && (
+                          <p className="text-[11px] font-semibold">Permis CRIC {d.permis}</p>
+                        )}
+                        {/* Aucune ligne vide (§4) : ce qui manque ne s'affiche
+                            pas, et son absence se voit dans le contrôle. */}
+                        {d.adresse.map((l) => (
+                          <p key={l} className="text-[11px] text-muted-foreground">{l}</p>
+                        ))}
+                        {d.telephone && <p className="text-[11px] text-muted-foreground">Tél. {d.telephone}</p>}
+                        {d.courriel && <p className="text-[11px] text-muted-foreground">{d.courriel}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* §5 — le refus dit CE qui manque, et mène OÙ le corriger. */}
+                {controle && !controle.ok && (
+                  <div className="rounded-lg border border-warning/40 bg-warning/10 p-3">
+                    <p className="flex items-center gap-1.5 text-xs font-black text-warning-strong">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      {controle.profilACompleter
+                        ? "Adresse professionnelle incomplète"
+                        : "Renseignements manquants"}
+                    </p>
+                    <ul className="mt-1.5 space-y-0.5">
+                      {controle.manquants.map((mq) => (
+                        <li key={mq} className="text-[11px] text-foreground">{mq}</li>
+                      ))}
+                    </ul>
+                    {controle.profilACompleter && (
+                      <Link
+                        href="/fr/settings"
+                        className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-warning-strong/10 px-2.5 py-1.5 text-[11px] font-bold text-warning-strong hover:bg-warning-strong/20"
+                      >
+                        <Settings className="h-3 w-3" /> Compléter mon profil
+                      </Link>
+                    )}
+                  </div>
+                )}
                 {apercu.map((a, i) => (
                   <section key={a.code}>
                     <h5 className="text-xs font-black">{i + 1}. {a.titre}</h5>

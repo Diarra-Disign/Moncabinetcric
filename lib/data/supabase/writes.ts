@@ -350,6 +350,11 @@ export async function updateFirmSettings(data: {
   rcicNumber?: string
   rcicName?: string
   address?: string
+  addressLine2?: string
+  city?: string
+  province?: string
+  postalCode?: string
+  country?: string
   phone?: string
   email?: string
   logoUrl?: string
@@ -370,6 +375,14 @@ export async function updateFirmSettings(data: {
   if (data.rcicNumber !== undefined) payload.rcic_license_number = data.rcicNumber
   if (data.rcicName !== undefined) payload.owner_name = data.rcicName
   if (data.address !== undefined) payload.address = data.address
+  // Les morceaux de l'adresse professionnelle. Une chaîne vide vaut « pas
+  // renseigné » et se range en NULL : c'est ce que lignesAdresse() attend pour
+  // sauter la ligne au lieu d'en imprimer une vide.
+  if (data.addressLine2 !== undefined) payload.address_line2 = data.addressLine2.trim() || null
+  if (data.city !== undefined) payload.city = data.city.trim() || null
+  if (data.province !== undefined) payload.province = data.province.trim() || null
+  if (data.postalCode !== undefined) payload.postal_code = data.postalCode.trim().toUpperCase() || null
+  if (data.country !== undefined) payload.country = data.country.trim() || null
   if (data.phone !== undefined) payload.phone = data.phone
   if (data.email !== undefined) payload.email = data.email
   if (data.logoUrl !== undefined) payload.logo_url = data.logoUrl

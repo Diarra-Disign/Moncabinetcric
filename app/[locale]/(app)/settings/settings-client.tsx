@@ -25,6 +25,13 @@ import {
 import { PageHeader } from "@/components/app-shell/page-header"
 import { useRouter } from "@/i18n/routing"
 import { updateFirmSettings } from "@/lib/data/actions"
+import { PROVINCES } from "@/lib/data/adresse"
+
+/** La classe des champs de ce formulaire, écrite une fois. Six champs
+ *  d'adresse recopiant la même chaîne auraient divergé au premier ajustement. */
+const CHAMP_PARAM =
+  "w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted/40 border border-border " +
+  "focus:bg-card focus:border-primary focus:outline-none transition-all"
 
 export function SettingsClient() {
   const firm = useFirm()
@@ -38,6 +45,15 @@ export function SettingsClient() {
   const [rcicNumber, setRcicNumber] = React.useState(firm.rcicNumber)
   const [rcicName, setRcicName] = React.useState(firm.rcicName)
   const [address, setAddress] = React.useState(firm.address)
+  // L'ADRESSE EN MORCEAUX. Un seul champ libre suffisait à un en-tête de
+  // facture, où l'adresse n'est qu'un repère. Il ne suffit pas à un contrat :
+  // c'est là qu'elle IDENTIFIE le représentant, et le document doit pouvoir
+  // écrire « Gatineau (Québec) J8X 0B9 » sans deviner où finit la ville.
+  const [addressLine2, setAddressLine2] = React.useState(firm.addressLine2)
+  const [city, setCity] = React.useState(firm.city)
+  const [province, setProvince] = React.useState(firm.province)
+  const [postalCode, setPostalCode] = React.useState(firm.postalCode)
+  const [country, setCountry] = React.useState(firm.country || "Canada")
   const [phone, setPhone] = React.useState(firm.phone)
   const [email, setEmail] = React.useState(firm.email)
   const [replyToEmail, setReplyToEmail] = React.useState(firm.replyToEmail)
@@ -67,6 +83,11 @@ export function SettingsClient() {
     setRcicNumber(firm.rcicNumber)
     setRcicName(firm.rcicName)
     setAddress(firm.address)
+    setAddressLine2(firm.addressLine2)
+    setCity(firm.city)
+    setProvince(firm.province)
+    setPostalCode(firm.postalCode)
+    setCountry(firm.country || "Canada")
     setPhone(firm.phone)
     setEmail(firm.email)
     setReplyToEmail(firm.replyToEmail)
@@ -127,6 +148,11 @@ export function SettingsClient() {
       rcicNumber,
       rcicName,
       address,
+      addressLine2,
+      city,
+      province,
+      postalCode,
+      country,
       phone,
       email,
       replyToEmail,
@@ -147,6 +173,11 @@ export function SettingsClient() {
         rcicNumber,
         rcicName,
         address,
+        addressLine2,
+        city,
+        province,
+        postalCode,
+        country,
         phone,
         email,
         replyToEmail,
@@ -355,14 +386,83 @@ export function SettingsClient() {
                 />
               </div>
 
+              {/* ---------------------------------------------------------
+                  L'ADRESSE PROFESSIONNELLE
+                  Elle s'imprime sur les contrats, les factures et les reçus.
+                  C'est la SEULE source : le consultant ne la retape nulle part
+                  ailleurs, et la corriger ici vaut pour tous les documents à
+                  venir — jamais pour ceux déjà signés.
+                  --------------------------------------------------------- */}
               <div className="flex flex-col gap-1.5 sm:col-span-2">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Adresse Physique du Cabinet au Canada</label>
+                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Numéro et rue</label>
                 <input
                   type="text"
                   required
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted/40 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
+                  placeholder="88 rue Dollard-des-Ormeaux"
+                  className={CHAMP_PARAM}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Appartement, bureau, unité</label>
+                <input
+                  type="text"
+                  value={addressLine2}
+                  onChange={(e) => setAddressLine2(e.target.value)}
+                  placeholder="Bureau 801"
+                  className={CHAMP_PARAM}
+                />
+                <span className="text-[11px] text-muted-foreground">Facultatif. Laissé vide, il ne s&apos;imprime pas.</span>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Ville</label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Gatineau"
+                  className={CHAMP_PARAM}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Province ou territoire</label>
+                {/* Une LISTE et non un champ libre : « QC », « Qc », « Québec »
+                    et « Quebec » désignent la même province, et c'est ce texte
+                    exact qui s'imprime sur le contrat. */}
+                <select
+                  value={province}
+                  onChange={(e) => setProvince(e.target.value)}
+                  className={CHAMP_PARAM}
+                >
+                  <option value="">Choisir…</option>
+                  {PROVINCES.map((p) => (
+                    <option key={p.valeur} value={p.valeur}>{p.fr}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Code postal</label>
+                <input
+                  type="text"
+                  value={postalCode}
+                  onChange={(e) => setPostalCode(e.target.value)}
+                  placeholder="J8X 0B9"
+                  className={`${CHAMP_PARAM} font-mono uppercase`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Pays</label>
+                <input
+                  type="text"
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value)}
+                  className={CHAMP_PARAM}
                 />
               </div>
 

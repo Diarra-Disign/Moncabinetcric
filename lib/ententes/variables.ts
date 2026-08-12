@@ -1,4 +1,8 @@
 import { libelleCivilite, nomAvecCivilite } from "@/lib/data/identite"
+import {
+  adresseUneLigne, lignesAdresse, manquesAdresseProfessionnelle,
+  type AdressePostale,
+} from "@/lib/data/adresse"
 
 /**
  * Les variables d'un contrat, et ce qui empêche de le générer.
@@ -35,11 +39,15 @@ export interface PartieContractante {
   email?: string
   phone?: string
   address?: string
+  /** Appartement, bureau, unité. */
+  addressLine2?: string
   city?: string
   province?: string
   postalCode?: string
   country?: string
   birthDate?: string | null
+  /** Permis CRIC — le consultant seulement. Figé avec le reste de la copie. */
+  licenseNumber?: string
 }
 
 export interface CabinetContrat {
@@ -47,7 +55,14 @@ export interface CabinetContrat {
   consultant: string
   civiliteConsultant?: string | null
   permis: string
+  /** Numéro et rue — première ligne de l'adresse professionnelle. */
   adresse?: string
+  /** Appartement, bureau, unité. Omise du document quand elle est vide. */
+  adresseComplement?: string
+  ville?: string
+  province?: string
+  codePostal?: string
+  pays?: string
   courriel?: string
   telephone?: string
   siteWeb?: string
@@ -89,13 +104,40 @@ const dateLongue = (v: string, locale = "fr"): string => {
 const joindre = (parties: (string | undefined)[], separateur: string) =>
   parties.map((p) => (p ?? "").trim()).filter(Boolean).join(separateur)
 
+/**
+ * L'adresse professionnelle telle que la composition la comprend.
+ *
+ * Une seule traduction du cabinet vers l'adresse : les variables, la
+ * validation et le bloc du PDF passent tous par ici, et ne peuvent donc pas
+ * imprimer trois adresses différentes du même cabinet.
+ */
+export const adresseDuCabinet = (f: CabinetContrat): AdressePostale => ({
+  ligne1: f.adresse,
+  ligne2: f.adresseComplement,
+  ville: f.ville,
+  province: f.province,
+  codePostal: f.codePostal,
+  pays: f.pays,
+})
+
+/** Les lignes de l'adresse professionnelle, pour un bloc à plusieurs lignes. */
+export const lignesAdresseCabinet = (f: CabinetContrat): string[] =>
+  lignesAdresse(adresseDuCabinet(f))
+
+/** L'adresse du contractant, même traduction, pour le bloc en vis-à-vis. */
+export const adresseDuContractant = (c: PartieContractante): AdressePostale => ({
+  ligne1: c.address,
+  ligne2: c.addressLine2,
+  ville: c.city,
+  province: c.province,
+  codePostal: c.postalCode,
+  pays: c.country,
+})
+
 export function variablesDe(ctx: ContexteEntente): Record<string, string> {
   const c = ctx.contractant
   const f = ctx.cabinet
   const l = ctx.locale
-
-  const ville = joindre([c.city, c.province], ", ")
-  const villeEtCode = joindre([ville, c.postalCode], " ")
 
   return {
     // Le contractant
@@ -109,7 +151,9 @@ export function variablesDe(ctx: ContexteEntente): Record<string, string> {
     ),
     courriel_client: (c.email ?? "").trim(),
     telephone_client: (c.phone ?? "").trim(),
-    adresse_client: joindre([c.address, villeEtCode, c.country], ", "),
+    // Composée par le MÊME module que celle du consultant : deux compositions
+    // auraient fini par écrire les deux adresses du contrat dans deux formats.
+    adresse_client: adresseUneLigne(adresseDuContractant(c)),
     ville_client: (c.city ?? "").trim(),
     province_client: (c.province ?? "").trim(),
     code_postal_client: (c.postalCode ?? "").trim(),
@@ -120,10 +164,31 @@ export function variablesDe(ctx: ContexteEntente): Record<string, string> {
     nom_cabinet: f.nom.trim(),
     nom_consultant: nomAvecCivilite({ civility: f.civiliteConsultant, name: f.consultant }, l),
     permis_consultant: f.permis.trim(),
-    adresse_cabinet: (f.adresse ?? "").trim(),
     courriel_cabinet: (f.courriel ?? "").trim(),
     telephone_cabinet: (f.telephone ?? "").trim(),
     site_cabinet: (f.siteWeb ?? "").trim(),
+
+    // L'ADRESSE PROFESSIONNELLE, EN MORCEAUX ET EN ENTIER.
+    //
+    // « adresse_cabinet » ne rend plus la seule première ligne : elle rend
+    // l'adresse COMPLÈTE. Les quatre modèles fournis l'emploient déjà, et un
+    // contrat qui annonce « domicilié au 88 rue Dollard-des-Ormeaux » sans dire
+    // dans quelle ville n'identifie personne. Le nom de la variable ne change
+    // pas — le renommer aurait cassé chaque modèle déjà écrit, y compris ceux
+    // qu'un cabinet aurait personnalisés.
+    adresse_cabinet: adresseUneLigne(adresseDuCabinet(f)),
+    adresse_consultant_complete: adresseUneLigne(adresseDuCabinet(f)),
+    // La première ligne SEULE, pour un modèle qui compose lui-même sa mise en
+    // page sur plusieurs lignes.
+    adresse_consultant: (f.adresse ?? "").trim(),
+    complement_consultant: (f.adresseComplement ?? "").trim(),
+    ville_consultant: (f.ville ?? "").trim(),
+    province_consultant: (f.province ?? "").trim(),
+    code_postal_consultant: (f.codePostal ?? "").trim(),
+    pays_consultant: (f.pays ?? "").trim(),
+    telephone_consultant: (f.telephone ?? "").trim(),
+    courriel_consultant: (f.courriel ?? "").trim(),
+    site_consultant: (f.siteWeb ?? "").trim(),
 
     // Les montants — retenus à l'émission, jamais recalculés après coup
     honoraires: argent(ctx.montants.honoraires, l),
@@ -159,7 +224,17 @@ export function substituer(
 
 export type Verification =
   | { ok: true }
-  | { ok: false; manquants: string[] }
+  | {
+      ok: false
+      manquants: string[]
+      /**
+       * Vrai quand au moins un manque se corrige dans les Paramètres et non
+       * sur la fiche du client. L'écran s'en sert pour offrir « Compléter mon
+       * profil » (§5) — sans cela, le consultant lit « adresse professionnelle
+       * incomplète » et cherche où la saisir.
+       */
+      profilACompleter?: boolean
+    }
 
 /**
  * Ce qui doit être là avant de produire un contrat définitif (§29).
@@ -175,14 +250,35 @@ export function verifierAvantGeneration(
 ): Verification {
   const manquants: string[] = []
   const c = ctx.contractant
+  let profilACompleter = false
 
   if (!joindre([c.firstName, c.lastName], " ")) manquants.push("Le nom du client est absent.")
   if (!(c.email ?? "").trim()) manquants.push("Le courriel du client est absent.")
   if (!(c.address ?? "").trim()) manquants.push("L'adresse du client est absente.")
 
-  if (!ctx.cabinet.nom.trim()) manquants.push("Le nom du cabinet n'est pas configuré.")
+  if (!ctx.cabinet.nom.trim()) {
+    manquants.push("Le nom du cabinet n'est pas configuré.")
+    profilACompleter = true
+  }
   if (!ctx.cabinet.permis.trim()) {
     manquants.push("Le numéro de permis du consultant n'est pas configuré.")
+    profilACompleter = true
+  }
+
+  // L'ADRESSE PROFESSIONNELLE (§5). Elle n'est pas décorative : elle dit où
+  // joindre le représentant et sous quelle juridiction il exerce. Un contrat
+  // qui l'omet n'identifie pas la partie qui s'engage — et le Collège lit ce
+  // document-là.
+  //
+  // Le manque est NOMMÉ morceau par morceau : « adresse professionnelle
+  // incomplète » n'apprend pas au consultant que c'est la province qui
+  // manque, et il rouvrira ses paramètres pour chercher.
+  const manquesCabinet = manquesAdresseProfessionnelle(adresseDuCabinet(ctx.cabinet))
+  if (manquesCabinet.length > 0) {
+    manquants.push(
+      `Adresse professionnelle incomplète : il manque ${manquesCabinet.join(", ")}.`
+    )
+    profilACompleter = true
   }
 
   // Pro bono : zéro est la réponse, pas une absence de réponse.
@@ -197,5 +293,5 @@ export function verifierAvantGeneration(
     manquants.push(`Le modèle emploie une variable inconnue : {{${i}}}.`)
   }
 
-  return manquants.length === 0 ? { ok: true } : { ok: false, manquants }
+  return manquants.length === 0 ? { ok: true } : { ok: false, manquants, profilACompleter }
 }

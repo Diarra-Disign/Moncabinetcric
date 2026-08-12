@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { ententePdf, type ArticleImprime, type SignataireImprime } from "./pdf"
 import type { LanguePdf } from "@/lib/pdf/primitives"
 import { nomAvecCivilite } from "@/lib/data/identite"
+import { lignesAdresse } from "@/lib/data/adresse"
 
 /**
  * Le PDF d'une entente, et ce qu'il faut pour l'envoyer.
@@ -19,11 +20,6 @@ import { nomAvecCivilite } from "@/lib/data/identite"
  * contrat déjà établi. Si cette fonction relisait `agreement_template_articles`,
  * la garantie serait annulée sans que rien ne le signale.
  */
-
-/** Assemble en écartant les vides : une adresse partielle ne doit pas produire
- *  de virgules orphelines dans un document officiel. */
-const joindre = (parties: (string | null | undefined)[], separateur: string) =>
-  parties.map((p) => (p ?? "").trim()).filter(Boolean).join(separateur)
 
 export const langueDeLEntente = (v: unknown): LanguePdf => (String(v ?? "") === "en" ? "en" : "fr")
 
@@ -51,7 +47,7 @@ export async function pdfDEntente(
       "id, reference, title, status, kind, is_probono, fees_amount, taxes_amount, total_amount, " +
         "articles_snapshot, created_at, issued_at, client_id, lead_id, matter_id, document_id, " +
         "matters(reference), " +
-        "firms(name, address, phone, email, rcic_license_number, logo_url, tax_gst_number, tax_qst_number, payment_terms)"
+        "firms(name, owner_name, address, address_line2, city, province, postal_code, country, phone, email, website, rcic_license_number, logo_url, tax_gst_number, tax_qst_number, payment_terms)"
     )
     .eq("id", id)
     .maybeSingle()
@@ -61,7 +57,7 @@ export async function pdfDEntente(
 
   const { data: parties } = await sb
     .from("agreement_parties")
-    .select("role, civility, first_name, last_name, legal_name, email, address, city, province, postal_code, country, signing_order")
+    .select("role, civility, first_name, last_name, legal_name, email, phone, address, address_line2, city, province, postal_code, country, license_number, signing_order")
     .eq("agreement_id", id)
     .order("signing_order")
 
@@ -69,8 +65,11 @@ export async function pdfDEntente(
   const cab = a.firms as unknown as Record<string, string | null> | null
   const dossier = a.matters as unknown as { reference?: string } | null
 
+  const txt = (v: unknown) => String(v ?? "").trim()
+
+  // Le NOM DE LA PERSONNE, toujours. La raison sociale a son propre champ dans
+  // le bloc : les confondre ferait signer « Diarra Global Visa » à quelqu'un.
   const nomDe = (p: Record<string, string | number | null>) =>
-    String(p.legal_name ?? "").trim() ||
     nomAvecCivilite(
       {
         civility: p.civility as string | null,
@@ -78,7 +77,7 @@ export async function pdfDEntente(
         lastName: String(p.last_name ?? ""),
       },
       langue
-    )
+    ) || txt(p.legal_name)
 
   // Le contractant du bandeau est la partie « client ». À défaut — une entente
   // dont les parties n'auraient pas été enregistrées — la première venue :
@@ -98,8 +97,60 @@ export async function pdfDEntente(
     role: String(p.role ?? "other"),
     // Le permis n'accompagne QUE le consultant. Le porter sur une autre ligne
     // laisserait croire que le client est lui aussi autorisé à représenter.
-    permis: p.role === "consultant" ? (cab?.rcic_license_number ?? "") : undefined,
+    //
+    // Il est lu sur la COPIE FIGÉE en priorité. Le relire sur `firms`
+    // réécrirait le permis de tous les contrats déjà signés le jour où il
+    // changerait ; le repli n'existe que pour les ententes établies avant que
+    // la colonne n'existe.
+    permis: p.role === "consultant"
+      ? (txt(p.license_number) || txt(cab?.rcic_license_number))
+      : undefined,
   }))
+
+  // ---- Les deux blocs d'identification (§8) -------------------------------
+  // Tous deux composés depuis agreement_parties, c'est-à-dire depuis ce que le
+  // contrat a RETENU. Une adresse professionnelle corrigée dans les Paramètres
+  // s'applique aux contrats suivants et ne touche pas celui-ci (§6).
+  const blocDe = (p: Record<string, string | number | null> | null, organisation?: string) => ({
+    nom: p ? nomDe(p) : "",
+    organisation,
+    permis: p && p.role === "consultant"
+      ? (txt(p.license_number) || txt(cab?.rcic_license_number))
+      : undefined,
+    lignesAdresse: p
+      ? lignesAdresse({
+          ligne1: txt(p.address),
+          ligne2: txt(p.address_line2),
+          ville: txt(p.city),
+          province: txt(p.province),
+          codePostal: txt(p.postal_code),
+          pays: txt(p.country),
+        })
+      : [],
+    telephone: p ? txt(p.phone) : "",
+    courriel: p ? txt(p.email) : "",
+  })
+
+  const ligneConsultant = lignes.find((p) => p.role === "consultant") ?? null
+
+  // Le consultant n'a de bloc que si sa partie a été enregistrée. À défaut —
+  // une entente antérieure à cette version — on retombe sur les Paramètres :
+  // mieux vaut l'adresse actuelle du cabinet qu'un bloc vide sur un contrat.
+  const blocConsultant = ligneConsultant
+    ? { ...blocDe(ligneConsultant, txt(cab?.name)), siteWeb: txt(cab?.website) }
+    : {
+        nom: txt(cab?.owner_name),
+        organisation: txt(cab?.name),
+        permis: txt(cab?.rcic_license_number),
+        lignesAdresse: lignesAdresse({
+          ligne1: txt(cab?.address), ligne2: txt(cab?.address_line2),
+          ville: txt(cab?.city), province: txt(cab?.province),
+          codePostal: txt(cab?.postal_code), pays: txt(cab?.country),
+        }),
+        telephone: txt(cab?.phone),
+        courriel: txt(cab?.email),
+        siteWeb: txt(cab?.website),
+      }
 
   const jour = (v: unknown) =>
     v
@@ -117,19 +168,10 @@ export async function pdfDEntente(
       titre: String(a.title ?? ""),
       statut: String(a.status ?? "draft"),
       proBono: a.is_probono === true,
-      contractantNom: principal ? nomDe(principal) : "",
-      contractantAdresse: principal
-        ? joindre(
-            [
-              String(principal.address ?? ""),
-              joindre([String(principal.city ?? ""), String(principal.province ?? "")], ", "),
-              String(principal.postal_code ?? ""),
-              String(principal.country ?? ""),
-            ],
-            ", "
-          )
-        : "",
-      contractantCourriel: principal ? String(principal.email ?? "") : "",
+      consultant: blocConsultant,
+      // La raison sociale du client : renseignée seulement pour une personne
+      // morale, et jamais confondue avec son nom.
+      client: blocDe(principal, principal ? txt(principal.legal_name) : ""),
       dossierReference: dossier?.reference ?? "",
       articles,
       signataires,
@@ -142,6 +184,9 @@ export async function pdfDEntente(
     },
     {
       nom: cab?.name ?? "",
+      // L'en-tête de page garde la première ligne : le bloc « ENTRE » porte
+      // l'adresse complète juste dessous, et la répéter en entier deux fois
+      // sur la même page ferait un dépliant.
       adresse: cab?.address ?? "",
       telephone: cab?.phone ?? "",
       courriel: cab?.email ?? "",

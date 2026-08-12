@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
 import { chercherContractants, chargerContractant } from "./ententes"
-import { ligneDePartie } from "@/lib/ententes/contractant"
+import { ligneDePartie, partieDepuisCabinet } from "@/lib/ententes/contractant"
 import { verifierAvantGeneration, variablesDe, substituer } from "@/lib/ententes/variables"
 import type { ContexteEntente } from "@/lib/ententes/variables"
 
@@ -247,18 +247,14 @@ export async function creerEntente(demande: DemandeEntente): Promise<Resultat> {
     // Toutes les colonnes, même vides : PostgREST unifie le jeu de colonnes
     // d'un insert groupé, et une partie sans courriel ferait échouer l'insert
     // entier.
+    // Le consultant est recopié EN ENTIER — adresse complète et permis compris.
+    // Sa copie ne retenait que la première ligne de son adresse : un contrat
+    // relu deux ans plus tard n'aurait jamais retrouvé sa ville, et son permis
+    // aurait été relu sur le cabinet, donc réécrit s'il changeait.
     const parties = [
       { ...ligneDePartie(partie, "client", 1), firm_id: membre.firmId, agreement_id: creee.id },
       {
-        ...ligneDePartie(
-          {
-            civility: source.cabinet.civiliteConsultant,
-            firstName: "", lastName: source.cabinet.consultant,
-            email: source.cabinet.courriel, phone: source.cabinet.telephone,
-            address: source.cabinet.adresse,
-          },
-          "consultant", 2
-        ),
+        ...ligneDePartie(partieDepuisCabinet(source.cabinet), "consultant", 2),
         firm_id: membre.firmId, agreement_id: creee.id,
       },
     ]

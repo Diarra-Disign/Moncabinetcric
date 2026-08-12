@@ -39,9 +39,12 @@ const MOTS = {
   fr: {
     entente: "ENTENTE DE SERVICE",
     consultantCric: "Consultant réglementé CRIC",
-    entre: "ENTRE",
-    et: "ET",
+    entre: "ENTRE — LE CONSULTANT",
+    et: "ET — LE CLIENT",
     date: "DATE",
+    permisAbrege: "Permis CRIC",
+    tel: "Tél.",
+    parties: "Ci-après collectivement désignés les « Parties ».",
     numero: "N° D'ENTENTE",
     honoraires: "HONORAIRES",
     proBono: "PRO BONO",
@@ -67,9 +70,12 @@ const MOTS = {
   en: {
     entente: "SERVICE AGREEMENT",
     consultantCric: "Regulated Canadian Immigration Consultant",
-    entre: "BETWEEN",
-    et: "AND",
+    entre: "BETWEEN — THE CONSULTANT",
+    et: "AND — THE CLIENT",
     date: "DATE",
+    permisAbrege: "RCIC licence",
+    tel: "Tel.",
+    parties: "Hereinafter collectively referred to as the « Parties ».",
     numero: "AGREEMENT NUMBER",
     honoraires: "FEES",
     proBono: "PRO BONO",
@@ -111,15 +117,44 @@ export interface SignataireImprime {
   permis?: string
 }
 
+/**
+ * Une partie au contrat, telle qu'elle s'identifie en tête du document.
+ *
+ * LE §8 EXIGE DEUX BLOCS DISTINCTS, et cette interface est ce qui l'impose :
+ * les deux parties passent par la même structure, donc le consultant ne peut
+ * pas hériter d'un champ du client ni l'inverse. Auparavant le contrat ne
+ * portait QU'UN bloc — le contractant — et le cabinet se contentait de
+ * l'en-tête, sans adresse complète. Un contrat n'identifiait donc qu'une des
+ * deux parties qui s'engagent.
+ *
+ * Tout est facultatif sauf le nom, et rien de vide ne s'imprime (§4) : un
+ * consultant sans site web, un client sans téléphone, un bureau sans numéro
+ * d'unité — ce sont les cas ordinaires.
+ */
+export interface BlocPartie {
+  /** La personne physique, civilité comprise. */
+  nom: string
+  /** La raison sociale, pour le cabinet. Omise quand elle vaut le nom. */
+  organisation?: string
+  /** Permis CRIC — le consultant seulement. */
+  permis?: string
+  /** Déjà composées, déjà débarrassées des vides. */
+  lignesAdresse: string[]
+  telephone?: string
+  courriel?: string
+  siteWeb?: string
+}
+
 export interface EntentePdf {
   numero: string
   date: string
   titre: string
   statut: string
   proBono: boolean
-  contractantNom: string
-  contractantAdresse: string
-  contractantCourriel: string
+  /** Le cabinet et son consultant — la partie qui s'engage à représenter. */
+  consultant: BlocPartie
+  /** Le contractant — la partie représentée. */
+  client: BlocPartie
   dossierReference: string
   articles: ArticleImprime[]
   signataires: SignataireImprime[]
@@ -129,8 +164,18 @@ export interface EntentePdf {
 
 /** Plancher du contenu : sous cette ligne, il ne reste que la pagination. */
 const BAS = 96
-/** Hauteur réservée au bloc de signature — il ne doit jamais être coupé. */
-const HAUTEUR_SIGNATURES = 132
+/**
+ * La hauteur qu'occupera le bloc de signature, selon le nombre de signataires.
+ *
+ * C'était une CONSTANTE généreuse, et cela se voyait : sur un contrat court à
+ * deux signataires, elle réservait cent trente-deux points là où quatre-vingt-
+ * quatorze suffisent, et les signatures partaient seules sur une deuxième page
+ * en laissant une demi-page blanche. Un document qu'on tend à signer ne doit
+ * pas donner l'impression d'avoir été mal assemblé.
+ *
+ * Deux signataires par rangée, une rangée par paire, plus le titre.
+ */
+const hauteurSignatures = (nombre: number) => 20 + Math.max(1, Math.ceil(nombre / 2)) * 74
 
 /**
  * Le flux de pages.
@@ -194,6 +239,60 @@ class Flux {
   }
 }
 
+/**
+ * Un bloc d'identification de partie. Rend la HAUTEUR occupée.
+ *
+ * Aucune ligne vide n'est écrite (§4) : chaque élément absent ne consomme pas
+ * de place. C'est pour cela que la hauteur est rendue plutôt que supposée —
+ * le bloc du consultant, plus fourni, décide seul de la suite de la page.
+ */
+function blocPartie(
+  page: PDFPage, x: number, y: number, largeur: number,
+  titre: string, p: BlocPartie,
+  m: typeof MOTS.fr | typeof MOTS.en,
+  normal: PDFFont, gras: PDFFont
+): number {
+  let curseur = y
+
+  ecrire(page, titre, { x, y: curseur, size: 7.5, font: gras, color: GRIS })
+  curseur -= 16
+
+  ecrire(page, couper(p.nom, gras, 10, largeur), { x, y: curseur, size: 10, font: gras, color: ENCRE })
+  curseur -= 13
+
+  // La raison sociale sous le nom, et seulement si elle en diffère : « Adama
+  // Diarra » puis « Adama Diarra » serait un doublon, pas une précision.
+  if (p.organisation && p.organisation.trim() && p.organisation.trim() !== p.nom.trim()) {
+    ecrire(page, couper(p.organisation, gras, 9, largeur), { x, y: curseur, size: 9, font: gras, color: ENCRE })
+    curseur -= 12
+  }
+
+  if (p.permis) {
+    // Le permis est en ENCRE, pas en gris : c'est le renseignement qui atteste
+    // que cette partie-ci est autorisée à représenter devant IRCC.
+    ecrire(page, couper(`${m.permisAbrege} ${p.permis}`, normal, 8.5, largeur),
+      { x, y: curseur, size: 8.5, font: normal, color: ENCRE })
+    curseur -= 12
+  }
+
+  for (const ligne of p.lignesAdresse) {
+    ecrire(page, couper(ligne, normal, 8.5, largeur), { x, y: curseur, size: 8.5, font: normal, color: GRIS })
+    curseur -= 11
+  }
+
+  for (const ligne of [
+    p.telephone ? `${m.tel} ${p.telephone}` : "",
+    p.courriel ?? "",
+    p.siteWeb ?? "",
+  ]) {
+    if (!ligne.trim()) continue
+    ecrire(page, couper(ligne, normal, 8.5, largeur), { x, y: curseur, size: 8.5, font: normal, color: GRIS })
+    curseur -= 11
+  }
+
+  return y - curseur
+}
+
 export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Array> {
   const langue: LanguePdf = e.langue ?? "fr"
   const m = MOTS[langue]
@@ -206,18 +305,11 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
 
   let y = await enTete(doc, premiere, c, normal, gras, m.entente, m.consultantCric)
 
-  // ---- Le bandeau : entre qui, quand, pour combien -------------------------
+  // ---- Le bandeau : quand, sous quel numéro, pour combien ------------------
   const xMilieu = 300
 
-  bloc(premiere, G, y, m.entre, couper(e.contractantNom, gras, 10, 220), normal, gras)
-  let yClient = y - 28
-  for (const ligne of [e.contractantAdresse, e.contractantCourriel]) {
-    if (!ligne) continue
-    ecrire(premiere, couper(ligne, normal, 9, 220), { x: G, y: yClient, size: 9, font: normal, color: GRIS })
-    yClient -= 11
-  }
-
-  bloc(premiere, xMilieu, y, m.date, e.date, normal, gras, false, 9.5)
+  bloc(premiere, G, y, m.date, e.date, normal, gras, false, 9.5)
+  bloc(premiere, xMilieu, y, m.numero, e.numero, normal, gras, false, 9.5)
   // Pro bono : l'absence d'honoraires est le PROPOS du contrat, pas un oubli.
   // Imprimer « 0,00 $ » laisserait croire à une grille tarifaire non remplie.
   bloc(
@@ -226,16 +318,37 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
     normal, gras, true, e.proBono ? 11 : 14
   )
 
-  const yBas = y - 46
-  bloc(premiere, xMilieu, yBas, m.numero, e.numero, normal, gras, false, 9.5)
-
-  y = Math.min(yClient, yBas - 22) - 14
+  y -= 34
   if (e.dossierReference) {
-    ecrire(premiere, `${m.dossier} ${e.dossierReference}`, { x: G, y: y + 8, size: 8.5, font: normal, color: GRIS })
-    y -= 6
+    ecrire(premiere, `${m.dossier} ${e.dossierReference}`, { x: G, y, size: 8.5, font: normal, color: GRIS })
+    y -= 12
   }
 
   premiere.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 1.6, color: ENCRE })
+  y -= 22
+
+  // ---- LES DEUX PARTIES, CÔTE À CÔTE (§8) ---------------------------------
+  // Un filet vertical les sépare. Ce n'est pas de l'ornement : les deux
+  // adresses ne doivent jamais pouvoir se lire comme une seule, et un lecteur
+  // qui cherche « où joindre le consultant » doit trouver la réponse d'un
+  // regard, sans démêler deux colonnes de texte qui se touchent.
+  const largeurPartie = 215
+  const xDroite = 320
+
+  const hauteurGauche = blocPartie(premiere, G, y, largeurPartie, m.entre, e.consultant, m, normal, gras)
+  const hauteurDroite = blocPartie(premiere, xDroite, y, largeurPartie, m.et, e.client, m, normal, gras)
+  const hauteurParties = Math.max(hauteurGauche, hauteurDroite)
+
+  premiere.drawLine({
+    start: { x: xDroite - 26, y: y + 4 }, end: { x: xDroite - 26, y: y - hauteurParties + 6 },
+    thickness: 0.6, color: TRAIT,
+  })
+
+  y -= hauteurParties + 14
+  ecrire(premiere, m.parties, { x: G, y, size: 8.5, font: normal, color: GRIS })
+  y -= 22
+
+  premiere.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 0.6, color: TRAIT })
   y -= 26
 
   // Le titre du mandat, sous le filet : c'est de CE service qu'il s'agit, et
@@ -310,7 +423,7 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
   // ---- Les signatures -----------------------------------------------------
   // Réservées d'un bloc : une ligne de signature coupée entre deux pages
   // laisserait signer sous le vide.
-  if (flux.y - HAUTEUR_SIGNATURES < BAS) flux.nouvellePage()
+  if (flux.y - hauteurSignatures(e.signataires.length) < BAS) flux.nouvellePage()
 
   let yS = flux.place(20)
   ecrire(flux.page, m.signatures, { x: G, y: yS, size: 8, font: gras, color: GRIS })
@@ -333,7 +446,10 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
         x, y: yLigne + 10, size: 9.5, font: gras, color: ENCRE,
       })
       const role = m.roles[s.role] ?? m.roles.other
-      const dessous = s.permis ? `${role} · ${m.consultantCric} ${s.permis}` : role
+      // La mention réglementaire REMPLACE le rôle au lieu de s'y ajouter :
+      // « Consultant · Consultant réglementé CRIC R1041776 » disait deux fois
+      // le même mot sous une ligne de signature.
+      const dessous = s.permis ? `${m.consultantCric} ${s.permis}` : role
       ecrire(flux.page, couper(dessous, normal, 8, largeurColonne), {
         x, y: yLigne, size: 8, font: normal, color: GRIS,
       })

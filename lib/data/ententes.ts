@@ -109,7 +109,7 @@ export async function chargerContractant(
   if (!personne) return null
 
   const [{ data: firm }, { data: famille }, { data: profil }] = await Promise.all([
-    sb.from("firms").select("name, owner_name, rcic_license_number, address, email, phone, website")
+    sb.from("firms").select("name, owner_name, rcic_license_number, address, address_line2, city, province, postal_code, country, email, phone, website")
       .eq("id", membre?.firmId ?? "").maybeSingle(),
     sb.from("family_members")
       .select("id, relation, civility, first_name, last_name")

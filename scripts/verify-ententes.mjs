@@ -81,6 +81,12 @@ const nouveauCabinet = async (suffixe) => {
     name: `Cabinet ententes ${suffixe} ${marque}`,
     rcic_license_number: `R5${suffixe}${String(marque).slice(-5)}`,
     owner_name: "Épreuve", email: courriel, plan: "cabinet", status: "active",
+    // L'adresse professionnelle COMPLÈTE : sans elle, verifierAvantGeneration()
+    // refuse désormais toute création, et l'épreuve échouerait pour la bonne
+    // raison au mauvais endroit.
+    address: "88 rue Dollard-des-Ormeaux", address_line2: "Bureau 801",
+    city: "Gatineau", province: "Québec", postal_code: "J8X 0B9", country: "Canada",
+    phone: "+1 819 555 0100", website: "www.exemple.invalid",
   }).select("id").single()
   if (e1) throw new Error(`Cabinet ${suffixe} : ${e1.message}`)
 
@@ -307,11 +313,19 @@ try {
   await cabinet.from("agreement_parties").insert([
     { firm_id: cabinetA, agreement_id: aEmettre.id, role: "client", civility: "mrs",
       first_name: "Awa", last_name: "Diallo", legal_name: "", email: `awa-${marque}@example.invalid`,
-      phone: "", address: "12 rue des Erables", city: "Montreal", province: "QC",
-      postal_code: "H2X 1Y4", country: "Canada", signing_order: 1 },
+      phone: "+1 514 555 0123", address: "456 rue Exemple", address_line2: "Appartement 4",
+      city: "Montreal", province: "Québec", postal_code: "H2X 1Y4", country: "Canada",
+      // license_number, même vide : PostgREST unifie le jeu de colonnes d'un
+      // insert groupé, et l'omettre ici enverrait NULL sur une colonne NOT
+      // NULL — faisant échouer l'insert des DEUX parties. Le piège est le même
+      // qu'au premier jour, sur une colonne neuve.
+      license_number: "", signing_order: 1 },
     { firm_id: cabinetA, agreement_id: aEmettre.id, role: "consultant", civility: "mr",
-      first_name: "", last_name: "Proprietaire 1", legal_name: "", email: "",
-      phone: "", address: "", city: "", province: "", postal_code: "", country: "", signing_order: 2 },
+      first_name: "", last_name: "Proprietaire 1", legal_name: `Cabinet ententes 1 ${marque}`,
+      email: "consultant@example.invalid", phone: "+1 819 555 0100",
+      address: "88 rue Dollard-des-Ormeaux", address_line2: "Bureau 801",
+      city: "Gatineau", province: "Québec", postal_code: "J8X 0B9", country: "Canada",
+      license_number: `R51${String(marque).slice(-5)}`, signing_order: 2 },
   ])
 
   const emission = await emettre(cabinet, membre, aEmettre.id)
@@ -393,6 +407,51 @@ try {
   // ligne n'appartient pas au WinAnsi : assaini avant d'être découpé, il
   // effaçait les alinéas de tous les articles.
   verifier("les alinéas ne deviennent pas des « ? »", texte.includes("??") ? "OUI" : "non", "non")
+
+  // ---- LES DEUX BLOCS D'IDENTIFICATION (§8) -------------------------------
+  // Le contrat n'identifiait qu'une des deux parties qui s'engagent : le
+  // cabinet ne figurait que dans l'en-tête, avec une adresse d'UNE ligne.
+  verifier("le bloc du consultant s'imprime", texte.includes("ENTRE") ? "oui" : "NON", "oui")
+  verifier("le bloc du client s'imprime", texte.includes("ET ") ? "oui" : "NON", "oui")
+  verifier("l'adresse professionnelle y figure en entier",
+    texte.includes("Gatineau (Québec) J8X 0B9") ? "oui" : "NON", "oui")
+  verifier("l'adresse du client y figure en entier",
+    texte.includes("Montreal (Québec) H2X 1Y4") ? "oui" : "NON", "oui")
+  // Le bureau du consultant et l'appartement du client sont deux lignes
+  // différentes : les confondre serait exactement ce que le §8 interdit.
+  verifier("le bureau du consultant", texte.includes("Bureau 801") ? "oui" : "NON", "oui")
+  verifier("l'appartement du client", texte.includes("Appartement 4") ? "oui" : "NON", "oui")
+  verifier("le permis est FIGÉ sur la partie, pas relu sur le cabinet",
+    texte.includes(`R51${String(marque).slice(-5)}`) ? "oui" : "NON", "oui")
+
+  // AUCUNE LIGNE VIDE (§4). Un bloc composé naïvement produit « , , » ou
+  // « () » quand un morceau manque. On l'éprouve sur une entente dont le
+  // consultant n'a NI bureau NI province.
+  const { data: nu } = await cabinet.from("agreements").insert({
+    firm_id: cabinetA, client_id: cl.id, template_id: modele.id, template_version: "1.0",
+    reference: `ENT-NU-${marque}`, title: "Adresse partielle", kind: "services",
+    status: "draft", articles_snapshot: [{ position: 1, code: "x", title_fr: "Objet", body_fr: "Texte.", level: "free" }],
+    fees_amount: 100, total_amount: 100,
+  }).select("id").single()
+  await cabinet.from("agreement_parties").insert([
+    { firm_id: cabinetA, agreement_id: nu.id, role: "client", civility: "mrs",
+      first_name: "Awa", last_name: "Diallo", legal_name: "", email: "a@b.invalid",
+      phone: "", address: "1 rue Seule", address_line2: "", city: "", province: "",
+      postal_code: "", country: "", license_number: "", signing_order: 1 },
+    { firm_id: cabinetA, agreement_id: nu.id, role: "consultant", civility: "mr",
+      first_name: "", last_name: "Proprietaire 1", legal_name: "", email: "",
+      phone: "", address: "88 rue Dollard-des-Ormeaux", address_line2: "",
+      city: "Gatineau", province: "", postal_code: "", country: "",
+      license_number: "", signing_order: 2 },
+  ])
+  const { pdfDEntente } = await import("../lib/ententes/document.ts")
+  const partiel = await pdfDEntente(cabinet, nu.id)
+  const texteNu = lisiblePdf(Buffer.from(partiel.octets))
+  verifier("aucune parenthèse vide quand la province manque",
+    /\(\s*\)/.test(texteNu) ? "OUI" : "non", "non")
+  verifier("aucune virgule orpheline", /,\s*,/.test(texteNu) ? "OUI" : "non", "non")
+  verifier("la ville seule s'imprime quand même",
+    texteNu.includes("Gatineau") ? "oui" : "NON", "oui")
 
   // ---- Réémettre --------------------------------------------------------
   // Le PDF a pu être envoyé, voire signé. Le remplacer changerait le document

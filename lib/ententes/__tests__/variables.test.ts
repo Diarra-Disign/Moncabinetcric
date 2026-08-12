@@ -26,7 +26,9 @@ const CONTEXTE: ContexteEntente = {
   },
   cabinet: {
     nom: "Diarra Global Visa", consultant: "Adama Diarra", civiliteConsultant: "mr",
-    permis: "R1041776", adresse: "500 Place d'Armes, Montréal",
+    permis: "R1041776",
+    adresse: "88 rue Dollard-des-Ormeaux", adresseComplement: "Bureau 801",
+    ville: "Gatineau", province: "Québec", codePostal: "J8X 0B9", pays: "Canada",
     courriel: "infos@dgvimmigration.com", telephone: "+1 514 555 0100",
   },
   montants: { honoraires: 4500, taxes: 673.88, total: 5173.88 },
@@ -68,8 +70,11 @@ describe("variablesDe", () => {
   })
 
   test("l'adresse du contractant se compose sur une ligne", () => {
+    // Format canadien : la province entre parenthèses, pas après une virgule.
+    // « Montréal, QC H2X 1Y4 » est une habitude américaine ; Postes Canada et
+    // les contrats de référence écrivent « Montréal (QC) H2X 1Y4 ».
     const v = variablesDe(CONTEXTE)
-    assert.equal(v.adresse_client, "12 rue des Érables, Montréal, QC H2X 1Y4, Canada")
+    assert.equal(v.adresse_client, "12 rue des Érables, Montréal (QC) H2X 1Y4, Canada")
   })
 
   test("une adresse partielle ne laisse pas de virgules orphelines", () => {
@@ -148,5 +153,122 @@ describe("verifierAvantGeneration", () => {
     const r = verifierAvantGeneration(CONTEXTE, ["Bonjour {{variable_fantome}}"])
     assert.equal(r.ok, false)
     if (!r.ok) assert.ok(r.manquants.some((m) => /variable_fantome/.test(m)), r.manquants.join(" | "))
+  })
+})
+
+/**
+ * L'ADRESSE PROFESSIONNELLE DU CONSULTANT.
+ *
+ * Ce que ces épreuves cherchent à prendre en défaut : un contrat qui identifie
+ * le client et pas le représentant. Le cabinet ne figurait jusqu'ici que dans
+ * l'en-tête du PDF, avec une adresse d'UNE ligne — pas de ville, pas de
+ * province. Un contrat qui dit « domicilié au 88 rue Dollard-des-Ormeaux »
+ * sans dire dans quelle ville n'identifie personne, et c'est ce document-là
+ * que lit le Collège.
+ */
+describe("l'adresse professionnelle du consultant", () => {
+  test("elle se compose au format canadien, complément compris", () => {
+    const v = variablesDe(CONTEXTE)
+    assert.equal(
+      v.adresse_consultant_complete,
+      "88 rue Dollard-des-Ormeaux, Bureau 801, Gatineau (Québec) J8X 0B9, Canada"
+    )
+  })
+
+  test("adresse_cabinet rend la MÊME chose — les modèles fournis l'emploient", () => {
+    // Le nom de la variable n'a pas changé : le renommer aurait cassé chaque
+    // modèle déjà écrit, y compris ceux qu'un cabinet aurait personnalisés.
+    const v = variablesDe(CONTEXTE)
+    assert.equal(v.adresse_cabinet, v.adresse_consultant_complete)
+  })
+
+  test("un bureau non renseigné ne laisse pas de virgule orpheline", () => {
+    const v = variablesDe({
+      ...CONTEXTE,
+      cabinet: { ...CONTEXTE.cabinet, adresseComplement: "" },
+    })
+    assert.equal(
+      v.adresse_consultant_complete,
+      "88 rue Dollard-des-Ormeaux, Gatineau (Québec) J8X 0B9, Canada"
+    )
+  })
+
+  test("chaque morceau a sa variable, pour un modèle qui compose lui-même", () => {
+    const v = variablesDe(CONTEXTE)
+    assert.equal(v.adresse_consultant, "88 rue Dollard-des-Ormeaux")
+    assert.equal(v.complement_consultant, "Bureau 801")
+    assert.equal(v.ville_consultant, "Gatineau")
+    assert.equal(v.province_consultant, "Québec")
+    assert.equal(v.code_postal_consultant, "J8X 0B9")
+    assert.equal(v.pays_consultant, "Canada")
+    assert.equal(v.telephone_consultant, "+1 514 555 0100")
+    assert.equal(v.courriel_consultant, "infos@dgvimmigration.com")
+  })
+
+  test("une adresse professionnelle sans ville : GÉNÉRATION REFUSÉE", () => {
+    const r = verifierAvantGeneration({
+      ...CONTEXTE,
+      cabinet: { ...CONTEXTE.cabinet, ville: "" },
+    })
+    assert.equal(r.ok, false)
+    if (r.ok) return
+    // Le refus NOMME le morceau manquant : « adresse incomplète » n'apprend
+    // pas au consultant que c'est la ville, et il rouvrira ses paramètres pour
+    // chercher.
+    assert.ok(r.manquants.some((m) => /la ville/.test(m)), r.manquants.join(" | "))
+  })
+
+  test("le refus mène aux PARAMÈTRES et non à la fiche du client", () => {
+    const r = verifierAvantGeneration({
+      ...CONTEXTE,
+      cabinet: { ...CONTEXTE.cabinet, province: "" },
+    })
+    assert.equal(r.ok, false)
+    // C'est ce drapeau qui fait apparaître « Compléter mon profil » (§5). Sans
+    // lui, l'écran annonce un manque et laisse chercher où le corriger.
+    if (!r.ok) assert.equal(r.profilACompleter, true)
+  })
+
+  test("un manque du CÔTÉ CLIENT ne renvoie pas vers les paramètres", () => {
+    const r = verifierAvantGeneration({
+      ...CONTEXTE,
+      contractant: { ...CONTEXTE.contractant, email: "" },
+    })
+    assert.equal(r.ok, false)
+    if (!r.ok) assert.notEqual(r.profilACompleter, true)
+  })
+
+  test("le scénario du cahier des charges : deux adresses, aucun mélange", () => {
+    const v = variablesDe({
+      ...CONTEXTE,
+      cabinet: {
+        nom: "DGV Immigration", consultant: "Adama Diarra", civiliteConsultant: "mr",
+        permis: "R1041776",
+        adresse: "123, rue Exemple", adresseComplement: "Bureau 200",
+        ville: "Gatineau", province: "Québec", codePostal: "J8X 1A1", pays: "Canada",
+        courriel: "infos@dgvimmigration.com", telephone: "819 555 0100",
+      },
+      contractant: {
+        civility: "mrs", firstName: "Fatou", lastName: "Traoré",
+        email: "fatou@example.ca", phone: "514 555 0123",
+        address: "456, rue Exemple", addressLine2: "Appartement 4",
+        city: "Montréal", province: "Québec", postalCode: "H2X 1B2", country: "Canada",
+      },
+      locale: "fr",
+    })
+
+    assert.equal(
+      v.adresse_consultant_complete,
+      "123, rue Exemple, Bureau 200, Gatineau (Québec) J8X 1A1, Canada"
+    )
+    assert.equal(
+      v.adresse_client,
+      "456, rue Exemple, Appartement 4, Montréal (Québec) H2X 1B2, Canada"
+    )
+    // Le contrôle qui compte : rien d'un bloc ne se retrouve dans l'autre.
+    assert.ok(!v.adresse_client.includes("Gatineau"))
+    assert.ok(!v.adresse_consultant_complete.includes("Montréal"))
+    assert.equal(v.nom_complet_client, "Madame Fatou Traoré")
+    assert.equal(v.nom_consultant, "Monsieur Adama Diarra")
   })
 })

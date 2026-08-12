@@ -324,6 +324,11 @@ export async function updateFirmSettings(data: {
   rcicNumber?: string
   rcicName?: string
   address?: string
+  addressLine2?: string
+  city?: string
+  province?: string
+  postalCode?: string
+  country?: string
   phone?: string
   email?: string
   logoUrl?: string
