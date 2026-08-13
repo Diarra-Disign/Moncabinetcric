@@ -57,6 +57,7 @@ case "$commande" in
   onglet-signature) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-onglet-signature.mjs "$@" ;;
   bandeau)      exec node scripts/verify-bandeau.mjs "$@" ;;
   offres)       exec node scripts/verify-offres-fideicommis.mjs "$@" ;;
+  racine)       exec node scripts/verify-racine.mjs "$@" ;;
   verrou)       exec node scripts/verify-verrou-document.mjs "$@" ;;
   menage)       exec node scripts/menage-epreuves.mjs "$@" ;;
   purge)        exec node scripts/verify-purge-epreuve.mjs "$@" ;;

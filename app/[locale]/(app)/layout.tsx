@@ -38,8 +38,11 @@ export default async function AppLayout({
     // Un client du portail n'a pas de profil de cabinet, et c'est normal.
     // Sans ce cas, il rebondissait vers la connexion avec « probleme=profil »
     // juste après s'être authentifié avec succès.
+    // Vers /fr/portal, et non vers /fr : la racine sert désormais la page
+    // publique. Un client renvoyé à la racine y aurait trouvé l'argumentaire
+    // commercial du produit au lieu de son propre dossier.
     const client = await getCurrentPortalClient()
-    if (client) redirect("/fr")
+    if (client) redirect("/fr/portal")
 
     // Ni membre, ni administrateur : le paramètre rend la page de connexion
     // terminale, sinon la même boucle se reformerait.

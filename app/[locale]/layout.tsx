@@ -5,6 +5,7 @@ import {NextIntlClientProvider} from 'next-intl';
 import {getMessages, setRequestLocale} from 'next-intl/server';
 import {routing} from '@/lib/i18n/routing';
 import {notFound} from 'next/navigation';
+import {siteUrl} from '@/lib/site-url';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +18,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // SANS CETTE BASE, les adresses d'Open Graph et les canoniques restent
+  // RELATIVES. Facebook, LinkedIn et les moteurs attendent une adresse
+  // absolue : une valeur relative est ignorée, et l'aperçu de partage se
+  // rabat sur ce qu'il trouve. La base vient de la même source que le plan de
+  // site et les liens de courriel, donc elle suit le domaine sans qu'on ait à
+  // y penser le jour du branchement.
+  metadataBase: new URL(siteUrl()),
+  // Les deux langues se déclarent mutuellement. Sans cela, Google traite la
+  // version anglaise comme un doublon de la française plutôt que comme sa
+  // traduction, et n'en montre qu'une aux deux publics.
+  alternates: {
+    languages: { fr: "/fr", en: "/en" },
+  },
   title: {
     default: "moncabinetcric — Logiciel de Gestion pour Consultants en Immigration Canadienne CICC",
     template: "%s | moncabinetcric"

@@ -46,10 +46,18 @@ function isProtected(pathname: string): boolean {
   const aLocale = routing.locales.includes(parts[0] as (typeof routing.locales)[number])
   const afterLocale = aLocale ? parts[1] : parts[0]
 
-  // La racine « / » et « /fr » servent le portail client, qui affiche un
-  // dossier d'immigration. Sans ce cas particulier, elles échappaient à
-  // toute protection : le segment après la locale y est vide.
-  if (!afterLocale) return true
+  // LA RACINE EST PUBLIQUE, et c'est la page d'accueil commerciale.
+  //
+  // Elle a longtemps servi le portail client — un dossier d'immigration, donc
+  // une page qui exige d'être authentifié — et devait à ce titre être protégée.
+  // Conséquence : qui tapait le nom de domaine tombait sur un formulaire de mot
+  // de passe. Un confrère curieux, un client venu d'une recherche, un moteur
+  // d'indexation : tous voyaient la connexion, jamais le produit.
+  //
+  // Le portail a repris sa route propre, `/fr/portal`, qui figure dans
+  // PROTECTED_SEGMENTS ci-dessus. La racine peut donc s'ouvrir sans que rien
+  // de privé ne s'ouvre avec elle.
+  if (!afterLocale) return false
 
   return PROTECTED_SEGMENTS.includes(afterLocale)
 }

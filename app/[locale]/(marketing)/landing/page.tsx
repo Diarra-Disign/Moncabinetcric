@@ -1,7 +1,27 @@
+import type { Metadata } from "next"
 import { getLocale, getTranslations } from "next-intl/server"
 import { LandingClient } from "./landing-client"
 import { formatMontant, type Plan } from "@/lib/billing/plans"
 import { getCatalogue } from "@/lib/billing/catalogue"
+
+/**
+ * L'ADRESSE CANONIQUE DE CETTE PAGE EST LA RACINE.
+ *
+ * Depuis que `/` sert la page publique, la même page répond à deux adresses :
+ * `/fr` et `/fr/landing`. Pour un moteur de recherche, ce sont deux pages au
+ * contenu identique — du contenu dupliqué, qui divise le référencement entre
+ * les deux et laisse la machine choisir laquelle montrer.
+ *
+ * Cette balise tranche : la racine est l'adresse officielle. `/fr/landing`
+ * continue de répondre — elle est dans le plan de site et dans des courriels
+ * déjà partis — mais elle déclare elle-même qui elle duplique.
+ *
+ * Rien de tel n'est déclaré sur la racine : elle EST la canonique.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale()
+  return { alternates: { canonical: `/${locale}` } }
+}
 
 export default async function LandingPage() {
   const tLanding = await getTranslations("Landing")
