@@ -56,6 +56,36 @@ const v = (intitule, obtenu, attendu) => {
 const ou = (page) => new URL(page.url()).pathname
 
 /**
+ * Aller quelque part, et laisser les redirections se poser.
+ *
+ * ─── POURQUOI PAS UNE ATTENTE À DURÉE FIXE ─────────────────────────────────
+ *
+ * Ce contrôle a rougi une fois sur trois contre la production, et jamais en
+ * local. La cause n'était pas le produit : c'étaient mes propres
+ * `waitForTimeout(600)`. Une fonction serverless qui démarre à froid met plus
+ * de temps qu'une page déjà compilée sur la machine, et une attente calibrée
+ * sur la seconde ne tient pas contre la première.
+ *
+ * Un contrôle qui rougit au hasard est pire qu'aucun contrôle : on prend
+ * l'habitude de relancer, puis d'ignorer le rouge, et le jour où il signale
+ * une vraie régression on relance encore.
+ *
+ * On attend donc que le chemin CESSE DE CHANGER — deux relevés identiques —
+ * plutôt qu'un délai deviné.
+ */
+async function aller(page, chemin) {
+  await page.goto(`${BASE}${chemin}`, { waitUntil: "domcontentloaded" })
+  let precedent = null
+  for (let essai = 0; essai < 40; essai++) {
+    const actuel = ou(page)
+    if (actuel === precedent) return actuel
+    precedent = actuel
+    await page.waitForTimeout(250)
+  }
+  return ou(page)
+}
+
+/**
  * Ouvrir une session, en composant avec l'hydratation.
  *
  * ─── LE PIÈGE, ET POURQUOI DEUX CORRECTIFS ONT ÉCHOUÉ AVANT CELUI-CI ───────
@@ -92,8 +122,15 @@ async function ouvrirSession(page, courriel, mdp) {
 }
 
 /** La page rendue est-elle bien l'accueil public ? */
+/**
+ * `waitFor` plutôt que `count()` : la section des tarifs est rendue par le
+ * serveur, mais le document arrive par morceaux. Compter tout de suite, c'est
+ * compter avant que la page soit finie — et conclure qu'elle ne l'est pas.
+ */
 const estLaLanding = (page) =>
-  page.locator("#pricing").count().then((n) => n > 0)
+  page.locator("#pricing").first()
+    .waitFor({ state: "attached", timeout: 30000 })
+    .then(() => true, () => false)
 
 try {
   const { data: cab } = await admin.from("firms").insert({
@@ -128,26 +165,25 @@ try {
   const p1 = await anonyme.newPage()
 
   console.log("\nEssai 1 — la racine, sans compte")
-  await p1.goto(`${BASE}/`, { waitUntil: "domcontentloaded" })
-  await p1.waitForTimeout(600)
+  await aller(p1, "/")
   v("elle n'envoie PAS vers la connexion", ou(p1).includes("connexion"), false)
   v("on atterrit sur la racine localisée", ou(p1), "/fr")
   v("et c'est bien la page publique", await estLaLanding(p1), true)
 
   console.log("\nEssai 2 — la connexion garde sa route")
-  await p1.goto(`${BASE}/fr/connexion`, { waitUntil: "domcontentloaded" })
+  await aller(p1, "/fr/connexion")
   v("la page répond", ou(p1), "/fr/connexion")
   v("elle porte un champ de mot de passe",
     await p1.locator('input[type="password"]').count() > 0, true)
 
   console.log("\nEssai 3 — le privé reste fermé")
   for (const chemin of ["/fr/dashboard", "/fr/clients", "/fr/fideicommis", "/fr/portal"]) {
-    await p1.goto(`${BASE}${chemin}`, { waitUntil: "domcontentloaded" })
+    await aller(p1, chemin)
     v(`${chemin} renvoie à la connexion`, ou(p1), "/fr/connexion")
   }
 
   console.log("\nEssai 4 — la console d'exploitation, sans compte")
-  await p1.goto(`${BASE}/fr/admin`, { waitUntil: "domcontentloaded" })
+  await aller(p1, "/fr/admin")
   v("/fr/admin renvoie à la connexion", ou(p1), "/fr/connexion")
   await anonyme.close()
 
@@ -157,34 +193,28 @@ try {
 
   await p2.goto(`${BASE}/fr/connexion`, { waitUntil: "domcontentloaded" })
   await ouvrirSession(p2, courriel, mdp)
-  await p2.waitForURL(/\/fr\/dashboard/, { timeout: 30000 }).catch(() => {})
-  await p2.waitForTimeout(1500)
+  await p2.waitForURL(/\/fr\/dashboard/, { timeout: 60000 }).catch(() => {})
 
   console.log("\nEssai 4 bis — un membre ordinaire n'entre pas dans la console")
-  await p2.goto(`${BASE}/fr/admin`, { waitUntil: "domcontentloaded" })
-  await p2.waitForTimeout(800)
+  await aller(p2, "/fr/admin")
   v("il est renvoyé chez lui, pas vers la connexion", ou(p2), "/fr/dashboard")
 
   console.log("\nEssai 5 — la racine ne casse pas la session")
-  await p2.goto(`${BASE}/`, { waitUntil: "domcontentloaded" })
-  await p2.waitForTimeout(600)
+  await aller(p2, "/")
   v("la page publique s'affiche", await estLaLanding(p2), true)
   // LE CONTRÔLE QUI COMPTE : la session survit-elle à ce passage ? Si la
   // racine effaçait le cookie, on ne s'en apercevrait qu'à la page suivante.
-  await p2.goto(`${BASE}/fr/dashboard`, { waitUntil: "domcontentloaded" })
-  await p2.waitForTimeout(1200)
+  await aller(p2, "/fr/dashboard")
   v("le tableau de bord reste accessible ensuite", ou(p2), "/fr/dashboard")
 
   console.log("\nEssai 6 — après déconnexion, la racine reste publique")
   await p2.evaluate(async () => {
     await fetch("/api/auth/sign-out", { method: "POST" })
   })
-  await p2.goto(`${BASE}/`, { waitUntil: "domcontentloaded" })
-  await p2.waitForTimeout(800)
+  await aller(p2, "/")
   v("on reste sur la page publique", ou(p2), "/fr")
   v("et non sur la connexion", ou(p2).includes("connexion"), false)
-  await p2.goto(`${BASE}/fr/dashboard`, { waitUntil: "domcontentloaded" })
-  await p2.waitForTimeout(600)
+  await aller(p2, "/fr/dashboard")
   v("le privé s'est bien refermé", ou(p2), "/fr/connexion")
 
   await connecte.close()
