@@ -499,18 +499,33 @@ export async function facturerEtapeEntente(
 /**
  * Ouvre la demande de signature sur l'entente émise.
  *
- * AUCUNE TABLE NEUVE : `demanderSignature()` fige l'empreinte du fichier et
- * refusera plus tard toute signature apposée sur un contenu différent. Le §25
- * était déjà satisfait par le produit — il fallait seulement lui donner un
- * document à signer.
+ * ─── LE CHEMIN EST CELUI DU MODULE, PLUS L'ANCIEN ──────────────────────────
+ *
+ * Cette fonction appelait `demanderSignature()`, qui insérait une ligne NUE
+ * dans `signature_requests` : aucun destinataire, aucun champ, aucun jeton,
+ * aucun verrou, aucun courriel. La demande existait en base et n'était
+ * recevable par personne. Le client n'a jamais rien reçu, et la section « à
+ * signer par vous » ne pouvait pas se remplir puisqu'aucun destinataire
+ * n'avait été créé.
+ *
+ * Elle passe désormais par `envoyerEnSignature()`, c'est-à-dire par
+ * `SignatureService` — le même chemin que l'onglet Signature d'un dossier.
+ * Un seul écrivain sur la table, un seul comportement à éprouver.
+ *
+ * ─── LES SIGNATAIRES SONT DÉDUITS, PAS SAISIS ──────────────────────────────
+ *
+ * Le client vient de l'entente ; le consultant, du cabinet et du membre qui
+ * agit. Faire saisir l'adresse du consultant à chaque envoi produirait tôt ou
+ * tard une faute de frappe sur le signataire qui répond du dossier.
  */
 export async function envoyerPourSignature(id: string, note?: string): Promise<Resultat> {
   try {
+    const membre = await moi()
     const sb = await getSessionSupabase()
 
     const { data: entente } = await sb
       .from("agreements")
-      .select("reference, status, document_id")
+      .select("reference, title, status, document_id, client_id, lead_id")
       .eq("id", id)
       .maybeSingle()
 
@@ -519,16 +534,142 @@ export async function envoyerPourSignature(id: string, note?: string): Promise<R
       return { ok: false, message: "Émettez d'abord l'entente : il n'y a pas encore de document à signer." }
     }
 
-    const { demanderSignature } = await import("./signatures")
-    const demande = await demanderSignature(String(entente.document_id), note)
-    if (!demande.ok) return { ok: false, message: demande.erreur ?? "Demande refusée." }
+    // ── Qui signe, et dans quel ordre ──────────────────────────────────────
+    const signataire = await signataireDeLEntente(sb, entente)
+    if (!signataire) {
+      return {
+        ok: false,
+        message: "Le destinataire de cette entente est introuvable : impossible de savoir à qui l'envoyer.",
+      }
+    }
+    if (!signataire.courriel) {
+      return {
+        ok: false,
+        message: `${signataire.nom} n'a pas d'adresse courriel. Ajoutez-la à sa fiche : ` +
+          "c'est par là que part le lien de signature.",
+      }
+    }
 
+    const { data: cabinet } = await sb
+      .from("firms").select("rcic_license_number").eq("id", membre.firmId).maybeSingle()
+
+    const { envoyerEnSignature } = await import("./signature-actions")
+    const envoi = await envoyerEnSignature(
+      String(entente.document_id),
+      [
+        // Le client d'abord : c'est lui qui s'engage, et le consultant
+        // contresigne ce qui a été accepté.
+        { role: "client", nom: signataire.nom, courriel: signataire.courriel, rang: 1 },
+        {
+          role: "consultant",
+          nom: membre.fullName || String(cabinet?.rcic_license_number ?? "Le consultant"),
+          courriel: membre.email,
+          permis: cabinet?.rcic_license_number ? String(cabinet.rcic_license_number) : undefined,
+          rang: 2,
+        },
+      ],
+      { mode: "sequential" }
+    )
+    if (!envoi.ok) return { ok: false, message: envoi.message, id: envoi.demandeId }
+
+    // L'entente suit son document. En cas d'échec ici, la demande existe et
+    // les liens sont partis : on le dit plutôt que de prétendre le contraire.
     const { error } = await sb.from("agreements").update({ status: "sent" }).eq("id", id)
-    if (error) return { ok: false, message: error.message }
+    if (error) {
+      return {
+        ok: true,
+        id: envoi.demandeId,
+        message: `${envoi.message} L'état de ${entente.reference} n'a pas pu être mis à jour : ${error.message}`,
+      }
+    }
 
     revalidatePath("/fr/agreements")
-    return { ok: true, message: `${entente.reference} est en attente de signature.`, id: demande.requestId }
+    revalidatePath("/fr/signatures")
+    return {
+      ok: true,
+      id: envoi.demandeId,
+      message: `${entente.reference} est partie en signature. ${envoi.message}`,
+    }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
+}
+
+/**
+ * Renvoie le lien de signature d'une entente déjà partie.
+ *
+ * §13 — TROIS CLICS NE FONT PAS TROIS DEMANDES. Une fois l'entente envoyée, le
+ * bouton ne rouvre plus une demande : il relance celle qui existe, ce qui
+ * engendre un jeton neuf et révoque le précédent.
+ */
+export async function relancerEntente(id: string): Promise<Resultat> {
+  try {
+    const sb = await getSessionSupabase()
+
+    const { data: entente } = await sb
+      .from("agreements").select("reference, document_id").eq("id", id).maybeSingle()
+    if (!entente?.document_id) {
+      return { ok: false, message: "Cette entente n'a pas de document à signer." }
+    }
+
+    const { data: demande } = await sb
+      .from("signature_requests")
+      .select("id")
+      .eq("document_id", entente.document_id)
+      .in("status", ["sent", "viewed", "partially_signed"])
+      .order("requested_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!demande) {
+      return {
+        ok: false,
+        message: "Aucune demande de signature en cours sur cette entente. " +
+          "Elle a peut-être été annulée, refusée ou déjà signée.",
+      }
+    }
+
+    const { relancerSignature } = await import("./signature-actions")
+    const r = await relancerSignature(String(demande.id))
+    if (r.ok) revalidatePath("/fr/agreements")
+    return { ...r, id: String(demande.id) }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Le signataire d'en face : le client, ou le prospect quand l'entente précède
+ * la conversion.
+ *
+ * Une entente peut naître sur un PROSPECT — c'est même le cas courant : on
+ * signe l'entente, puis le prospect devient client. Ne regarder que
+ * `client_id` laisserait ces ententes sans destinataire.
+ */
+async function signataireDeLEntente(
+  sb: Awaited<ReturnType<typeof getSessionSupabase>>,
+  entente: { client_id?: string | null; lead_id?: string | null }
+): Promise<{ nom: string; courriel: string } | null> {
+  if (entente.client_id) {
+    const { data } = await sb
+      .from("clients").select("name, first_name, last_name, email")
+      .eq("id", entente.client_id).maybeSingle()
+    if (!data) return null
+    const nom = String(data.name ?? "").trim() ||
+      [data.first_name, data.last_name].filter(Boolean).join(" ").trim()
+    return { nom, courriel: String(data.email ?? "").trim() }
+  }
+
+  if (entente.lead_id) {
+    const { data } = await sb
+      .from("leads").select("first_name, last_name, email")
+      .eq("id", entente.lead_id).maybeSingle()
+    if (!data) return null
+    return {
+      nom: [data.first_name, data.last_name].filter(Boolean).join(" ").trim(),
+      courriel: String(data.email ?? "").trim(),
+    }
+  }
+
+  return null
 }

@@ -317,11 +317,7 @@ export default async function PortalPage({
                     labels={etiquettes}
                   />
                   <div className="mt-3">
-                    <SignatureBloc
-                      documentId={p.id as string}
-                      documentName={p.name as string}
-                      signataire={realClient?.name ?? ""}
-                    />
+                    <SignatureBloc documentId={p.id as string} />
                   </div>
                 </div>
               </li>

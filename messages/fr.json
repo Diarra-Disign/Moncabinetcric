@@ -637,16 +637,19 @@
     "subtitle": "Documents en attente de signature, signés, et prêts à envoyer.",
     "badge": "Preuve d'intégrité",
     "toSign": "À signer par vous",
-    "waiting": "En attente d'autrui",
     "signed": "Signés",
     "ready": "Prêts à envoyer",
-    "emptyAll": "Aucun document ne porte de fichier : la signature porte sur un contenu, il faut d'abord en déposer un.",
+    "emptyAll": "Aucune demande de signature. Une entente de service émise s’envoie en signature depuis la page Ententes, ou depuis l’onglet Signature d’un dossier.",
     "emptySection": "Rien ici.",
     "openFile": "Ouvrir le coffre-fort",
     "requestedOn": "Demandé le",
     "expiresOn": "à signer avant le",
     "divergenceWarning": "Le fichier a changé depuis la signature.",
-    "explain": "Ce qui fait preuve n'est pas le tracé manuscrit mais l'empreinte du fichier, figée au moment de la signature. Une divergence signalée ici ne dit pas que la signature était invalide : elle dit que le fichier a changé depuis."
+    "explain": "Les sections se déduisent de l’état réel de chaque demande et de ses signataires. Ce qui fait preuve n’est pas le tracé manuscrit mais l’empreinte du fichier, figée au moment de la signature : une divergence signalée ici ne dit pas que la signature était invalide, elle dit que le fichier a changé depuis.",
+    "waitingOther": "En attente d’autrui",
+    "declined": "Refusées",
+    "closed": "Annulées ou expirées",
+    "openAgreements": "Ouvrir les ententes de service"
   },
   "Demo": {
     "title": "Demander une démonstration",

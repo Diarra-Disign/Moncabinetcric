@@ -637,16 +637,19 @@
     "subtitle": "Documents awaiting signature, signed, and ready to send.",
     "badge": "Integrity proof",
     "toSign": "For you to sign",
-    "waiting": "Awaiting others",
     "signed": "Signed",
     "ready": "Ready to send",
-    "emptyAll": "No document carries a file: a signature applies to content, so one must be uploaded first.",
+    "emptyAll": "No signature request yet. An issued service agreement can be sent for signature from the Agreements page, or from a matter’s Signature tab.",
     "emptySection": "Nothing here.",
     "openFile": "Open the vault",
     "requestedOn": "Requested on",
     "expiresOn": "sign before",
     "divergenceWarning": "The file has changed since signing.",
-    "explain": "What constitutes proof is not the handwritten stroke but the file's fingerprint, frozen at the moment of signing. A discrepancy reported here does not mean the signature was invalid: it means the file has changed since."
+    "explain": "Sections are derived from each request’s real state and its signatories. What stands as proof is not the drawn stroke but the file fingerprint, frozen at signing time: a mismatch flagged here does not mean the signature was invalid, it means the file has changed since.",
+    "waitingOther": "Waiting on others",
+    "declined": "Declined",
+    "closed": "Cancelled or expired",
+    "openAgreements": "Open service agreements"
   },
   "Demo": {
     "title": "Request a demo",

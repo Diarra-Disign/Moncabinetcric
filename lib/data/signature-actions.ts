@@ -77,6 +77,36 @@ export async function envoyerEnSignature(
       return { ok: false, message: "Ajoutez au moins un signataire." }
     }
 
+    const sansCourriel = destinataires.find((d) => !d.courriel?.trim())
+    if (sansCourriel) {
+      return {
+        ok: false,
+        message: `${sansCourriel.nom || "Un signataire"} n'a pas d'adresse courriel : ` +
+          "c'est par là que part le lien de signature.",
+      }
+    }
+
+    // ── UNE SEULE DEMANDE VIVANTE PAR DOCUMENT ─────────────────────────────
+    // Trois clics ne doivent pas faire trois demandes. Deux demandes ouvertes
+    // sur le même document feraient circuler deux liens, et la seconde
+    // signature s'apposerait sur une demande que personne ne suit.
+    const { data: ouverte } = await sb
+      .from("signature_requests")
+      .select("id, status")
+      .eq("document_id", documentId)
+      .in("status", ["draft", "ready", "sent", "viewed", "partially_signed"])
+      .limit(1)
+      .maybeSingle()
+
+    if (ouverte) {
+      return {
+        ok: false,
+        demandeId: String(ouverte.id),
+        message: "Une demande de signature est déjà en cours sur ce document. " +
+          "Utilisez « Renvoyer » pour transmettre un nouveau lien, ou annulez-la d'abord.",
+      }
+    }
+
     // Chaque signataire reçoit au minimum une signature et une date. Les
     // champs sont créés ici plutôt que laissés au moteur : c'est une décision
     // du cabinet, et elle changera quand l'écran de placement existera.
@@ -109,36 +139,64 @@ export async function envoyerEnSignature(
     const aPrevenir = etat.destinataires.filter((r) => r.sonTour && r.lien)
     const { data: docEnvoye } = await sb
       .from("documents").select("name").eq("id", documentId).maybeSingle()
-    const envoyes = await previenir(
+    const courrier = await previenir(
       sb, membre.firmId, String(docEnvoye?.name ?? "un document"),
       aPrevenir, options.validiteJours ?? 30
     )
 
     revalidatePath("/[locale]/matters/[id]", "page")
     revalidatePath("/fr/signatures")
+    revalidatePath("/fr/agreements")
 
     return {
       ok: true,
       demandeId: etat.id,
-      message: envoyes > 0
-        ? `Demande envoyée. ${envoyes} courriel${envoyes > 1 ? "s" : ""} parti${envoyes > 1 ? "s" : ""}.`
-        : "Demande créée. Aucun courriel n'est parti — l'envoi n'est pas configuré ; " +
-          "transmettez le lien vous-même depuis l'historique.",
+      message: `Demande envoyée. ${verdictCourriel(courrier)}`,
     }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
 }
 
-/** Écrit aux destinataires. Rend le nombre de courriels réellement partis. */
+export interface Courrier {
+  partis: number
+  /** Ce que le fournisseur a répondu quand il a refusé. Jamais avalé. */
+  erreur?: string
+  /** Vrai si RESEND_API_KEY et EMAIL_FROM manquent : rien n'a été tenté. */
+  nonConfigure?: boolean
+}
+
+/**
+ * Traduit le sort des courriels en une phrase pour le consultant.
+ *
+ * L'ÉCHEC EST DIT, ET SA RAISON AVEC. Une version antérieure comptait les
+ * envois réussis et jetait `r.erreur` : un refus de Resend — domaine non
+ * vérifié, quota dépassé — devenait « aucun courriel n'est parti », sans que
+ * personne puisse savoir pourquoi ni quoi corriger.
+ */
+function verdictCourriel(c: Courrier): string {
+  if (c.partis > 0) {
+    return `${c.partis} courriel${c.partis > 1 ? "s" : ""} parti${c.partis > 1 ? "s" : ""}.`
+  }
+  if (c.nonConfigure) {
+    return "Aucun courriel n'est parti : l'envoi n'est pas configuré sur ce serveur. " +
+      "Transmettez le lien vous-même depuis l'historique."
+  }
+  if (c.erreur) {
+    return `Aucun courriel n'est parti — le service d'envoi a refusé : ${c.erreur}`
+  }
+  return "Aucun courriel n'est parti."
+}
+
+/** Écrit aux destinataires. Rend ce qui est parti, et pourquoi le reste ne l'est pas. */
 async function previenir(
   sb: Awaited<ReturnType<typeof getSessionSupabase>>,
   firmId: string,
   nomDocument: string,
   destinataires: { nom: string; courriel: string; lien?: string }[],
   jours: number
-): Promise<number> {
-  if (destinataires.length === 0) return 0
+): Promise<Courrier> {
+  if (destinataires.length === 0) return { partis: 0 }
 
   const { data: firm } = await sb
     .from("firms")
@@ -150,6 +208,9 @@ async function previenir(
   const { courrielSignatureDemandee } = await import("@/lib/email/templates")
 
   let partis = 0
+  let erreur: string | undefined
+  let nonConfigure = false
+
   for (const d of destinataires) {
     if (!d.lien) continue
     const message = courrielSignatureDemandee({
@@ -169,8 +230,13 @@ async function previenir(
       repondreA: firm?.reply_to_email ?? null,
     })
     if (r.envoye) partis++
+    else {
+      if (!r.configure) nonConfigure = true
+      if (r.erreur) erreur = r.erreur
+      console.error("previenir :", d.courriel, "—", r.erreur ?? "envoi non configuré")
+    }
   }
-  return partis
+  return { partis, erreur, nonConfigure }
 }
 
 /** Les demandes d'un dossier ou d'un client, du plus récent au plus ancien. */
@@ -244,17 +310,77 @@ export async function relancerSignature(
       (doc as { documents?: { name?: string } } | null)?.documents?.name ?? "un document"
     )
 
-    const envoyes = await previenir(
+    const courrier = await previenir(
       sb, membre.firmId, nomDocument, r.liens ?? [], jours
     )
 
     revalidatePath("/[locale]/matters/[id]", "page")
+    revalidatePath("/fr/signatures")
     return {
       ok: true,
-      message: envoyes > 0
-        ? `Nouveau lien envoyé. Le précédent ne fonctionne plus.`
-        : r.message + " Aucun courriel n'est parti — transmettez-le depuis l'historique.",
+      message: courrier.partis > 0
+        ? "Nouveau lien envoyé. Le précédent ne fonctionne plus."
+        : `Nouveau lien engendré. ${verdictCourriel(courrier)}`,
     }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Le lien qui permet à l'appelant de signer lui-même.
+ *
+ * ─── POURQUOI UN LIEN, ET PAS UN ÉCRAN INTERNE À PART ──────────────────────
+ *
+ * Le consultant signe par le MÊME chemin que le client : la page publique
+ * `/s/<jeton>`. Un second écran de signature, réservé aux membres, ferait
+ * deux implémentations du geste le plus délicat du produit — et c'est celui
+ * qu'on ouvre le moins souvent qui finirait par ne plus horodater, ou par ne
+ * plus vérifier l'empreinte.
+ *
+ * ─── LE JETON EST NEUF À CHAQUE FOIS ───────────────────────────────────────
+ *
+ * Il n'existe en clair qu'un instant, à la création. Redemander à signer
+ * engendre donc un jeton neuf et révoque le précédent — ce qui est aussi la
+ * bonne conduite : un lien qui a pu traîner dans une boîte de courriel ne
+ * doit pas rester valide indéfiniment.
+ */
+export async function lienPourSigner(
+  demandeId: string
+): Promise<Resultat & { lien?: string }> {
+  try {
+    const { membre, service: svc } = await service()
+    const etat = await svc.getStatus(demandeId)
+    if (!etat) return { ok: false, message: "Cette demande est introuvable." }
+
+    const moiCourriel = (membre.email ?? "").trim().toLowerCase()
+    const moi = etat.destinataires.find(
+      (d) => d.courriel.trim().toLowerCase() === moiCourriel
+    )
+
+    // ON NE SIGNE PAS POUR AUTRUI. Le rôle ne suffit pas : dans un cabinet de
+    // trois consultants, se fier à « role = consultant » laisserait n'importe
+    // lequel ouvrir le lien d'un autre.
+    if (!moi) {
+      return { ok: false, message: "Vous n'êtes pas signataire de cette demande." }
+    }
+    if (moi.statut === "signed") {
+      return { ok: false, message: "Vous avez déjà signé ce document." }
+    }
+    if (!moi.sonTour) {
+      return {
+        ok: false,
+        message: "Ce n'est pas encore votre tour : un signataire vous précède.",
+      }
+    }
+
+    const r = await svc.resendRequest(demandeId, moi.id)
+    const lien = r.liens?.[0]?.lien
+    if (!r.ok || !lien) {
+      return { ok: false, message: r.message || "Le lien de signature n'a pas pu être engendré." }
+    }
+
+    return { ok: true, lien, message: "Ouverture de votre page de signature." }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }

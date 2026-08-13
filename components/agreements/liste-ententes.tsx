@@ -2,7 +2,9 @@
 
 import * as React from "react"
 import { FileText, Eye, Send, CheckCircle2, Clock, Loader2, Stamp, Pencil, CircleDollarSign } from "lucide-react"
-import { emettreEntente, envoyerPourSignature, type EntenteListee } from "@/lib/data/ententes-actions"
+import {
+  emettreEntente, envoyerPourSignature, relancerEntente, type EntenteListee,
+} from "@/lib/data/ententes-actions"
 import { cn } from "@/lib/utils"
 
 /**
@@ -213,6 +215,20 @@ export function ListeEntentes({
                         >
                           {occupe ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                           <span>Envoyer pour signature</span>
+                        </button>
+                      )}
+
+                      {/* §13 — une entente déjà partie ne se renvoie pas en
+                          rouvrant une seconde demande : elle se RELANCE. Le
+                          jeton précédent meurt, un seul lien circule. */}
+                      {e.statut === "sent" && e.documentId && (
+                        <button
+                          onClick={() => agir(e.id, () => relancerEntente(e.id))}
+                          disabled={occupe}
+                          className={cn(BOUTON, "bg-muted hover:bg-border text-foreground")}
+                        >
+                          {occupe ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          <span>Renvoyer le lien</span>
                         </button>
                       )}
                     </div>

@@ -788,11 +788,7 @@ export function DocumentsClient({ t, initialFolders, initialDocuments, initialAu
 
                   <div>
                     <label className="text-[10px] font-bold text-muted-foreground uppercase block mb-2">Signature</label>
-                    <SignatureBloc
-                      documentId={selectedDoc.id}
-                      documentName={selectedDoc.name}
-                      signataire={firm.rcicName}
-                    />
+                    <SignatureBloc documentId={selectedDoc.id} />
                   </div>
 
                   <div>
