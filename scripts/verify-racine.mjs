@@ -106,19 +106,53 @@ async function aller(page, chemin) {
  * composant vivant a reçu la saisie. On remplit donc jusqu'à ce qu'il réponde.
  */
 async function ouvrirSession(page, courriel, mdp) {
-  await page.waitForSelector("#email", { timeout: 30000 })
+  await page.waitForSelector("#email", { timeout: 60000 })
   const bouton = page.locator('button[type="submit"]')
 
-  for (let essai = 0; essai < 40; essai++) {
+  // BUDGET LARGE, ET DÉLIBÉRÉMENT. La boucle sort dès que le bouton répond —
+  // en général au premier tour, en un demi-second. Ce qui la fait durer, c'est
+  // un serveur de développement occupé à compiler : l'essai 3 vient d'en
+  // demander cinq routes d'un coup, et le paquet client de cette page-ci
+  // attend son tour. Douze secondes ne suffisaient pas dans ce cas, et l'échec
+  // ressemblait alors à un formulaire cassé.
+  for (let essai = 0; essai < 60; essai++) {
     await page.fill("#email", courriel)
     await page.fill("#password", mdp)
-    await page.waitForTimeout(300)
+    await page.waitForTimeout(400)
     if (!(await bouton.isDisabled())) {
       await bouton.click()
       return
     }
+
+    // RECHARGER PLUTÔT QU'ATTENDRE PLUS LONGTEMPS.
+    //
+    // Le diagnostic ci-dessous a tranché : la valeur EST dans le DOM, les deux
+    // champs existent, l'URL est la bonne — et le bouton reste fermé une minute
+    // entière. La page n'est donc pas lente à s'hydrater, elle ne s'hydrate
+    // JAMAIS : son paquet client n'a pas été exécuté.
+    //
+    // Cela n'arrive qu'en développement, où le serveur compile à la demande,
+    // et environ une fois sur deux lorsqu'on enchaîne les passages. En
+    // production — un vrai build, rien à compiler — le contrôle passe sans
+    // broncher. Attendre davantage ne sert à rien ; redemander la page, si.
+    if (essai > 0 && essai % 12 === 0) {
+      await page.reload({ waitUntil: "domcontentloaded" })
+      await page.waitForSelector("#email", { timeout: 30000 })
+    }
   }
-  throw new Error("Le formulaire de connexion ne s'est jamais activé.")
+  // UN ÉCHEC QUI SE TAIT EST UN ÉCHEC QU'ON REDÉCOUVRE. L'état exact du
+  // formulaire au moment de l'abandon dit tout de suite s'il s'agit d'une page
+  // jamais hydratée, d'une navigation inattendue, ou d'un champ absent.
+  const etat = {
+    url: page.url(),
+    champCourriel: await page.locator("#email").count(),
+    champMotDePasse: await page.locator("#password").count(),
+    valeurLue: await page.inputValue("#email").catch(() => "(illisible)"),
+    boutons: await bouton.count(),
+  }
+  throw new Error(
+    `Le formulaire de connexion ne s'est jamais activé — ${JSON.stringify(etat)}`
+  )
 }
 
 /** La page rendue est-elle bien l'accueil public ? */
