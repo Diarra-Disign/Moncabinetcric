@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { ententePdf, type ArticleImprime, type SignataireImprime } from "./pdf"
+import type { EmplacementSignature } from "./emplacements"
 import type { LanguePdf } from "@/lib/pdf/primitives"
 import { nomAvecCivilite } from "@/lib/data/identite"
 import { lignesAdresse } from "@/lib/data/adresse"
@@ -41,12 +42,26 @@ export interface EntenteComposee {
   documentId: string | null
   contractantNom: string
   contractantCourriel: string
+  /** Où signer, encadré par encadré. Voir `lib/ententes/emplacements.ts`. */
+  emplacements: EmplacementSignature[]
 }
 
 export async function pdfDEntente(
   sb: SupabaseClient,
   id: string,
-  langue: LanguePdf = "fr"
+  langue: LanguePdf = "fr",
+  options: {
+    /**
+     * Le statut à IMPRIMER, quand il diffère de celui encore en base.
+     *
+     * L'émission compose le PDF AVANT de passer l'entente à « ready » : sans
+     * cette dérogation, le document classé — celui qu'on envoie signer et qui
+     * finit dans le contrat signé — porte le filigrane BROUILLON sur toutes
+     * ses pages. Le défaut a vécu jusqu'à ce qu'un contrat signé sorte estampé
+     * « brouillon ».
+     */
+    statutImprime?: string
+  } = {}
 ): Promise<EntenteComposee | null> {
   const { data } = await sb
     .from("agreements")
@@ -167,14 +182,14 @@ export async function pdfDEntente(
         })
       : ""
 
-  const octets = await ententePdf(
+  const { octets, emplacements } = await ententePdf(
     {
       numero: String(a.reference ?? ""),
       // La date qui fait foi est celle de l'ÉMISSION quand elle existe : une
       // entente préparée en mars et émise en avril est datée d'avril.
       date: jour(a.issued_at ?? a.created_at),
       titre: String(a.title ?? ""),
-      statut: String(a.status ?? "draft"),
+      statut: options.statutImprime ?? String(a.status ?? "draft"),
       proBono: a.is_probono === true,
       consultant: blocConsultant,
       // La raison sociale du client : renseignée seulement pour une personne
@@ -230,6 +245,7 @@ export async function pdfDEntente(
 
   return {
     octets,
+    emplacements,
     reference: String(a.reference ?? ""),
     titre: String(a.title ?? ""),
     statut: String(a.status ?? "draft"),

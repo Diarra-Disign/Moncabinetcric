@@ -46,7 +46,11 @@ export async function emettre(
   membre: MembreEmetteur,
   id: string
 ): Promise<ResultatEmission> {
-  const compose = await pdfDEntente(sb, id)
+  // LE STATUT IMPRIMÉ EST « ready », PAS CELUI ENCORE EN BASE. L'entente n'y
+  // passe qu'à la fin de cette fonction : composer avant, sans le dire, a
+  // longtemps produit un document classé — puis envoyé signer, puis intégré au
+  // contrat signé — estampé BROUILLON sur toutes ses pages.
+  const compose = await pdfDEntente(sb, id, "fr", { statutImprime: "ready" })
   if (!compose) return { ok: false, message: "Cette entente est introuvable." }
 
   // Une entente déjà émise ne se réémet pas en silence : son PDF a pu être
@@ -82,6 +86,9 @@ export async function emettre(
       client_name: compose.contractantNom,
       mime_type: "application/pdf",
       size_bytes: compose.octets.byteLength,
+      // Où signer, tel que le générateur vient de le mesurer. Sans ces
+      // repères, la signature ne pourrait être qu'ajoutée en fin de document.
+      signature_anchors: compose.emplacements.length > 0 ? compose.emplacements : null,
     })
     .select("id")
     .single()

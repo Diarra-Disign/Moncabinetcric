@@ -1,28 +1,40 @@
 import "server-only"
 
-import { PDFDocument, StandardFonts } from "pdf-lib"
+import { PDFDocument, StandardFonts, type PDFPage, type PDFFont } from "pdf-lib"
 import {
   ENCRE, GRIS, TRAIT, LARGEUR, HAUTEUR, G, D,
   ecrire, couper, envelopper, droite, centre,
 } from "@/lib/pdf/primitives"
 import { libelleRole } from "./statuts"
+import {
+  horodatage, dateSignature, heureSignature, abreviationFuseau, FUSEAU_LISIBLE,
+} from "./horodatage"
 
 /**
  * Le certificat de signature, et le document final.
  *
  * ─── CE QU'ON PRODUIT, ET POURQUOI PAS AUTRE CHOSE ─────────────────────────
  *
- * Un NOUVEAU PDF : les pages d'origine, inchangées, suivies d'une page de
- * certificat. Trois raisons de procéder ainsi plutôt qu'en tamponnant des
- * images sur le document.
+ * Un NOUVEAU PDF : les pages d'origine, portant les tracés aux emplacements
+ * que le contrat prévoit, suivies d'une page de certificat.
  *
- *   1. Le cahier des charges refuse « une simple image de signature collée sur
- *      un PDF ». Il a raison : une image collée ne prouve rien, elle décore.
- *   2. Le document d'origine ne doit pas changer — son empreinte est ce qui
- *      fait foi, et elle est figée dans la demande. On l'ajoute, on ne le
- *      réécrit pas.
+ *   1. LE TRACÉ NE PROUVE RIEN À LUI SEUL, et c'est pourquoi il ne vient
+ *      jamais seul. Une image collée sur un PDF s'imite ; ce qui fait preuve
+ *      est l'empreinte du fichier signé, imprimée au certificat avec
+ *      l'horodatage et l'adresse d'origine. Le tracé rend le contrat lisible
+ *      comme un contrat signé — la preuve, elle, est derrière.
+ *   2. LE FICHIER D'ORIGINE N'EST PAS RÉÉCRIT. Ses pages sont recopiées telles
+ *      quelles et l'on dessine par-dessus : le texte reproduit est exactement
+ *      celui qui a été présenté, et son empreinte le démontre.
  *   3. Un tiers — IRCC, un employeur, un confrère — reçoit une pièce qui DIT
  *      ce qu'elle est : qui a signé, quand, depuis où, et sur quelle empreinte.
+ *
+ * ─── LES EMPLACEMENTS NE SONT PAS DEVINÉS ──────────────────────────────────
+ *
+ * Ils viennent du générateur de contrat, qui les a mesurés en dessinant les
+ * encadrés, et transitent par `signature_fields`. Un document sans encadré
+ * connu — un PDF téléversé — reçoit son certificat sans tracé apposé plutôt
+ * qu'une signature posée au jugé.
  *
  * ─── L'EMPREINTE DE L'ORIGINAL EST IMPRIMÉE ────────────────────────────────
  *
@@ -78,6 +90,24 @@ export interface EvenementCertificat {
   acteur: string
 }
 
+/**
+ * Un tracé à poser DANS le contrat, à l'emplacement qu'il prévoit.
+ *
+ * Les coordonnées viennent de `signature_fields`, qui les tient du générateur
+ * de contrat. Aucune n'est devinée ici : un emplacement absent signifie que le
+ * document n'a pas d'encadré connu, et rien n'est apposé.
+ */
+export interface AppositionSignature {
+  nom: string
+  signeLe: string
+  /** Le tracé, en data: URI PNG. Sans lui, on écrit tout de même la date. */
+  trace?: string | null
+  /** Index de page, à partir de 0. */
+  page: number
+  signature: { x: number; y: number; largeur: number; hauteur: number } | null
+  date: { x: number; y: number; largeur: number } | null
+}
+
 export interface DonneesCertificat {
   documentNom: string
   reference: string
@@ -86,15 +116,84 @@ export interface DonneesCertificat {
   cabinetPermis: string
   signataires: SignataireCertificat[]
   evenements: EvenementCertificat[]
+  /** Ce qu'on pose sur le contrat lui-même. Vide : certificat seul. */
+  apposer?: AppositionSignature[]
 }
 
-const horodatage = (v: string) => {
-  const d = new Date(v)
-  if (Number.isNaN(d.getTime())) return v
-  return (
-    d.toLocaleDateString("fr-CA", { day: "2-digit", month: "2-digit", year: "numeric" }) +
-    " " + d.toLocaleTimeString("fr-CA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
-  )
+/**
+ * Pose les tracés et les dates dans les encadrés du contrat.
+ *
+ * ─── CE QU'ON ÉCRIT, ET CE QU'ON NE TOUCHE PAS ─────────────────────────────
+ *
+ * DEUX LIGNES, celles que le contrat laisse vides : le filet de signature et
+ * le filet de date. Le nom est déjà imprimé dans l'encadré par le générateur —
+ * le réécrire le doublerait.
+ *
+ * Aucun contenu d'origine n'est effacé ni recomposé. On dessine PAR-DESSUS des
+ * pages recopiées telles quelles, ce qui garantit que le texte signé est bien
+ * celui qui a été présenté.
+ *
+ * ─── RIEN N'EST INVENTÉ ────────────────────────────────────────────────────
+ *
+ * Une page hors bornes, un emplacement absent, un tracé illisible : on passe.
+ * Un contrat sans tracé accompagné d'un certificat qui prouve la signature
+ * vaut mieux qu'un tracé posé au hasard sur une page.
+ */
+async function apposerSurLeContrat(
+  doc: PDFDocument,
+  pages: PDFPage[],
+  apposer: AppositionSignature[],
+  normal: PDFFont
+): Promise<void> {
+  for (const a of apposer) {
+    const page = pages[a.page]
+    if (!page) continue
+
+    // ── Le tracé ─────────────────────────────────────────────────────────
+    if (a.signature && a.trace?.startsWith("data:image/png")) {
+      try {
+        const octets = Buffer.from(a.trace.split(",")[1] ?? "", "base64")
+        const image = await doc.embedPng(octets)
+
+        // À L'ÉCHELLE, ET DANS LA BOÎTE. Un tracé large déborderait sur la
+        // colonne voisine — c'est-à-dire sur l'encadré de l'autre partie.
+        const hMax = a.signature.hauteur
+        const lMax = a.signature.largeur
+        const facteur = Math.min(lMax / image.width, hMax / image.height)
+        const l = image.width * facteur
+        const h = image.height * facteur
+
+        page.drawImage(image, {
+          // Posé SUR le filet, légèrement au-dessus : une signature manuscrite
+          // repose sur la ligne, elle ne flotte pas et ne la traverse pas.
+          x: a.signature.x + 2,
+          y: a.signature.y + 1.5,
+          width: l,
+          height: h,
+        })
+      } catch {
+        // Un tracé illisible n'invalide pas la signature : la preuve est
+        // l'empreinte, imprimée au certificat. On laisse la ligne vide.
+        console.error("apposerSurLeContrat : tracé illisible pour", a.nom)
+      }
+    }
+
+    // ── La date, celle du signataire ─────────────────────────────────────
+    // Pas la date du contrat : deux parties signent rarement le même jour, et
+    // c'est précisément l'écart qu'un tiers voudra lire.
+    if (a.date && a.signeLe) {
+      // SEPT POINTS ET DEMI, pour que « 12 août 2026 » entre en entier. À huit,
+      // la ligne réservée par le contrat est trop courte de deux points et la
+      // date sortait tronquée : « 12 août 2… ». Une date coupée sur un contrat
+      // est pire qu'une date absente — elle a l'air d'une date.
+      const TAILLE = 7.5
+      const texte = dateSignature(a.signeLe)
+      const largeur = normal.widthOfTextAtSize(texte, TAILLE)
+      ecrire(page, largeur <= a.date.largeur ? texte : couper(texte, normal, TAILLE, a.date.largeur), {
+        x: a.date.x + 2, y: a.date.y + 3, size: TAILLE, font: normal, color: ENCRE,
+      })
+    }
+  }
 }
 
 /**
@@ -110,11 +209,12 @@ export async function documentAvecCertificat(
 ): Promise<Uint8Array> {
   const sortie = await PDFDocument.create()
 
-  // ── Les pages d'origine, inchangées ────────────────────────────────────
+  // ── Les pages d'origine ────────────────────────────────────────────────
+  const pagesOrigine: PDFPage[] = []
   try {
     const original = await PDFDocument.load(octetsOriginal)
     const pages = await sortie.copyPages(original, original.getPageIndices())
-    for (const p of pages) sortie.addPage(p)
+    for (const p of pages) { sortie.addPage(p); pagesOrigine.push(p) }
   } catch {
     // Un original illisible ne doit pas empêcher de produire le certificat :
     // la preuve des signatures existe indépendamment du fichier, et un
@@ -125,6 +225,12 @@ export async function documentAvecCertificat(
 
   const normal = await sortie.embedFont(StandardFonts.Helvetica)
   const gras = await sortie.embedFont(StandardFonts.HelveticaBold)
+
+  // ── Les signatures, DANS le contrat ────────────────────────────────────
+  // Sur les pages recopiées, aux encadrés que le contrat prévoit déjà. Le
+  // texte d'origine n'est pas réécrit : on remplit deux lignes laissées
+  // vides, exactement comme une signature manuscrite les remplirait.
+  await apposerSurLeContrat(sortie, pagesOrigine, d.apposer ?? [], normal)
 
   let page = sortie.addPage([LARGEUR, HAUTEUR])
   let y = 780
@@ -176,6 +282,9 @@ export async function documentAvecCertificat(
   // ── Les signataires ────────────────────────────────────────────────────
   y -= 6
   ecrire(page, MOTS.signataires, { x: G, y: place(16), size: 9, font: gras, color: ENCRE })
+  // LE FUSEAU EST NOMMÉ UNE FOIS, ICI. Sans lui, « 22:14 » n'est qu'un nombre :
+  // un lecteur à Vancouver ou à Paris ne peut pas savoir ce qu'il désigne.
+  droite(page, `Horodatage : ${FUSEAU_LISIBLE}`, D, y + 16, normal, 7.5, GRIS)
   y -= 4
 
   for (const [i, s] of d.signataires.entries()) {
@@ -198,7 +307,11 @@ export async function documentAvecCertificat(
     const sousTitre = [libelleRole(s.role), s.permis ? `CRIC ${s.permis}` : ""]
       .filter(Boolean).join(" · ")
     ecrire(page, sousTitre, { x: G + 12, y: haut + 20, size: 8.5, font: normal, color: GRIS })
-    ecrire(page, `${MOTS.colDate} ${horodatage(s.signeLe)}${s.ip ? ` · ${s.ip}` : ""}`, {
+    // L'HEURE ET LE FUSEAU, pas seulement la date. « Signé le 12 août » ne
+    // départage pas deux versions ; « 22:14 HAE » oui.
+    const quand = `${MOTS.colDate} ${dateSignature(s.signeLe)} à ${heureSignature(s.signeLe)} ` +
+      `${abreviationFuseau(s.signeLe)}${s.ip ? ` · ${s.ip}` : ""}`
+    ecrire(page, couper(quand, normal, 8, D - G - 24), {
       x: G + 12, y: haut + 7, size: 8, font: normal, color: GRIS,
     })
 

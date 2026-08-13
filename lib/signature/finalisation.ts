@@ -3,7 +3,10 @@ import "server-only"
 import { createHash } from "node:crypto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { deposerOctets } from "@/lib/data/depot"
-import { documentAvecCertificat, type DonneesCertificat } from "./certificat"
+import {
+  documentAvecCertificat,
+  type DonneesCertificat, type AppositionSignature,
+} from "./certificat"
 import { nomDocumentSigne, LIBELLE_EVENEMENT, type EvenementSignature } from "./statuts"
 import { journaliser } from "./evenements"
 import type { ContexteSignature } from "./contrat"
@@ -80,16 +83,22 @@ export async function finaliser(
     const octetsOriginal = new Uint8Array(await reponse.arrayBuffer())
 
     // ── Ce que le certificat doit dire ─────────────────────────────────────
-    const [{ data: signatures }, { data: journal }, { data: firm }] = await Promise.all([
-      sb.from("signatures")
-        .select("signer_name, signer_email, signer_role, rcic_number, signed_at, ip_address, signature_image")
-        .eq("request_id", requestId).order("signed_at"),
-      sb.from("audit_logs")
-        .select("action, occurred_at, actor_name")
-        .eq("entity_type", "signature_request").eq("entity_id", requestId)
-        .order("occurred_at"),
-      sb.from("firms").select("name, rcic_license_number").eq("id", demande.firm_id).maybeSingle(),
-    ])
+    const [{ data: signatures }, { data: journal }, { data: firm }, { data: destinataires }, { data: champs }] =
+      await Promise.all([
+        sb.from("signatures")
+          .select("signer_name, signer_email, signer_role, rcic_number, signed_at, ip_address, signature_image")
+          .eq("request_id", requestId).order("signed_at"),
+        sb.from("audit_logs")
+          .select("action, occurred_at, actor_name")
+          .eq("entity_type", "signature_request").eq("entity_id", requestId)
+          .order("occurred_at"),
+        sb.from("firms").select("name, rcic_license_number").eq("id", demande.firm_id).maybeSingle(),
+        sb.from("signature_recipients")
+          .select("id, email, full_name").eq("request_id", requestId),
+        sb.from("signature_fields")
+          .select("recipient_id, kind, page, pos_x, pos_y, width, height")
+          .eq("request_id", requestId),
+      ])
 
     const donnees: DonneesCertificat = {
       documentNom: String(doc.name ?? ""),
@@ -113,6 +122,7 @@ export async function finaliser(
         survenuLe: String(e.occurred_at ?? ""),
         acteur: String(e.actor_name ?? "Système"),
       })),
+      apposer: aApposer(signatures ?? [], destinataires ?? [], champs ?? []),
     }
 
     const octetsFinal = await documentAvecCertificat(octetsOriginal, donnees)
@@ -184,6 +194,64 @@ export async function finaliser(
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
+}
+
+/**
+ * Relie chaque signature apposée à l'emplacement qui lui revient dans le
+ * contrat.
+ *
+ * ─── LE COURRIEL EST LA CHARNIÈRE ──────────────────────────────────────────
+ *
+ * `signatures` retient qui a signé — nom, courriel, tracé, horodatage.
+ * `signature_fields` retient où signer, par destinataire. Le courriel est ce
+ * que les deux tables partagent : il est unique par destinataire au sein d'une
+ * demande, et c'est déjà lui qui autorise la signature côté base.
+ *
+ * ─── SANS EMPLACEMENT, RIEN N'EST POSÉ ─────────────────────────────────────
+ *
+ * Un PDF téléversé n'a pas d'encadré connu : ses champs naissent sans
+ * coordonnées, `page` est nul, et le signataire n'apparaît alors que sur le
+ * certificat. C'est le comportement d'avant cette amélioration, et il reste le
+ * bon — une signature posée au jugé sur un document inconnu serait pire que
+ * pas de signature du tout.
+ */
+function aApposer(
+  signatures: Record<string, unknown>[],
+  destinataires: Record<string, unknown>[],
+  champs: Record<string, unknown>[]
+): AppositionSignature[] {
+  const parCourriel = new Map(
+    destinataires.map((d) => [String(d.email ?? "").trim().toLowerCase(), String(d.id)])
+  )
+
+  const sorties: AppositionSignature[] = []
+  for (const s of signatures) {
+    const destinataireId = parCourriel.get(String(s.signer_email ?? "").trim().toLowerCase())
+    if (!destinataireId) continue
+
+    const siens = champs.filter((c) => String(c.recipient_id) === destinataireId)
+    const trace = siens.find((c) => c.kind === "signature" && c.page !== null)
+    const date = siens.find((c) => c.kind === "date" && c.page !== null)
+    if (!trace && !date) continue
+
+    const page = Number((trace ?? date)!.page)
+    sorties.push({
+      nom: String(s.signer_name ?? ""),
+      signeLe: String(s.signed_at ?? ""),
+      trace: s.signature_image ? String(s.signature_image) : null,
+      page,
+      signature: trace
+        ? {
+            x: Number(trace.pos_x ?? 0), y: Number(trace.pos_y ?? 0),
+            largeur: Number(trace.width ?? 120), hauteur: Number(trace.height ?? 26),
+          }
+        : null,
+      date: date
+        ? { x: Number(date.pos_x ?? 0), y: Number(date.pos_y ?? 0), largeur: Number(date.width ?? 70) }
+        : null,
+    })
+  }
+  return sorties
 }
 
 /** L'empreinte du document final, pour qui veut la vérifier de son côté. */

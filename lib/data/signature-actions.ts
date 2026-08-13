@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
 import { SignatureService } from "@/lib/signature/service"
 import type { DemandeSignature, EtatDemande, EntreeJournalSignature } from "@/lib/signature/contrat"
+import { apparier, type EmplacementSignature } from "@/lib/ententes/emplacements"
 
 /**
  * Les gestes du consultant sur les signatures.
@@ -107,14 +108,54 @@ export async function envoyerEnSignature(
       }
     }
 
-    // Chaque signataire reçoit au minimum une signature et une date. Les
-    // champs sont créés ici plutôt que laissés au moteur : c'est une décision
-    // du cabinet, et elle changera quand l'écran de placement existera.
+    // ── OÙ SIGNER, QUAND LE DOCUMENT LE SAIT ───────────────────────────────
+    // Un contrat engendré par le cabinet porte ses encadrés de signature,
+    // mesurés à la composition. On rattache chaque signataire au sien : c'est
+    // ce qui permettra d'apposer le tracé DANS le contrat plutôt que d'ajouter
+    // une page de signatures à la fin.
+    //
+    // Un PDF téléversé n'a pas de repères : les champs naissent alors sans
+    // coordonnées, et le document signé se contente de son certificat. C'est
+    // le comportement d'avant, et il reste correct.
+    const { data: docAncres } = await sb
+      .from("documents").select("signature_anchors").eq("id", documentId).maybeSingle()
+
+    const ancres = Array.isArray(docAncres?.signature_anchors)
+      ? (docAncres.signature_anchors as EmplacementSignature[])
+      : []
+    const paires = apparier(destinataires, ancres)
+
     const champs: DemandeSignature["champs"] = []
-    destinataires.forEach((_, i) => {
-      champs.push({ destinataireIndex: i, type: "signature", libelle: "Signature" })
+    destinataires.forEach((d, i) => {
+      const e = paires.get(d)
+      champs.push({
+        destinataireIndex: i,
+        type: "signature",
+        libelle: "Signature",
+        // Le tracé se pose SUR la ligne : l'ordonnée est celle du filet, la
+        // hauteur celle qu'on s'autorise au-dessus.
+        //
+        // ONZE POINTS, PAS DAVANTAGE. L'encadré n'offre que quatorze points
+        // entre le filet de signature et la ligne de qualité imprimée
+        // au-dessus — « Permis CRIC R1041776 », « Client ». Une première
+        // version en autorisait vingt-six : le tracé traversait le nom. À
+        // treize, il effleurait encore la qualité. Cela ne se voit ni du
+        // compilateur ni d'une épreuve de texte : seulement en ouvrant le PDF.
+        ...(e ? { page: e.page, x: e.signature.x, y: e.signature.y, largeur: e.signature.largeur, hauteur: 11 } : {}),
+      })
       if (options.avecInitiales) {
         champs.push({ destinataireIndex: i, type: "initials", libelle: "Initiales" })
+      }
+      // La date est un champ à part entière : elle porte sa propre position, et
+      // c'est le signataire qui la fixe en signant — pas la date du contrat.
+      if (e) {
+        champs.push({
+          destinataireIndex: i,
+          type: "date",
+          libelle: "Date",
+          obligatoire: false,
+          page: e.page, x: e.date.x, y: e.date.y, largeur: e.date.largeur, hauteur: 12,
+        })
       }
     })
 

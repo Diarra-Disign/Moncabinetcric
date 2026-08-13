@@ -7,6 +7,7 @@ import {
   logoEnOctets, filigrane,
   type LanguePdf, type CabinetPdf,
 } from "@/lib/pdf/primitives"
+import type { EmplacementSignature } from "./emplacements"
 
 /**
  * L'entente de service, en PDF.
@@ -734,7 +735,19 @@ function piedContrat(
   droite(page, `${reference}  ·  ${m.page(n, total)}`, D, 11, gras, 7.5, BLANC)
 }
 
-export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Array> {
+export interface ContratCompose {
+  octets: Uint8Array
+  /**
+   * Où signer, encadré par encadré.
+   *
+   * Restitué plutôt que gardé pour soi : c'est ce qui permettra d'apposer les
+   * signatures DANS le contrat, aux emplacements qu'il prévoit déjà, au lieu
+   * d'en fabriquer d'autres à la fin du document.
+   */
+  emplacements: EmplacementSignature[]
+}
+
+export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<ContratCompose> {
   const langue: LanguePdf = e.langue ?? "fr"
   const m = MOTS[langue]
   const argent = argentDe(langue)
@@ -876,10 +889,17 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
   const largeurCase = (D - G - 18) / 2
   const colonnes = [G, G + largeurCase + 18]
 
+  // LES POSITIONS SONT RETENUES AU MOMENT OÙ ON LES DESSINE. C'est le seul
+  // instant où on les connaît : la page d'un encadré dépend de la longueur des
+  // articles qui précèdent. Les recalculer plus tard reviendrait à réécrire la
+  // mise en page, et à diverger d'elle au premier changement.
+  const emplacements: EmplacementSignature[] = []
+
   for (let i = 0; i < e.signataires.length; i += 2) {
     const rangee = e.signataires.slice(i, i + 2)
     const HAUT_CASE = 68
     const { page: pageCase, y: yCase } = flux.place(HAUT_CASE + 8)
+    const indexPage = flux.pages.indexOf(pageCase)
     rangee.forEach((s, j) => {
       const x = colonnes[j]
       pageCase.drawRectangle({
@@ -913,10 +933,23 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
         thickness: 0.5, color: ENCRE,
       })
       ecrire(pageCase, m.dateLabel, { x: xDate, y: yLigne, size: 7.5, font: normal, color: GRIS })
+      const xDateTrait = xDate + normal.widthOfTextAtSize(m.dateLabel, 7.5) + 4
       pageCase.drawLine({
-        start: { x: xDate + normal.widthOfTextAtSize(m.dateLabel, 7.5) + 4, y: yLigne - 3 },
+        start: { x: xDateTrait, y: yLigne - 3 },
         end: { x: x + largeurCase - 10, y: yLigne - 3 },
         thickness: 0.5, color: ENCRE,
+      })
+
+      emplacements.push({
+        role: s.role,
+        nom: s.nom,
+        permis: s.permis || undefined,
+        page: indexPage,
+        boite: { x, y: yCase, largeur: largeurCase, hauteur: HAUT_CASE },
+        // Les deux lignes que le contrat laisse VIDES : c'est exactement là
+        // qu'une signature manuscrite se poserait.
+        signature: { x: xTrait, y: yLigne - 3, largeur: xDate - 8 - xTrait },
+        date: { x: xDateTrait, y: yLigne - 3, largeur: x + largeurCase - 10 - xDateTrait },
       })
     })
   }
@@ -930,5 +963,5 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<Uint8Arr
     if (e.statut === "draft") filigrane(page, m.brouillon, gras, 48, 150)
   })
 
-  return doc.save()
+  return { octets: await doc.save(), emplacements }
 }
