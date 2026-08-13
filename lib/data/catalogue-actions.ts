@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
 import { getCurrentPlatformAdmin, getSessionSupabase } from "@/lib/supabase/session"
 import { invaliderCatalogue } from "@/lib/billing/catalogue"
+import { journaliserExploitation } from "./platform-audit"
 
 /**
  * Pilotage du catalogue par l'exploitant.
@@ -43,26 +44,14 @@ async function exigerAdministrateur() {
   return admin
 }
 
-/** Consigne un geste d'exploitation. Jamais silencieux, jamais modifiable. */
-async function journaliser(params: {
-  actorId: string
-  actorEmail: string
-  action: string
-  firmId?: string | null
-  firmName?: string
-  summary: string
-  details?: Record<string, unknown>
-}) {
-  await serviceClient().from("platform_audit").insert({
-    actor_id: params.actorId,
-    actor_email: params.actorEmail,
-    action: params.action,
-    firm_id: params.firmId ?? null,
-    firm_name: params.firmName ?? "",
-    summary: params.summary,
-    details: params.details ?? null,
-  })
-}
+/**
+ * Consigne un geste d'exploitation. Jamais silencieux, jamais modifiable.
+ *
+ * Déplacée dans `platform-audit.ts` : elle ne vivait ici que par accident, et
+ * les gestes de `admin-actions.ts` — créer, suspendre, changer de forfait —
+ * n'écrivaient donc rien du tout.
+ */
+const journaliser = journaliserExploitation
 
 /** Lit un montant en dollars saisi au formulaire, et le rend en cents. */
 function cents(valeur: FormDataEntryValue | null): number | null {

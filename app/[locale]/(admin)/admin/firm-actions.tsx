@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Ban, Play, Check, AlertTriangle, Copy, Link2, CreditCard } from "lucide-react"
+import { Plus, Ban, Play, Check, AlertTriangle, Copy, Link2 } from "lucide-react"
 import { creerCabinet, changerPlan, basculerAcces, type ResultatAction } from "@/lib/data/admin-actions"
 import { cn } from "@/lib/utils"
 
@@ -267,14 +267,28 @@ export function CreerCabinet({
 export function ActionsCabinet({
   firmId,
   plan,
-  accessOpen,
+  statut,
   labels,
 }: {
   firmId: string
   plan: string
-  accessOpen: boolean
+  /**
+   * `firms.status`, et NON `accessOpen`.
+   *
+   * Ce bouton pilotait la suspension depuis `accessOpen`, ce qui marchait tant
+   * que celui-ci ne disait que « statut actif et essai non échu ». Depuis qu'il
+   * dit la vérité — abonnement compris — un cabinet jamais suspendu dont le
+   * paiement a cessé afficherait « Réactiver », et le clic écrirait
+   * `status = 'active'` sur un cabinet déjà actif : rien ne changerait, et
+   * l'exploitant conclurait que la console est cassée.
+   *
+   * Suspendre est une DÉCISION, l'accès en est une conséquence parmi d'autres.
+   * Le bouton suit donc la décision.
+   */
+  statut: string
   labels: Record<string, string>
 }) {
+  const suspendu = statut === "suspended"
   const [resultat, setResultat] = React.useState<ResultatAction | null>(null)
   const [enCours, demarrer] = React.useTransition()
 
@@ -320,43 +334,37 @@ export function ActionsCabinet({
 
       <form action={(fd) => demarrer(async () => setResultat(await basculerAcces(fd)))}>
         <input type="hidden" name="firmId" value={firmId} />
-        <input type="hidden" name="suspendre" value={accessOpen ? "1" : "0"} />
+        <input type="hidden" name="suspendre" value={suspendu ? "0" : "1"} />
         <button
           type="submit"
           disabled={enCours}
           className={cn(
             "inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold transition-colors disabled:opacity-50",
-            accessOpen
-              ? "border border-error/30 text-error hover:bg-error/10"
-              : "border border-success/30 text-success hover:bg-success/10"
+            suspendu
+              ? "border border-success/30 text-success hover:bg-success/10"
+              : "border border-error/30 text-error hover:bg-error/10"
           )}
         >
-          {accessOpen ? (
-            <>
-              <Ban aria-hidden className="h-3 w-3" />
-              {labels.suspend}
-            </>
-          ) : (
+          {suspendu ? (
             <>
               <Play aria-hidden className="h-3 w-3" />
               {labels.activate}
             </>
+          ) : (
+            <>
+              <Ban aria-hidden className="h-3 w-3" />
+              {labels.suspend}
+            </>
           )}
         </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            const stripeUrl = "https://buy.stripe.com/test_moncabinetcric_saas"
-            navigator.clipboard.writeText(stripeUrl)
-            setResultat({ ok: true, message: `💳 Lien de paiement Stripe copié dans le presse-papier !` })
-          }}
-          className="inline-flex min-h-8 items-center gap-1 text-[11px] font-bold rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-indigo-900 transition-colors hover:bg-indigo-100 cursor-pointer"
-          title="Copier le lien d'abonnement Stripe pour ce cabinet"
-        >
-          <CreditCard className="h-3 w-3 text-indigo-600" />
-          <span>Stripe Lien</span>
-        </button>
+        {/* Le bouton « Stripe Lien » a été retiré : il recopiait dans le
+            presse-papier l'adresse
+            « https://buy.stripe.com/test_moncabinetcric_saas », qui n'est pas
+            un identifiant Stripe et ne mène nulle part. Un bouton qui annonce
+            « lien copié » et ne copie rien d'utilisable est pire qu'un bouton
+            absent : l'exploitant le transmet à un client. Le vrai chemin de
+            paiement est le tunnel du cabinet, Réglages → Abonnement, dont
+            l'adresse est déjà copiable depuis le bloc financier. */}
       </form>
 
       <Retour resultat={resultat} labels={labels} />

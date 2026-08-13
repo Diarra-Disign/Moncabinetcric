@@ -98,7 +98,18 @@ export async function getCurrentFirm(): Promise<FirmIdentity> {
     .maybeSingle()
 
   if (error || !data) return EMPTY_FIRM
-  return mapFirmRow(data as FirmRow)
+
+  // L'ÉTAT D'ACCÈS VIENT DE LA BASE. `mapFirmRow()` le recalculait à partir du
+  // statut et de l'échéance d'essai seuls, sans consulter l'abonnement : un
+  // cabinet dont le paiement avait cessé se voyait servir l'application
+  // normale, qui lui rendait ensuite des listes vides partout, sans jamais lui
+  // dire pourquoi. `firm_access_open()` est l'autorité — celle-là même qui
+  // ferme la RLS — et c'est elle qu'on interroge.
+  const { data: etat } = await supabase.rpc("firms_access_state")
+  const ouvert = ((etat ?? []) as { firm_id: string; access_open: boolean }[])
+    .find((e) => String(e.firm_id) === String(profile.firm_id))
+
+  return { ...mapFirmRow(data as FirmRow), accessOpen: ouvert?.access_open ?? false }
 }
 
 export interface PortalClient {

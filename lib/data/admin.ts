@@ -75,18 +75,30 @@ export async function getAdminFirms(): Promise<AdminFirmRow[]> {
 
   // La politique firm_subscriptions_read ouvre la table à l'administrateur
   // de plateforme : aucun filtre applicatif n'est nécessaire ici.
-  const [{ data: firms }, { data: profiles }, { data: abonnements }] = await Promise.all([
-    supabase
-      .from("firms")
-      .select("id, name, rcic_license_number, owner_name, email, phone, address, created_at, plan, status, trial_ends_at")
-      .order("created_at", { ascending: true }),
-    supabase.from("profiles").select("id, firm_id, email, full_name, cicc_role, status"),
-    supabase
-      .from("firm_subscriptions")
-      .select(
-        "firm_id, plan, cadence, status, seats, current_period_end, cancel_at_period_end, grace_until, payment_method, payment_last4, stripe_customer_id"
-      ),
-  ])
+  const [{ data: firms }, { data: profiles }, { data: abonnements }, { data: acces }] =
+    await Promise.all([
+      supabase
+        .from("firms")
+        .select("id, name, rcic_license_number, owner_name, email, phone, address, created_at, plan, status, trial_ends_at")
+        .order("created_at", { ascending: true }),
+      supabase.from("profiles").select("id, firm_id, email, full_name, cicc_role, status"),
+      supabase
+        .from("firm_subscriptions")
+        .select(
+          "firm_id, plan, cadence, status, seats, current_period_end, cancel_at_period_end, grace_until, payment_method, payment_last4, stripe_customer_id"
+        ),
+      // L'ÉTAT D'ACCÈS VIENT DE LA BASE, il n'est plus recalculé ici. Cette
+      // fonction recopiait la règle sans consulter l'abonnement : un cabinet
+      // dont le paiement avait cessé s'affichait ouvert alors que la base lui
+      // refusait tout. Une règle écrite deux fois finit toujours par différer,
+      // et c'est l'écran sur lequel on décide de suspendre qui mentait.
+      supabase.rpc("firms_access_state"),
+    ])
+
+  const ouvertureDe = new Map(
+    ((acces ?? []) as { firm_id: string; access_open: boolean }[])
+      .map((a) => [String(a.firm_id), Boolean(a.access_open)])
+  )
 
   const parCabinet = new Map<string, AdminSubscriptionRow>()
   for (const s of abonnements ?? []) {
@@ -116,11 +128,9 @@ export async function getAdminFirms(): Promise<AdminFirmRow[]> {
     plan: (f.plan as string) ?? "",
     status: (f.status as string) ?? "",
     trialEndsAt: (f.trial_ends_at as string) ?? "",
-    accessOpen:
-      f.status === "active" &&
-      (f.plan !== "trial" ||
-        !f.trial_ends_at ||
-        (f.trial_ends_at as string) >= new Date().toISOString().slice(0, 10)),
+    // Fermé par défaut si la base n'a rien dit : sur un écran de supervision,
+    // l'ignorance doit ressembler à une fermeture, jamais à une ouverture.
+    accessOpen: ouvertureDe.get(f.id as string) ?? false,
     members: (profiles ?? [])
       .filter((p) => p.firm_id === f.id)
       .map((p) => ({

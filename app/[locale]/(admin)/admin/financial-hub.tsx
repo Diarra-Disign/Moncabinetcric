@@ -14,6 +14,33 @@ import {
 } from "lucide-react"
 import type { AdminFirmRow, AdminSubscriptionRow } from "@/lib/data/admin"
 import { montant, formatMontant, type Cadence, type Plan } from "@/lib/billing/plans"
+import { cn } from "@/lib/utils"
+
+/**
+ * Jours restants avant la fin d'un essai. Négatif s'il est écoulé, null si
+ * aucune échéance n'est posée.
+ *
+ * Le calcul se fait sur les dates seules, sans heure : `trial_ends_at` est une
+ * DATE en base, et `firm_access_open()` la compare à `current_date`. Mêler une
+ * heure ici ferait afficher « expire aujourd'hui » un jour où l'accès est
+ * encore ouvert.
+ */
+function joursRestants(echeance: string): number | null {
+  if (!echeance) return null
+  const fin = new Date(`${echeance.slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(fin.getTime())) return null
+  const aujourdhui = new Date()
+  aujourdhui.setHours(0, 0, 0, 0)
+  return Math.round((fin.getTime() - aujourdhui.getTime()) / 86_400_000)
+}
+
+function libelleEcheance(echeance: string): string {
+  const j = joursRestants(echeance)
+  if (j === null) return "Essai sans échéance"
+  if (j < 0) return `Essai expiré depuis ${-j} j`
+  if (j === 0) return "Essai — dernier jour"
+  return `Essai — ${j} j restants`
+}
 
 /**
  * Statuts d'abonnement qui produisent du revenu récurrent.
@@ -265,8 +292,21 @@ export function FinancialHub({ firms, catalogue }: FinancialHubProps) {
                 <div>
                   <div className="flex items-center gap-2">
                     <strong className="text-xs font-bold text-foreground">{f.name}</strong>
-                    <span className="font-mono text-[10px] bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2 py-0.5 rounded font-bold uppercase">
-                      Essai (30 jours)
+                    {/* LA VRAIE ÉCHÉANCE, PAS « 30 JOURS » ÉCRIT EN DUR. Un
+                        essai qui expire demain s'affichait comme un essai de
+                        trente jours — sur l'écran dont l'objet est justement de
+                        décider QUI relancer en priorité. */}
+                    <span className={cn(
+                      "font-mono text-[10px] px-2 py-0.5 rounded font-bold uppercase border",
+                      joursRestants(f.trialEndsAt) === null
+                        ? "bg-muted text-muted-foreground border-border"
+                        : joursRestants(f.trialEndsAt)! < 0
+                          ? "bg-error/10 text-error-strong border-error/20"
+                          : joursRestants(f.trialEndsAt)! <= 7
+                            ? "bg-error/10 text-error-strong border-error/20"
+                            : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                    )}>
+                      {libelleEcheance(f.trialEndsAt)}
                     </span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">

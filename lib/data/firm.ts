@@ -148,13 +148,12 @@ export function mapFirmRow(row: FirmRow): FirmIdentity {
     plan: row.plan ?? "",
     status: row.status ?? "",
     trialEndsAt: row.trial_ends_at ?? "",
-    // Reproduit firm_access_open() côté application, pour afficher un écran
-    // d'explication. Ce n'est PAS le contrôle de sécurité : celui-ci est en
-    // base, dans current_firm_id(), et ne dépend pas de ce calcul.
-    accessOpen:
-      row.status === "active" &&
-      (row.plan !== "trial" ||
-        !row.trial_ends_at ||
-        row.trial_ends_at >= new Date().toISOString().slice(0, 10)),
+    // FERMÉ PAR DÉFAUT, ET C'EST L'APPELANT QUI TRANCHE. Ce mappeur est pur :
+    // il ne peut pas interroger la base. Il recopiait donc la règle de
+    // `firm_access_open()` — sans consulter l'abonnement, ce qui la rendait
+    // FAUSSE dès qu'un paiement cessait. `getCurrentFirm()` remplace désormais
+    // cette valeur par celle de la base ; le repli fermé garantit qu'un
+    // appelant qui oublierait de le faire n'ouvre rien par accident.
+    accessOpen: false,
   }
 }

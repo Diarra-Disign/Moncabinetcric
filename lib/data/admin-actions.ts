@@ -6,6 +6,7 @@ import { getCurrentPlatformAdmin, getSessionSupabase } from "@/lib/supabase/sess
 import { envoyerCourriel, adresseDeReponse } from "@/lib/email/send"
 import { courrielInvitation, type Langue } from "@/lib/email/templates"
 import { siteUrl } from "@/lib/site-url"
+import { journaliserExploitation } from "./platform-audit"
 
 /**
  * Actions de la console d'exploitation.
@@ -171,6 +172,25 @@ export async function creerCabinet(formData: FormData): Promise<ResultatAction> 
         .eq("id", demandeId)
     }
 
+    // OUVRIR UN ACCÈS SE CONSIGNE AUTANT QUE LE FERMER. Le courriel
+    // d'invitation est noté, pas son jeton : le journal se lit à plusieurs, et
+    // un lien d'invitation en clair y resterait valide sept jours.
+    await journaliserExploitation({
+      actorId: admin.userId,
+      actorEmail: admin.email,
+      action: "firm.create",
+      firmId: String(cabinet.id),
+      firmName: nom,
+      summary: `Cabinet « ${nom} » ouvert au forfait ${plan}`,
+      details: {
+        plan,
+        permis,
+        proprietaire: courriel,
+        invitationEnvoyee: envoi.envoye,
+        demandeId: demandeId || null,
+      },
+    })
+
     revalidatePath("/[locale]/admin", "page")
 
     if (envoi.envoye) {
@@ -225,6 +245,14 @@ export async function ecarterDemande(formData: FormData): Promise<ResultatAction
 
     if (error) return { ok: false, message: error.message }
 
+    await journaliserExploitation({
+      actorId: admin.userId,
+      actorEmail: admin.email,
+      action: "demo.dismiss",
+      summary: "Demande de démonstration écartée",
+      details: { demandeId: id },
+    })
+
     revalidatePath("/[locale]/admin", "page")
     return { ok: true, message: "Demande écartée." }
   } catch (e) {
@@ -250,7 +278,7 @@ const PLANS_OCTROYABLES = ["trial", "courtoisie"] as const
 
 export async function changerPlan(formData: FormData): Promise<ResultatAction> {
   try {
-    await exigerAdministrateur()
+    const admin = await exigerAdministrateur()
     const supabase = await getSessionSupabase()
 
     const id = String(formData.get("firmId") ?? "")
@@ -276,12 +304,25 @@ export async function changerPlan(formData: FormData): Promise<ResultatAction> {
             .slice(0, 10)
         : null
 
+    const { data: avant } = await supabase
+      .from("firms").select("name, plan, trial_ends_at").eq("id", id).maybeSingle()
+
     const { error } = await supabase
       .from("firms")
       .update({ plan, trial_ends_at: echeance, updated_at: new Date().toISOString() })
       .eq("id", id)
 
     if (error) return { ok: false, message: error.message }
+
+    await journaliserExploitation({
+      actorId: admin.userId,
+      actorEmail: admin.email,
+      action: "firm.plan",
+      firmId: id,
+      firmName: String(avant?.name ?? ""),
+      summary: `Forfait de « ${avant?.name ?? id} » : ${avant?.plan ?? "—"} → ${plan}`,
+      details: { avant: avant?.plan ?? null, apres: plan, echeance },
+    })
 
     revalidatePath("/[locale]/admin", "page")
     return { ok: true, message: `Plan passé à « ${plan} ».` }
@@ -292,12 +333,18 @@ export async function changerPlan(formData: FormData): Promise<ResultatAction> {
 
 export async function basculerAcces(formData: FormData): Promise<ResultatAction> {
   try {
-    await exigerAdministrateur()
+    const admin = await exigerAdministrateur()
     const supabase = await getSessionSupabase()
 
     const id = String(formData.get("firmId") ?? "")
     const suspendre = String(formData.get("suspendre") ?? "") === "1"
     if (!id) return { ok: false, message: "Cabinet manquant." }
+
+    // Le nom est relevé AVANT : après la bascule, le journal n'aurait qu'un
+    // identifiant, et une ligne d'audit qu'il faut résoudre pour comprendre
+    // n'est pas lue.
+    const { data: avant } = await supabase
+      .from("firms").select("name, status").eq("id", id).maybeSingle()
 
     const { error } = await supabase
       .from("firms")
@@ -309,6 +356,22 @@ export async function basculerAcces(formData: FormData): Promise<ResultatAction>
       .eq("id", id)
 
     if (error) return { ok: false, message: error.message }
+
+    // FERMER UN CABINET EST LE GESTE LE PLUS LOURD DE CETTE CONSOLE, et il ne
+    // laissait aucune trace : `journaliser()` vivait dans catalogue-actions.ts
+    // et n'était appelée que par les gestes du catalogue. Modifier un prix
+    // s'écrivait au journal, couper l'accès à un cabinet non.
+    await journaliserExploitation({
+      actorId: admin.userId,
+      actorEmail: admin.email,
+      action: suspendre ? "firm.suspend" : "firm.resume",
+      firmId: id,
+      firmName: String(avant?.name ?? ""),
+      summary: suspendre
+        ? `Accès fermé pour « ${avant?.name ?? id} »`
+        : `Accès rouvert pour « ${avant?.name ?? id} »`,
+      details: { avant: avant?.status ?? null, apres: suspendre ? "suspended" : "active" },
+    })
 
     revalidatePath("/[locale]/admin", "page")
     return {

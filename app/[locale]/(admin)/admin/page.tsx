@@ -65,6 +65,28 @@ export default async function AdminPage() {
   ])
   const stats = summarise(firms)
 
+  // LE PLAFOND DE PLACES DES CABINETS QUI EN DEMANDENT.
+  //
+  // Il était passé à `null`, donc affiché « ∞ » — au moment précis où
+  // l'exploitant décide d'accorder des places, l'écran lui disait qu'il n'y
+  // avait aucune limite. La question à laquelle il doit répondre est « combien
+  // en ont-ils déjà, sur combien », et l'écran effaçait le dénominateur.
+  //
+  // Seulement pour les cabinets qui ont une demande en attente : elles se
+  // comptent sur les doigts d'une main, et interroger les quatre-vingts autres
+  // pour rien serait le N+1 qu'on veut éviter ailleurs.
+  const { getSessionSupabase } = await import("@/lib/supabase/session")
+  const sb = await getSessionSupabase()
+  const cabinetsQuiDemandent = [...new Set(demandesSieges.map((d) => d.firmId))]
+  const plafonds = new Map(
+    await Promise.all(
+      cabinetsQuiDemandent.map(async (id) => {
+        const { data } = await sb.rpc("firm_seat_limit", { f_id: id })
+        return [id, data === null || data === undefined ? null : Number(data)] as const
+      })
+    )
+  )
+
   // Les libellés traversent la frontière serveur/client : un composant
   // client ne peut pas appeler getTranslations lui-même.
   const etiquettes = Object.fromEntries(
@@ -161,7 +183,7 @@ export default async function AdminPage() {
               statut: d.statut,
               creeLe: d.creeLe,
               placesOccupees: cab?.members.filter((m) => m.statut === "active").length ?? 0,
-              placesMax: null,
+              placesMax: plafonds.get(d.firmId) ?? null,
             }
           })}
         />
@@ -245,7 +267,7 @@ export default async function AdminPage() {
                         <ActionsCabinet
                           firmId={f.id}
                           plan={f.plan}
-                          accessOpen={f.accessOpen}
+                          statut={f.status}
                           labels={etiquettes}
                         />
                       </td>

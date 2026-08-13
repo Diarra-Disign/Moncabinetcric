@@ -26,6 +26,12 @@ export const PERMISSIONS = [
   // Effacer n'est pas annuler : réservée au propriétaire, et distincte de
   // `signatures.manage` avec laquelle on range sans détruire.
   "signatures.purge",
+  // Elle existait en base depuis le 9 août et gouverne `trust_ledger_write`,
+  // mais manquait ici : `permissionsDuMembre()` ne la rapportait donc jamais,
+  // et `exigerPermission("trust.manage")` n'était pas même écrivable. Un écran
+  // ne pouvait ni la montrer, ni l'exiger — alors que la base la faisait
+  // respecter.
+  "trust.manage",
   "audit.read",
   "firm.settings",
   "firm.members",

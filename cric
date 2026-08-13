@@ -61,6 +61,8 @@ case "$commande" in
   menage)       exec node scripts/menage-epreuves.mjs "$@" ;;
   purge)        exec node scripts/verify-purge-epreuve.mjs "$@" ;;
   classement)   exec node scripts/verify-classement.mjs "$@" ;;
+  releve-droits) exec node scripts/releve-droits.mjs "$@" ;;
+  controle)     exec node scripts/verify-controle.mjs "$@" ;;
   dossier-client) exec node scripts/verify-dossier-client.mjs "$@" ;;
   facturation-lignes) exec node scripts/verify-facturation.mjs "$@" ;;
   facturation-globale) exec node scripts/verify-facturation-globale.mjs "$@" ;;
