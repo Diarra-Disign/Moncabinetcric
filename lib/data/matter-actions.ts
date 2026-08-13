@@ -531,6 +531,95 @@ export async function deposerFormulaire(formData: FormData): Promise<Resultat> {
   }
 }
 
+/**
+ * Dépose une pièce qui n'entre dans aucune catégorie prévue.
+ *
+ * ─── LA MÊME INFRASTRUCTURE, RIEN DE PARALLÈLE ─────────────────────────────
+ *
+ * Même table, même compartiment de stockage, mêmes politiques, mêmes gestes de
+ * consultation et de retrait que toute autre pièce du dossier. Seule la
+ * catégorie change. Un second système de fichiers pour les pièces « diverses »
+ * finirait par diverger sur les droits — et ce sont justement ces pièces-là
+ * qu'on oublierait de protéger.
+ *
+ * ─── LE NOM EST OBLIGATOIRE, ET C'EST TOUT L'INTÉRÊT ───────────────────────
+ *
+ * La catégorie est générique par dessein ; le nom ne l'est pas. Sans nom
+ * imposé, la section deviendrait une pile de « Autre document » que personne
+ * ne saurait distinguer six mois plus tard. Le nom du fichier ne fait pas
+ * l'affaire : « scan0042.pdf » n'apprend rien.
+ *
+ * ─── STATUT « valid », PAS « pending_review » ──────────────────────────────
+ *
+ * La file de vérification existe pour ce que le CLIENT dépose par le portail.
+ * Une pièce que le consultant range lui-même n'a pas à attendre qu'il
+ * l'approuve. C'est déjà la règle appliquée à l'émission d'une entente.
+ */
+export async function deposerAutreDocument(formData: FormData): Promise<Resultat> {
+  try {
+    const membre = await moi()
+    const sb = await getSessionSupabase()
+
+    const fichier = formData.get("fichier")
+    if (!(fichier instanceof File) || fichier.size === 0) {
+      return { ok: false, message: "Choisissez un fichier." }
+    }
+
+    const nom = String(formData.get("nom") ?? "").trim()
+    if (!nom) {
+      return {
+        ok: false,
+        message: "Donnez un nom à ce document : c'est lui qui permettra de le retrouver.",
+      }
+    }
+
+    const matterId = String(formData.get("matterId") ?? "")
+    const clientId = String(formData.get("clientId") ?? "") || null
+    const description = String(formData.get("description") ?? "").trim() || null
+    const dateDocument = String(formData.get("dateDocument") ?? "").trim() || null
+    const provenance = String(formData.get("provenance") ?? "").trim()
+
+    // La ligne d'abord, le fichier ensuite : deposerFichier() a besoin de
+    // l'identifiant du document pour ranger le fichier, et un fichier déposé
+    // sans ligne serait un objet dans le stockage que rien ne référence.
+    const { data: doc, error } = await sb.from("documents").insert({
+      firm_id: membre.firmId,
+      client_id: clientId,
+      matter_id: matterId,
+      name: nom,
+      description,
+      // `type` reste une ÉTIQUETTE, distincte de la description : c'est elle
+      // qui servira au tri le jour où la liste s'allongera.
+      type: provenance || "Autre document",
+      category: "other",
+      date: dateDocument,
+      uploaded_by: membre.fullName || membre.email,
+      uploaded_by_user_id: membre.userId,
+      source: "cabinet",
+      status: "valid",
+      mime_type: fichier.type || null,
+      size_bytes: fichier.size,
+    }).select("id").single()
+
+    if (error || !doc) return { ok: false, message: lisible(error) }
+
+    const { deposerFichier } = await import("./storage")
+    const depot = await deposerFichier(doc.id as string, clientId ?? membre.firmId, fichier)
+
+    if (!depot.ok) {
+      // La ligne est retirée : un document qui existe sans son fichier
+      // s'afficherait au dossier et ne s'ouvrirait jamais.
+      await sb.from("documents").delete().eq("id", doc.id)
+      return { ok: false, message: depot.erreur ?? "Dépôt impossible." }
+    }
+
+    revalidatePath("/[locale]/matters/[id]", "page")
+    return { ok: true, message: `« ${nom} » rangé au dossier.` }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Pièces : téléverser, consulter, retirer
 // ---------------------------------------------------------------------------

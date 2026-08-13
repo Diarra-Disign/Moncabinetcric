@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
-  Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Wand2, PenLine
+  Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Wand2, PenLine,
+  FolderPlus
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
 import { OngletSignature } from "@/components/signature/onglet-signature"
@@ -14,7 +15,7 @@ import {
   ajouterEcheance, changerEtatEcheance, declarerDossier, demanderValidation,
   enregistrerPaiement, marquerRecue, marquerVerifiee,
   renvoyerACorriger, virerHonoraires, rattacherClient, inviterClientAuPortail,
-  deposerFormulaire, deposerPourExigence, apercuDocument, retirerDocument,
+  deposerFormulaire, deposerAutreDocument, deposerPourExigence, apercuDocument, retirerDocument,
   type Resultat,
 } from "@/lib/data/matter-actions"
 import { cn } from "@/lib/utils"
@@ -521,6 +522,141 @@ export function DossierOnglets({
         <div className="space-y-3">
           {pieces.length === 0 && <Vide texte="Aucune pièce justificative exigée pour ce programme." />}
           {pieces.map(ligneExigence)}
+
+          {/* ------------------------------------------------------------
+              AUTRES DOCUMENTS
+
+              Après les pièces exigées, jamais avant : ce sont elles qui
+              bloquent la validation du dossier, et c'est pour elles qu'on
+              ouvre cet onglet. Cette section recueille le reste — la lettre
+              explicative, la correspondance reçue d'une autorité, la pièce
+              qu'aucun programme ne réclame mais qui compte au dossier.
+
+              La catégorie est générique ; le NOM ne l'est pas. C'est lui qui
+              distingue les pièces entre elles, et c'est pourquoi il est exigé.
+              ------------------------------------------------------------ */}
+          <div className="pt-4">
+            <h3 className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+              Autres documents
+            </h3>
+          </div>
+
+          <form action={lancer(deposerAutreDocument)} className="rounded-2xl border border-border bg-card p-5">
+            <input type="hidden" name="matterId" value={matterId} />
+            <input type="hidden" name="clientId" value={clientId ?? ""} />
+            <h3 className="flex items-center gap-2 text-sm font-black text-foreground">
+              <FolderPlus aria-hidden className="h-4 w-4 text-muted-foreground" />
+              Ajouter un document
+            </h3>
+            <p className="mt-1 max-w-prose text-xs text-muted-foreground">
+              Une pièce qui n&apos;entre dans aucune catégorie prévue — lettre explicative,
+              correspondance, preuve supplémentaire. Elle se range au dossier, se consulte
+              et se télécharge comme les autres. PDF, image ou document, 20 Mo au plus.
+            </p>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="text-[11px] font-bold text-muted-foreground">
+                Nom du document <span className="text-error">*</span>
+                <input
+                  name="nom"
+                  required
+                  placeholder="Lettre explicative concernant le refus de 2024"
+                  className={cn(CHAMP, "mt-1")}
+                />
+              </label>
+              <label className="text-[11px] font-bold text-muted-foreground">
+                Fichier <span className="text-error">*</span>
+                <input
+                  type="file" name="fichier" required
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+                  className={cn(CHAMP, "mt-1 file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-bold")}
+                />
+              </label>
+            </div>
+
+            <label className="mt-3 block text-[11px] font-bold text-muted-foreground">
+              Description
+              <input
+                name="description"
+                placeholder="Facultatif — à quoi sert cette pièce au dossier"
+                className={cn(CHAMP, "mt-1")}
+              />
+            </label>
+
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="text-[11px] font-bold text-muted-foreground">
+                Date du document
+                <input type="date" name="dateDocument" className={cn(CHAMP, "mt-1")} />
+              </label>
+              <label className="text-[11px] font-bold text-muted-foreground">
+                Provenance
+                <select name="provenance" defaultValue="" className={cn(CHAMP, "mt-1")}>
+                  <option value="">Non précisée</option>
+                  <option value="Client">Client</option>
+                  <option value="Consultant">Consultant</option>
+                  <option value="IRCC">IRCC</option>
+                  <option value="MIFI">MIFI</option>
+                  <option value="Employeur">Employeur</option>
+                  <option value="Autre">Autre</option>
+                </select>
+              </label>
+            </div>
+
+            {/* « Ajouter au dossier » et non « Téléverser » : les pièces
+                exigées portent déjà ce mot juste au-dessus, et deux boutons
+                identiques à quelques centimètres l'un de l'autre feraient
+                déposer la lettre explicative dans la case du passeport. */}
+            <BoutonPetit disabled={enCours} className="mt-3">Ajouter au dossier</BoutonPetit>
+          </form>
+
+          {d.autresDocuments.length === 0 ? (
+            <Vide texte="Aucun autre document au dossier." />
+          ) : (
+            <div className="space-y-2">
+              {d.autresDocuments.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4"
+                >
+                  <div className="min-w-0">
+                    <h4 className="truncate text-sm font-bold text-foreground">{a.nom}</h4>
+                    {a.description && (
+                      <p className="mt-0.5 max-w-prose text-xs text-muted-foreground">{a.description}</p>
+                    )}
+                    <p className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
+                      <span>
+                        Ajouté le{" "}
+                        {new Date(a.deposeLe).toLocaleDateString("fr-CA", {
+                          day: "numeric", month: "long", year: "numeric",
+                        })}
+                        {a.deposePar ? ` par ${a.deposePar}` : ""}
+                      </span>
+                      {/* La date du DOCUMENT, distincte de celle du dépôt :
+                          une correspondance reçue en mars et rangée en août
+                          n'a pas la même date selon ce qu'on cherche. */}
+                      {a.dateDocument && <span>Daté du {a.dateDocument}</span>}
+                      {a.source && a.source !== "cabinet" && <span>{a.source}</span>}
+                      {a.taille ? <span>{Math.round(a.taille / 1024)} Ko</span> : null}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <form action={ouvrir(apercuDocument)}>
+                      <input type="hidden" name="documentId" value={a.id} />
+                      <BoutonPetit disabled={enCours} ton="neutre">
+                        <Eye aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Aperçu
+                      </BoutonPetit>
+                    </form>
+                    <form action={lancer(retirerDocument)}>
+                      <input type="hidden" name="documentId" value={a.id} />
+                      <BoutonPetit disabled={enCours} ton="error">
+                        <Trash2 aria-hidden className="mr-1.5 h-3.5 w-3.5" /> Retirer
+                      </BoutonPetit>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

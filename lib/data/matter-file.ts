@@ -70,6 +70,26 @@ export interface FormulaireDepose {
   taille: number | null
 }
 
+/**
+ * Un document du dossier qui n'entre dans aucune catégorie prévue.
+ *
+ * La catégorie est générique ; le NOM ne l'est pas. C'est lui qui distingue
+ * « Lettre explicative sur le refus de 2024 » de « Correspondance IRCC du
+ * 3 mars » — et sans lui, la section deviendrait une pile de « Autre document »
+ * indiscernables.
+ */
+export interface AutreDocument {
+  id: string
+  nom: string
+  description: string | null
+  /** La date du document lui-même, quand elle diffère du dépôt. */
+  dateDocument: string | null
+  source: string | null
+  deposeLe: string
+  deposePar: string | null
+  taille: number | null
+}
+
 export interface FactureVue {
   id: string
   numero: string
@@ -120,6 +140,7 @@ export interface DossierComplet {
   echeances: EcheanceVue[]
   formulaires: FormulaireVue[]
   formulairesDeposes: FormulaireDepose[]
+  autresDocuments: AutreDocument[]
   factures: FactureVue[]
   paiements: PaiementVue[]
 
@@ -218,7 +239,7 @@ export async function getDossierComplet(
         ? sb.rpc("client_trust_balance", { c_id: clientId })
         : Promise.resolve({ data: 0 }),
       sb.from("documents")
-        .select("id, name, type, category, created_at, uploaded_by, size_bytes, requirement_id, storage_path")
+        .select("id, name, type, category, created_at, uploaded_by, size_bytes, requirement_id, storage_path, description, date, source")
         .eq("matter_id", matterId)
         .is("archived_at", null)
         .order("created_at", { ascending: false }),
@@ -335,6 +356,21 @@ export async function getDossierComplet(
       signedAt: (f.signed_at as string) ?? null,
       archived: f.status === "archived",
     })),
+    // MÊME REQUÊTE, AUTRE FILTRE. Les documents du dossier sont déjà chargés
+    // une fois : en refaire une requête pour la sixième catégorie ferait deux
+    // aller-retours pour lire la même table.
+    autresDocuments: (docs.data ?? [])
+      .filter((d) => d.category === "other")
+      .map((d) => ({
+        id: String(d.id),
+        nom: String(d.name ?? ""),
+        description: (d.description as string) ?? null,
+        dateDocument: (d.date as string) ?? null,
+        source: (d.source as string) ?? null,
+        deposeLe: String(d.created_at),
+        deposePar: (d.uploaded_by as string) ?? null,
+        taille: (d.size_bytes as number) ?? null,
+      })),
     formulairesDeposes: (docs.data ?? [])
       .filter((d) => d.category === "ircc_form")
       .map((d) => ({
