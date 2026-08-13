@@ -86,9 +86,19 @@ export async function balayer(admin, options = {}) {
   let effacesComptes = 0
 
   for (const f of cabinets) {
-    const { error } = await admin.from("firms").delete().eq("id", f.id)
+    // PAS UN `.delete()`. Il échouait pour tout le monde depuis des semaines :
+    // `audit_logs` cascade depuis `firms`, et le déclencheur d'inaltérabilité
+    // refusait la cascade. `purger_cabinet_epreuve()` est la seule porte, et
+    // elle REVÉRIFIE elle-même le courriel — le critère appliqué ici n'est
+    // donc pas le dernier rempart, seulement le premier.
+    const { data, error } = await admin.rpc("purger_cabinet_epreuve", { p_firm_id: f.id })
     if (error) refuses.push({ quoi: `cabinet « ${f.name} »`, code: error.code, message: error.message })
-    else effacesCabinets++
+    else if (data !== true) {
+      refuses.push({
+        quoi: `cabinet « ${f.name} »`, code: "refus",
+        message: "la base refuse : courriel hors des domaines réservés par la RFC 2606",
+      })
+    } else effacesCabinets++
   }
   for (const c of comptes) {
     const { error } = await admin.auth.admin.deleteUser(c.id)
