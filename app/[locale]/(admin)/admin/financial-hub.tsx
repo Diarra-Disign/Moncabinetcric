@@ -12,7 +12,7 @@ import {
   Clock, 
   Settings,
 } from "lucide-react"
-import type { AdminFirmRow, AdminSubscriptionRow } from "@/lib/data/admin"
+import type { AdminFirmFinance, AdminSubscriptionRow } from "@/lib/data/admin"
 import { montant, formatMontant, type Cadence, type Plan } from "@/lib/billing/plans"
 import { cn } from "@/lib/utils"
 
@@ -75,9 +75,19 @@ function revenuMensuelCents(s: AdminSubscriptionRow | null, catalogue: Plan[]): 
 }
 
 interface FinancialHubProps {
-  firms: AdminFirmRow[]
+  /**
+   * TOUS les cabinets, jamais une page.
+   *
+   * Ce bloc additionne des abonnements : lui servir la page affichée ferait un
+   * chiffre d'affaires qui change quand on tourne les pages. Il reçoit donc
+   * une forme allégée — sans membres ni état d'accès, dont aucun total n'a
+   * besoin — mais complète.
+   */
+  firms: AdminFirmFinance[]
   /** Catalogue lu en base par la page serveur. */
   catalogue: Plan[]
+  /** Adresse absolue du site, posée par le serveur — voir `lienAbonnement`. */
+  origine: string
 }
 
 export interface CouponItem {
@@ -95,11 +105,18 @@ export interface PlanItem {
   isSystem?: boolean
 }
 
-export function FinancialHub({ firms, catalogue }: FinancialHubProps) {
-  // Chemin relatif, stable entre SSR et client — pas de branche
-  // `typeof window` qui fabriquerait un href différent et ferait échouer
-  // l'hydratation.
-  const lienAbonnement = "/fr/settings/subscription"
+export function FinancialHub({ firms, catalogue, origine }: FinancialHubProps) {
+  // ADRESSE ABSOLUE, POSÉE PAR LE SERVEUR.
+  //
+  // C'était un chemin relatif — « /fr/settings/subscription » — pour éviter une
+  // branche `typeof window` qui aurait fait diverger le rendu serveur du rendu
+  // client. Le raisonnement était juste, la conséquence non : ce chemin part
+  // dans le corps d'un COURRIEL de relance, où il ne mène nulle part. Le
+  // destinataire reçoit une barre oblique et cinq mots.
+  //
+  // La page serveur connaît l'adresse du site ; elle la transmet. Rien ne
+  // diverge, et le lien fonctionne là où il est lu.
+  const lienAbonnement = `${origine}/fr/settings/subscription`
 
   // Config dynamique et modifiable des forfaits (Ajout, Modification, Suppression)
 
@@ -328,13 +345,18 @@ export function FinancialHub({ firms, catalogue }: FinancialHubProps) {
                     onClick={() => {
                       const link = lienAbonnement
                       navigator.clipboard.writeText(link)
-                      setNotice(`💳 Lien vers l'écran d'abonnement copié pour ${f.name}.`)
+                      setNotice(`Lien vers l'écran d'abonnement copié pour ${f.name}.`)
                       setTimeout(() => setNotice(null), 5000)
                     }}
                     className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <CreditCard className="w-3.5 h-3.5" />
-                    <span>Lien Stripe</span>
+                    {/* « Lien Stripe » était faux : ce bouton copie l'adresse
+                        de l'écran d'abonnement du cabinet, d'où PARTIRA le
+                        tunnel Stripe. Nommer les choses par ce qu'elles font
+                        évite qu'on cherche un lien de paiement direct qui
+                        n'existe pas. */}
+                    <span>Copier le lien d&apos;abonnement</span>
                   </button>
                 </div>
               </div>

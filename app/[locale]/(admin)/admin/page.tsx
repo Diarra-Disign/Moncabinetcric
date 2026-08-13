@@ -1,13 +1,18 @@
 import type { Metadata } from "next"
 import { getTranslations } from "next-intl/server"
-import { Building2, Users, AlertTriangle, Terminal, Lock, Ban } from "lucide-react"
-import { getAdminFirms, getDemoRequests, summarise, type AdminMemberRow } from "@/lib/data/admin"
+import { Building2, Users, AlertTriangle, Terminal, Lock, Ban, CreditCard, Clock } from "lucide-react"
+import {
+  getAdminFirms, getDemoRequests, getStatistiquesPlateforme, getTousLesAbonnements,
+  type AdminMemberRow,
+} from "@/lib/data/admin"
 import { getCatalogue } from "@/lib/billing/catalogue"
 import { getDemandesEnAttente } from "@/lib/data/seat-reads"
 import { SeatRequests } from "./seat-requests"
 import { CreerCabinet, ActionsCabinet } from "./firm-actions"
 import { DemoRequests } from "./demo-requests"
 import { FinancialHub } from "./financial-hub"
+import { cn } from "@/lib/utils"
+import { siteUrl } from "@/lib/site-url"
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Admin")
@@ -55,15 +60,31 @@ function MemberList({
   )
 }
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>
+}) {
   const t = await getTranslations("Admin")
-  const [firms, demandes, catalogue, demandesSieges] = await Promise.all([
-    getAdminFirms(),
-    getDemoRequests(),
-    getCatalogue(),
-    getDemandesEnAttente(),
-  ])
-  const stats = summarise(firms)
+  const params = await searchParams
+  const recherche = (params.q ?? "").trim()
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1)
+
+  const [pageCabinets, demandes, catalogue, demandesSieges, stats, abonnements] =
+    await Promise.all([
+      getAdminFirms({ recherche, page }),
+      getDemoRequests(),
+      getCatalogue(),
+      getDemandesEnAttente(),
+      // Les totaux portent sur la PLATEFORME, pas sur la page affichée.
+      getStatistiquesPlateforme(),
+      // Le bloc financier additionne des abonnements : lui servir une page
+      // ferait un chiffre d'affaires qui change quand on tourne les pages.
+      getTousLesAbonnements(),
+    ])
+
+  const firms = pageCabinets.lignes
+  const pages = Math.max(1, Math.ceil(pageCabinets.total / pageCabinets.parPage))
 
   // LE PLAFOND DE PLACES DES CABINETS QUI EN DEMANDENT.
   //
@@ -75,17 +96,33 @@ export default async function AdminPage() {
   // Seulement pour les cabinets qui ont une demande en attente : elles se
   // comptent sur les doigts d'une main, et interroger les quatre-vingts autres
   // pour rien serait le N+1 qu'on veut éviter ailleurs.
+  // Les places OCCUPÉES viennent aussi de la base : `firm_seats_taken()`
+  // compte les invitations encore vivantes en plus des membres actifs, comme
+  // le fait le déclencheur qui refuse la place de trop. Les compter autrement
+  // ici donnerait un numérateur qui ne correspond pas au refus.
   const { getSessionSupabase } = await import("@/lib/supabase/session")
   const sb = await getSessionSupabase()
   const cabinetsQuiDemandent = [...new Set(demandesSieges.map((d) => d.firmId))]
-  const plafonds = new Map(
+  const places = new Map(
     await Promise.all(
       cabinetsQuiDemandent.map(async (id) => {
-        const { data } = await sb.rpc("firm_seat_limit", { f_id: id })
-        return [id, data === null || data === undefined ? null : Number(data)] as const
+        const [{ data: max }, { data: prises }] = await Promise.all([
+          sb.rpc("firm_seat_limit", { f_id: id }),
+          sb.rpc("firm_seats_taken", { f_id: id }),
+        ])
+        return [id, {
+          max: max === null || max === undefined ? null : Number(max),
+          prises: Number(prises ?? 0),
+        }] as const
       })
     )
   )
+
+  // Les noms de cabinets pour les demandes de places : ils viennent de la
+  // lecture d'ENSEMBLE, pas de la page affichée. Sans cela, une demande
+  // émanant d'un cabinet de la deuxième page s'intitulerait « Cabinet
+  // inconnu » — précisément quand l'exploitant doit décider s'il l'accorde.
+  const nomDe = new Map(abonnements.map((a) => [a.id, { name: a.name, plan: a.plan }]))
 
   // Les libellés traversent la frontière serveur/client : un composant
   // client ne peut pas appeler getTranslations lui-même.
@@ -98,9 +135,19 @@ export default async function AdminPage() {
     ["requestsHeading","requestsEmpty","openAccess","dismiss","done"].map(k => [k, t(k)])
   )
 
+  // CES CHIFFRES PORTENT SUR LA PLATEFORME ENTIÈRE, pas sur la page affichée.
+  // Ils étaient tirés de la liste ; depuis qu'elle est paginée, ils auraient
+  // annoncé « 25 organisations » quel qu'en soit le nombre réel, et « 0 fermé »
+  // dès que les cabinets fermés seraient tombés en deuxième page.
+  //
+  // Rien ici ne compte de signatures ni de documents : un exploitant n'a pas
+  // accès à ces tables, et les lui ouvrir pour alimenter une tuile
+  // contredirait le cloisonnement que cette console affiche par ailleurs.
   const tiles = [
     { icon: Building2, label: t("statFirms"), value: stats.firmCount, warn: false },
     { icon: Users, label: t("statMembers"), value: stats.memberCount, warn: false },
+    { icon: CreditCard, label: "Abonnements actifs", value: stats.abonnesActifs, warn: false },
+    { icon: Clock, label: "En essai", value: stats.essais, warn: false },
     {
       icon: AlertTriangle,
       label: t("statNoOwner"),
@@ -134,12 +181,45 @@ export default async function AdminPage() {
         </div>
       </section>
 
+      {/* LES CHIFFRES DE LA PLATEFORME.
+          Cette grille était CALCULÉE et jamais rendue : `tiles` existait dans
+          le fichier sans qu'aucun JSX ne l'affiche. La console d'exploitation
+          s'ouvrait donc sur le hub financier, sans qu'on sache combien de
+          cabinets ni de membres elle administrait. */}
+      <section>
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {tiles.map((tuile) => (
+            <li
+              key={tuile.label}
+              className={cn(
+                "rounded-2xl border p-4",
+                tuile.warn ? "border-warning/40 bg-warning/10" : "border-border bg-card"
+              )}
+            >
+              <tuile.icon
+                aria-hidden
+                className={cn(
+                  "h-4 w-4",
+                  tuile.warn ? "text-warning-strong" : "text-muted-foreground"
+                )}
+              />
+              <p className="mt-2 text-2xl font-black tabular-nums text-foreground">
+                {tuile.value}
+              </p>
+              <p className="text-[11px] font-bold leading-tight text-muted-foreground">
+                {tuile.label}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {/* Hub Financier & Métriques de Revenus Stripe */}
       <section>
         <h2 className="text-base font-black tracking-tight text-foreground mb-4">
           💳 Hub Financier SaaS & Performance Stripe
         </h2>
-        <FinancialHub firms={firms} catalogue={catalogue} />
+        <FinancialHub firms={abonnements} catalogue={catalogue} origine={siteUrl()} />
       </section>
 
       {/* Les demandes viennent avant la liste des cabinets : c'est ce qui
@@ -171,7 +251,8 @@ export default async function AdminPage() {
         </h2>
         <SeatRequests
           demandes={demandesSieges.map((d) => {
-            const cab = firms.find((f) => f.id === d.firmId)
+            const cab = nomDe.get(d.firmId)
+            const p = places.get(d.firmId)
             return {
               id: d.id,
               firmName: cab?.name ?? "Cabinet inconnu",
@@ -182,8 +263,8 @@ export default async function AdminPage() {
               justification: d.justification,
               statut: d.statut,
               creeLe: d.creeLe,
-              placesOccupees: cab?.members.filter((m) => m.statut === "active").length ?? 0,
-              placesMax: plafonds.get(d.firmId) ?? null,
+              placesOccupees: p?.prises ?? 0,
+              placesMax: p?.max ?? null,
             }
           })}
         />
@@ -193,9 +274,51 @@ export default async function AdminPage() {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-black tracking-tight text-foreground">
             {t("firmsHeading")}
+            <span className="ml-2 rounded-full bg-muted px-2 py-0.5 font-mono text-xs font-bold text-muted-foreground">
+              {pageCabinets.total}
+            </span>
           </h2>
-          <CreerCabinet labels={etiquettes} />
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href="/fr/admin/utilisateurs"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+            >
+              <Users aria-hidden className="h-3.5 w-3.5" /> Utilisateurs
+            </a>
+            <CreerCabinet labels={etiquettes} />
+          </div>
         </div>
+
+        {/* RECHERCHE ET PAGINATION EN GET, sans JavaScript.
+            Un formulaire qui écrit dans l'adresse rend chaque page partageable
+            et retrouvable dans l'historique — ce qu'un filtre en mémoire ne
+            permet pas. Le filtrage se fait en base : trier après avoir tout
+            chargé ne pagine rien, le coût est déjà payé quand on jette les
+            lignes. */}
+        <form method="get" className="mb-3 flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            name="q"
+            defaultValue={recherche}
+            placeholder="Nom, courriel ou numéro de permis…"
+            aria-label="Rechercher un cabinet"
+            className="min-h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          />
+          <button
+            type="submit"
+            className="min-h-9 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+          >
+            Rechercher
+          </button>
+          {recherche && (
+            <a
+              href="/fr/admin"
+              className="min-h-9 rounded-lg px-3 py-1.5 text-xs font-bold text-muted-foreground hover:bg-muted"
+            >
+              Effacer
+            </a>
+          )}
+        </form>
 
         {firms.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
@@ -277,6 +400,36 @@ export default async function AdminPage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {pages > 1 && (
+          <nav
+            aria-label="Pages de cabinets"
+            className="mt-3 flex flex-wrap items-center justify-between gap-2"
+          >
+            <p className="text-xs text-muted-foreground tabular-nums">
+              Page {page} sur {pages} · {pageCabinets.total} cabinet
+              {pageCabinets.total > 1 ? "s" : ""}
+            </p>
+            <div className="flex gap-2">
+              {page > 1 && (
+                <a
+                  href={`/fr/admin?${new URLSearchParams({ ...(recherche ? { q: recherche } : {}), page: String(page - 1) })}`}
+                  className="min-h-9 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+                >
+                  Précédente
+                </a>
+              )}
+              {page < pages && (
+                <a
+                  href={`/fr/admin?${new URLSearchParams({ ...(recherche ? { q: recherche } : {}), page: String(page + 1) })}`}
+                  className="min-h-9 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+                >
+                  Suivante
+                </a>
+              )}
+            </div>
+          </nav>
         )}
       </section>
 

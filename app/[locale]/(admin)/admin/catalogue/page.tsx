@@ -6,7 +6,7 @@ import {
   getExceptions,
   getJournalExploitant,
 } from "@/lib/data/catalogue-reads"
-import { getAdminFirms } from "@/lib/data/admin"
+import { getCabinetsPourChoix } from "@/lib/data/admin"
 import { CatalogueClient } from "./catalogue-client"
 
 export const metadata: Metadata = {
@@ -32,7 +32,10 @@ export default async function CataloguePage() {
     getFonctionnalites(),
     getMatriceForfaits(),
     getExceptions(),
-    getAdminFirms(),
+    // Le sélecteur n'a besoin que du nom et du forfait : `getAdminFirms()`
+    // chargeait ici les membres, les abonnements et l'état d'accès de chaque
+    // cabinet pour remplir un menu déroulant.
+    getCabinetsPourChoix(),
     getJournalExploitant(),
   ])
 
@@ -42,7 +45,7 @@ export default async function CataloguePage() {
       fonctionnalites={fonctionnalites}
       matrice={matrice}
       exceptions={exceptions}
-      cabinets={cabinets.map((c) => ({ id: c.id, name: c.name, plan: c.plan }))}
+      cabinets={cabinets}
       journal={journal}
     />
   )
