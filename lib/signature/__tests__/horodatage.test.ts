@@ -21,16 +21,33 @@ test("le fuseau visé est bien celui de l'Est canadien", () => {
   assert.equal(FUSEAU, "America/Toronto")
 })
 
-test("l'été, l'Est est à UTC−4 : 02:14 UTC devient 22 h 14 la veille", () => {
-  // « 22 h 14 » et non « 22:14 » : c'est la forme française canadienne, celle
-  // que le reste du produit imprime déjà sur les factures et les reçus.
-  assert.equal(heureSignature(ETE), "22 h 14")
+test("l'été, l'Est est à UTC−4 : 02:14 UTC devient 22:14 la veille", () => {
+  // « 22:14 » et non « 22 h 14 ». La forme française canadienne était rendue
+  // par `fr-CA` sans qu'on l'ait choisie : `hour12: false` ne gouverne QUE le
+  // cycle de douze ou vingt-quatre heures, pas la typographie du séparateur.
+  // Le certificat portait donc deux graphies pour le même instant, puisque le
+  // journal, juste en dessous, imprimait déjà « 22:14:30 ».
+  assert.equal(heureSignature(ETE), "22:14")
   assert.equal(dateSignature(ETE), "11 août 2026")
 })
 
 test("l'hiver, l'Est est à UTC−5", () => {
-  assert.equal(heureSignature(HIVER), "13 h 30")
+  assert.equal(heureSignature(HIVER), "13:30")
   assert.equal(dateSignature(HIVER), "15 janvier 2026")
+})
+
+test("l'heure seule et l'horodatage complet s'accordent, au caractère près", () => {
+  // Les deux paraissent sur la MÊME pièce : le bloc de signature en haut, le
+  // journal des événements en bas. Une divergence de graphie entre eux est ce
+  // qui fait douter un lecteur qu'il s'agit du même instant.
+  for (const instant of [ETE, HIVER, "2026-07-04T04:30:00.000Z"]) {
+    assert.equal(horodatage(instant).slice(11, 16), heureSignature(instant))
+  }
+})
+
+test("minuit s'écrit 00 et non 24, dans l'heure seule aussi", () => {
+  assert.equal(heureSignature("2026-07-04T04:30:00.000Z"), "00:30")
+  assert.equal(heureSignature("2026-07-04T04:00:00.000Z"), "00:00")
 })
 
 test("l'abréviation suit la saison", () => {

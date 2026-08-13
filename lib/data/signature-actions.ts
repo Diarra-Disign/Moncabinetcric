@@ -319,9 +319,32 @@ export async function listerSignatures(
 
 export async function annulerSignature(demandeId: string, motif?: string): Promise<Resultat> {
   try {
-    const { service: svc } = await service()
+    const { sb, service: svc } = await service()
+
+    // Le document est relevé AVANT l'annulation : après, rien dans le résultat
+    // ne dit sur quelle pièce elle portait.
+    const { data: avant } = await sb
+      .from("signature_requests").select("document_id").eq("id", demandeId).maybeSingle()
+
     const r = await svc.cancelRequest(demandeId, motif)
-    if (r.ok) revalidatePath("/[locale]/matters/[id]", "page")
+    if (!r.ok) return r
+
+    // LE VERROU TOMBE AVEC LA DERNIÈRE DEMANDE — quand il n'a rien à protéger.
+    // Le déclencheur de `documents` conseille depuis toujours « annulez la
+    // demande, puis créez une nouvelle version » ; sans cet appel, le conseil
+    // était impossible à suivre et le contrat restait figé pour toujours.
+    //
+    // C'est la BASE qui tranche, pas cette ligne : `deverrouiller_document()`
+    // refuse dès qu'une signature existe, et refuse tant qu'une autre demande
+    // est encore en cours sur la même pièce. Elle rend `false` au lieu de
+    // lever — une annulation réussie ne doit pas se transformer en échec
+    // parce que le verrou, lui, devait rester.
+    if (avant?.document_id) {
+      await sb.rpc("deverrouiller_document", { p_document_id: String(avant.document_id) })
+    }
+
+    revalidatePath("/[locale]/matters/[id]", "page")
+    revalidatePath("/fr/signatures")
     return r
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }

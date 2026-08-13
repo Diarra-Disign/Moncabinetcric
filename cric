@@ -57,6 +57,8 @@ case "$commande" in
   onglet-signature) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-onglet-signature.mjs "$@" ;;
   bandeau)      exec node scripts/verify-bandeau.mjs "$@" ;;
   offres)       exec node scripts/verify-offres-fideicommis.mjs "$@" ;;
+  verrou)       exec node scripts/verify-verrou-document.mjs "$@" ;;
+  menage)       exec node scripts/menage-epreuves.mjs "$@" ;;
   dossier-client) exec node scripts/verify-dossier-client.mjs "$@" ;;
   facturation-lignes) exec node scripts/verify-facturation.mjs "$@" ;;
   facturation-globale) exec node scripts/verify-facturation-globale.mjs "$@" ;;
@@ -164,6 +166,20 @@ Usage : ./cric <commande> [options]
   bandeau      Éprouve le bandeau d'échéances du tableau de bord sur trois
                situations réelles : aucune, une à 20 jours, une à 5 jours.
                  ./cric bandeau
+
+  verrou       Éprouve le verrou de contenu d'un document dans les DEUX
+               sens : il tombe quand la demande est annulée sans signature,
+               et il ne tombe jamais dès qu'une signature existe.
+                 ./cric verrou
+
+  menage       Recense le décor laissé par les scripts d'épreuve. Aucun n'a
+               jamais rien supprimé : leur `.delete()` échoue en silence,
+               parce que le journal d'audit est en ajout seul et qu'il
+               cascade depuis le cabinet. Ne supprime rien sans --appliquer ;
+               --diagnostic tente UNE suppression et cite le refus.
+                 ./cric menage
+                 ./cric menage --diagnostic
+                 ./cric menage --appliquer
 
   offres       Éprouve la page publique : la gestion du fidéicommis est-elle
                annoncée dans les offres, en français et en anglais, sans rien

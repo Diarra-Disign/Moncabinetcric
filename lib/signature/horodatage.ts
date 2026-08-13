@@ -42,13 +42,38 @@ export function dateSignature(valeur: string, langue: "fr" | "en" = "fr"): strin
   }).format(d)
 }
 
+/**
+ * Heures et minutes dans le fuseau, en deux chiffres chacune.
+ *
+ * `fr-CA` rend « 22 h 14 » MÊME avec `hour12: false` : la typographie de
+ * l'heure est une propriété de la locale, que ce drapeau ne gouverne pas — il
+ * ne choisit qu'entre douze et vingt-quatre heures. Le certificat portait donc
+ * une graphie que la fonction voisine `horodatage()` n'employait pas, sur la
+ * même pièce et pour le même instant.
+ *
+ * Les deux fonctions assemblent désormais l'heure à partir des mêmes parties,
+ * et la seule graphie possible est « 22:14 ».
+ */
+function partiesHeure(d: Date): { heure: string; minute: string; seconde: string } {
+  const p = new Intl.DateTimeFormat("en-CA", {
+    timeZone: FUSEAU,
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).formatToParts(d)
+  const v = (t: string) => p.find((x) => x.type === t)?.value ?? ""
+  return {
+    // `hourCycle` h23 rend « 24 » à minuit sur certaines plateformes.
+    heure: v("hour") === "24" ? "00" : v("hour"),
+    minute: v("minute"),
+    seconde: v("second"),
+  }
+}
+
 /** « 22:14 » — l'heure seule, pour le certificat. */
 export function heureSignature(valeur: string): string {
   const d = valide(valeur)
   if (!d) return ""
-  return new Intl.DateTimeFormat("fr-CA", {
-    timeZone: FUSEAU, hour: "2-digit", minute: "2-digit", hour12: false,
-  }).format(d)
+  const { heure, minute } = partiesHeure(d)
+  return `${heure}:${minute}`
 }
 
 /**
@@ -61,14 +86,11 @@ export function horodatage(valeur: string): string {
   const d = valide(valeur)
   if (!d) return valeur
   const p = new Intl.DateTimeFormat("en-CA", {
-    timeZone: FUSEAU,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    timeZone: FUSEAU, year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(d)
   const v = (t: string) => p.find((x) => x.type === t)?.value ?? ""
-  // `hourCycle` h23 rend « 24 » à minuit sur certaines plateformes.
-  const heure = v("hour") === "24" ? "00" : v("hour")
-  return `${v("year")}-${v("month")}-${v("day")} ${heure}:${v("minute")}:${v("second")}`
+  const { heure, minute, seconde } = partiesHeure(d)
+  return `${v("year")}-${v("month")}-${v("day")} ${heure}:${minute}:${seconde}`
 }
 
 /** L'abréviation en vigueur à cette date : EST l'hiver, EDT l'été. */
