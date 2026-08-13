@@ -23,6 +23,9 @@ export const PERMISSIONS = [
   "portal.manage",
   "signatures.request",
   "signatures.manage",
+  // Effacer n'est pas annuler : réservée au propriétaire, et distincte de
+  // `signatures.manage` avec laquelle on range sans détruire.
+  "signatures.purge",
   "audit.read",
   "firm.settings",
   "firm.members",

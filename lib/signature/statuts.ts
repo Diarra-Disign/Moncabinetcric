@@ -173,6 +173,13 @@ export const EVENEMENTS = [
   "signature.request.cancelled",
   "signature.request.expired",
   "signature.document.downloaded",
+  // Rangement et effacement. Ils ne décrivent pas la vie de la signature mais
+  // ce que le cabinet en fait ensuite — et c'est précisément pour cela qu'ils
+  // doivent être consignés : ce sont les seuls gestes qui font disparaître
+  // une demande d'un écran.
+  "signature.request.archived",
+  "signature.request.restored",
+  "signature.request.deleted",
 ] as const
 export type EvenementSignature = (typeof EVENEMENTS)[number]
 
@@ -191,6 +198,9 @@ export const LIBELLE_EVENEMENT: Record<EvenementSignature, string> = {
   "signature.request.cancelled": "Demande annulée",
   "signature.request.expired": "Demande expirée",
   "signature.document.downloaded": "Document téléchargé",
+  "signature.request.archived": "Demande archivée",
+  "signature.request.restored": "Demande restaurée",
+  "signature.request.deleted": "Demande supprimée définitivement",
 }
 
 // ---------------------------------------------------------------------------

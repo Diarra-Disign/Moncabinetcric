@@ -637,8 +637,8 @@
     "subtitle": "Documents en attente de signature, signés, et prêts à envoyer.",
     "badge": "Preuve d'intégrité",
     "toSign": "À signer par vous",
-    "signed": "Signés",
-    "ready": "Prêts à envoyer",
+    "signed": "Signées",
+    "ready": "Prêtes à envoyer",
     "emptyAll": "Aucune demande de signature. Une entente de service émise s’envoie en signature depuis la page Ententes, ou depuis l’onglet Signature d’un dossier.",
     "emptySection": "Rien ici.",
     "openFile": "Ouvrir le coffre-fort",
@@ -649,7 +649,8 @@
     "waitingOther": "En attente d’autrui",
     "declined": "Refusées",
     "closed": "Annulées ou expirées",
-    "openAgreements": "Ouvrir les ententes de service"
+    "openAgreements": "Ouvrir les ententes de service",
+    "archived": "Archives"
   },
   "Demo": {
     "title": "Demander une démonstration",

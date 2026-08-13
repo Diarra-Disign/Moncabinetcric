@@ -51,6 +51,7 @@ case "$commande" in
   ententes)     exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-ententes.mjs "$@" ;;
   parametres)   exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-parametres.mjs "$@" ;;
   signature)    exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-signature.mjs "$@" ;;
+  archivage-signature) exec node scripts/verify-archivage-signature.mjs "$@" ;;
   autres-documents) exec node scripts/verify-autres-documents.mjs "$@" ;;
   entente-signature) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-entente-signature.mjs "$@" ;;
   onglet-signature) exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-onglet-signature.mjs "$@" ;;
@@ -166,6 +167,12 @@ Usage : ./cric <commande> [options]
   contraste    Mesure le contraste réel des pastilles de statut sous les
                cinq thèmes de cabinet, couleurs composées par le navigateur.
                  ./cric contraste
+
+  archivage-signature
+               Éprouve le rangement des demandes closes : archiver,
+               restaurer, et le refus d'effacer une demande qui porte
+               déjà une signature.
+                 ./cric archivage-signature
 
   autres-documents
                Éprouve la sixième catégorie de documents dans l'onglet

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
 import { SignatureService } from "@/lib/signature/service"
 import type { DemandeSignature, EtatDemande, EntreeJournalSignature } from "@/lib/signature/contrat"
+import type { EvenementSignature } from "@/lib/signature/statuts"
 import { apparier, type EmplacementSignature } from "@/lib/ententes/emplacements"
 
 /**
@@ -422,6 +423,263 @@ export async function lienPourSigner(
     }
 
     return { ok: true, lien, message: "Ouverture de votre page de signature." }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/** Les statuts qui autorisent le rangement : la demande est close, sans suite. */
+const CLOSES = ["cancelled", "expired"]
+
+/**
+ * Consigne un geste du cabinet sur une demande.
+ *
+ * On passe par la fonction du moteur plutôt que par le service : archiver et
+ * effacer ne sont pas des gestes de SIGNATURE, ce sont des gestes de
+ * RANGEMENT. Les ajouter au contrat du fournisseur obligerait PandaDoc ou
+ * DocuSign à savoir ce qu'archiver veut dire dans ce CRM.
+ */
+async function consigner(
+  demandeId: string,
+  evenement: EvenementSignature,
+  details?: Record<string, unknown>
+) {
+  const { sb, membre } = await service()
+  const { journaliser } = await import("@/lib/signature/evenements")
+  await journaliser(sb, { firmId: membre.firmId, fullName: membre.fullName, email: membre.email }, {
+    requestId: demandeId, evenement, details,
+  })
+}
+
+/**
+ * Range une demande close hors de la liste courante.
+ *
+ * ─── RANGER N'EST PAS DÉTRUIRE ─────────────────────────────────────────────
+ *
+ * Aucune ligne ne bouge, aucun fichier n'est retiré, le journal reste entier.
+ * Le statut d'origine — annulée, expirée — n'est pas remplacé : c'est une
+ * DATE qu'on pose, et la restauration se contente de l'effacer.
+ *
+ * ─── SEULEMENT CE QUI EST CLOS ─────────────────────────────────────────────
+ *
+ * Une demande envoyée ou partiellement signée attend quelqu'un. La ranger la
+ * ferait disparaître de l'écran de celui qui doit agir, sans rien annuler :
+ * le client garderait un lien valide sur un document que plus personne ne suit.
+ */
+export async function archiverSignature(demandeId: string): Promise<Resultat> {
+  try {
+    const { exigerPermission } = await import("@/lib/auth/permissions")
+    const membre = await exigerPermission("signatures.manage")
+    const sb = await getSessionSupabase()
+
+    const { data: demande } = await sb
+      .from("signature_requests")
+      .select("id, status, archived_at")
+      .eq("id", demandeId)
+      .maybeSingle()
+
+    if (!demande) return { ok: false, message: "Cette demande est introuvable." }
+    if (demande.archived_at) return { ok: false, message: "Cette demande est déjà archivée." }
+    if (!CLOSES.includes(String(demande.status))) {
+      return {
+        ok: false,
+        message: "Seules les demandes annulées ou expirées s'archivent. " +
+          "Celle-ci attend encore une signature : annulez-la d'abord.",
+      }
+    }
+
+    // LE JOURNAL AVANT L'ÉCRITURE. `signature_event()` refuse d'écrire sur une
+    // demande qu'il ne trouve pas ; l'ordre n'a pas d'importance ici, mais il
+    // en aura pour la suppression, et deux ordres différents pour deux gestes
+    // voisins finiraient par se confondre.
+    const { data, error } = await sb
+      .from("signature_requests")
+      .update({ archived_at: new Date().toISOString(), archived_by: membre.profileId ?? null })
+      .eq("id", demandeId)
+      .is("archived_at", null)
+      .select("id")
+
+    if (error) return { ok: false, message: error.message }
+    if (!data || data.length === 0) {
+      return { ok: false, message: "Archivage refusé : vérifiez vos droits sur ce cabinet." }
+    }
+
+    await consigner(demandeId, "signature.request.archived")
+
+    revalidatePath("/fr/signatures")
+    revalidatePath("/[locale]/matters/[id]", "page")
+    return { ok: true, message: "Demande de signature archivée." }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Sort une demande des archives, telle qu'elle y est entrée.
+ *
+ * Elle retrouve son statut d'origine parce qu'elle ne l'a jamais quitté. Une
+ * demande annulée ne redevient pas active en sortant des archives — ce serait
+ * rouvrir un contrat que le cabinet a clos.
+ */
+export async function restaurerSignature(demandeId: string): Promise<Resultat> {
+  try {
+    const { exigerPermission } = await import("@/lib/auth/permissions")
+    await exigerPermission("signatures.manage")
+    const sb = await getSessionSupabase()
+
+    const { data, error } = await sb
+      .from("signature_requests")
+      .update({ archived_at: null, archived_by: null })
+      .eq("id", demandeId)
+      .not("archived_at", "is", null)
+      .select("id, status")
+
+    if (error) return { ok: false, message: error.message }
+    if (!data || data.length === 0) {
+      return { ok: false, message: "Cette demande n'est pas archivée." }
+    }
+
+    await consigner(demandeId, "signature.request.restored")
+
+    revalidatePath("/fr/signatures")
+    return {
+      ok: true,
+      message: `Demande restaurée. Elle reste ${data[0].status === "expired" ? "expirée" : "annulée"}.`,
+    }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+export interface EtatSuppression {
+  possible: boolean
+  /** Pourquoi elle ne l'est pas, en clair. */
+  motif?: string
+}
+
+/**
+ * Une demande peut-elle être effacée sans perdre de preuve ?
+ *
+ * ─── LA QUESTION EST POSÉE À PART, ET C'EST DÉLIBÉRÉ ───────────────────────
+ *
+ * L'écran s'en sert pour ne pas proposer un bouton qui refusera. La
+ * suppression la repose de son côté : un écran qui a raison ne dispense pas
+ * le serveur de vérifier.
+ *
+ * ─── CE QUI INTERDIT L'EFFACEMENT ──────────────────────────────────────────
+ *
+ * UNE SIGNATURE DÉJÀ APPOSÉE, avant tout. `signatures.request_id` cascade
+ * depuis la demande : la supprimer effacerait les signatures elles-mêmes,
+ * leurs horodatages, leurs adresses d'origine — c'est-à-dire la preuve. Une
+ * demande annulée après que le client a signé garde tout cela, et doit le
+ * garder : elle s'archive, elle ne s'efface pas.
+ */
+export async function peutSupprimerSignature(demandeId: string): Promise<EtatSuppression> {
+  const { sb } = await service()
+
+  const { data: demande } = await sb
+    .from("signature_requests")
+    .select("id, status, signed_document_id")
+    .eq("id", demandeId)
+    .maybeSingle()
+
+  if (!demande) return { possible: false, motif: "Cette demande est introuvable." }
+
+  if (!CLOSES.includes(String(demande.status))) {
+    return {
+      possible: false,
+      motif: "Seule une demande annulée ou expirée peut être supprimée.",
+    }
+  }
+
+  if (demande.signed_document_id) {
+    return {
+      possible: false,
+      motif: "Un document signé est né de cette demande : il ne doit pas perdre son origine.",
+    }
+  }
+
+  const { count } = await sb
+    .from("signatures")
+    .select("id", { count: "exact", head: true })
+    .eq("request_id", demandeId)
+
+  if ((count ?? 0) > 0) {
+    return {
+      possible: false,
+      motif: `${count} signature${(count ?? 0) > 1 ? "s ont" : " a"} déjà été apposée${(count ?? 0) > 1 ? "s" : ""} : ` +
+        "la supprimer effacerait la preuve. Archivez-la.",
+    }
+  }
+
+  return { possible: true }
+}
+
+/**
+ * Efface définitivement une demande close qui ne prouve rien.
+ *
+ * ─── TROIS VERROUS, ET AUCUN N'EST DE TROP ─────────────────────────────────
+ *
+ *   1. La permission `signatures.purge`, réservée au propriétaire du cabinet.
+ *   2. Aucune signature, aucun document signé — voir `peutSupprimerSignature`.
+ *   3. Le mot SUPPRIMER, saisi à la main.
+ *
+ * ─── LE JOURNAL S'ÉCRIT AVANT ──────────────────────────────────────────────
+ *
+ * `signature_event()` refuse d'écrire sur une demande introuvable : après la
+ * suppression, il serait trop tard. L'entrée survit à la ligne parce que
+ * `audit_logs` ne porte pas de clé étrangère vers elle — c'est ce qui permet
+ * de démontrer plus tard que la demande a existé, et qui l'a effacée.
+ */
+export async function supprimerSignatureDefinitivement(
+  demandeId: string,
+  confirmation: string
+): Promise<Resultat> {
+  try {
+    const { exigerPermission } = await import("@/lib/auth/permissions")
+    await exigerPermission("signatures.purge")
+
+    if (confirmation.trim().toUpperCase() !== "SUPPRIMER") {
+      return { ok: false, message: "Saisissez SUPPRIMER pour confirmer." }
+    }
+
+    const verdict = await peutSupprimerSignature(demandeId)
+    if (!verdict.possible) return { ok: false, message: verdict.motif ?? "Suppression refusée." }
+
+    const { sb } = await service()
+
+    const { data: demande } = await sb
+      .from("signature_requests")
+      .select("status, document_id")
+      .eq("id", demandeId)
+      .maybeSingle()
+
+    await consigner(demandeId, "signature.request.deleted", {
+      statut: demande?.status ?? null,
+      document: demande?.document_id ?? null,
+    })
+
+    const { data, error } = await sb
+      .from("signature_requests")
+      .delete()
+      .eq("id", demandeId)
+      .in("status", CLOSES)
+      .select("id")
+
+    if (error) return { ok: false, message: error.message }
+    if (!data || data.length === 0) {
+      return { ok: false, message: "Suppression refusée : vérifiez vos droits sur ce cabinet." }
+    }
+
+    revalidatePath("/fr/signatures")
+    revalidatePath("/[locale]/matters/[id]", "page")
+    // LE DOCUMENT RESTE AU DOSSIER. Seule la demande disparaît : le contrat
+    // qu'on avait voulu faire signer n'a pas à s'effacer parce que l'envoi a
+    // été annulé.
+    return {
+      ok: true,
+      message: "Demande supprimée définitivement. Le document reste au dossier.",
+    }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }

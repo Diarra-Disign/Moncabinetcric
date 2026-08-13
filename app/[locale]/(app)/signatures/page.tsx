@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { getTranslations, setRequestLocale } from "next-intl/server"
-import { PenLine, Clock, Check, Send, XCircle, Archive, Info, FolderOpen } from "lucide-react"
+import { PenLine, Clock, Check, Send, XCircle, Archive, Boxes, Info, FolderOpen } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { tableauSignatures, type LigneTableau } from "@/lib/data/signatures"
@@ -81,7 +81,8 @@ export default async function SignaturesPage({
     tableau.enAttenteDAutrui.length +
     tableau.signes.length +
     tableau.refuses.length +
-    tableau.closes.length
+    tableau.closes.length +
+    tableau.archivees.length
 
   const etiquettes = {
     requestedOn: t("requestedOn"),
@@ -98,6 +99,9 @@ export default async function SignaturesPage({
     { titre: t("signed"), icone: Check, lignes: tableau.signes },
     { titre: t("declined"), icone: XCircle, lignes: tableau.refuses },
     { titre: t("closed"), icone: Archive, lignes: tableau.closes },
+    // LES ARCHIVES EN DERNIER : c'est ce qu'on consulte le moins souvent, et
+    // les placer plus haut repousserait vers le bas ce qui attend un geste.
+    { titre: t("archived"), icone: Boxes, lignes: tableau.archivees },
   ]
 
   return (

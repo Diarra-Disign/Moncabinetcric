@@ -98,6 +98,8 @@ export interface LigneTableau {
   signatures: LigneCertificat[]
   /** Le document signé, une fois la demande complète. */
   documentSigneId: string | null
+  /** Rangée hors de la liste courante. Le statut, lui, n'a pas changé. */
+  archiveeLe: string | null
   /** L'appelant est-il le destinataire attendu, maintenant ? */
   monTour: boolean
   /** L'appelant a-t-il déjà signé cette demande ? */
@@ -115,13 +117,15 @@ export interface TableauSignatures {
   enAttenteDAutrui: LigneTableau[]
   signes: LigneTableau[]
   refuses: LigneTableau[]
-  /** Annulées ou expirées : closes sans signature. */
+  /** Annulées ou expirées : closes, mais toujours à l'écran. */
   closes: LigneTableau[]
+  /** Rangées hors de la liste courante. Elles gardent leur statut d'origine. */
+  archivees: LigneTableau[]
 }
 
 const VIDE: TableauSignatures = {
   pretsAEnvoyer: [], aSigner: [], enAttenteDAutrui: [],
-  signes: [], refuses: [], closes: [],
+  signes: [], refuses: [], closes: [], archivees: [],
 }
 
 interface DestinataireBrut {
@@ -157,7 +161,7 @@ export async function tableauSignatures(): Promise<TableauSignatures> {
   const { data, error } = await supabase
     .from("signature_requests")
     .select(
-      "id, status, signing_mode, requested_at, expires_at, signed_document_id, " +
+      "id, status, signing_mode, requested_at, expires_at, signed_document_id, archived_at, " +
       "documents!signature_requests_document_id_fkey(id, name, client_name, matter_id, sha256), " +
       "signature_recipients(id, full_name, email, role, rank, status, sent_at, signed_at)"
     )
@@ -177,6 +181,7 @@ export async function tableauSignatures(): Promise<TableauSignatures> {
     requested_at: string | null
     expires_at: string | null
     signed_document_id: string | null
+    archived_at: string | null
     documents: { id: string; name: string | null; client_name: string | null; matter_id: string | null; sha256: string | null } | null
     signature_recipients: DestinataireBrut[] | null
   }[]
@@ -191,7 +196,7 @@ export async function tableauSignatures(): Promise<TableauSignatures> {
 
   const resultat: TableauSignatures = {
     pretsAEnvoyer: [], aSigner: [], enAttenteDAutrui: [],
-    signes: [], refuses: [], closes: [],
+    signes: [], refuses: [], closes: [], archivees: [],
   }
 
   for (const l of lignes) {
@@ -249,9 +254,17 @@ export async function tableauSignatures(): Promise<TableauSignatures> {
       destinataires,
       signatures: propres,
       documentSigneId: l.signed_document_id,
+      archiveeLe: l.archived_at,
       monTour: Boolean(moi && moi.statut === "pending" && moi.sonTour),
       dejaSigne: Boolean(moi && moi.statut === "signed"),
       divergence: propres.some((s) => !s.stillMatching),
+    }
+
+    // LES ARCHIVES D'ABORD, AVANT LE STATUT. Une demande rangée ne doit plus
+    // paraître dans sa section d'origine : c'est tout l'objet du rangement.
+    if (ligne.archiveeLe) {
+      resultat.archivees.push(ligne)
+      continue
     }
 
     switch (ligne.statut) {

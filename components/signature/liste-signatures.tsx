@@ -3,10 +3,12 @@
 import * as React from "react"
 import {
   PenLine, Send, X, Clock, Check, AlertTriangle, Loader2,
-  Download, History, ExternalLink,
+  Download, History, ExternalLink, Archive, ArchiveRestore, Trash2,
 } from "lucide-react"
 import {
   annulerSignature, relancerSignature, journalSignature, lienPourSigner,
+  archiverSignature, restaurerSignature, supprimerSignatureDefinitivement,
+  peutSupprimerSignature,
 } from "@/lib/data/signature-actions"
 import type { LigneTableau } from "@/lib/data/signatures"
 import {
@@ -56,6 +58,9 @@ const BOUTON =
   "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 " +
   "text-[11px] font-bold text-foreground hover:bg-muted disabled:opacity-40"
 
+/** Les statuts qui autorisent le rangement. Miroir de ceux du serveur. */
+const CLOSES: string[] = ["cancelled", "expired"]
+
 const jour = (v?: string | null) =>
   v ? new Date(v).toLocaleDateString("fr-CA", { day: "numeric", month: "long", year: "numeric" }) : "—"
 
@@ -71,6 +76,7 @@ export function ListeSignatures({
   const [historique, setHistorique] = React.useState<
     { id: string; entrees: Awaited<ReturnType<typeof journalSignature>> } | null
   >(null)
+  const [aSupprimer, setASupprimer] = React.useState<LigneTableau | null>(null)
 
   const agir = async (id: string, action: () => Promise<{ ok: boolean; message: string }>) => {
     setOccupe(id)
@@ -162,6 +168,34 @@ export function ListeSignatures({
             )}
 
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
+              {/* ── RANGER ET EFFACER ──────────────────────────────────────
+                  Ces gestes ne s'offrent que sur une demande CLOSE. Une
+                  demande qui attend une signature disparaîtrait de l'écran
+                  de celui qui doit agir, sans rien annuler : son lien
+                  resterait valide sur un document que plus personne ne suit. */}
+              {CLOSES.includes(l.statut) && !l.archiveeLe && (
+                <>
+                  <button type="button" disabled={occupe === l.demandeId}
+                    onClick={() => agir(l.demandeId, () => archiverSignature(l.demandeId))}
+                    className={BOUTON}>
+                    <Archive className="h-3 w-3" aria-hidden /> Archiver
+                  </button>
+                  <button type="button" disabled={occupe === l.demandeId}
+                    onClick={() => setASupprimer(l)}
+                    className={cn(BOUTON, "text-error-strong hover:bg-error/10")}>
+                    <Trash2 className="h-3 w-3" aria-hidden /> Supprimer définitivement
+                  </button>
+                </>
+              )}
+
+              {l.archiveeLe && (
+                <button type="button" disabled={occupe === l.demandeId}
+                  onClick={() => agir(l.demandeId, () => restaurerSignature(l.demandeId))}
+                  className={BOUTON}>
+                  <ArchiveRestore className="h-3 w-3" aria-hidden /> Restaurer
+                </button>
+              )}
+
               {l.monTour && (
                 <button type="button" onClick={() => signer(l.demandeId)} disabled={occupe === l.demandeId}
                   className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-40">
@@ -228,6 +262,141 @@ export function ListeSignatures({
           </li>
         ))}
       </ul>
+
+      {aSupprimer && (
+        <ModaleSuppression
+          ligne={aSupprimer}
+          onFerme={() => setASupprimer(null)}
+          onSupprime={(m) => { setMessage({ ok: true, texte: m }); window.location.reload() }}
+        />
+      )}
     </>
+  )
+}
+
+/**
+ * La confirmation d'un effacement définitif.
+ *
+ * ─── DEUX GESTES, PAS UN ───────────────────────────────────────────────────
+ *
+ * Un bouton rouge se clique par réflexe. Recopier un mot ne se fait pas
+ * distraitement — c'est la seule protection qui résiste à la main qui va trop
+ * vite, et elle ne s'applique qu'ici : archiver reste à un clic.
+ *
+ * ─── LE SERVEUR DIT S'IL ACCEPTERA, AVANT QU'ON DEMANDE ────────────────────
+ *
+ * La fenêtre interroge d'abord `peutSupprimerSignature()`. Proposer un champ
+ * de confirmation pour essuyer ensuite un refus serait faire recopier un mot
+ * pour rien — et l'utilisateur en conclurait que le produit hésite.
+ */
+function ModaleSuppression({
+  ligne, onFerme, onSupprime,
+}: {
+  ligne: LigneTableau
+  onFerme: () => void
+  onSupprime: (message: string) => void
+}) {
+  const [verdict, setVerdict] = React.useState<{ possible: boolean; motif?: string } | null>(null)
+  const [saisie, setSaisie] = React.useState("")
+  const [enCours, setEnCours] = React.useState(false)
+  const [erreur, setErreur] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    let vivant = true
+    void peutSupprimerSignature(ligne.demandeId).then((v) => { if (vivant) setVerdict(v) })
+    return () => { vivant = false }
+  }, [ligne.demandeId])
+
+  const supprimer = async () => {
+    setEnCours(true)
+    setErreur(null)
+    const r = await supprimerSignatureDefinitivement(ligne.demandeId, saisie)
+    setEnCours(false)
+    if (!r.ok) { setErreur(r.message); return }
+    onSupprime(r.message)
+    onFerme()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/50 p-4">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl">
+        <header className="flex items-start justify-between gap-3 border-b border-border p-5">
+          <div>
+            <h3 className="text-base font-black text-foreground">Supprimer définitivement ?</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">{ligne.documentName}</p>
+          </div>
+          <button type="button" onClick={onFerme} aria-label="Fermer"
+            className="cursor-pointer rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </header>
+
+        <div className="space-y-4 p-5">
+          {verdict === null && (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Vérification…
+            </p>
+          )}
+
+          {verdict && !verdict.possible && (
+            <>
+              <p className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs font-bold text-warning-strong">
+                {verdict.motif}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Cette demande peut être <strong>archivée</strong> : elle quittera la liste
+                courante sans que rien ne soit perdu.
+              </p>
+            </>
+          )}
+
+          {verdict?.possible && (
+            <>
+              <p className="text-sm text-foreground">
+                Cette demande et ses destinataires seront effacés définitivement.
+                <strong> Le document du dossier n&apos;est pas touché.</strong>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Le journal conservera la trace de cette suppression : qui l&apos;a faite,
+                et quand. Cette action est irréversible.
+              </p>
+              <label className="block text-[11px] font-bold text-muted-foreground">
+                Pour confirmer, saisissez SUPPRIMER
+                <input
+                  value={saisie}
+                  onChange={(e) => setSaisie(e.target.value)}
+                  autoFocus
+                  placeholder="SUPPRIMER"
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-bold tracking-widest text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error"
+                />
+              </label>
+            </>
+          )}
+
+          {erreur && (
+            <p role="alert" className="rounded-xl border border-error/40 bg-error/10 p-3 text-xs font-bold text-error-strong">
+              {erreur}
+            </p>
+          )}
+        </div>
+
+        <footer className="flex items-center justify-end gap-2 border-t border-border p-5">
+          <button type="button" onClick={onFerme}
+            className="cursor-pointer rounded-xl border border-border px-4 py-2 text-xs font-bold text-foreground hover:bg-muted">
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={supprimer}
+            disabled={enCours || !verdict?.possible || saisie.trim().toUpperCase() !== "SUPPRIMER"}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-error px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-40"
+          >
+            {enCours ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                     : <Trash2 className="h-4 w-4" aria-hidden />}
+            Supprimer définitivement
+          </button>
+        </footer>
+      </div>
+    </div>
   )
 }

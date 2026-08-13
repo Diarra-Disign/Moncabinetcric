@@ -649,7 +649,8 @@
     "waitingOther": "Waiting on others",
     "declined": "Declined",
     "closed": "Cancelled or expired",
-    "openAgreements": "Open service agreements"
+    "openAgreements": "Open service agreements",
+    "archived": "Archive"
   },
   "Demo": {
     "title": "Request a demo",
