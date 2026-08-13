@@ -36,16 +36,53 @@ export const metadata: Metadata = {
     template: "%s | moncabinetcric"
   },
   description: "Plateforme SaaS tout-en-un de gestion de cabinet pour consultants réglementés en immigration canadienne (RCIC / CICC) : suivi des dossiers, compte fidéicommis, portail client et automatisation des formulaires IRCC.",
+  // ─── LES ICÔNES ──────────────────────────────────────────────────────────
+  //
+  // `app/favicon.ico` suffirait au navigateur : Next.js le sert seul, à la
+  // racine, par convention de fichier. Les tailles sont déclarées en plus
+  // parce qu'elles ne servent pas au même endroit — 16 px dans l'onglet,
+  // 32 px dans la barre de favoris, 48 px dans un raccourci de bureau. Sans
+  // elles, le système redimensionne le .ico et les traits fins de la lettre
+  // bavent.
+  //
+  // `apple` est la seule qui manquait vraiment : sans elle, un iPhone qui
+  // ajoute le site à son écran d'accueil fabrique une vignette en
+  // photographiant la page.
+  icons: {
+    icon: [
+      { url: "/marque/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/marque/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/marque/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+      { url: "/marque/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/marque/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/marque/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/favicon.ico"],
+  },
   openGraph: {
     title: "moncabinetcric — Gestion de Cabinet RCIC / CICC",
     description: "SaaS de gestion réglementaire et financière pour les consultants en immigration canadienne.",
     siteName: "moncabinetcric",
-    type: "website"
+    type: "website",
+    // L'APERÇU DE PARTAGE N'AVAIT AUCUNE IMAGE. Le titre et la description
+    // étaient déclarés depuis le début, mais un lien partagé sur LinkedIn ou
+    // dans une conversation s'affichait en texte nu — le format le moins
+    // cliqué qui soit. 1200 × 630, la proportion qu'attendent Facebook,
+    // LinkedIn et la plupart des messageries.
+    images: [{
+      url: "/marque/og-image.png",
+      width: 1200,
+      height: 630,
+      alt: "moncabinetcric — logiciel de gestion pour consultants réglementés en immigration",
+    }],
+    locale: "fr_CA",
   },
   twitter: {
     card: "summary_large_image",
     title: "moncabinetcric",
-    description: "Logiciel de gestion réglementé CICC pour consultants en immigration canadienne."
+    description: "Logiciel de gestion réglementé CICC pour consultants en immigration canadienne.",
+    // 1200 × 600 : la proportion propre à X, distincte des 630 d'Open Graph.
+    images: ["/marque/twitter-image.png"],
   }
 };
 
