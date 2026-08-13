@@ -294,7 +294,7 @@ async function main() {
     // Le registre référence les paiements : on descend dans l'ordre inverse.
     if (clientA) await admin.from("trust_ledger").delete().eq("client_id", clientA)
     if (clientA) await admin.from("payments").delete().eq("client_id", clientA)
-    for (const id of [cabinetA, cabinetB]) if (id) await admin.from("firms").delete().eq("id", id)
+    for (const id of [cabinetA, cabinetB]) if (id) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: id })
     for (const c of comptes) await admin.auth.admin.deleteUser(c.userId).catch(() => {})
     console.log("\nCabinets, clients et comptes d'épreuve supprimés.")
   }

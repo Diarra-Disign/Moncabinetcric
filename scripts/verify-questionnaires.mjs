@@ -473,7 +473,7 @@ try {
     .from("questionnaire_templates").select("id").eq("firm_id", cabinetA)
   verifier("ni les modèles du premier", (modelesTiers ?? []).length, 0)
 } finally {
-  for (const id of [cabinetA, cabinetB]) if (id) await admin.from("firms").delete().eq("id", id)
+  for (const id of [cabinetA, cabinetB]) if (id) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: id })
   for (const id of [userA, userB, userPortail]) if (id) await admin.auth.admin.deleteUser(id)
   console.log("\nCabinets et comptes d'épreuve supprimés.")
 }

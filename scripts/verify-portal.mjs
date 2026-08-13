@@ -271,7 +271,7 @@ async function main() {
     verifier("la vue ne porte aucune note interne",
       Object.keys(parLaVue?.[0] ?? {}).some((k) => k === "notes" || k === "verified_by"), false)
   } finally {
-    for (const id of [cabA, cabB]) if (id) await admin.from("firms").delete().eq("id", id)
+    for (const id of [cabA, cabB]) if (id) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: id })
     for (const u of users) await admin.auth.admin.deleteUser(u).catch(() => {})
     console.log("\nCabinets, clients et comptes d'épreuve supprimés.")
   }

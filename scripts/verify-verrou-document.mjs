@@ -207,10 +207,10 @@ try {
   await admin.from("documents").update({ locked_at: new Date().toISOString() }).eq("id", docTiers.id)
   v("la levée chez le voisin est refusée", await lever(docTiers.id), "refusé")
   v("son document reste verrouillé", await verrouille(docTiers.id), "verrouillé")
-  await admin.from("firms").delete().eq("id", f2.id)
+  await admin.rpc("purger_cabinet_epreuve", { p_firm_id: f2.id })
 
 } finally {
-  if (cab) await admin.from("firms").delete().eq("id", cab)
+  if (cab) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cab })
   if (uid) await admin.auth.admin.deleteUser(uid)
   console.log("\nCabinet et compte d'épreuve supprimés.")
 }

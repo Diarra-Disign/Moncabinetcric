@@ -219,7 +219,7 @@ async function main() {
     verifier("l'adjoint révoqué ne voit rien", await cabinetVu(sessionAdjoint), "NULL")
     verifier("sa ligne existe toujours", encoreLa, 1)
   } finally {
-    if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
+    if (cabinetId) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cabinetId })
     for (const c of comptes) await admin.auth.admin.deleteUser(c.userId).catch(() => {})
     console.log("\nCabinet et comptes d'épreuve supprimés.")
   }

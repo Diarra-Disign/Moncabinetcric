@@ -31,7 +31,14 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_RO
 
 const appliquer = process.argv.includes("--appliquer")
 
-const { cabinets, comptes, gardes } = await recenser(admin)
+// La garde de temps épargne le décor d'un script qui tourne en parallèle. Elle
+// se règle, parce qu'elle empêche AUSSI de conclure : un cabinet créé il y a
+// quatre minutes reste invisible du recensement, et on ne peut pas distinguer
+// « le nettoyage a marché » de « le garde-fou me le cache ».
+const argMinutes = process.argv.find((a) => a.startsWith("--minutes="))
+const minutes = argMinutes ? Number(argMinutes.slice(10)) : 10
+
+const { cabinets, comptes, gardes } = await recenser(admin, { minutes })
 
 console.log(`\nCABINETS D'ÉPREUVE : ${cabinets.length}`)
 for (const f of cabinets.slice(0, 12)) {
@@ -69,12 +76,11 @@ if (process.argv.includes("--diagnostic")) {
   if (!cabinets.length) { console.log("\nAucun cabinet d'épreuve à interroger."); process.exit(0) }
   const cible = cabinets[0]
   console.log(`\nDIAGNOSTIC sur « ${cible.name} » <${cible.email}>`)
-  const { error, count } = await admin
-    .from("firms").delete({ count: "exact" }).eq("id", cible.id)
+  const { data, error } = await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cible.id })
   console.log(`   erreur  : ${error ? `${error.code} — ${error.message}` : "aucune"}`)
   if (error?.details) console.log(`   détail  : ${error.details}`)
   if (error?.hint) console.log(`   piste   : ${error.hint}`)
-  console.log(`   lignes  : ${count ?? "non rapporté"}`)
+  console.log(`   verdict : ${data === true ? "acceptée" : `refusée (${JSON.stringify(data)})`}`)
   const { data: reste } = await admin.from("firms").select("id").eq("id", cible.id).maybeSingle()
   console.log(`   présent : ${reste ? "OUI — la suppression n'a rien fait" : "non, il a bien disparu"}`)
   process.exit(0)
@@ -89,7 +95,7 @@ if (!appliquer) {
 }
 
 console.log("\nEffacement…")
-const r = await balayer(admin)
+const r = await balayer(admin, { minutes })
 
 // Les refus sont GROUPÉS par message : quatre-vingts lignes identiques
 // noieraient le seul renseignement utile, qui est lequel de la base parle.

@@ -104,6 +104,39 @@ try {
   const { error: eSup } = await admin.from("audit_logs").delete().eq("id", entree.id)
   v("un DELETE direct est refusé, même au service", eSup ? "refusé" : "ACCEPTÉ", "refusé")
 
+  // ── 3 bis. LES DEUX GARANTIES ÉLARGIES ENSUITE ──────────────────────────
+  // La purge a dû traverser le sceau des signatures et le verrou des
+  // documents pour finir son travail. C'est ICI que le risque s'est déplacé :
+  // ces deux refus doivent rester entiers HORS de la purge, sinon on aurait
+  // troqué deux garanties contre une commodité de ménage.
+  console.log("\nLe sceau et le verrou tiennent hors de la purge")
+  const { data: docV } = await admin.from("documents").insert({
+    firm_id: reel, name: "Contrat scellé.pdf", type: "Entente de service",
+    category: "contract", uploaded_by: "Épreuve", source: "cabinet", status: "valid",
+    storage_path: `${reel}/faux/scelle.pdf`, sha256: "a".repeat(64),
+    mime_type: "application/pdf", size_bytes: 10,
+    locked_at: new Date().toISOString(),
+  }).select("id").single()
+  const { error: eDocV } = await admin.from("documents").delete().eq("id", docV.id)
+  v("un document verrouillé ne s'efface pas", eDocV ? "refusé" : "ACCEPTÉ", "refusé")
+
+  const { data: dReq } = await admin.from("signature_requests").insert({
+    firm_id: reel, document_id: docV.id, document_sha256: "a".repeat(64),
+    status: "sent", signing_mode: "sequential", provider: "internal",
+    expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+  }).select("id").single()
+  const { data: sig } = await admin.from("signatures").insert({
+    request_id: dReq.id, firm_id: reel, document_id: docV.id,
+    signer_kind: "client", signer_name: "Jean Tremblay",
+    signer_email: `jt-${marque}@example.invalid`, signer_role: "client",
+    document_sha256: "imposé par la base", ip_address: "198.51.100.9",
+  }).select("id").single()
+  const { error: eSig } = await admin.from("signatures").delete().eq("id", sig.id)
+  v("une signature ne s'efface pas", eSig ? "refusé" : "ACCEPTÉ", "refusé")
+  const { error: eSigM } = await admin.from("signatures")
+    .update({ signer_name: "Quelqu'un d'autre" }).eq("id", sig.id)
+  v("et elle ne se réécrit pas davantage", eSigM ? "refusé" : "ACCEPTÉ", "refusé")
+
   // ── 4. LE CABINET D'ÉPREUVE, LUI, DISPARAÎT ─────────────────────────────
   console.log("\nUn cabinet d'épreuve disparaît, journal compris")
   const { data: rEp, error: eEp } = await admin

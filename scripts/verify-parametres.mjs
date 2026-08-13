@@ -388,7 +388,7 @@ try {
   verifier("après reconnexion : le code postal", await lire2("Code postal"), "J1H 1A1")
 } finally {
   if (navigateur) await navigateur.close()
-  for (const id of [cabinetA, cabinetB]) if (id) await admin.from("firms").delete().eq("id", id)
+  for (const id of [cabinetA, cabinetB]) if (id) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: id })
   for (const id of [userProprio, userMembre, userB]) if (id) await admin.auth.admin.deleteUser(id)
   console.log("\nCabinets et comptes d'épreuve supprimés.")
 }

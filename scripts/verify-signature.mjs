@@ -899,7 +899,7 @@ try {
   verifier("resolve_signature_token n'est pas exposée au navigateur",
     eRpc ? "refusée" : "EXPOSÉE", "refusée")
 } finally {
-  for (const id of [cabinetA, cabinetB]) if (id) await admin.from("firms").delete().eq("id", id)
+  for (const id of [cabinetA, cabinetB]) if (id) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: id })
   for (const id of [userA, userB]) if (id) await admin.auth.admin.deleteUser(id)
   console.log("\nCabinets et comptes d'épreuve supprimés.")
 }

@@ -123,7 +123,7 @@ try {
   if (!erreurNext) console.log(`\n   Extrait :\n   ${etat.texte.split("\n").slice(0, 6).join("\n   ")}`)
 } finally {
   if (navigateur) await navigateur.close()
-  if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
+  if (cabinetId) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cabinetId })
   if (userId) await admin.auth.admin.deleteUser(userId)
   console.log("\nCabinet et compte d'épreuve supprimés.")
 }

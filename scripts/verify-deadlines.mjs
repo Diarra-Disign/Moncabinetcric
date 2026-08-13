@@ -224,7 +224,7 @@ async function main() {
       .update({ due_on: jour(99) }).eq("matter_id", dossier)
     verifier("ni ne peut rien déplacer", (await vue())[0].due_on, avant)
   } finally {
-    for (const id of [cabinetA, cabinetB]) if (id) await admin.from("firms").delete().eq("id", id)
+    for (const id of [cabinetA, cabinetB]) if (id) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: id })
     for (const c of comptes) await admin.auth.admin.deleteUser(c.userId).catch(() => {})
     console.log("\nCabinets, dossiers et comptes d'épreuve supprimés.")
   }

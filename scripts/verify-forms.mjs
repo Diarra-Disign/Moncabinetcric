@@ -223,7 +223,7 @@ async function main() {
       .select("code, blank_path").eq("code", "IMM5476").single()
     verifier("le PDF officiel n'est pas encore importé", pdfManquant.blank_path, null)
   } finally {
-    if (cab) await admin.from("firms").delete().eq("id", cab)
+    if (cab) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cab })
     for (const u of users) await admin.auth.admin.deleteUser(u).catch(() => {})
     console.log("\nCabinet, dossier et comptes d'épreuve supprimés.")
   }

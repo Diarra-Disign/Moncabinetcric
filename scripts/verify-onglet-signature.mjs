@@ -121,7 +121,7 @@ try {
   v("l'onglet montre la demande", await page.getByText(/Contrat de services\.pdf/).count()>0?"oui":"NON","oui")
 } finally {
   if(nav) await nav.close()
-  if(cab) await admin.from("firms").delete().eq("id",cab)
+  if(cab) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cab })
   if(uid) await admin.auth.admin.deleteUser(uid)
 }
 console.log(echecs===0?"\n✓ Onglet vérifié, 0 échec.":`\n✗ ${echecs} échec(s).`)

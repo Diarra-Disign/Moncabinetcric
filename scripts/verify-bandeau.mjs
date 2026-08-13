@@ -164,7 +164,7 @@ try {
   verifier("le détail ne dit plus « aucune »", /aucune/i.test(b.detail ?? "") ? "MENT" : "cohérent", "cohérent")
 } finally {
   if (navigateur) await navigateur.close()
-  if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
+  if (cabinetId) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cabinetId })
   if (userId) await admin.auth.admin.deleteUser(userId)
   console.log("\nCabinet et compte d'épreuve supprimés.")
 }

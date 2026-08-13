@@ -238,7 +238,7 @@ async function main() {
     // l'acceptation.
     verifier("l'invitation occupe une place", await places(), "2/3")
   } finally {
-    if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
+    if (cabinetId) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cabinetId })
     for (const c of comptes) {
       await admin.from("platform_admins").delete().eq("user_id", c.userId)
       await admin.auth.admin.deleteUser(c.userId).catch(() => {})

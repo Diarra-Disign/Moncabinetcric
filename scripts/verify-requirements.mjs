@@ -258,7 +258,7 @@ async function main() {
     const apresIntrusion = (await exigences()).find((r) => r.code === "PASSPORT").status
     verifier("ni n'a pu en modifier une", apresIntrusion, avant)
   } finally {
-    for (const id of [cabinetA, cabinetB]) if (id) await admin.from("firms").delete().eq("id", id)
+    for (const id of [cabinetA, cabinetB]) if (id) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: id })
     for (const c of comptes) await admin.auth.admin.deleteUser(c.userId).catch(() => {})
     console.log("\nCabinets, dossiers et comptes d'épreuve supprimés.")
   }

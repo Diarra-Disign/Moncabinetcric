@@ -192,7 +192,7 @@ async function main() {
     }
   } finally {
     if (navigateur) await navigateur.close().catch(() => {})
-    if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
+    if (cabinetId) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cabinetId })
     if (userId) await admin.auth.admin.deleteUser(userId).catch(() => {})
     console.log("\nCabinet et compte d'épreuve supprimés.")
   }

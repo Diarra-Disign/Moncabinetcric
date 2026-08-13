@@ -394,7 +394,7 @@ async function main() {
     // -----------------------------------------------------------------------
     if (subId) await sdk.subscriptions.cancel(subId).catch(() => {})
     if (customerId) await sdk.customers.del(customerId).catch(() => {})
-    if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
+    if (cabinetId) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cabinetId })
     for (const c of comptes) await admin.auth.admin.deleteUser(c.userId).catch(() => {})
     console.log("\nCabinet, comptes et abonnement d'épreuve supprimés.")
   }

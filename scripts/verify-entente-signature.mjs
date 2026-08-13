@@ -423,7 +423,7 @@ try {
 } finally {
   if (nav) await nav.close().catch(() => {})
   if (cab) {
-    await admin.from("firms").delete().eq("id", cab)
+    await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cab })
     console.log("\nCabinet et compte d'épreuve supprimés.")
   }
   if (uid) await admin.auth.admin.deleteUser(uid).catch(() => {})

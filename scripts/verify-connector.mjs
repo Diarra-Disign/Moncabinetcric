@@ -219,7 +219,7 @@ async function main() {
     if (!ok) echecs++
     console.log(`  ${ok ? "✓" : "✗"} aucune trace imputée à un autre cabinet (${ailleurs})`)
   } finally {
-    for (const c of Object.values(cabinets)) await sb.from("firms").delete().eq("id", c.id)
+    for (const c of Object.values(cabinets)) await sb.rpc("purger_cabinet_epreuve", { p_firm_id: c.id })
     console.log("\nCabinets d'épreuve supprimés.")
   }
 

@@ -226,7 +226,7 @@ async function main() {
     verifier("le propriétaire n'est pas affecté", await peut(proprio.session, "records.write"), true)
   } finally {
     if (clientId) await admin.from("clients").delete().eq("id", clientId)
-    if (cabinetId) await admin.from("firms").delete().eq("id", cabinetId)
+    if (cabinetId) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cabinetId })
     for (const c of comptes) await admin.auth.admin.deleteUser(c.userId).catch(() => {})
     console.log("\nCabinet et comptes d'épreuve supprimés.")
   }
