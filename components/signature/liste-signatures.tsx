@@ -3,13 +3,14 @@
 import * as React from "react"
 import {
   PenLine, Send, X, Clock, Check, AlertTriangle, Loader2,
-  Download, History, ExternalLink, Archive, ArchiveRestore, Trash2,
+  Download, History, ExternalLink, Archive, ArchiveRestore, Trash2, FolderInput,
 } from "lucide-react"
 import {
   annulerSignature, relancerSignature, journalSignature, lienPourSigner,
   archiverSignature, restaurerSignature, supprimerSignatureDefinitivement,
   peutSupprimerSignature,
 } from "@/lib/data/signature-actions"
+import { reclasserDocument, destinationsDocument } from "@/lib/data/matter-actions"
 import type { LigneTableau } from "@/lib/data/signatures"
 import {
   LIBELLE_DEMANDE, LIBELLE_DESTINATAIRE, LIBELLE_EVENEMENT,
@@ -77,6 +78,7 @@ export function ListeSignatures({
     { id: string; entrees: Awaited<ReturnType<typeof journalSignature>> } | null
   >(null)
   const [aSupprimer, setASupprimer] = React.useState<LigneTableau | null>(null)
+  const [aDeplacer, setADeplacer] = React.useState<LigneTableau | null>(null)
 
   const agir = async (id: string, action: () => Promise<{ ok: boolean; message: string }>) => {
     setOccupe(id)
@@ -206,11 +208,21 @@ export function ListeSignatures({
                 </button>
               )}
 
+              {/* UN SEUL LIEN, PARCE QU'IL N'Y A QU'UN SEUL FICHIER. Le
+                  certificat n'est pas une pièce séparée : ce sont les dernières
+                  pages du document signé, ajoutées par documentAvecCertificat().
+                  Un seconds bouton « Voir le certificat » ouvrirait exactement
+                  le même PDF — le libellé dit donc ce qu'on obtient. */}
               {l.documentSigneId && (
-                <a href={`/api/documents/${l.documentSigneId}`} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-success/15 px-2.5 py-1.5 text-[11px] font-bold text-success-strong hover:bg-success/25">
-                  <Download className="h-3 w-3" aria-hidden /> Document signé
-                </a>
+                <>
+                  <a href={`/api/documents/${l.documentSigneId}`} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-success/15 px-2.5 py-1.5 text-[11px] font-bold text-success-strong hover:bg-success/25">
+                    <Download className="h-3 w-3" aria-hidden /> Document signé + certificat
+                  </a>
+                  <button type="button" onClick={() => setADeplacer(l)} className={BOUTON}>
+                    <FolderInput className="h-3 w-3" aria-hidden /> Déplacer
+                  </button>
+                </>
               )}
 
               {l.matterId && (
@@ -270,7 +282,137 @@ export function ListeSignatures({
           onSupprime={(m) => { setMessage({ ok: true, texte: m }); window.location.reload() }}
         />
       )}
+
+      {aDeplacer?.documentSigneId && (
+        <ModaleDeplacement
+          documentId={aDeplacer.documentSigneId}
+          nom={aDeplacer.documentName}
+          onFerme={() => setADeplacer(null)}
+          onDeplace={(m) => { setMessage({ ok: true, texte: m }); window.location.reload() }}
+        />
+      )}
     </>
+  )
+}
+
+/**
+ * Choisir la section où ranger un document signé.
+ *
+ * ─── CE QUE CE GESTE NE FAIT PAS ───────────────────────────────────────────
+ *
+ * Il ne déplace aucun fichier. Le PDF reste à son emplacement de stockage, avec
+ * son empreinte et son verrou : seule change la section du dossier où il
+ * s'affiche. C'est pourquoi le geste est sûr sur une pièce signée, et pourquoi
+ * la fenêtre le dit — un utilisateur qui croit déplacer une preuve hésitera à
+ * ranger son dossier.
+ *
+ * La demande de signature, elle, ne bouge pas non plus : elle reste dans
+ * « Signées ». Le module Signature est l'historique des opérations, le dossier
+ * est le classeur ; ranger dans l'un ne retire rien à l'autre.
+ *
+ * ─── LES DESTINATIONS VIENNENT DU SERVEUR ──────────────────────────────────
+ *
+ * Recopier la liste ici en ferait une seconde source, et le jour où une
+ * septième catégorie apparaîtrait, cet écran serait le dernier à l'apprendre.
+ */
+function ModaleDeplacement({
+  documentId, nom, onFerme, onDeplace,
+}: {
+  documentId: string
+  nom: string
+  onFerme: () => void
+  onDeplace: (message: string) => void
+}) {
+  const [destinations, setDestinations] = React.useState<{ cle: string; libelle: string }[] | null>(null)
+  const [choix, setChoix] = React.useState<string>("")
+  const [enCours, setEnCours] = React.useState(false)
+  const [erreur, setErreur] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    let vivant = true
+    void destinationsDocument().then((d) => { if (vivant) setDestinations(d) })
+    return () => { vivant = false }
+  }, [])
+
+  const deplacer = async () => {
+    setEnCours(true)
+    setErreur(null)
+    const r = await reclasserDocument(documentId, choix)
+    setEnCours(false)
+    if (!r.ok) { setErreur(r.message); return }
+    onDeplace(r.message)
+    onFerme()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-foreground/50 p-4">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl">
+        <header className="flex items-start justify-between gap-3 border-b border-border p-5">
+          <div className="min-w-0">
+            <h3 className="text-base font-black text-foreground">Déplacer vers…</h3>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{nom}</p>
+          </div>
+          <button type="button" onClick={onFerme} aria-label="Fermer"
+            className="cursor-pointer rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </header>
+
+        <div className="space-y-4 p-5">
+          <p className="text-xs text-muted-foreground">
+            Le fichier ne bouge pas : seule change la section du dossier où il apparaît.
+            Son empreinte, son verrou et sa place dans <strong>Signées</strong> sont conservés.
+          </p>
+
+          {destinations === null && (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Chargement…
+            </p>
+          )}
+
+          <fieldset className="space-y-1.5">
+            <legend className="sr-only">Destination</legend>
+            {(destinations ?? []).map((d) => (
+              <label key={d.cle}
+                className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted has-checked:border-primary has-checked:bg-primary/5">
+                <input
+                  type="radio"
+                  name="destination"
+                  value={d.cle}
+                  checked={choix === d.cle}
+                  onChange={() => setChoix(d.cle)}
+                  className="h-4 w-4 shrink-0 accent-primary"
+                />
+                {d.libelle}
+              </label>
+            ))}
+          </fieldset>
+
+          {erreur && (
+            <p role="alert" className="rounded-xl border border-error/40 bg-error/10 p-3 text-xs font-bold text-error-strong">
+              {erreur}
+            </p>
+          )}
+        </div>
+
+        <footer className="flex items-center justify-end gap-2 border-t border-border p-5">
+          <button type="button" onClick={onFerme}
+            className="cursor-pointer rounded-xl border border-border px-4 py-2 text-xs font-bold text-foreground hover:bg-muted">
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={deplacer}
+            disabled={enCours || !choix}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+          >
+            {enCours ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                     : <FolderInput className="h-4 w-4" aria-hidden />}
+            Confirmer
+          </button>
+        </footer>
+      </div>
+    </div>
   )
 }
 

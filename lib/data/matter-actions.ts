@@ -759,3 +759,117 @@ export async function retirerDocument(formData: FormData): Promise<Resultat> {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Reclasser une pièce
+// ---------------------------------------------------------------------------
+
+/**
+ * Les destinations, nommées comme le consultant les voit dans le dossier — et
+ * non comme la base les stocke. « ircc_form » ne se lit pas ; « Formulaires »
+ * se lit, et c'est le titre de l'onglet où la pièce ira effectivement.
+ *
+ * PAS DE DESTINATION « FIDÉICOMMIS ». Elle figurait au cahier des charges, mais
+ * elle n'existe pas : aucune catégorie de document ne lui correspond, les états
+ * de rapprochement étant engendrés à la volée sans jamais vivre dans
+ * `documents`. L'offrir aurait créé un choix qui ne mène nulle part.
+ */
+const LIBELLE_DESTINATION: Record<string, string> = {
+  contract: "Ententes",
+  ircc_form: "Formulaires",
+  other: "Autres documents",
+  client_upload: "Pièces du client",
+  consultant_upload: "Documents du cabinet",
+  invoice: "Facturation",
+}
+
+/**
+ * Range un document dans une autre section du dossier.
+ *
+ * ─── CE QUE CETTE ACTION NE TOUCHE PAS ─────────────────────────────────────
+ *
+ * Le fichier, son empreinte, son verrou. Un seul champ change : `category`.
+ * C'est ce qui rend l'opération sûre même sur un document SIGNÉ, et ce n'est
+ * pas une permission qu'on s'accorde ici — c'est une décision déjà prise en
+ * base. `documents_verrou()` fige `storage_path` et `sha256` dès qu'un document
+ * part en signature, mais laisse délibérément passer la catégorie, et son
+ * en-tête dit pourquoi : « Renommer une pièce ou la classer ailleurs ne change
+ * pas ce qui a été signé. »
+ *
+ * La preuve est dans le fichier et dans son empreinte. Le classement dit
+ * seulement où le consultant s'attend à le retrouver.
+ */
+export async function reclasserDocument(documentId: string, categorie: string): Promise<Resultat> {
+  try {
+    const membre = await moi()
+    const sb = await getSessionSupabase()
+
+    const { CATEGORIES_DOCUMENT } = await import("./types")
+    if (!(CATEGORIES_DOCUMENT as readonly string[]).includes(categorie)) {
+      return { ok: false, message: "Cette destination n'existe pas." }
+    }
+
+    // La lecture passe par la session, donc par RLS : le document d'un autre
+    // cabinet revient vide, et l'action s'arrête ici plutôt que d'écrire.
+    const { data: doc } = await sb
+      .from("documents")
+      .select("id, name, category, matter_id")
+      .eq("id", documentId)
+      .maybeSingle()
+
+    if (!doc) return { ok: false, message: "Document introuvable." }
+    if (doc.category === categorie) {
+      return { ok: true, message: `« ${doc.name} » est déjà rangé là.` }
+    }
+
+    const { error } = await sb
+      .from("documents")
+      .update({ category: categorie })
+      .eq("id", documentId)
+
+    if (error) return { ok: false, message: lisible(error) }
+
+    const nomDe = (c: string) => LIBELLE_DESTINATION[c] ?? c
+    const { journaliser } = await import("./journal")
+    await journaliser(
+      sb,
+      {
+        firmId: membre.firmId,
+        profileId: membre.profileId,
+        fullName: membre.fullName,
+        email: membre.email,
+        role: membre.ciccRole,
+      },
+      {
+        action: "document.reclassified",
+        entityType: "document",
+        entityId: documentId,
+        matterId: (doc.matter_id as string) ?? null,
+        changements: [{
+          champ: "category",
+          libelle: "Classement",
+          avant: nomDe(String(doc.category)),
+          apres: nomDe(categorie),
+        }],
+        resume: `« ${doc.name} » déplacé vers ${nomDe(categorie)}`,
+      }
+    )
+
+    revalidatePath("/[locale]/matters/[id]", "page")
+    revalidatePath("/[locale]/signatures", "page")
+    revalidatePath("/[locale]/documents", "page")
+
+    return { ok: true, message: `« ${doc.name} » déplacé vers ${nomDe(categorie)}.` }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/** Les destinations offertes à l'écran, dans l'ordre où elles s'affichent. */
+export async function destinationsDocument(): Promise<{ cle: string; libelle: string }[]> {
+  const { CATEGORIES_DOCUMENT } = await import("./types")
+  const ordre = ["contract", "ircc_form", "other", "client_upload", "consultant_upload", "invoice"]
+  return ordre
+    .filter((c) => (CATEGORIES_DOCUMENT as readonly string[]).includes(c))
+    .map((cle) => ({ cle, libelle: LIBELLE_DESTINATION[cle] ?? cle }))
+}

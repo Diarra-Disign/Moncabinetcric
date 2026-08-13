@@ -90,6 +90,31 @@ export interface AutreDocument {
   taille: number | null
 }
 
+/**
+ * Une entente au dossier — le contrat qui fonde le mandat.
+ *
+ * Ces pièces existaient déjà en base (`category = 'contract'`) mais n'étaient
+ * affichées dans AUCUN onglet du dossier : on ne les atteignait que par le lien
+ * de téléchargement de l'onglet Signature. Le contrat signé, c'est-à-dire la
+ * pièce dont on a le plus souvent besoin, était la plus difficile à retrouver.
+ */
+export interface EntenteAuDossier {
+  id: string
+  nom: string
+  deposeLe: string
+  taille: number | null
+  /** L'identifiant du document SIGNÉ, quand la signature a abouti. */
+  documentSigneId: string | null
+  /** L'état de la demande, ou null si la pièce n'est jamais partie signer. */
+  statutSignature: string | null
+  signataires: {
+    nom: string
+    role: string
+    statut: string
+    signeLe: string | null
+  }[]
+}
+
 export interface FactureVue {
   id: string
   numero: string
@@ -141,6 +166,7 @@ export interface DossierComplet {
   formulaires: FormulaireVue[]
   formulairesDeposes: FormulaireDepose[]
   autresDocuments: AutreDocument[]
+  ententes: EntenteAuDossier[]
   factures: FactureVue[]
   paiements: PaiementVue[]
 
@@ -207,7 +233,7 @@ export async function getDossierComplet(
 
   // Lancées ensemble : ces lectures ne dépendent pas les unes des autres, et
   // les enchaîner ajouterait autant d'allers-retours que d'onglets.
-  const [exig, bloq, ech, form, fact, paie, cu, docsClient, revues, soldeFid, docs] =
+  const [exig, bloq, ech, form, fact, paie, cu, docsClient, revues, soldeFid, docs, demandes] =
     await Promise.all([
       sb.rpc("matter_requirements_view", { m_id: matterId }),
       sb.rpc("matter_blocking_requirements", { m_id: matterId }),
@@ -243,12 +269,51 @@ export async function getDossierComplet(
         .eq("matter_id", matterId)
         .is("archived_at", null)
         .order("created_at", { ascending: false }),
+      // Les demandes de signature du dossier. UNE requête pour trois questions :
+      // telle pièce a-t-elle été envoyée signer, quelle est sa version signée,
+      // et où en sont les signataires. L'embarquement nomme sa contrainte parce
+      // que `signature_requests` porte DEUX clés étrangères vers `documents` —
+      // sans cela PostgREST refuse la jointure comme ambiguë.
+      sb.from("signature_requests")
+        .select(`
+          id, document_id, signed_document_id, status,
+          documents!signature_requests_document_id_fkey!inner(matter_id),
+          signature_recipients(full_name, role, status, signed_at, rank)
+        `)
+        .eq("documents.matter_id", matterId),
     ])
 
   // Les documents indexés par leur identifiant, pour joindre nom et date à
   // chaque pièce sans refaire une requête par ligne.
   const parId = new Map(
     (docs.data ?? []).map((d) => [String(d.id), d as Record<string, unknown>])
+  )
+
+  /**
+   * Les demandes de signature, indexées par le document qu'elles VISENT, et
+   * l'ensemble des documents qui en sont NÉS.
+   *
+   * Les deux à la fois parce qu'un document signé est lui-même une ligne de
+   * `documents`, de la même catégorie que son original : sans le second index,
+   * une entente signée s'afficherait deux fois au dossier — une fois « en
+   * attente de signature », une fois signée — pour un seul contrat.
+   */
+  type DemandeDuDossier = {
+    id: string
+    document_id: string | null
+    signed_document_id: string | null
+    status: string | null
+    signature_recipients?: {
+      full_name?: string | null; role?: string | null
+      status?: string | null; signed_at?: string | null; rank?: number | null
+    }[] | null
+  }
+  const lignesDemandes = (demandes.data ?? []) as unknown as DemandeDuDossier[]
+  const parDocument = new Map(
+    lignesDemandes.filter((d) => d.document_id).map((d) => [String(d.document_id), d])
+  )
+  const signes = new Set(
+    lignesDemandes.filter((d) => d.signed_document_id).map((d) => String(d.signed_document_id))
   )
 
   const exigences: ExigenceVue[] = (exig.data ?? []).map((r: Record<string, unknown>) => ({
@@ -371,6 +436,30 @@ export async function getDossierComplet(
         deposePar: (d.uploaded_by as string) ?? null,
         taille: (d.size_bytes as number) ?? null,
       })),
+    // MÊME REQUÊTE, AUTRE FILTRE — comme au-dessus. Les documents SIGNÉS sont
+    // exclus de la liste : ils apparaissent sur la ligne de leur original, à la
+    // place de « en attente », et non comme une seconde entente au même nom.
+    ententes: (docs.data ?? [])
+      .filter((d) => d.category === "contract" && !signes.has(String(d.id)))
+      .map((d) => {
+        const dem = parDocument.get(String(d.id))
+        return {
+          id: String(d.id),
+          nom: String(d.name ?? ""),
+          deposeLe: String(d.created_at),
+          taille: (d.size_bytes as number) ?? null,
+          documentSigneId: dem?.signed_document_id ? String(dem.signed_document_id) : null,
+          statutSignature: dem?.status ? String(dem.status) : null,
+          signataires: [...(dem?.signature_recipients ?? [])]
+            .sort((a, b) => Number(a.rank ?? 0) - Number(b.rank ?? 0))
+            .map((r) => ({
+              nom: String(r.full_name ?? ""),
+              role: String(r.role ?? ""),
+              statut: String(r.status ?? "pending"),
+              signeLe: r.signed_at ? String(r.signed_at) : null,
+            })),
+        }
+      }),
     formulairesDeposes: (docs.data ?? [])
       .filter((d) => d.category === "ircc_form")
       .map((d) => ({

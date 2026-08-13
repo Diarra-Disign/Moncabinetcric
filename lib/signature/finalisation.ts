@@ -69,7 +69,7 @@ export async function finaliser(
     // ── Le document d'origine ──────────────────────────────────────────────
     const { data: doc } = await sb
       .from("documents")
-      .select("id, name, storage_path, sha256, matter_id, client_id, type, doc_type, client_name, version")
+      .select("id, name, storage_path, sha256, matter_id, client_id, type, doc_type, client_name, version, category, requirement_id, date, description")
       .eq("id", demande.document_id)
       .maybeSingle()
     if (!doc?.storage_path) return { ok: false, message: "Le document d'origine est introuvable." }
@@ -128,6 +128,29 @@ export async function finaliser(
     const octetsFinal = await documentAvecCertificat(octetsOriginal, donnees)
 
     // ── Le classement ──────────────────────────────────────────────────────
+    //
+    // LE DOCUMENT SIGNÉ HÉRITE DE SON ORIGINAL, IL NE CHANGE PAS DE NATURE.
+    // `category: "contract"` était écrit en dur : un IMM 5476 signé devenait un
+    // « contrat », une lettre explicative signée aussi. Or la catégorie dit
+    // d'où vient la pièce, et signer n'en change pas la provenance — cela lui
+    // ajoute des signatures.
+    //
+    // La conséquence n'était pas seulement cosmétique. Chaque section du
+    // dossier est une vue filtrée par catégorie : un formulaire reclassé en
+    // « contrat » disparaissait de l'onglet Formulaires, et « contrat » n'est
+    // affiché nulle part. Le document signé sortait donc du dossier au moment
+    // même où il devenait la pièce qui compte.
+    //
+    // `requirement_id` suit pour la même raison : la version signée d'une pièce
+    // exigée répond toujours à cette exigence. Le déclencheur
+    // `link_upload_to_requirement` fera alors pointer l'exigence sur la version
+    // SIGNÉE et remettra sa vérification à zéro — ce qui est le comportement
+    // voulu, et que son propre commentaire justifie : le fichier n'est plus le
+    // même, personne n'a encore regardé celui-là.
+    //
+    // `date` et `description` suivent parce qu'elles décrivent le document, pas
+    // le fichier. `date` est NOT NULL avec un défaut : on omet la clé plutôt
+    // que de passer null, sinon l'insertion serait refusée.
     const premier = donnees.signataires[0]?.nom ?? ""
     const nomFichier = nomDocumentSigne(String(doc.name ?? "Document").replace(/\.pdf$/i, ""), premier)
 
@@ -139,8 +162,13 @@ export async function finaliser(
         matter_id: doc.matter_id ?? null,
         name: nomFichier,
         type: String(doc.type ?? "Document signé"),
-        category: "contract",
+        // Le repli sur « contract » ne sert qu'aux lignes anciennes dont la
+        // catégorie serait absente ; la contrainte CHECK l'exige non nulle.
+        category: String(doc.category ?? "contract"),
         doc_type: doc.doc_type ?? null,
+        requirement_id: doc.requirement_id ?? null,
+        ...(doc.date ? { date: doc.date } : {}),
+        description: doc.description ?? null,
         client_name: doc.client_name ?? null,
         uploaded_by: ctx.fullName || ctx.email || "Système",
         source: "cabinet",
@@ -173,7 +201,23 @@ export async function finaliser(
 
     // Verrouillé dès sa naissance. Un document signé ne se modifie pas — et
     // celui-ci porte les signatures.
-    await sb.rpc("verrouiller_document", { p_document_id: neuf.id })
+    //
+    // LE RETOUR EST LU. Il ne l'était pas, et le verrou a donc échoué en
+    // silence sur tous les documents signés : `verrouiller_document()`
+    // comparait le cabinet à `current_firm_id()`, nul ici puisque `finaliser()`
+    // tourne sous la clé de service. La fonction accepte désormais l'appel sans
+    // session, mais un échec ne doit plus jamais passer sans bruit.
+    //
+    // On ne fait PAS échouer la finalisation pour autant : la signature est
+    // déjà scellée en base et le fichier est déposé. Refuser ici perdrait le
+    // document signé pour protéger un verrou qu'on peut reposer.
+    const { data: verrouille } = await sb.rpc("verrouiller_document", { p_document_id: neuf.id })
+    if (verrouille !== true) {
+      console.error(
+        "finaliser : le document signé", String(neuf.id),
+        "n'a PAS pu être verrouillé — il reste modifiable."
+      )
+    }
 
     await sb
       .from("signature_requests")

@@ -14,9 +14,14 @@ import { getSessionSupabase } from "@/lib/supabase/session"
  * une adresse SIGNÉE valable une heure : le compartiment reste fermé, et le
  * lien expire. Recopier les octets ici ferait transiter chaque document par le
  * serveur applicatif sans rien gagner.
+ *
+ * VOIR ET TÉLÉCHARGER SONT DEUX GESTES. La route imposait `download` dans tous
+ * les cas : « Voir » enregistrait donc le fichier au lieu de l'ouvrir, et il
+ * fallait le retrouver dans ses téléchargements pour le lire. `?telecharger=1`
+ * demande l'enregistrement ; sans le paramètre, le PDF s'ouvre dans l'onglet.
  */
 export async function GET(
-  _requete: Request,
+  requete: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
@@ -32,11 +37,15 @@ export async function GET(
     return new NextResponse("Document introuvable.", { status: 404 })
   }
 
+  const telecharger = new URL(requete.url).searchParams.get("telecharger") === "1"
+
   const { data } = await sb.storage
     .from("documents")
-    .createSignedUrl(String(doc.storage_path), 3600, {
-      download: String(doc.name ?? "document.pdf"),
-    })
+    .createSignedUrl(
+      String(doc.storage_path),
+      3600,
+      telecharger ? { download: String(doc.name ?? "document.pdf") } : {}
+    )
 
   if (!data?.signedUrl) {
     return new NextResponse("Fichier illisible.", { status: 404 })

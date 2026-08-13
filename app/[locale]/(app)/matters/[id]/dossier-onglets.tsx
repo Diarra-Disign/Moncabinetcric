@@ -6,7 +6,7 @@ import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
   Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Wand2, PenLine,
-  FolderPlus
+  FolderPlus, Download, FileCheck2
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
 import { OngletSignature } from "@/components/signature/onglet-signature"
@@ -520,6 +520,102 @@ export function DossierOnglets({
       {/* ------------------------------------------------------------ */}
       {onglet === "documents" && (
         <div className="space-y-3">
+          {/* ------------------------------------------------------------
+              ENTENTES
+
+              EN TÊTE, AVANT LES PIÈCES EXIGÉES : le contrat fonde le mandat,
+              et c'est la pièce qu'un client réclame le plus souvent.
+
+              Ces documents existaient déjà en base — category = 'contract' —
+              mais n'étaient affichés dans AUCUN onglet du dossier. On ne les
+              atteignait que par le lien de téléchargement de l'onglet
+              Signature. Le contrat signé était donc la pièce la plus utile et
+              la plus difficile à retrouver.
+              ------------------------------------------------------------ */}
+          {d.ententes.length > 0 && (
+            <>
+              <h3 className="text-xs font-black uppercase tracking-wide text-muted-foreground">
+                Ententes
+              </h3>
+              <ul className="space-y-2">
+                {d.ententes.map((e) => (
+                  <li key={e.id} className="rounded-2xl border border-border bg-card p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-foreground">{e.nom}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          Déposée le {new Date(e.deposeLe).toLocaleDateString("fr-CA", {
+                            day: "numeric", month: "long", year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      <span className={cn(
+                        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold",
+                        e.documentSigneId
+                          ? "border-success/40 bg-success/15 text-success-strong"
+                          : e.statutSignature
+                            ? "border-warning/40 bg-warning/15 text-warning-strong"
+                            : "border-border bg-muted text-muted-foreground"
+                      )}>
+                        {e.documentSigneId
+                          ? <><Check className="h-3 w-3" aria-hidden /> Signée</>
+                          : e.statutSignature
+                            ? <><Clock className="h-3 w-3" aria-hidden /> En signature</>
+                            : "Non envoyée"}
+                      </span>
+                    </div>
+
+                    {e.signataires.length > 0 && (
+                      <ul className="mt-2.5 space-y-1">
+                        {e.signataires.map((s, i) => (
+                          <li key={i} className="flex flex-wrap items-baseline gap-x-2 text-[11px]">
+                            <span className={s.statut === "signed" ? "font-bold text-success-strong" : "text-muted-foreground"}>
+                              {s.statut === "signed" ? "✓" : s.statut === "declined" ? "✗" : "○"}
+                            </span>
+                            <span className="font-semibold text-foreground">{s.nom}</span>
+                            <span className="text-muted-foreground">{s.role === "consultant" ? "Consultant" : "Client"}</span>
+                            <span className="ml-auto text-muted-foreground">
+                              {s.signeLe
+                                ? new Date(s.signeLe).toLocaleDateString("fr-CA")
+                                : "en attente"}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
+                      {/* Le certificat n'est pas un fichier à part : ce sont les
+                          dernières pages du document signé. Un bouton distinct
+                          ouvrirait le même PDF. */}
+                      <a
+                        href={`/api/documents/${e.documentSigneId ?? e.id}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold",
+                          e.documentSigneId
+                            ? "bg-success/15 text-success-strong hover:bg-success/25"
+                            : "border border-border text-foreground hover:bg-muted"
+                        )}
+                      >
+                        {e.documentSigneId
+                          ? <><FileCheck2 className="h-3 w-3" aria-hidden /> Document signé + certificat</>
+                          : <><Eye className="h-3 w-3" aria-hidden /> Voir</>}
+                      </a>
+                      <a
+                        href={`/api/documents/${e.documentSigneId ?? e.id}?telecharger=1`}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-bold text-foreground hover:bg-muted"
+                      >
+                        <Download className="h-3 w-3" aria-hidden /> Télécharger
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="pt-1" />
+            </>
+          )}
+
           {pieces.length === 0 && <Vide texte="Aucune pièce justificative exigée pour ce programme." />}
           {pieces.map(ligneExigence)}
 

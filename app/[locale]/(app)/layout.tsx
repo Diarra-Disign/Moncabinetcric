@@ -142,10 +142,26 @@ export default async function AppLayout({
       type: "matter" as const,
       href: `/matters/${m.id.replace("#", "")}`,
     })),
+    // LE NOM D'ABORD. La recherche indexait `type` — une étiquette générique,
+    // « Formulaire » ou « Entente de service », partagée par des dizaines de
+    // pièces — et affichait le déposant en sous-titre. On ne pouvait donc pas
+    // retrouver un document par son nom, qui est pourtant la seule chose qui le
+    // distingue des autres, ni par son client ni par sa date.
     ...documents.map(d => ({
       id: d.id,
-      title: d.type,
-      subtitle: d.uploadedBy,
+      title: d.name,
+      // Le statut n'apparaît QUE s'il mérite l'attention : « valide » sur
+      // chaque ligne serait du bruit sur toute la liste, et noierait les
+      // quelques pièces qui attendent une revue.
+      subtitle: [
+        d.clientName,
+        d.type,
+        d.status === "pending_review" ? "à réviser"
+          : d.status === "invalid" ? "refusée"
+          : d.status === "archived" ? "archivée"
+          : null,
+        d.date ? new Date(d.date).toLocaleDateString("fr-CA") : null,
+      ].filter(Boolean).join(" · "),
       type: "document" as const,
       href: "/documents",
     })),

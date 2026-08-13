@@ -73,7 +73,7 @@ export async function journaliser(
   acteur: Acteur,
   entree: {
     action: string
-    entityType: "client" | "lead" | "matter" | "agreement"
+    entityType: "client" | "lead" | "matter" | "agreement" | "document"
     entityId: string
     matterId?: string | null
     changements: ChangementJournal[]

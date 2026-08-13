@@ -139,18 +139,38 @@ export interface ClientRecord {
   civility?: string | null
 }
 
+/**
+ * Les six origines possibles d'un document, dans l'ordre de la contrainte
+ * CHECK de `documents`. Nommées à part parce que le classement automatique et
+ * le déplacement manuel les parcourent : une liste écrite deux fois finit par
+ * en oublier une.
+ */
+export const CATEGORIES_DOCUMENT = [
+  "client_upload", "consultant_upload", "contract", "invoice", "ircc_form", "other",
+] as const
+
+export type CategorieDocument = (typeof CATEGORIES_DOCUMENT)[number]
+
 export interface DocumentRecord {
   id: string
   name: string
   type: string
-  category: "client_upload" | "consultant_upload" | "contract" | "invoice" | "ircc_form"
+  /**
+   * L'ORIGINE de la pièce, et la seule liste qui fasse foi est la contrainte
+   * CHECK de `documents`. Ce type en ignorait deux valeurs que la base accepte
+   * — « other » depuis le 14 août — ce qui rendait impossible d'écrire une
+   * entrée « other » dans `document-types.ts`, et laissait le compilateur
+   * valider des filtres qui manquaient des lignes réelles.
+   */
+  category: CategorieDocument
   /** Nature détaillée — identifiant de lib/data/document-types.ts. */
   docType?: string
   uploadedBy: string
   date: string
   expiration: string
   source: string
-  status: "valid" | "invalid" | "archived"
+  /** « pending_review » manquait ici alors que c'est le statut PAR DÉFAUT. */
+  status: "pending_review" | "valid" | "invalid" | "archived"
   matterId?: string
   clientId?: string
   clientName?: string

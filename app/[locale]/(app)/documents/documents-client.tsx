@@ -54,13 +54,14 @@ import {
   libelleType,
 } from "@/lib/data/document-types"
 
-/** Libellé lisible des cinq origines de fichier déjà stockées en base. */
+/** Libellé lisible des six origines de fichier stockées en base. */
 const LIBELLE_ORIGINE: Record<DocumentRecord["category"], string> = {
   client_upload: "fournie par le client",
   consultant_upload: "produite par le cabinet",
   contract: "contrat ou entente",
   invoice: "facturation ou fidéicommis",
   ircc_form: "formulaire officiel",
+  other: "autre document du dossier",
 }
 
 export interface FolderItem {
