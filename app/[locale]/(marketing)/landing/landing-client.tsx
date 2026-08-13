@@ -70,6 +70,39 @@ interface LandingClientProps {
   }
 }
 
+/**
+ * La liste d'avantages d'une carte tarifaire.
+ *
+ * Les quatre <li> étaient recopiés à l'identique dans les quatre cartes :
+ * seize lignes pour une seule idée, et un cinquième avantage demandait quatre
+ * modifications dont trois faciles à oublier. La liste se rend désormais par
+ * boucle, et une carte peut en porter un nombre différent des autres.
+ *
+ * `items-start` plutôt que `items-center` : un avantage assez long pour tenir
+ * sur deux lignes en téléphone centrait sa coche entre les deux, à côté de
+ * rien. La coche s'aligne maintenant sur la PREMIÈRE ligne du texte.
+ */
+function Avantages({
+  points,
+  couleurCoche,
+  couleurTexte,
+}: {
+  points: (string | undefined)[]
+  couleurCoche: string
+  couleurTexte: string
+}) {
+  return (
+    <ul className={`flex flex-col gap-4 text-sm font-medium mb-8 ${couleurTexte}`}>
+      {points.filter((p): p is string => Boolean(p)).map((point) => (
+        <li key={point} className="flex items-start gap-3">
+          <Check className={`w-4 h-4 shrink-0 mt-0.5 ${couleurCoche}`} />
+          <span>{point}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function LandingClient({ t }: LandingClientProps) {
   // Les libellés légaux réutilisent les titres du catalogue juridique
   // plutôt que d'introduire des clés en double.
@@ -661,12 +694,18 @@ export function LandingClient({ t }: LandingClientProps) {
                 <p className="mt-1 text-xs text-slate-500">{t.pricing.solo.annual}</p>
               </div>
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{t.pricing.includedLabel}</div>
-              <ul className="flex flex-col gap-4 text-sm font-medium text-slate-700 mb-8">
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.solo.f1}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.solo.f2}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.solo.f3}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.solo.f4}</span></li>
-              </ul>
+              {/* La gestion du fidéicommis figure ICI, dans le forfait
+                  d'entrée, et non dans un palier supérieur : le module n'est
+                  derrière aucune fonctionnalité vendable — il n'existe aucune
+                  clé « trust » dans `features`, et la barre latérale l'ouvre à
+                  tous les cabinets. L'annoncer en Cabinet Pro laisserait croire
+                  que Solo en est privé. Les trois autres cartes en héritent par
+                  leur « … plus : ». */}
+              <Avantages
+                points={[t.pricing.solo.f1, t.pricing.solo.f2, t.pricing.solo.f3, t.pricing.solo.f4, t.pricing.solo.f5]}
+                couleurCoche="text-emerald-500"
+                couleurTexte="text-slate-700"
+              />
             </div>
             {/* Les trois boutons de cette section étaient des <button> sans
                 onClick ni href : inertes, à l'endroit précis où le visiteur
@@ -699,12 +738,11 @@ export function LandingClient({ t }: LandingClientProps) {
               </div>
               <div className="h-px w-full bg-white/20 mb-6" />
               <div className="text-xs font-bold uppercase tracking-wider text-white/70 mb-4">{t.pricing.plusProLabel}</div>
-              <ul className="flex flex-col gap-4 text-sm font-medium text-white mb-8">
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.cabinet.f1}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.cabinet.f2}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.cabinet.f3}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-amber-300 shrink-0" /> <span>{t.pricing.cabinet.f4}</span></li>
-              </ul>
+              <Avantages
+                points={[t.pricing.cabinet.f1, t.pricing.cabinet.f2, t.pricing.cabinet.f3, t.pricing.cabinet.f4]}
+                couleurCoche="text-amber-300"
+                couleurTexte="text-white"
+              />
             </div>
             <Link
               href="/demo"
@@ -733,12 +771,11 @@ export function LandingClient({ t }: LandingClientProps) {
                 <p className="mt-1 text-xs text-slate-500">{t.pricing.business.annual}</p>
               </div>
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{t.pricing.plusBusinessLabel}</div>
-              <ul className="flex flex-col gap-4 text-sm font-medium text-slate-700 mb-8">
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.business.f1}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.business.f2}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.business.f3}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-emerald-500 shrink-0" /> <span>{t.pricing.business.f4}</span></li>
-              </ul>
+              <Avantages
+                points={[t.pricing.business.f1, t.pricing.business.f2, t.pricing.business.f3, t.pricing.business.f4]}
+                couleurCoche="text-emerald-500"
+                couleurTexte="text-slate-700"
+              />
             </div>
             <Link
               href="/demo"
@@ -759,12 +796,11 @@ export function LandingClient({ t }: LandingClientProps) {
                 {t.pricing.enterprise.price}
               </div>
               <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{t.pricing.plusEnterpriseLabel}</div>
-              <ul className="flex flex-col gap-4 text-sm font-medium text-slate-700 mb-8">
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-blue-600 shrink-0" /> <span>{t.pricing.enterprise.f1}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-blue-600 shrink-0" /> <span>{t.pricing.enterprise.f2}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-blue-600 shrink-0" /> <span>{t.pricing.enterprise.f3}</span></li>
-                <li className="flex items-center gap-3"><Check className="w-4 h-4 text-blue-600 shrink-0" /> <span>{t.pricing.enterprise.f4}</span></li>
-              </ul>
+              <Avantages
+                points={[t.pricing.enterprise.f1, t.pricing.enterprise.f2, t.pricing.enterprise.f3, t.pricing.enterprise.f4]}
+                couleurCoche="text-blue-600"
+                couleurTexte="text-slate-700"
+              />
             </div>
             <Link
               href="/demo"

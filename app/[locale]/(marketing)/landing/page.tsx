@@ -95,6 +95,13 @@ export default async function LandingPage() {
         f2: tLanding("pricing.solo.f2"),
         f3: tLanding("pricing.solo.f3"),
         f4: tLanding("pricing.solo.f4"),
+        // La gestion du fidéicommis n'apparaissait nulle part sur la page
+        // publique alors que le module est livré à TOUS les forfaits. Elle est
+        // annoncée dans le forfait d'entrée, et les autres cartes en héritent
+        // par leur « … plus : ». Le libellé ne promet que ce qui est construit :
+        // un registre ventilé par client et le rapprochement bancaire. Ni
+        // lien bancaire, ni automatisation, ni conformité garantie.
+        f5: tLanding("pricing.solo.f5"),
         btn: tLanding("pricing.solo.btn"),
       },
       cabinet: {
