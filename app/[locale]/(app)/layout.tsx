@@ -18,6 +18,7 @@ import { getAbonnement } from "@/lib/data/subscription"
 import { stripeConfigure } from "@/lib/billing/stripe"
 import { getForfaitsSouscriptibles } from "@/lib/billing/catalogue"
 import { SubscriptionClient } from "./settings/subscription/subscription-client"
+import { exigerSecondFacteur } from "@/lib/auth/second-facteur"
 
 export default async function AppLayout({
   children,
@@ -48,6 +49,17 @@ export default async function AppLayout({
     // terminale, sinon la même boucle se reformerait.
     redirect("/fr/connexion?probleme=profil")
   }
+
+  // ── LE SECOND FACTEUR, EXIGÉ ICI ET NON DANS L'ÉCRAN DE CONNEXION ────────
+  //
+  // C'est ce contrôle qui rend le second facteur réel. Sans lui, il suffirait
+  // de fermer l'onglet au moment du défi et de revenir sur /fr/dashboard : la
+  // session issue du mot de passe seul est valide, simplement de niveau aal1.
+  // Le formulaire de connexion propose le défi ; c'est ce garde qui l'impose.
+  //
+  // `nextLevel` ne vaut « aal2 » que pour un compte ayant un facteur VÉRIFIÉ :
+  // personne n'est enfermé dehors par un enrôlement resté inachevé.
+  await exigerSecondFacteur()
 
   // L'abonnement est vérifié AVANT de charger quoi que ce soit : inutile de
   // lancer cinq requêtes que la base refusera. Ce contrôle sert à afficher

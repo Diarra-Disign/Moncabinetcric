@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server"
 import { ShieldCheck, ArrowLeft, LogOut } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { getCurrentPlatformAdmin, getCurrentMember } from "@/lib/supabase/session"
+import { exigerSecondFacteur } from "@/lib/auth/second-facteur"
 
 /**
  * Enveloppe de la console d'exploitation.
@@ -27,6 +28,10 @@ export default async function AdminLayout({
   // ressemble à un bogue plutôt qu'à un refus.
   const [admin, member] = await Promise.all([getCurrentPlatformAdmin(), getCurrentMember()])
   if (!admin) redirect(member ? "/fr/dashboard" : "/fr/connexion")
+
+  // La console d'exploitation administre TOUS les cabinets : si un second
+  // facteur doit être exigé quelque part, c'est ici d'abord.
+  await exigerSecondFacteur()
 
   const [t, tAuth] = await Promise.all([
     getTranslations("Admin"),

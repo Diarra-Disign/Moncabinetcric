@@ -11,6 +11,16 @@ import { cn } from "@/lib/utils"
 
 type Method = "password" | "magic"
 
+/**
+ * Ce que le serveur exige réellement, constaté en l'éprouvant.
+ *
+ * Supabase refuse en dessous de douze : « Password should be at least 12
+ * characters. » Cette constante n'impose rien — elle recopie la règle pour que
+ * l'écran cesse d'en annoncer une autre. Si la politique change dans la console
+ * Supabase, c'est ici qu'il faut la reporter, et nulle part ailleurs.
+ */
+const LONGUEUR_MINIMALE = 12
+
 const FIELD =
   "w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
 
@@ -26,6 +36,12 @@ export function SignInForm() {
   const [magicSent, setMagicSent] = React.useState(false)
 
   // Mandatory password change state for 1st login via temporary password
+  // Le défi du second facteur : posé quand la connexion par mot de passe a
+  // réussi mais que le compte exige un niveau aal2.
+  const [mfaFacteurId, setMfaFacteurId] = React.useState<string | null>(null)
+  const [mfaDefiId, setMfaDefiId] = React.useState<string | null>(null)
+  const [mfaCode, setMfaCode] = React.useState("")
+
   const [requirePasswordChange, setRequirePasswordChange] = React.useState(false)
   const [newPassword, setNewPassword] = React.useState("")
   const [confirmPassword, setConfirmPassword] = React.useState("")
@@ -110,6 +126,87 @@ export function SignInForm() {
         return
       }
 
+      // LE SECOND FACTEUR, S'IL EST ENRÔLÉ.
+      //
+      // `signInWithPassword` réussit même quand un facteur existe : la session
+      // obtenue est simplement de niveau aal1. C'est `nextLevel` qui dit si le
+      // compte en exige un second. Sans ce passage, un facteur enrôlé serait
+      // décoratif — la personne se croirait protégée et ne le serait pas.
+      //
+      // La session aal1 n'est PAS refermée en cas d'abandon : le garde des
+      // écrans privés refuse aal1 dès qu'un facteur est enrôlé, donc une
+      // session laissée en plan n'ouvre rien.
+      const { data: niveau } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (niveau?.nextLevel === "aal2" && niveau.currentLevel !== "aal2") {
+        const { data: liste } = await supabase.auth.mfa.listFactors()
+        const facteur = liste?.totp?.[0]
+        if (facteur) {
+          const { data: defi } = await supabase.auth.mfa.challenge({ factorId: facteur.id })
+          setMfaFacteurId(facteur.id)
+          setMfaDefiId(defi?.id ?? null)
+          return
+        }
+      }
+
+      await goNext()
+    } catch {
+      setError(t("genericError"))
+    } finally {
+      setPending(false)
+    }
+  }
+
+  /**
+   * Le garde des écrans privés nous a renvoyés ici : la session existe, mais
+   * elle est restée au niveau aal1. Il faut reprendre le défi là où il a été
+   * abandonné — sans redemander le mot de passe, qui a déjà été accepté.
+   *
+   * Sans ce rattrapage, l'écran afficherait un formulaire de connexion à
+   * quelqu'un de déjà connecté, et `proxy.ts` le renverrait aussitôt au
+   * tableau de bord, d'où le garde le renverrait ici. Une boucle sans issue.
+   */
+  React.useEffect(() => {
+    if (searchParams.get("probleme") !== "facteur") return
+    let annule = false
+    void (async () => {
+      const supabase = getBrowserSupabase()
+      const { data: niveau } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (annule || niveau?.nextLevel !== "aal2" || niveau.currentLevel === "aal2") return
+      const { data: liste } = await supabase.auth.mfa.listFactors()
+      const facteur = liste?.totp?.[0]
+      if (!facteur || annule) return
+      const { data: defi } = await supabase.auth.mfa.challenge({ factorId: facteur.id })
+      if (annule) return
+      setMfaFacteurId(facteur.id)
+      setMfaDefiId(defi?.id ?? null)
+    })()
+    return () => { annule = true }
+  }, [searchParams])
+
+  /** Vérifie le code à six chiffres et élève la session au niveau aal2. */
+  const handleMfa = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!mfaFacteurId || !mfaDefiId) return
+    setError(null)
+    setPending(true)
+    try {
+      const supabase = getBrowserSupabase()
+      const { error: eVerif } = await supabase.auth.mfa.verify({
+        factorId: mfaFacteurId,
+        challengeId: mfaDefiId,
+        code: mfaCode.trim(),
+      })
+      if (eVerif) {
+        // UN NOUVEAU DÉFI À CHAQUE ÉCHEC : un défi est à usage unique, et
+        // réutiliser celui qui vient d'échouer ferait échouer aussi le code
+        // suivant, même juste. La personne conclurait que son application est
+        // déréglée alors que c'est l'écran qui l'est.
+        const { data: defi } = await supabase.auth.mfa.challenge({ factorId: mfaFacteurId })
+        setMfaDefiId(defi?.id ?? null)
+        setMfaCode("")
+        setError("Ce code n'est pas valide. Vérifiez l'heure de votre téléphone, puis réessayez.")
+        return
+      }
       await goNext()
     } catch {
       setError(t("genericError"))
@@ -122,8 +219,19 @@ export function SignInForm() {
     e.preventDefault()
     setError(null)
 
-    if (newPassword.length < 8) {
-      setError("Le mot de passe doit contenir au moins 8 caractères.")
+    // DOUZE, PARCE QUE C'EST CE QUE LE SERVEUR IMPOSE.
+    //
+    // Ce contrôle annonçait 8. L'utilisateur saisissait 8 caractères, le
+    // formulaire les acceptait, et Supabase les refusait — en anglais, sur une
+    // interface française : « Password should be at least 12 characters. »
+    // Deux règles écrites à deux endroits finissent toujours par différer, et
+    // c'est celui qui saisit qui en fait les frais.
+    //
+    // Ce contrôle-ci ne protège rien : il est dans le navigateur, donc
+    // contournable. Sa seule raison d'être est de dire la vérité AVANT
+    // l'envoi. La règle qui compte est celle de la console Supabase.
+    if (newPassword.length < LONGUEUR_MINIMALE) {
+      setError(`Le mot de passe doit contenir au moins ${LONGUEUR_MINIMALE} caractères.`)
       return
     }
     if (newPassword !== confirmPassword) {
@@ -271,10 +379,10 @@ export function SignInForm() {
                   <input
                     type="password"
                     required
-                    minLength={8}
+                    minLength={LONGUEUR_MINIMALE}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Minimum 8 caractères"
+                    placeholder={`Minimum ${LONGUEUR_MINIMALE} caractères`}
                     className={FIELD}
                   />
                 </div>
@@ -308,7 +416,36 @@ export function SignInForm() {
           </p>
         )}
 
-        {!requirePasswordChange && (magicSent ? (
+        {/* LE DÉFI PASSE AVANT TOUT LE RESTE. Une fois le mot de passe accepté,
+            il n'y a plus rien d'autre à montrer : ni les onglets, ni le lien
+            magique. Laisser le formulaire de connexion visible inviterait à
+            recommencer, ce qui créerait un second défi et perdrait le premier. */}
+        {mfaFacteurId ? (
+          <form onSubmit={handleMfa} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="mfa" className="mb-1.5 block text-xs font-bold text-foreground">
+                Code de vérification
+              </label>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Saisissez le code à six chiffres affiché par votre application d&apos;authentification.
+              </p>
+              <input
+                id="mfa"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                required
+                placeholder="000000"
+                className={cn(FIELD, "font-mono tracking-[0.4em]")}
+              />
+            </div>
+            <Button type="submit" disabled={pending || mfaCode.length !== 6} className="w-full">
+              {pending ? t("signingIn") : "Vérifier"}
+            </Button>
+          </form>
+        ) : !requirePasswordChange && (magicSent ? (
           <p
             role="status"
             className="flex items-start gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-3 text-xs font-medium leading-relaxed text-foreground"

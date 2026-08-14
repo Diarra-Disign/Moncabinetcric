@@ -10,6 +10,7 @@ import { membrePeut } from "@/lib/auth/permissions"
 import { SeatRequestPanel } from "@/components/settings/seat-request-panel"
 import { getDemandesDuCabinet, getPlacesDuCabinet } from "@/lib/data/seat-reads"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
+import { DeuxFacteurs } from "@/components/securite/deux-facteurs"
 
 export default async function SettingsPage({
   params,
@@ -93,6 +94,10 @@ export default async function SettingsPage({
   return (
     <div className="space-y-8">
       <SettingsClient />
+      {/* Le second facteur est un réglage PERSONNEL, pas un réglage du cabinet :
+          chacun enrôle le sien, et personne ne peut l'activer pour autrui. Il
+          se place donc avant les panneaux d'équipe, qui gouvernent les autres. */}
+      <DeuxFacteurs />
       <SeatRequestPanel
         occupees={places.occupees}
         limite={places.limite}
