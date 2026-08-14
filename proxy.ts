@@ -5,31 +5,41 @@ import { routing } from './lib/i18n/routing'
 
 const handleI18n = createMiddleware(routing)
 
-/** Segments réservés aux membres du cabinet, après le préfixe de langue. */
-const PROTECTED_SEGMENTS = [
-  'dashboard',
-  'clients',
-  'matters',
-  'documents',
-  'signatures',
-  'billing',
-  'calendar',
-  'deadlines',
-  'agreements',
-  // La bibliothèque du cabinet. « q » — la page qu'ouvre un destinataire avec
-  // son jeton — n'y figure délibérément PAS : elle doit rester accessible
-  // sans compte, et c'est le jeton qui y tient lieu de clé.
-  'questionnaires',
-  'pipeline',
-  'research',
-  'settings',
-  // La console d'exploitation exige en outre d'être administrateur ; ce
-  // second contrôle appartient au layout, qui peut interroger la base.
-  'admin',
-  // Le portail client : il vit sous /<locale>/portal, mais aussi à la
-  // racine /<locale>. La racine est traitée séparément ci-dessous, le
-  // segment après la locale y étant vide.
-  'portal',
+/**
+ * Les segments PUBLICS, après le préfixe de langue. Tout le reste est fermé.
+ *
+ * ─── POURQUOI CETTE LISTE EST À L'ENVERS DE CE QU'ELLE ÉTAIT ───────────────
+ *
+ * Elle énumérait les segments PROTÉGÉS. Une route privée ajoutée sans qu'on
+ * pense à la compléter était donc PUBLIQUE — et rien ne le signalait : la page
+ * s'affiche, tout paraît fonctionner. Ce n'était pas un risque théorique.
+ * `/admin/utilisateurs`, livrée le 15 août, n'est couverte que parce qu'elle
+ * commence par « admin », un segment déjà listé. Par chance de nommage, pas
+ * par conception.
+ *
+ * Désormais l'oubli penche du côté sûr : une route non déclarée ici demande
+ * une session. Le défaut se voit tout de suite — on est renvoyé à la connexion
+ * — au lieu de rester invisible jusqu'à ce que quelqu'un le trouve.
+ *
+ * ─── CE QUI FIGURE ICI, ET POURQUOI ────────────────────────────────────────
+ *
+ * Les pages commerciales et légales, la connexion, l'acceptation d'invitation.
+ * Et « q » : la page qu'ouvre un client avec son jeton, sans compte — c'est le
+ * jeton qui y tient lieu de clé. « s », la page de signature, vit hors de
+ * /<locale> et n'est même pas atteinte par ce filtre.
+ *
+ * « design-system » N'Y EST PAS. C'est l'atelier de composants, un écran
+ * interne que robots.txt écarte déjà de l'indexation ; il devient donc fermé.
+ * Une ligne à ajouter ici si tu veux le rouvrir.
+ */
+const SEGMENTS_PUBLICS = [
+  'landing',
+  'connexion',
+  'demo',
+  'bienvenue',
+  'conditions',
+  'confidentialite',
+  'q',
 ]
 
 const LOGIN_PATH = 'connexion'
@@ -54,12 +64,15 @@ function isProtected(pathname: string): boolean {
   // de passe. Un confrère curieux, un client venu d'une recherche, un moteur
   // d'indexation : tous voyaient la connexion, jamais le produit.
   //
-  // Le portail a repris sa route propre, `/fr/portal`, qui figure dans
-  // PROTECTED_SEGMENTS ci-dessus. La racine peut donc s'ouvrir sans que rien
-  // de privé ne s'ouvre avec elle.
+  // Le portail a repris sa route propre, `/fr/portal`, qui n'est pas déclarée
+  // publique ci-dessus et se referme donc d'elle-même.
   if (!afterLocale) return false
 
-  return PROTECTED_SEGMENTS.includes(afterLocale)
+  // UNE ADRESSE INCONNUE EST FERMÉE, elle aussi. Un visiteur qui tape une
+  // adresse inexistante est renvoyé à la connexion plutôt que de recevoir un
+  // 404 — ce qui a l'avantage second de ne pas révéler quelles routes
+  // existent.
+  return !SEGMENTS_PUBLICS.includes(afterLocale)
 }
 
 export default async function proxy(request: NextRequest) {

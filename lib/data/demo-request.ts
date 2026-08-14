@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import { getServerSupabase } from "@/lib/supabase/server"
+import { autorise, TROP_DE_TENTATIVES } from "@/lib/securite/limiter"
 
 /**
  * Demande de démonstration déposée depuis la page publique.
@@ -47,6 +48,14 @@ export interface ResultatDemande {
 export async function enregistrerDemandeDemo(
   brut: Record<string, unknown>
 ): Promise<ResultatDemande> {
+  // LA LIMITE PASSE AVANT LA VALIDATION, et l'ordre compte : valider d'abord
+  // ferait travailler le serveur pour chaque requête d'un robot. Le leurre
+  // ci-dessous n'arrête qu'un robot naïf ; celui qui le remplit correctement
+  // pouvait jusqu'ici inonder la console d'exploitation de fausses demandes.
+  if (!(await autorise("demo"))) {
+    return { ok: false, erreur: TROP_DE_TENTATIVES }
+  }
+
   const analyse = Demande.safeParse(brut)
   if (!analyse.success) {
     return { ok: false, erreur: analyse.error.issues[0]?.message ?? "Formulaire invalide." }

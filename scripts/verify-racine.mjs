@@ -211,9 +211,33 @@ try {
     await p1.locator('input[type="password"]').count() > 0, true)
 
   console.log("\nEssai 3 — le privé reste fermé")
-  for (const chemin of ["/fr/dashboard", "/fr/clients", "/fr/fideicommis", "/fr/portal"]) {
+  for (const chemin of [
+    "/fr/dashboard", "/fr/clients", "/fr/fideicommis", "/fr/portal",
+    "/fr/matters", "/fr/billing", "/fr/settings", "/fr/questionnaires",
+    "/fr/agreements", "/fr/signatures", "/fr/pipeline", "/fr/research",
+    "/fr/calendar", "/fr/deadlines", "/fr/documents",
+  ]) {
     await aller(p1, chemin)
     v(`${chemin} renvoie à la connexion`, ou(p1), "/fr/connexion")
+  }
+
+  // LE CONTRÔLE QUI PROUVE LE REFUS PAR DÉFAUT.
+  //
+  // Cette adresse n'existe pas, et n'existera jamais. Elle tient lieu de la
+  // route privée que quelqu'un ajoutera un jour sans penser au proxy : si elle
+  // s'ouvrait, c'est que la règle énumère encore ce qu'il faut fermer au lieu
+  // de fermer ce qui n'est pas déclaré ouvert.
+  console.log("\nUne route inconnue est fermée, pas ouverte")
+  await aller(p1, "/fr/module-ajoute-demain")
+  v("une adresse jamais déclarée demande une session", ou(p1), "/fr/connexion")
+
+  // ET LES PAGES PUBLIQUES LE RESTENT. L'inversion se paierait cher si elle
+  // fermait les pages légales : un visiteur doit pouvoir lire la politique de
+  // confidentialité sans compte — c'est la Loi 25 qui l'exige, pas le confort.
+  console.log("\nLes pages publiques et légales restent ouvertes")
+  for (const chemin of ["/fr/landing", "/fr/conditions", "/fr/confidentialite", "/fr/demo"]) {
+    await aller(p1, chemin)
+    v(`${chemin} reste accessible sans compte`, ou(p1), chemin)
   }
 
   console.log("\nEssai 4 — la console d'exploitation, sans compte")

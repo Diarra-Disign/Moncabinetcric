@@ -2,6 +2,7 @@ import "server-only"
 
 import { createHash } from "node:crypto"
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { autorise, TROP_DE_TENTATIVES } from "@/lib/securite/limiter"
 
 /**
  * Le chemin public de signature — celui du destinataire sans compte.
@@ -179,6 +180,15 @@ export async function signerParJeton(
   ip?: string | null,
   agent?: string | null
 ): Promise<ResultatPublic> {
+  // LA CLÉ EST L'EMPREINTE DU JETON, PAS L'ADRESSE. Ce qu'on protège ici n'est
+  // pas le serveur mais LA DEMANDE : un jeton martelé depuis mille adresses
+  // resterait sous le quota si l'on comptait par adresse. Limiter par jeton
+  // borne le nombre de tentatives que peut subir une signature donnée, quel
+  // que soit d'où elles viennent.
+  if (!(await autorise("jetonEcriture", empreinte(jeton)))) {
+    return { ok: false, message: TROP_DE_TENTATIVES }
+  }
+
   const { data, error } = await service().rpc("signer_par_jeton", {
     p_token_hash: empreinte(jeton),
     p_courriel: courriel,

@@ -1,6 +1,6 @@
 import "server-only"
 
-import { createClient } from "@supabase/supabase-js"
+import { getServerSupabase } from "@/lib/supabase/server"
 import { EMPTY_FIRM, mapFirmRow, type FirmIdentity, type FirmRow } from "@/lib/data/firm"
 
 /**
@@ -17,18 +17,37 @@ import { EMPTY_FIRM, mapFirmRow, type FirmIdentity, type FirmRow } from "@/lib/d
  * protection des renseignements personnels qui n'existe pas — le contraire
  * de ce que la Loi 25 attend de ce document.
  *
- * La lecture emploie la clé anonyme : une politique dédiée n'expose que le
- * cabinet exploitant, et seulement les champs qui figurent de toute façon
- * dans des mentions légales publiques.
+ * ─── POURQUOI PLUS LA CLÉ ANONYME ──────────────────────────────────────────
+ *
+ * Cette fonction lisait `firms` avec la clé anonyme, ce qui obligeait à ouvrir
+ * la table aux visiteurs par la politique `firms_public_operator`. Son
+ * commentaire affirmait n'exposer que « les champs qui figurent de toute façon
+ * dans des mentions légales publiques » — mais UNE POLITIQUE POSTGRES S'APPLIQUE
+ * PAR LIGNE, JAMAIS PAR COLONNE. Les 35 colonnes de la ligne étaient donc
+ * lisibles sans aucun compte : courriel, téléphone, notes internes, forfait,
+ * statut d'abonnement, date de suspension, et les numéros de TPS et de TVQ dès
+ * qu'ils seraient renseignés.
+ *
+ * Vérifié avec la clé anonyme avant correction : une ligne, 35 colonnes.
+ *
+ * Ce module porte `server-only` depuis toujours : il n'avait donc aucune raison
+ * d'employer une clé destinée au navigateur. La lecture passe désormais par le
+ * client de service, et la politique publique a été retirée — plus rien
+ * n'ouvre `firms` à un visiteur.
  */
 export async function getPlatformOperatorFirm(): Promise<FirmIdentity> {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !anonKey) return EMPTY_FIRM
-
-  const supabase = createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
+  // `getServerSupabase()` LÈVE quand la configuration manque, là où la version
+  // précédente retombait doucement sur EMPTY_FIRM. Les pages légales sont
+  // publiques : les faire planter parce qu'une variable d'environnement a été
+  // effacée serait un recul. On garde donc le repli — la page s'affiche alors
+  // sans les coordonnées, ce qui se voit et se corrige, au lieu d'un écran
+  // d'erreur pour un visiteur.
+  let supabase
+  try {
+    supabase = getServerSupabase()
+  } catch {
+    return EMPTY_FIRM
+  }
 
   const { data, error } = await supabase
     .from("firms")
