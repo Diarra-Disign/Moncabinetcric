@@ -41,14 +41,32 @@ export function stripe(): Stripe {
 /**
  * La taxe est-elle calculée par Stripe ?
  *
- * Volontairement derrière une variable d'environnement plutôt qu'activée
- * d'office : Stripe Tax refuse la session tant que l'inscription fiscale n'est
- * pas déclarée dans le tableau de bord. Activée à l'aveugle, elle
- * transformerait chaque tentative de paiement en erreur, sans que le message
- * dise pourquoi.
+ * ACTIVE PAR DÉFAUT. La variable ne sert plus qu'à l'ÉTEINDRE, en valant « 0 ».
+ *
+ * Elle a fonctionné dans l'autre sens, et c'était un piège. Le raisonnement
+ * d'origine se tenait : Stripe Tax refuse la session tant que l'inscription
+ * fiscale n'est pas déclarée, donc l'activer à l'aveugle aurait transformé
+ * chaque tentative de paiement en erreur. Le garde-fou attendait qu'on pose
+ * STRIPE_AUTOMATIC_TAX=1 une fois l'inscription faite.
+ *
+ * L'inscription a été faite — deux inscriptions canadiennes actives depuis le
+ * 2026-08-07, `tax.settings.status` vaut « active ». La variable, elle, n'a
+ * jamais été posée. Et rien ne l'a signalé : la session s'ouvre parfaitement,
+ * le client choisit son pays et sa province, et aucune ligne de taxe
+ * n'apparaît. Vérifié le 2026-08-15 sur les dix dernières sessions du compte
+ * de production : `automatic_tax.enabled` valait false sur TOUTES.
+ *
+ * Ce que ça coûtait : la page publique annonce « taxes en sus », donc chaque
+ * abonnement encaissé aurait été réputé taxes comprises. Sur Cabinet Pro au
+ * Québec, 11,83 $ de TPS et TVQ par mois et par cabinet, dus à Revenu Québec
+ * sans avoir été perçus.
+ *
+ * Le défaut est donc inversé. Un oubli penche maintenant du côté qui perçoit
+ * la taxe plutôt que du côté qui la doit — et si Stripe Tax venait à refuser,
+ * le paiement échoue bruyamment au lieu de réussir faussement.
  */
 function taxeAutomatique(): boolean {
-  return process.env.STRIPE_AUTOMATIC_TAX === "1"
+  return process.env.STRIPE_AUTOMATIC_TAX !== "0"
 }
 
 /**
@@ -382,6 +400,16 @@ export async function changerForfait(params: {
   return sdk.subscriptions.update(params.subscriptionId, {
     items,
     proration_behavior: "create_prorations",
+    // Reposée à chaque modification, et non tenue pour acquise. Un abonnement
+    // né d'une session Checkout hérite bien du réglage, mais un abonnement
+    // créé autrement — repris à la main dans le tableau de bord, migré depuis
+    // un ancien compte — ne l'hérite de rien. Sans cette ligne, il changerait
+    // de forfait en restant définitivement hors taxe, et le seul endroit où
+    // ça se verrait est la déclaration de TPS.
+    //
+    // L'adresse du client est requise par Stripe pour calculer : elle est
+    // recueillie et enregistrée par `customer_update` à la souscription.
+    automatic_tax: { enabled: taxeAutomatique() },
     metadata: { firm_id: params.firmId, plan: p.key, cadence: params.cadence },
   })
 }

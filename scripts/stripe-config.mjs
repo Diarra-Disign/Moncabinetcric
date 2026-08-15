@@ -353,6 +353,14 @@ if (faireCheckout) {
           locale: "fr-CA",
           payment_method_types: moyens,
 
+          // La taxe fait partie de ce qu'on éprouve, au même titre que les
+          // moyens de paiement. Elle est restée éteinte pendant une semaine
+          // sur le compte de production sans que rien ne le dise : la session
+          // s'ouvrait, le client saisissait son adresse, et aucune ligne de
+          // taxe n'apparaissait. Une épreuve qui ouvre une session sans
+          // regarder ce point le laisserait passer une seconde fois.
+          automatic_tax: { enabled: true },
+
           success_url: `${SITE || "https://moncabinetcric.com"}/fr/settings/subscription?paiement=ok`,
           cancel_url: `${SITE || "https://moncabinetcric.com"}/fr/settings/subscription?paiement=annule`,
           metadata: { epreuve: "verification-moyens-de-paiement" },
@@ -360,6 +368,18 @@ if (faireCheckout) {
 
         console.log(`\n  ✓ session ouverte : ${session.id}`)
         console.log(`    moyens acceptés par Stripe : ${(session.payment_method_types ?? []).join(", ")}`)
+
+        // « requires_location_inputs » est le statut ATTENDU à la création :
+        // Stripe attend l'adresse que l'acheteur saisira dans sa page. Ce qui
+        // doit être vrai ici, c'est que le calcul est demandé — « failed »
+        // signalerait une inscription fiscale manquante ou expirée.
+        const etatTaxe = session.automatic_tax?.status ?? "—"
+        const taxeOk = session.automatic_tax?.enabled && etatTaxe !== "failed"
+        console.log(`  ${taxeOk ? "✓" : "✗"} taxe automatique : ${session.automatic_tax?.enabled ? "activée" : "ÉTEINTE"} (${etatTaxe})`)
+        if (!taxeOk) {
+          console.log(`    Les abonnements seraient encaissés SANS TPS ni TVQ.`)
+          process.exitCode = 1
+        }
 
         await sdk.checkout.sessions.expire(session.id)
         const apres = await sdk.checkout.sessions.retrieve(session.id)

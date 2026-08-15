@@ -85,7 +85,12 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = env.NEXT_PUBLIC_SUPABASE_URL
 process.env.SUPABASE_SERVICE_ROLE_KEY = env.SUPABASE_SERVICE_ROLE_KEY
 // La taxe n'a pas d'inscription fiscale en mode test : la demander ferait
 // échouer des appels pour une raison étrangère à ce qu'on cherche à prouver.
-delete process.env.STRIPE_AUTOMATIC_TAX
+//
+// « 0 » et non plus `delete` : depuis que la taxe est active par défaut,
+// effacer la variable l'ALLUMERAIT. C'est le genre de ligne qui survit à
+// l'inversion qu'elle était censée suivre, et fait échouer une suite entière
+// sur un message parlant d'inscription fiscale.
+process.env.STRIPE_AUTOMATIC_TAX = "0"
 
 const { calculerLignesPlaces, synchroniserSiegesStripe } = await import(
   "../lib/billing/seat-sync.ts"
