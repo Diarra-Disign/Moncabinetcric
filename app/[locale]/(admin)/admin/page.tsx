@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { getTranslations } from "next-intl/server"
 import { Building2, Users, AlertTriangle, Terminal, Lock, Ban, CreditCard, Clock } from "lucide-react"
 import {
-  getAdminFirms, getDemoRequests, getStatistiquesPlateforme, getTousLesAbonnements,
+  getAdminFirms, getDemoRequests, getDemandesAide, getStatistiquesPlateforme, getTousLesAbonnements,
   type AdminMemberRow,
 } from "@/lib/data/admin"
 import { getCatalogue } from "@/lib/billing/catalogue"
@@ -11,6 +11,7 @@ import { getDemandesEnAttente } from "@/lib/data/seat-reads"
 import { SeatRequests } from "./seat-requests"
 import { CreerCabinet, ActionsCabinet } from "./firm-actions"
 import { DemoRequests } from "./demo-requests"
+import { SupportRequests } from "./support-requests"
 import { FinancialHub } from "./financial-hub"
 import { cn } from "@/lib/utils"
 import { siteUrl } from "@/lib/site-url"
@@ -71,10 +72,13 @@ export default async function AdminPage({
   const recherche = (params.q ?? "").trim()
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1)
 
-  const [pageCabinets, demandes, catalogue, demandesSieges, stats, abonnements] =
+  const [pageCabinets, demandes, aides, catalogue, demandesSieges, stats, abonnements] =
     await Promise.all([
       getAdminFirms({ recherche, page }),
       getDemoRequests(),
+      // Un cabinet bloqué passe avant tout le reste : derrière chaque ligne,
+      // un consultant qui ne peut pas ouvrir ses dossiers.
+      getDemandesAide(),
       getCatalogue(),
       getDemandesEnAttente(),
       // Les totaux portent sur la PLATEFORME, pas sur la page affichée.
@@ -135,6 +139,10 @@ export default async function AdminPage({
   )
   const etiquettesDemandes = Object.fromEntries(
     ["requestsHeading","requestsEmpty","openAccess","dismiss","done"].map(k => [k, t(k)])
+  )
+  const etiquettesAide = Object.fromEntries(
+    ["plan","supportHeading","supportIntro","supportNoSub","supportReply",
+     "supportHandled","supportHandledHint","supportDone","supportFailed"].map(k => [k, t(k)])
   )
 
   // CES CHIFFRES PORTENT SUR LA PLATEFORME ENTIÈRE, pas sur la page affichée.
@@ -223,6 +231,10 @@ export default async function AdminPage({
         </h2>
         <FinancialHub firms={abonnements} catalogue={catalogue} origine={siteUrl()} />
       </section>
+
+      {/* Les cabinets bloqués passent devant même les demandes de
+          démonstration : celles-ci peuvent attendre l'après-midi. */}
+      <SupportRequests requests={aides} labels={etiquettesAide} />
 
       {/* Les demandes viennent avant la liste des cabinets : c'est ce qui
           attend une décision, et le reste est de la consultation. */}

@@ -11,7 +11,7 @@ import {
 import { FirmProvider } from "@/components/app-shell/firm-provider"
 import { AccessClosed } from "@/components/app-shell/access-closed"
 import { MemberClosed } from "@/components/app-shell/member-closed"
-import { getTranslations } from "next-intl/server"
+import { getTranslations, getLocale } from "next-intl/server"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import { getAbonnement } from "@/lib/data/subscription"
@@ -92,7 +92,10 @@ export default async function AppLayout({
 
   const firmForAccess = await getCurrentFirm()
   if (!firmForAccess.accessOpen) {
-    const tAuth = await getTranslations("Auth")
+    // La langue de la PAGE, pour que la réponse de l'exploitant reparte dans
+    // celle-ci. Lue ici plutôt que reçue en `params` : ce layout n'en prenait
+    // aucun, et lui en ajouter obligerait à traverser tout ce qui précède.
+    const [tAuth, locale] = await Promise.all([getTranslations("Auth"), getLocale()])
 
     // L'écran d'abonnement est greffé sur l'écran de refus, et non atteint
     // par un lien : toutes les pages de ce groupe passent par ce layout, donc
@@ -111,11 +114,14 @@ export default async function AppLayout({
         title={tAuth("accessClosedTitle")}
         suspendedBody={tAuth("accessSuspendedBody")}
         expiredBody={tAuth("accessExpiredBody")}
-        contactLabel={tAuth("accessContact")}
         signOutLabel={tAuth("signOut")}
         planLabel={tAuth("planLabel")}
         statusLabel={tAuth("statusLabel")}
-        contactEmail={process.env.EMAIL_REPLY_TO || "acces@moncabinetcric.com"}
+        langue={locale}
+        helpLabels={Object.fromEntries(
+          ["helpLabel","helpPlaceholder","helpSend","helpSending",
+           "helpSent","helpAlready","helpError"].map((k) => [k, tAuth(k)])
+        )}
       >
         {/* Une suspension décidée depuis la console n'est pas un impayé :
             payer ne la lèverait pas. Proposer le paiement dans ce cas serait

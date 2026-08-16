@@ -242,6 +242,80 @@ Console : ${lienConsole}`,
 }
 
 /**
+ * Avis à l'exploitant : un cabinet bloqué demande de l'aide.
+ *
+ * Frère du précédent, et pour la même raison — sauf que celui-ci vient de
+ * quelqu'un qui est DÉJÀ CLIENT et se trouve dehors. Le délai de réponse ne
+ * coûte pas un prospect, il coûte une journée de travail à un consultant qui
+ * a des échéances IRCC.
+ *
+ * D'où l'état du cabinet porté dans le corps : plan, statut, abonnement, tels
+ * qu'ils étaient au moment de la demande. Sans eux, l'exploitant ouvre la
+ * console, cherche le cabinet, et reconstitue ce que la personne avait déjà
+ * sous les yeux. Avec eux, il sait souvent quoi faire avant d'avoir ouvert
+ * quoi que ce soit.
+ *
+ * En français seulement, comme l'avis de démonstration, et pour la même
+ * raison : `platform_admins` ne stocke aucune préférence de langue, et
+ * reprendre celle du demandeur ferait basculer l'avis interne dans une langue
+ * que son destinataire n'a pas choisie.
+ */
+export function courrielDemandeAide(opts: {
+  cabinet: string
+  nom: string
+  courriel: string
+  plan: string
+  statutCabinet: string
+  statutAbonnement: string
+  message: string
+  langue: Langue
+  lienConsole: string
+}): CourrielCompose {
+  const {
+    cabinet, nom, courriel, plan, statutCabinet, statutAbonnement, message, langue, lienConsole,
+  } = opts
+
+  const lignes: [string, string][] = [
+    ["Cabinet", cabinet],
+    ["Demandeur", `${nom} — ${courriel}`],
+    ["Forfait", plan || "—"],
+    ["Statut du cabinet", statutCabinet || "—"],
+    ["Abonnement", statutAbonnement || "aucun"],
+    ["Langue", langue === "en" ? "anglais" : "français"],
+  ]
+
+  const tableau = lignes
+    .map(
+      ([cle, valeur]) =>
+        `<tr><td style="padding:6px 16px 6px 0;font-size:13px;color:#64748b;white-space:nowrap;vertical-align:top;">${cle}</td><td style="padding:6px 0;font-size:14px;color:#0f172a;">${echapper(valeur)}</td></tr>`
+    )
+    .join("")
+
+  return {
+    // « bloqué » dans le sujet, à dessein : c'est le mot qui fait ouvrir le
+    // message avant les autres, et il est exact.
+    sujet: `Cabinet bloqué — ${cabinet}`,
+    html: coquille(
+      "Un cabinet ne peut plus entrer",
+      `<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#334155;">Cette demande a été écrite depuis l'écran d'accès fermé. La personne est dehors au moment où vous lisez ceci.</p>
+       <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">${tableau}</table>
+       <p style="margin:24px 0 8px;font-size:13px;font-weight:700;color:#64748b;">Message</p>
+       <div style="padding:16px;background:#f8fafc;border-radius:12px;font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-wrap;">${echapper(message.trim())}</div>
+       ${bouton(lienConsole, "Ouvrir la console")}`,
+      "Vous recevez cet avis parce que vous administrez la plateforme. Répondre à ce message écrit directement au demandeur."
+    ),
+    texte: `Un cabinet ne peut plus entrer. Demande écrite depuis l'écran d'accès fermé.
+
+${lignes.map(([cle, valeur]) => `${cle} : ${valeur}`).join("\n")}
+
+Message :
+${message.trim()}
+
+Console : ${lienConsole}`,
+  }
+}
+
+/**
  * Les trois courriels de la signature.
  *
  * ─── POURQUOI LE LIEN N'EST PAS UN BOUTON SEUL ─────────────────────────────

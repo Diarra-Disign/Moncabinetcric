@@ -396,6 +396,62 @@ export async function getDemoRequests(): Promise<DemoRequestRow[]> {
   }))
 }
 
+export interface SupportRequestRow {
+  id: string
+  firmId: string
+  firmName: string
+  requesterName: string
+  requesterEmail: string
+  /** L'état du cabinet AU MOMENT DE LA DEMANDE, recopié et non joint. */
+  firmPlan: string
+  firmStatus: string
+  subscriptionStatus: string
+  message: string
+  locale: string
+  createdAt: string
+}
+
+/**
+ * Demandes d'aide venues d'un écran d'accès fermé, encore en attente.
+ *
+ * Elles passent avant tout le reste dans la console, et c'est délibéré :
+ * derrière chacune il y a un consultant qui ne peut pas ouvrir ses dossiers.
+ * Une demande de démonstration peut attendre l'après-midi, celle-ci non.
+ *
+ * Le nom du cabinet est joint, mais son état ne l'est PAS : les trois colonnes
+ * recopiées disent ce que la personne avait sous les yeux en écrivant, ce
+ * qu'une jointure ne saurait plus dire une fois l'accès rétabli.
+ */
+export async function getDemandesAide(): Promise<SupportRequestRow[]> {
+  const supabase = await getSessionSupabase()
+
+  const { data } = await supabase
+    .from("support_requests")
+    .select(
+      "id, firm_id, requester_name, requester_email, firm_plan, firm_status, subscription_status, message, locale, created_at, firms(name)"
+    )
+    .eq("status", "new")
+    .order("created_at", { ascending: false })
+
+  return (data ?? []).map((d) => {
+    const cabinet = d.firms as { name?: string } | { name?: string }[] | null
+    const nom = Array.isArray(cabinet) ? cabinet[0]?.name : cabinet?.name
+    return {
+      id: d.id as string,
+      firmId: d.firm_id as string,
+      firmName: nom ?? "",
+      requesterName: (d.requester_name as string) ?? "",
+      requesterEmail: (d.requester_email as string) ?? "",
+      firmPlan: (d.firm_plan as string) ?? "",
+      firmStatus: (d.firm_status as string) ?? "",
+      subscriptionStatus: (d.subscription_status as string) ?? "",
+      message: (d.message as string) ?? "",
+      locale: (d.locale as string) ?? "fr",
+      createdAt: (d.created_at as string) ?? "",
+    }
+  })
+}
+
 export interface AdminOverview {
   firmCount: number
   memberCount: number

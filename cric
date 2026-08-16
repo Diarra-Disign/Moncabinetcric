@@ -46,6 +46,7 @@ case "$commande" in
   questionnaires) exec node scripts/verify-questionnaires.mjs "$@" ;;
   repondre)     exec node scripts/verify-questionnaire-page.mjs "$@" ;;
   courriel)     exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-courriel.mjs "$@" ;;
+  demande-aide) exec node scripts/verify-demande-aide.mjs "$@" ;;
   envoi)        exec node scripts/verify-envoi.mjs "$@" ;;
   contraste)    exec node scripts/verify-contraste.mjs "$@" ;;
   ententes)     exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-ententes.mjs "$@" ;;
@@ -221,6 +222,12 @@ Usage : ./cric <commande> [options]
                Ouvre l'onglet Signature d'un dossier dans un vrai navigateur,
                envoie une demande et vérifie qu'elle s'affiche ensuite.
                  ./cric onglet-signature
+
+  demande-aide Éprouve la seule politique qui doit fonctionner ALORS QUE
+               L'ACCÈS EST FERMÉ : la demande d'aide déposée depuis l'écran
+               cul-de-sac. FERME MOMENTANÉMENT l'accès du cabinet visé, puis
+               le rétablit — cabinet d'épreuve uniquement.
+                 ./cric demande-aide --firm=R2233456
 
   courriel     Éprouve ce qui se compose avant l'envoi : l'en-tête « De »
                (nom du cabinet recollé sur l'adresse sans la casser) et les

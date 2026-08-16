@@ -1,17 +1,19 @@
-import { AlertTriangle, LogOut, Mail } from "lucide-react"
+import { AlertTriangle, LogOut } from "lucide-react"
 import type { FirmIdentity } from "@/lib/data/firm"
+import { DemandeAide } from "./demande-aide"
 
 export interface AccessClosedProps {
   firm: FirmIdentity
   title: string
   suspendedBody: string
   expiredBody: string
-  contactLabel: string
   signOutLabel: string
   planLabel: string
   statusLabel: string
-  /** Adresse à contacter, tirée de la configuration plutôt qu'écrite ici. */
-  contactEmail: string
+  /** Langue de la page : la réponse doit repartir dans celle-ci. */
+  langue: string
+  /** Libellés du formulaire de demande d'aide. */
+  helpLabels: Record<string, string>
   /**
    * Moyen de rouvrir l'accès soi-même — l'écran d'abonnement, pour le
    * propriétaire. Sans lui, un cabinet dont l'essai vient d'échoir n'a
@@ -39,11 +41,11 @@ export function AccessClosed({
   title,
   suspendedBody,
   expiredBody,
-  contactLabel,
   signOutLabel,
   planLabel,
   statusLabel,
-  contactEmail,
+  langue,
+  helpLabels,
   children,
 }: AccessClosedProps) {
   const expired = firm.status === "active" && firm.plan === "trial"
@@ -83,25 +85,23 @@ export function AccessClosed({
           </div>
         </dl>
 
-        <div className="mt-7 flex flex-wrap items-center gap-3">
-          <a
-            href={`mailto:${contactEmail}`}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          >
-            <Mail aria-hidden className="h-3.5 w-3.5" />
-            {contactLabel}
-          </a>
-
-          <form action="/api/auth/sign-out" method="post">
-            <button
-              type="submit"
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-4 py-2 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <LogOut aria-hidden className="h-3.5 w-3.5" />
-              {signOutLabel}
-            </button>
-          </form>
+        {/* Le lien `mailto:` qui occupait cette place ne faisait rien chez qui
+            lit son courrier dans un onglet, et visait une adresse dont le
+            domaine n'avait aucun serveur de courrier entrant. Voir
+            `demande-aide.tsx`. */}
+        <div className="mt-7 border-t border-border pt-6">
+          <DemandeAide langue={langue} labels={helpLabels} />
         </div>
+
+        <form action="/api/auth/sign-out" method="post" className="mt-5">
+          <button
+            type="submit"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-4 py-2 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <LogOut aria-hidden className="h-3.5 w-3.5" />
+            {signOutLabel}
+          </button>
+        </form>
       </div>
 
       {children && <div className="w-full max-w-3xl">{children}</div>}
