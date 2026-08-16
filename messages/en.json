@@ -764,5 +764,22 @@
     "taxNote": "Applicable taxes are added at checkout.",
     "dataNote": "Card and account numbers are never received or stored by moncabinetcric: they are entered on a page hosted by Stripe.",
     "seatsIncluded": "{n} seat(s) included"
+  },
+  "Trust": {
+    "monthlyHeading": "Client account register",
+    "monthlyIntro": "Funds held for each client during the selected month. A client with no balance and no movement does not appear; their entries are kept regardless.",
+    "month": "Month",
+    "colClient": "Client",
+    "colLast": "Last transaction",
+    "colOpening": "Opening",
+    "colDeposits": "Deposits",
+    "colWithdrawals": "Withdrawals",
+    "colClosing": "Balance",
+    "totals": "Totals",
+    "held": "Total funds held for clients",
+    "empty": "No client held funds during this month.",
+    "print": "Print",
+    "exportCsv": "Export to spreadsheet",
+    "responsibility": "Record-keeping tool. The consultant remains responsible for their professional obligations and reconciliations."
   }
 }

@@ -764,5 +764,22 @@
     "taxNote": "Les taxes applicables s'ajoutent au moment du paiement.",
     "dataNote": "Les numéros de carte et de compte ne sont jamais reçus ni conservés par moncabinetcric : ils sont saisis sur une page hébergée par Stripe.",
     "seatsIncluded": "{n} accès inclus"
+  },
+  "Trust": {
+    "monthlyHeading": "Registre du compte client",
+    "monthlyIntro": "Les fonds détenus pour chaque client au cours du mois choisi. Un client sans solde et sans mouvement n'y figure pas ; ses écritures, elles, sont conservées.",
+    "month": "Mois",
+    "colClient": "Client",
+    "colLast": "Dernière transaction",
+    "colOpening": "Ouverture",
+    "colDeposits": "Dépôts",
+    "colWithdrawals": "Retraits",
+    "colClosing": "Solde",
+    "totals": "Totaux",
+    "held": "Total des fonds détenus pour les clients",
+    "empty": "Aucun client n'avait de fonds détenus au cours de ce mois.",
+    "print": "Imprimer",
+    "exportCsv": "Exporter en tableur",
+    "responsibility": "Outil de tenue de registre. Le consultant demeure responsable de ses obligations professionnelles et de ses rapprochements."
   }
 }
