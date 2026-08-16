@@ -269,6 +269,10 @@ try {
     return { lignes: data ?? [] }
   }
   const ligneDe = (r, id) => (r.lignes ?? []).find((l) => l.client_id === id)
+  // Une fonction qui RENVOIE UNE TABLE rend ses numeric en nombres JSON,
+  // là où une fonction scalaire rend « 300.00 ». On normalise donc plutôt
+  // que de comparer des formes.
+  const montant = (v) => (v === undefined || v === null ? "—" : Number(v).toFixed(2))
 
   await admin.from("trust_ledger").insert([
     { firm_id: cabinetId, client_id: cReg.id, entry_type: "deposit", amount: 3500, occurred_on: "2026-05-02", memo: "Paiement anticipé" },
@@ -279,19 +283,19 @@ try {
   if (mai.erreur) console.log(`     (la fonction manque : ${mai.erreur})`)
   const lMai = ligneDe(mai, cReg.id)
   verifier("mai — le client figure au registre", Boolean(lMai), true)
-  verifier("mai — solde d'ouverture", lMai?.opening ?? "—", "0.00")
-  verifier("mai — dépôts du mois", lMai?.deposits ?? "—", "3500.00")
-  verifier("mai — retraits du mois", lMai?.withdrawals ?? "—", "2000.00")
-  verifier("mai — solde de clôture", lMai?.closing ?? "—", "1500.00")
+  verifier("mai — solde d'ouverture", montant(lMai?.opening), "0.00")
+  verifier("mai — dépôts du mois", montant(lMai?.deposits), "3500.00")
+  verifier("mai — retraits du mois", montant(lMai?.withdrawals), "2000.00")
+  verifier("mai — solde de clôture", montant(lMai?.closing), "1500.00")
 
   // Le mois SANS mouvement. La clôture de mai doit devenir l'ouverture de juin,
   // et le client doit rester visible : le cabinet détient toujours ses fonds.
   const juin = await mois("2026-06-01", "2026-06-30")
   const lJuin = ligneDe(juin, cReg.id)
   verifier("juin — le client reste visible sans aucun mouvement", Boolean(lJuin), true)
-  verifier("juin — l'ouverture reprend la clôture de mai", lJuin?.opening ?? "—", "1500.00")
-  verifier("juin — aucun dépôt", lJuin?.deposits ?? "—", "0.00")
-  verifier("juin — la clôture est inchangée", lJuin?.closing ?? "—", "1500.00")
+  verifier("juin — l'ouverture reprend la clôture de mai", montant(lJuin?.opening), "1500.00")
+  verifier("juin — aucun dépôt", montant(lJuin?.deposits), "0.00")
+  verifier("juin — la clôture est inchangée", montant(lJuin?.closing), "1500.00")
 
   await admin.from("trust_ledger").insert({
     firm_id: cabinetId, client_id: cReg.id, entry_type: "transfer_to_business",
@@ -301,7 +305,7 @@ try {
   const juillet = await mois("2026-07-01", "2026-07-31")
   const lJuil = ligneDe(juillet, cReg.id)
   verifier("juillet — le client figure, le mois où il tombe à zéro", Boolean(lJuil), true)
-  verifier("juillet — solde de clôture nul", lJuil?.closing ?? "—", "0.00")
+  verifier("juillet — solde de clôture nul", montant(lJuil?.closing), "0.00")
 
   // §7, §31, §32 : à zéro et sans mouvement, le client sort de la liste.
   const aout = await mois("2026-08-01", "2026-08-31")
@@ -320,8 +324,8 @@ try {
   const septembre = await mois("2026-09-01", "2026-09-30")
   const lSept = ligneDe(septembre, cReg.id)
   verifier("septembre — le client RÉAPPARAÎT de lui-même", Boolean(lSept), true)
-  verifier("septembre — ouverture à zéro", lSept?.opening ?? "—", "0.00")
-  verifier("septembre — clôture au nouveau dépôt", lSept?.closing ?? "—", "1000.00")
+  verifier("septembre — ouverture à zéro", montant(lSept?.opening), "0.00")
+  verifier("septembre — clôture au nouveau dépôt", montant(lSept?.closing), "1000.00")
 
   // §33 : le total du registre doit égaler le solde du cabinet. Un registre
   // dont la somme ne retombe pas sur le solde ne vaut rien.

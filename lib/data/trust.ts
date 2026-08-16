@@ -1,6 +1,7 @@
 import "server-only"
 
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
+import { bornesDuMois } from "./bornes-mois"
 
 /**
  * Le compte en fidéicommis du cabinet, vu comme un tout.
@@ -123,6 +124,77 @@ export async function getRegistreFideicommis(): Promise<RegistreFideicommis | nu
       dernierePeriode: s.last_period ? String(s.last_period) : null,
       joursDepuis: Number(s.days_since ?? 0),
       enRetard: s.overdue === true,
+    },
+  }
+}
+
+export interface LigneRegistreMensuel {
+  clientId: string
+  clientNom: string
+  ouverture: number
+  depots: number
+  retraits: number
+  cloture: number
+  dernierMouvement: string | null
+  ecritures: number
+}
+
+export interface RegistreMensuel {
+  /** Premier et dernier jour du mois arrêté, en AAAA-MM-JJ. */
+  debut: string
+  fin: string
+  lignes: LigneRegistreMensuel[]
+  totaux: {
+    ouverture: number
+    depots: number
+    retraits: number
+    cloture: number
+  }
+}
+
+/**
+ * Le registre du compte client pour un mois donné.
+ *
+ * Les totaux sont calculés ICI, sur les lignes rendues, et non demandés
+ * séparément à la base. Deux lectures produiraient deux instants, et un total
+ * qui ne serait pas la somme des lignes affichées juste au-dessus est
+ * exactement ce qui fait douter d'un état comptable — c'est déjà la raison
+ * d'être de la lecture unique de `getRegistreFideicommis()`.
+ *
+ * @param mois « AAAA-MM ».
+ */
+export async function getRegistreMensuel(mois: string): Promise<RegistreMensuel | null> {
+  const membre = await getCurrentMember()
+  if (!membre) return null
+
+  const { debut, fin } = bornesDuMois(mois)
+  const sb = await getSessionSupabase()
+  const { data } = await sb.rpc("firm_trust_monthly_register", {
+    f_id: membre.firmId,
+    p_start: debut,
+    p_end: fin,
+  })
+
+  const lignes: LigneRegistreMensuel[] = (data ?? []).map((r: Record<string, unknown>) => ({
+    clientId: String(r.client_id),
+    clientNom: String(r.client_name ?? ""),
+    ouverture: sou(r.opening),
+    depots: sou(r.deposits),
+    retraits: sou(r.withdrawals),
+    cloture: sou(r.closing),
+    dernierMouvement: r.last_movement ? String(r.last_movement) : null,
+    ecritures: Number(r.entries ?? 0),
+  }))
+
+  return {
+    debut,
+    fin,
+    lignes,
+    totaux: {
+      ouverture: sou(lignes.reduce((t, l) => t + l.ouverture, 0)),
+      depots: sou(lignes.reduce((t, l) => t + l.depots, 0)),
+      retraits: sou(lignes.reduce((t, l) => t + l.retraits, 0)),
+      cloture: sou(lignes.reduce((t, l) => t + l.cloture, 0)),
     },
   }
 }
