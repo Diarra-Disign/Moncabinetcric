@@ -6,6 +6,7 @@ import {
   type AdminMemberRow,
 } from "@/lib/data/admin"
 import { getCatalogue } from "@/lib/billing/catalogue"
+import { effetOctroi } from "@/lib/billing/plans"
 import { getDemandesEnAttente } from "@/lib/data/seat-reads"
 import { SeatRequests } from "./seat-requests"
 import { CreerCabinet, ActionsCabinet } from "./firm-actions"
@@ -129,7 +130,8 @@ export default async function AdminPage({
   const etiquettes = Object.fromEntries(
     ["newFirm","firmName","license","consultant","email","emailHint","plan","trialDays",
      "cancel","create","saving","apply","suspend","activate",
-     "linkOnce","copy","copied"].map(k => [k, t(k)])
+     "linkOnce","copy","copied",
+     "planPaid","grantSuspended","grantPaid","grantReopens"].map(k => [k, t(k)])
   )
   const etiquettesDemandes = Object.fromEntries(
     ["requestsHeading","requestsEmpty","openAccess","dismiss","done"].map(k => [k, t(k)])
@@ -391,6 +393,15 @@ export default async function AdminPage({
                           firmId={f.id}
                           plan={f.plan}
                           statut={f.status}
+                          // Calculé ici, et non dans le composant client :
+                          // c'est une règle de facturation, elle doit rester
+                          // au même endroit que celles de la base qu'elle
+                          // reflète.
+                          effet={effetOctroi({
+                            statutCabinet: f.status,
+                            statutAbonnement: f.subscription?.status ?? "",
+                            graceJusqua: f.subscription?.graceUntil ?? "",
+                          })}
                           labels={etiquettes}
                         />
                       </td>

@@ -89,3 +89,69 @@ export function libelle(p: Plan, locale: string): string {
 export function accroche(p: Plan, locale: string): string {
   return locale === "en" ? p.taglineEn : p.taglineFr
 }
+
+/**
+ * Un abonnement dans cet état donne-t-il des droits ?
+ *
+ * Réplique EXACTE de la condition de `firm_effective_plan()` et de
+ * `firm_access_open()`, côté base. Les deux doivent dire la même chose : une
+ * console qui annonce un effet que la base ne produira pas est pire qu'une
+ * console muette — l'exploitant clique, ne vérifie pas, et croit avoir agi.
+ *
+ * Le délai de grâce couvre l'impayé le temps que Stripe réessaie. Passé lui,
+ * les droits tombent, même si la ligne d'abonnement existe toujours.
+ */
+export function abonnementCouvre(
+  statut: string,
+  graceJusqua: string,
+  maintenant: Date = new Date()
+): boolean {
+  if (statut === "active" || statut === "trialing") return true
+  if (statut !== "past_due" && statut !== "unpaid") return false
+  if (!graceJusqua) return false
+  const fin = new Date(graceJusqua)
+  return !Number.isNaN(fin.getTime()) && fin >= maintenant
+}
+
+/**
+ * Ce que produira réellement l'octroi d'un plan depuis la console.
+ *
+ * ─── POURQUOI CETTE FONCTION EXISTE ────────────────────────────────────────
+ *
+ * Accorder « courtoisie » ou « essai » écrit `firms.plan`, et rien d'autre.
+ * Or trois conditions séparent cette écriture d'un accès réellement rouvert,
+ * et deux d'entre elles la rendent SANS AUCUN EFFET VISIBLE :
+ *
+ *   · le cabinet est suspendu — `firm_access_open()` exige `status = 'active'`
+ *     avant même de regarder le plan ; l'octroi est écrit et ne rouvre rien ;
+ *   · le cabinet paie encore — `firm_effective_plan()` fait primer
+ *     l'abonnement sur le plan accordé, donc les droits ne bougent pas.
+ *
+ * Dans les deux cas, la console afficherait « Plan passé à courtoisie » et
+ * l'exploitant en conclurait que c'est réglé. Il ne le saurait qu'au prochain
+ * appel du consultant.
+ *
+ * On ne se contente donc pas d'ouvrir le contrôle : on dit ce qu'il fera.
+ */
+export type EffetOctroi =
+  /** Le cabinet est suspendu : lever la suspension d'abord. */
+  | "suspendu"
+  /** Un abonnement en règle prime : les droits ne changeront pas. */
+  | "abonnement-prime"
+  /** Rien ne prime : l'octroi rouvre effectivement l'accès. */
+  | "rouvre"
+
+export function effetOctroi(opts: {
+  statutCabinet: string
+  statutAbonnement: string
+  graceJusqua: string
+  maintenant?: Date
+}): EffetOctroi {
+  // L'ordre porte la règle : la suspension est vérifiée en premier parce
+  // qu'elle est souveraine, y compris sur un cabinet parfaitement à jour.
+  if (opts.statutCabinet === "suspended") return "suspendu"
+  if (abonnementCouvre(opts.statutAbonnement, opts.graceJusqua, opts.maintenant)) {
+    return "abonnement-prime"
+  }
+  return "rouvre"
+}

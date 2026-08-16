@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Plus, Ban, Play, Check, AlertTriangle, Copy, Link2 } from "lucide-react"
 import { creerCabinet, changerPlan, basculerAcces, type ResultatAction } from "@/lib/data/admin-actions"
+import type { EffetOctroi } from "@/lib/billing/plans"
 import { cn } from "@/lib/utils"
 
 /**
@@ -268,6 +269,7 @@ export function ActionsCabinet({
   firmId,
   plan,
   statut,
+  effet,
   labels,
 }: {
   firmId: string
@@ -286,51 +288,92 @@ export function ActionsCabinet({
    * Le bouton suit donc la décision.
    */
   statut: string
+  /**
+   * Ce que produira réellement un octroi, calculé côté serveur par
+   * `effetOctroi()`. Sa raison d'être est dans `lib/billing/plans.ts` :
+   * deux situations sur trois rendent l'octroi sans effet visible, et il
+   * vaut mieux le dire avant le clic qu'après l'appel du consultant.
+   */
+  effet: EffetOctroi
   labels: Record<string, string>
 }) {
   const suspendu = statut === "suspended"
   const [resultat, setResultat] = React.useState<ResultatAction | null>(null)
   const [enCours, demarrer] = React.useTransition()
 
-  // Un plan payant ne se modifie pas ici. Afficher un menu déroulant dont
-  // aucune option ne correspond au plan en cours serait pire que de n'en
-  // afficher aucun : le navigateur sélectionnerait « trial » d'office, et
-  // l'exploitant lirait « essai » sur la ligne d'un cabinet qui paie.
+  /**
+   * Le plan en cours figure-t-il parmi ceux qu'on accorde d'un clic ?
+   *
+   * ─── CE QUI A CHANGÉ, ET POURQUOI ──────────────────────────────────────
+   *
+   * Le menu déroulant était SUPPRIMÉ pour un cabinet au forfait payant, au
+   * motif — juste — qu'une liste dont aucune option ne correspond au plan en
+   * cours ferait sélectionner « essai » d'office par le navigateur, et qu'on
+   * lirait « essai » sur la ligne d'un cabinet qui paie.
+   *
+   * Le raisonnement était bon, la conclusion allait trop loin. Un cabinet qui
+   * résilie reste à `plan = 'solo'` avec un abonnement `canceled` : son accès
+   * se ferme, à juste titre, et la console n'offrait alors PLUS AUCUN BOUTON
+   * pour le rouvrir. Il fallait un terminal, le dépôt, et savoir que
+   * `./cric abonnement --plan=courtoisie` existe. C'est arrivé.
+   *
+   * La liste est donc toujours affichée, avec en tête une option INERTE qui
+   * porte le plan réel. Rien n'est présélectionné à tort — c'est le plan en
+   * cours qu'on lit —, `required` empêche de valider sans choisir, et la
+   * porte de sortie existe.
+   */
   const planOctroyable = (PLANS as readonly string[]).includes(plan)
 
   return (
     <div className="space-y-2">
-      {planOctroyable ? (
-        <form
-          action={(fd) => demarrer(async () => setResultat(await changerPlan(fd)))}
-          className="flex items-center gap-1.5"
+      <form
+        action={(fd) => demarrer(async () => setResultat(await changerPlan(fd)))}
+        className="flex items-center gap-1.5"
+      >
+        <input type="hidden" name="firmId" value={firmId} />
+        <input type="hidden" name="jours" value={30} />
+        <select
+          name="plan"
+          required
+          defaultValue={planOctroyable ? plan : ""}
+          className="min-h-8 rounded-lg border border-border bg-background px-2 py-1 text-[11px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
-          <input type="hidden" name="firmId" value={firmId} />
-          <input type="hidden" name="jours" value={30} />
-          <select
-            name="plan"
-            defaultValue={plan}
-            className="min-h-8 rounded-lg border border-border bg-background px-2 py-1 text-[11px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            {PLANS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            disabled={enCours}
-            className="min-h-8 rounded-lg border border-border px-2 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-          >
-            {labels.apply}
-          </button>
-        </form>
-      ) : (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Plan payant — géré par l&apos;abonnement Stripe du cabinet.
-        </p>
-      )}
+          {!planOctroyable && (
+            <option value="" disabled>
+              {plan} — {labels.planPaid}
+            </option>
+          )}
+          {PLANS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          disabled={enCours}
+          className="min-h-8 rounded-lg border border-border px-2 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+        >
+          {labels.apply}
+        </button>
+      </form>
+
+      {/* Ce que fera le geste, pas ce qu'il écrit. Les deux premiers cas
+          écrivent bien `firms.plan` et ne rouvrent rien : sans cette ligne,
+          la console répondrait « Plan passé à courtoisie » et l'exploitant
+          en conclurait que c'est réglé. */}
+      <p
+        className={cn(
+          "text-[11px] leading-relaxed",
+          effet === "rouvre" ? "text-muted-foreground" : "text-warning"
+        )}
+      >
+        {effet === "suspendu"
+          ? labels.grantSuspended
+          : effet === "abonnement-prime"
+            ? labels.grantPaid
+            : labels.grantReopens}
+      </p>
 
       <form action={(fd) => demarrer(async () => setResultat(await basculerAcces(fd)))}>
         <input type="hidden" name="firmId" value={firmId} />
