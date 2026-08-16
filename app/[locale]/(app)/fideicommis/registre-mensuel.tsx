@@ -101,14 +101,19 @@ export function RegistreMensuelSection({
             ))}
           </select>
 
-          <button
-            type="button"
-            onClick={() => window.print()}
+          {/* La pièce imprimable est le PDF, non la page. Le §19 exige un
+              en-tête portant le nom, l'adresse, le téléphone et le courriel du
+              cabinet : la fenêtre d'impression du navigateur imprimerait la
+              barre latérale et l'en-tête de l'application à la place. */}
+          <a
+            href={`/api/fideicommis/registre/pdf?mois=${mois}&lang=${locale}`}
+            target="_blank"
+            rel="noopener"
             className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Printer aria-hidden className="h-3.5 w-3.5" />
             {t("print")}
-          </button>
+          </a>
 
           <a
             href={`/api/fideicommis/registre?mois=${mois}`}

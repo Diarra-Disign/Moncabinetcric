@@ -1,10 +1,10 @@
 import "server-only"
 
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
+import { PDFDocument, StandardFonts, rgb, type PDFPage } from "pdf-lib"
 import {
   ENCRE, GRIS, TRAIT, LARGEUR, HAUTEUR, G, D,
   argentDe, pourcentDe, ecrire, couper, droite,
-  enTete, bloc, pagination, filigrane,
+  enTete, bloc, pagination, filigrane, PALE,
   type LanguePdf, type CabinetPdf,
 } from "@/lib/pdf/primitives"
 
@@ -89,6 +89,19 @@ const MOTS = {
     fiducie2: "général du cabinet qu'au fur et à mesure des services rendus.",
     merci: "Merci de votre confiance.",
     rapprochement: "ÉTAT DE RAPPROCHEMENT",
+    registreMensuel: "REGISTRE DU COMPTE CLIENT",
+    periodeRegistre: "PÉRIODE",
+    colClient: "CLIENT",
+    colDerniere: "DERNIÈRE TRANSACTION",
+    colOuverture: "OUVERTURE",
+    colDepots: "DÉPÔTS",
+    colRetraits: "RETRAITS",
+    colSolde: "SOLDE",
+    totauxRegistre: "TOTAUX",
+    fondsDetenus: "TOTAL DES FONDS DÉTENUS POUR LES CLIENTS",
+    aucunFonds: "Aucun client n'avait de fonds détenus au cours de cette période.",
+    responsabiliteRegistre: "Outil de tenue de registre. Le consultant demeure responsable de ses",
+    responsabiliteRegistre2: "obligations professionnelles et de ses rapprochements.",
     compteFiducie: "Compte en fidéicommis",
     periodeArretee: "PÉRIODE ARRÊTÉE AU",
     soldeReleve: "SOLDE DU RELEVÉ BANCAIRE",
@@ -155,6 +168,19 @@ const MOTS = {
     fiducie2: "firm's general account as services are rendered.",
     merci: "Thank you for your trust.",
     rapprochement: "RECONCILIATION STATEMENT",
+    registreMensuel: "CLIENT ACCOUNT REGISTER",
+    periodeRegistre: "PERIOD",
+    colClient: "CLIENT",
+    colDerniere: "LAST TRANSACTION",
+    colOuverture: "OPENING",
+    colDepots: "DEPOSITS",
+    colRetraits: "WITHDRAWALS",
+    colSolde: "BALANCE",
+    totauxRegistre: "TOTALS",
+    fondsDetenus: "TOTAL FUNDS HELD FOR CLIENTS",
+    aucunFonds: "No client held funds during this period.",
+    responsabiliteRegistre: "Record-keeping tool. The consultant remains responsible for their",
+    responsabiliteRegistre2: "professional obligations and reconciliations.",
     compteFiducie: "Trust account",
     periodeArretee: "PERIOD ENDING",
     soldeReleve: "BANK STATEMENT BALANCE",
@@ -618,5 +644,152 @@ export async function rapprochementPdf(r: RapprochementPdf, c: CabinetPdf): Prom
   if (!r.clos) filigrane(page, m.brouillonRappro, gras, 48, 150)
 
   pagination(page, normal, m.page(1, 1))
+  return doc.save()
+}
+
+export interface RegistreMensuelPdf {
+  /** Le mois en toutes lettres — « mai 2026 ». */
+  periode: string
+  lignes: {
+    nom: string
+    dernierMouvement: string | null
+    ouverture: number
+    depots: number
+    retraits: number
+    cloture: number
+  }[]
+  totaux: { ouverture: number; depots: number; retraits: number; cloture: number }
+  langue?: LanguePdf
+}
+
+/**
+ * Le registre du compte client, en pièce imprimable.
+ *
+ * ─── POURQUOI IL PAGINE, ET PAS LES AUTRES PIÈCES ──────────────────────────
+ *
+ * Une facture tient sur une page ; un registre, non. Un cabinet de taille
+ * ordinaire détient des fonds pour quinze à quarante clients, et le jour où la
+ * quarantième ligne tomberait hors de la feuille, rien ne le signalerait : le
+ * PDF s'ouvrirait, paraîtrait complet, et le total ne correspondrait plus aux
+ * lignes visibles. C'est exactement le genre d'erreur qu'un état comptable ne
+ * doit pas pouvoir commettre.
+ *
+ * Les totaux sont donc écrits APRÈS la dernière ligne, sur la page où elle
+ * tombe, et la pagination dit « Page 2 sur 3 » — de sorte qu'une page égarée
+ * dans un classeur se remarque.
+ *
+ * ─── L'EN-TÊTE VIENT DU CABINET, PAS D'ICI ─────────────────────────────────
+ *
+ * `enTete()` pose le nom, l'adresse, le téléphone, le courriel et le numéro de
+ * permis — le §19 du cahier des charges — à partir des réglages du cabinet.
+ * Aucune de ces valeurs n'est recopiée : une pièce comptable qui porterait une
+ * adresse périmée serait un document faux.
+ */
+export async function registreMensuelPdf(
+  r: RegistreMensuelPdf,
+  c: CabinetPdf
+): Promise<Uint8Array> {
+  const langue: LanguePdf = r.langue ?? "fr"
+  const m = MOTS[langue]
+  const argent = argentDe(langue)
+
+  const doc = await PDFDocument.create()
+  const normal = await doc.embedFont(StandardFonts.Helvetica)
+  const gras = await doc.embedFont(StandardFonts.HelveticaBold)
+
+  // Colonnes fixes, définies par leur BORD DROIT pour les montants : c'est sur
+  // ce bord qu'ils s'alignent, et raisonner sur un bord gauche auquel on
+  // ajoute une largeur est exactement ce qui les a fait se chevaucher — les
+  // deux dernières colonnes finissaient à neuf points l'une de l'autre, et
+  // l'extraction de texte n'y voyait rien : les mots étaient tous présents,
+  // simplement imprimés les uns sur les autres.
+  //
+  // Quatre colonnes de montants, 68 points chacune, remontées depuis la marge
+  // de droite. Assez pour « 1 234 567,89 $ » en corps 9.
+  const xNom = G
+  const xDerniere = 200
+  const xOuverture = D - 204
+  const xDepots = D - 136
+  const xRetraits = D - 68
+  const xSolde = D
+
+  const pages: PDFPage[] = []
+  let page = doc.addPage([LARGEUR, HAUTEUR])
+  pages.push(page)
+
+  let y = await enTete(doc, page, c, normal, gras, m.registreMensuel, m.consultantCric)
+
+  bloc(page, G, y, m.periodeRegistre, r.periode, normal, gras, false, 11)
+  bloc(page, D, y, m.fondsDetenus.split(" ").slice(0, 3).join(" "), argent(r.totaux.cloture), normal, gras, true, 14)
+  y -= 44
+
+  const enTeteColonnes = (p: PDFPage, yy: number) => {
+    ecrire(p, m.colClient, { x: xNom, y: yy, size: 7, font: gras, color: GRIS })
+    ecrire(p, m.colDerniere, { x: xDerniere, y: yy, size: 7, font: gras, color: GRIS })
+    droite(p, m.colOuverture, xOuverture, yy, gras, 7, GRIS)
+    droite(p, m.colDepots, xDepots, yy, gras, 7, GRIS)
+    droite(p, m.colRetraits, xRetraits, yy, gras, 7, GRIS)
+    droite(p, m.colSolde, xSolde, yy, gras, 7, GRIS)
+    p.drawLine({ start: { x: G, y: yy - 7 }, end: { x: D, y: yy - 7 }, thickness: 1, color: ENCRE })
+  }
+
+  enTeteColonnes(page, y)
+  y -= 22
+
+  const BAS = 96
+
+  if (r.lignes.length === 0) {
+    ecrire(page, m.aucunFonds, { x: G, y, size: 9.5, font: normal, color: GRIS })
+    y -= 20
+  }
+
+  for (const l of r.lignes) {
+    if (y < BAS) {
+      page = doc.addPage([LARGEUR, HAUTEUR])
+      pages.push(page)
+      y = 786
+      enTeteColonnes(page, y)
+      y -= 22
+    }
+    ecrire(page, couper(l.nom, gras, 9, xDerniere - xNom - 14), { x: xNom, y, size: 9, font: gras, color: ENCRE })
+    ecrire(page, l.dernierMouvement ?? "-", { x: xDerniere, y, size: 8.5, font: normal, color: GRIS })
+    droite(page, argent(l.ouverture), xOuverture, y, normal, 9, GRIS)
+    droite(page, l.depots ? argent(l.depots) : "-", xDepots, y, normal, 9)
+    droite(page, l.retraits ? argent(l.retraits) : "-", xRetraits, y, normal, 9)
+    droite(page, argent(l.cloture), xSolde, y, gras, 9.5)
+    y -= 16
+  }
+
+  // Les totaux ne se séparent pas de la dernière ligne : s'ils ne tiennent
+  // plus, ils passent avec elle sur la page suivante.
+  if (y < BAS + 40) {
+    page = doc.addPage([LARGEUR, HAUTEUR])
+    pages.push(page)
+    y = 786
+  }
+
+  y -= 4
+  page.drawLine({ start: { x: G, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 1.4, color: ENCRE })
+  y -= 6
+  ecrire(page, m.totauxRegistre, { x: xNom, y, size: 9, font: gras, color: ENCRE })
+  droite(page, argent(r.totaux.ouverture), xOuverture, y, gras, 9)
+  droite(page, argent(r.totaux.depots), xDepots, y, gras, 9)
+  droite(page, argent(r.totaux.retraits), xRetraits, y, gras, 9)
+  droite(page, argent(r.totaux.cloture), xSolde, y, gras, 10)
+  y -= 30
+
+  // §33 : le total détenu, énoncé en toutes lettres. Il figure déjà au bas de
+  // la colonne, mais c'est LE chiffre qu'on vient chercher dans cette pièce.
+  page.drawRectangle({ x: G, y: y - 8, width: D - G, height: 30, color: PALE })
+  ecrire(page, m.fondsDetenus, { x: G + 10, y, size: 8.5, font: gras, color: ENCRE })
+  droite(page, argent(r.totaux.cloture), D - 10, y, gras, 13)
+  y -= 34
+
+  // §37 : aucune affirmation de conformité. L'outil tient le registre ; les
+  // obligations restent celles du consultant, et la pièce le dit.
+  ecrire(page, m.responsabiliteRegistre, { x: G, y, size: 7.5, font: normal, color: GRIS })
+  ecrire(page, m.responsabiliteRegistre2, { x: G, y: y - 10, size: 7.5, font: normal, color: GRIS })
+
+  pages.forEach((p, i) => pagination(p, normal, m.page(i + 1, pages.length)))
   return doc.save()
 }

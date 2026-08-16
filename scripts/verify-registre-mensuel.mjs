@@ -20,7 +20,8 @@
  * clients sans égard au mois, et une lecture globale ferait passer l'épreuve
  * pour de mauvaises raisons.
  */
-import { readFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
+import { inflateSync } from "node:zlib"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 import { createClient } from "@supabase/supabase-js"
@@ -147,6 +148,50 @@ try {
   v("les totaux aussi", texte.includes("Totaux;;3000.00;5500.00;3500.00;5000.00"))
   v("un mois invalide est refusé",
     (await page.request.get(`${BASE}/api/fideicommis/registre?mois=pas-un-mois`)).status(), 400)
+
+  // =======================================================================
+  console.log("\nLa pièce imprimable — §19")
+  // =======================================================================
+  const rep = await page.request.get(`${BASE}/api/fideicommis/registre/pdf?mois=2026-05&lang=fr`)
+  v("le PDF est servi", rep.status(), 200)
+  v("affiché plutôt que téléchargé",
+    /inline/.test(rep.headers()["content-disposition"] ?? ""))
+  const octets = Buffer.from(await rep.body())
+
+  // Les flux de pdf-lib sont compressés : on les décompresse pour lire le
+  // texte réellement posé sur la page, plutôt que de croire le code.
+  const lisible = (o) => {
+    let sortie = "", i = 0
+    while (true) {
+      const d = o.indexOf("stream", i); if (d === -1) break
+      const f = o.indexOf("endstream", d); if (f === -1) break
+      try { sortie += inflateSync(o.subarray(d + 7, f)).toString("latin1") }
+      catch { sortie += o.subarray(d, f).toString("latin1") }
+      i = f + 9
+    }
+    return sortie.replace(/<([0-9A-Fa-f]{4,})>/g, (_, h) => Buffer.from(h, "hex").toString("latin1"))
+  }
+  const pdfTexte = lisible(octets)
+  for (const [quoi, motif] of [
+    ["le titre de la pièce", "REGISTRE DU COMPTE CLIENT"],
+    ["le nom du cabinet", "Cabinet registre"],
+    ["l'adresse du cabinet", "Sherbrooke"],
+    ["le numéro de permis", "R555"],
+    ["la période en toutes lettres", "mai 2026"],
+    ["les trois clients", "Moussa Diallo"],
+    ["la ligne des totaux", "TOTAUX"],
+    ["le total détenu", "TOTAL DES FONDS"],
+    ["§37 — la responsabilité rappelée", "demeure responsable"],
+    ["la pagination", "Page 1 sur 1"],
+  ]) v(quoi, pdfTexte.includes(motif), motif.slice(0, 26))
+  v("§37 — aucune promesse de conformité",
+    !/garantit la conformit|conforme au CICC/i.test(pdfTexte))
+  v("aucun caractère perdu à l'encodage", !/\?\?/.test(pdfTexte))
+  writeFileSync("/tmp/registre-mensuel.pdf", octets)
+  console.log("     Pièce écrite dans /tmp/registre-mensuel.pdf")
+
+  const anglais = await page.request.get(`${BASE}/api/fideicommis/registre/pdf?mois=2026-05&lang=en`)
+  v("la pièce existe aussi en anglais", lisible(Buffer.from(await anglais.body())).includes("CLIENT ACCOUNT REGISTER"))
 
   await page.goto(`${BASE}/fr/fideicommis?mois=2026-05`, { waitUntil: "domcontentloaded" })
   await page.waitForTimeout(1500)
