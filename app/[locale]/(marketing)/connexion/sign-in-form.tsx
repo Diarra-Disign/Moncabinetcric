@@ -133,7 +133,21 @@ export function SignInForm() {
         password,
       })
       if (authError) {
-        setError(t("invalidCredentials"))
+        // UN COMPTE VERROUILLÉ N'EST PAS UN MOT DE PASSE FAUX.
+        //
+        // Toutes les erreurs d'authentification étaient écrasées en un seul
+        // message, « identifiants invalides ». Depuis que le crochet
+        // `hook_password_verification_attempt` refuse les comptes matraqués,
+        // ce raccourci devient trompeur : la personne verrouillée lit qu'elle
+        // s'est trompée de mot de passe, et recommence — avec le bon — sans
+        // comprendre pourquoi ça échoue, jusqu'à repousser son propre verrou.
+        //
+        // Le crochet ne renvoie pas une phrase mais un jeton, « verrou:12 »,
+        // parce qu'il ignore la langue de la page. La minute est reprise ici
+        // et rendue dans la bonne langue. On cherche le motif n'importe où
+        // dans le message : Supabase l'enveloppe parfois dans le sien.
+        const verrou = /verrou:(\d+)/.exec(authError.message)
+        setError(verrou ? t("lockedOut", { n: Number(verrou[1]) }) : t("invalidCredentials"))
         return
       }
 

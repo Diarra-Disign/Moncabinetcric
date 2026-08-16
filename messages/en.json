@@ -556,7 +556,8 @@
     "ruleChiffre": "a digit",
     "ruleSymbole": "a symbol (! ? * - …)",
     "passwordHint": "12 characters, including a lowercase letter, an uppercase letter, a digit and a symbol.",
-    "passwordReady": "This password will do."
+    "passwordReady": "This password will do.",
+    "lockedOut": "Too many attempts on this account. Try again in {n} minute(s), or have your password reset."
   },
   "Admin": {
     "title": "Operations console",

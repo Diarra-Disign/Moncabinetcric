@@ -556,7 +556,8 @@
     "ruleChiffre": "un chiffre",
     "ruleSymbole": "un symbole (! ? * - …)",
     "passwordHint": "12 caractères, dont une minuscule, une majuscule, un chiffre et un symbole.",
-    "passwordReady": "Ce mot de passe convient."
+    "passwordReady": "Ce mot de passe convient.",
+    "lockedOut": "Trop de tentatives sur ce compte. Réessayez dans {n} minute(s), ou faites réinitialiser votre mot de passe."
   },
   "Admin": {
     "title": "Console d'exploitation",
