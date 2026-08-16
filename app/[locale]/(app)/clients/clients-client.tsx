@@ -19,7 +19,8 @@ import {
   Receipt,
   X,
   KeyRound,
-  ExternalLink
+  ExternalLink,
+  Check
 } from "lucide-react"
 import { useRouter } from "@/i18n/routing"
 import { useFirm } from "@/components/app-shell/firm-provider"
@@ -56,6 +57,13 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
   const [showNewModal, setShowNewModal] = React.useState(false)
   const [selectedPortalClient, setSelectedPortalClient] = React.useState<ClientRecord | null>(null)
   const [actionNotice, setActionNotice] = React.useState<string | null>(null)
+  /**
+   * Fiche dont l'adresse vient d'être copiée — pour la confirmation visuelle.
+   *
+   * L'identifiant plutôt qu'un booléen : la coche doit se poser sur la ligne
+   * cliquée, pas sur les cent lignes du tableau.
+   */
+  const [courrielCopie, setCourrielCopie] = React.useState<string | null>(null)
   /** Le client pour lequel on ouvre un dossier, ou null. */
   const [dossierPour, setDossierPour] = React.useState<ClientRecord | null>(null)
   // La modification d'une fiche client N'EXISTAIT PAS : ni bouton, ni action,
@@ -140,6 +148,54 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
     return matchesStatus && matchesSearch
   })
 
+
+  /**
+   * L'icône enveloppe : copier l'adresse, ET laisser le lien suivre son cours.
+   *
+   * ─── CE QUI NE MARCHAIT PAS ────────────────────────────────────────────────
+   *
+   * Le bouton n'était qu'un `<a href="mailto:…">`. Il demande au système
+   * d'ouvrir un logiciel de courrier ; chez qui lit son courrier dans un
+   * onglet — c'est-à-dire chez beaucoup de monde — aucun n'est déclaré. Le
+   * navigateur n'a rien à ouvrir, ne le signale pas, et le bouton paraît mort.
+   * Aucune erreur, aucune fenêtre, rien.
+   *
+   * Le même défaut a été trouvé le même jour sur « Contacter l'exploitant » de
+   * l'écran d'accès fermé. Ce n'est pas une coïncidence : c'est le mode de
+   * défaillance ordinaire de `mailto:`, et il est silencieux, donc invisible à
+   * la relecture.
+   *
+   * ─── POURQUOI LE LIEN EST CONSERVÉ ─────────────────────────────────────────
+   *
+   * `preventDefault()` n'est PAS appelé, à dessein. Les deux comportements se
+   * cumulent au lieu de se remplacer :
+   *
+   *   · un logiciel de courrier est déclaré → il s'ouvre comme avant, et
+   *     l'adresse est copiée par-dessus le marché, ce qui ne gêne personne ;
+   *   · aucun n'est déclaré → rien ne s'ouvre, mais l'adresse est dans le
+   *     presse-papier et la coche le dit.
+   *
+   * Dans les deux cas, quelque chose se produit. C'est tout ce qui manquait.
+   * L'élément reste un `<a>` pour la même raison : le clic du milieu et
+   * « copier l'adresse du lien » continuent de fonctionner.
+   */
+  const copierCourriel = async (client: ClientRecord) => {
+    const adresse = (client.email ?? "").trim()
+    if (!adresse) return
+
+    try {
+      // `navigator.clipboard` exige un contexte sûr et peut être refusé par
+      // l'usager. En cas de refus, l'adresse est affichée dans le bandeau :
+      // elle reste sélectionnable à la souris, ce qui vaut mieux qu'un échec
+      // muet — précisément le défaut que ce correctif répare.
+      await navigator.clipboard.writeText(adresse)
+      setCourrielCopie(client.id)
+      setTimeout(() => setCourrielCopie((c) => (c === client.id ? null : c)), 2500)
+    } catch {
+      setActionNotice(`Copie impossible. Adresse de ${client.name} : ${adresse}`)
+      setTimeout(() => setActionNotice(null), 8000)
+    }
+  }
 
   const handleDeleteClient = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -485,13 +541,41 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                   {/* Actions & Raccourcis Directs (AXE 3) */}
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <a
-                        href={`mailto:${client.email}`}
-                        title={`Envoyer un courriel à ${client.email}`}
-                        className="p-1.5 text-muted-foreground hover:text-accent-strong hover:bg-accent/10 rounded-xl transition-colors cursor-pointer"
-                      >
-                        <Mail className="w-4 h-4" />
-                      </a>
+                      {/* Une fiche sans adresse ne mène nulle part : l'icône
+                          est alors éteinte et le dit, plutôt que d'offrir un
+                          geste qui ne peut aboutir. */}
+                      {client.email ? (
+                        <a
+                          href={`mailto:${client.email}`}
+                          onClick={(e) => { e.stopPropagation(); void copierCourriel(client) }}
+                          title={
+                            courrielCopie === client.id
+                              ? `Adresse copiée : ${client.email}`
+                              : `Copier ${client.email}, et ouvrir le logiciel de courrier s'il y en a un`
+                          }
+                          className="p-1.5 text-muted-foreground hover:text-accent-strong hover:bg-accent/10 rounded-xl transition-colors cursor-pointer"
+                        >
+                          {courrielCopie === client.id ? (
+                            <Check className="w-4 h-4 text-success-strong" />
+                          ) : (
+                            <Mail className="w-4 h-4" />
+                          )}
+                        </a>
+                      ) : (
+                        <span
+                          title="Aucune adresse courriel à cette fiche"
+                          className="p-1.5 text-muted-foreground/40 rounded-xl cursor-not-allowed"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </span>
+                      )}
+
+                      {/* La confirmation est aussi ANNONCÉE, pas seulement
+                          dessinée : une coche muette n'existe pas pour qui
+                          navigue au lecteur d'écran. */}
+                      <span className="sr-only" aria-live="polite">
+                        {courrielCopie === client.id ? `Adresse de ${client.name} copiée.` : ""}
+                      </span>
 
                       <a
                         href={`tel:${client.phone}`}
