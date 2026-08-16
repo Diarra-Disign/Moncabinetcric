@@ -100,7 +100,6 @@ export default async function LandingPage() {
       includedLabel: tLanding("pricing.includedLabel"),
       plusProLabel: tLanding("pricing.plusProLabel"),
       plusBusinessLabel: tLanding("pricing.plusBusinessLabel"),
-      plusEnterpriseLabel: tLanding("pricing.plusEnterpriseLabel"),
       // Chaque bloc porte désormais la CLÉ DU FORFAIT qu'il décrit. Ils
       // s'appelaient « basic » et « business » alors qu'ils désignaient Solo
       // et Cabinet Pro : ajouter le vrai forfait Business par-dessus aurait
@@ -155,16 +154,6 @@ export default async function LandingPage() {
         f3: tLanding("pricing.business.f3"),
         f4: tLanding("pricing.business.f4"),
         btn: tLanding("pricing.business.btn"),
-      },
-      enterprise: {
-        name: tLanding("pricing.enterprise.name"),
-        price: tLanding("pricing.enterprise.price"),
-        desc: tLanding("pricing.enterprise.desc"),
-        f1: tLanding("pricing.enterprise.f1"),
-        f2: tLanding("pricing.enterprise.f2"),
-        f3: tLanding("pricing.enterprise.f3"),
-        f4: tLanding("pricing.enterprise.f4"),
-        btn: tLanding("pricing.enterprise.btn"),
       },
     },
     finalCta: {

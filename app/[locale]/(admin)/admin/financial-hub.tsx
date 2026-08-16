@@ -288,8 +288,17 @@ export function FinancialHub({ firms, catalogue, origine }: FinancialHubProps) {
           menait nulle part. Les seconds — CICC-MEMBRE-20, CAPIC-PROMO-1M,
           LANCEMENT-2026 — vivaient en état React et n'ont jamais existé chez
           Stripe : un confrère à qui on les communiquait se faisait refuser au
-          paiement. Les coupons Stripe se créent dans leur tableau de bord, et
-          Checkout les accepte déjà sans code de notre côté. */}
+          paiement.
+
+          CE COMMENTAIRE A LONGTEMPS AFFIRMÉ que « Checkout les accepte déjà
+          sans code de notre côté ». C'était faux. Stripe n'affiche le champ
+          « Code promotionnel » que si la session le demande, et elle ne le
+          demandait pas : un coupon créé dans le tableau de bord existait sans
+          qu'aucun client puisse jamais le saisir. Corrigé le 16 août 2026 —
+          `allow_promotion_codes: true` dans lib/billing/stripe.ts.
+
+          Les coupons se créent donc dans le tableau de bord Stripe, et le
+          tunnel les accepte réellement. */}
 {/* 3. Moniteur de Dunning / Relance d'Essais et Échéances */}
       <div className="rounded-3xl border border-border bg-card p-6 shadow-xs">
         <h3 className="text-base font-black tracking-tight text-foreground mb-1 flex items-center gap-2">

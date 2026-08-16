@@ -132,26 +132,15 @@
       "period": "par mois",
       "annualNote": "ou {price} par année — deux mois offerts",
       "taxNote": "Montants en dollars canadiens, taxes en sus. Paiement par carte de crédit. Résiliable en tout temps, sans pénalité.",
-      "enterprise": {
-        "name": "Réseaux et grands cabinets",
-        "price": "Sur mesure",
-        "desc": "Pour les cabinets multi-succursales, ou dont les besoins sortent du cadre des trois formules.",
-        "f1": "Nombre d'accès et facturation convenus au cas par cas",
-        "f2": "Reprise de vos données existantes",
-        "f3": "Un interlocuteur unique pour la mise en route",
-        "f4": "Conditions contractuelles négociées",
-        "btn": "Nous écrire"
-      },
       "includedLabel": "Inclus dans l'offre :",
       "plusProLabel": "Solo, plus :",
-      "plusEnterpriseLabel": "Cabinet Business, plus :",
       "solo": {
         "name": "Solo",
         "desc": "Pour le consultant réglementé qui exerce seul.",
         "f1": "Un accès consultant",
         "f2": "Dossiers, clients et échéances sans limite de nombre",
-        "f3": "Ententes de représentation et signature électronique",
-        "f4": "Portail client et journal d'audit inaltérable",
+        "f3": "Ententes, signature électronique, portail client et journal d'audit",
+        "f4": "Connecteur d'intelligence artificielle, cloisonné à votre cabinet",
         "f5": "Gestion du fidéicommis : registre ventilé par client et rapprochement bancaire",
         "btn": "Demander un accès"
       },
@@ -160,7 +149,7 @@
         "desc": "Pour le cabinet qui travaille à plusieurs.",
         "f1": "Trois accès compris, puis {price} par mois et par membre",
         "f2": "Rôles et permissions par membre",
-        "f3": "Connecteur d'intelligence artificielle, cloisonné au cabinet",
+        "f3": "Tout ce que comprend Solo, pour chaque membre de l'équipe",
         "f4": "Soutien prioritaire",
         "badge": "RECOMMANDÉ",
         "btn": "Demander un accès"

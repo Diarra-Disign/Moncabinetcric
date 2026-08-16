@@ -132,26 +132,15 @@
       "period": "per month",
       "annualNote": "or {price} per year — two months free",
       "taxNote": "Amounts in Canadian dollars, taxes extra. Payment by credit card. Cancel anytime, no penalty.",
-      "enterprise": {
-        "name": "Networks and large firms",
-        "price": "Custom",
-        "desc": "For multi-branch firms, or those whose needs fall outside the three plans.",
-        "f1": "Seat count and billing agreed case by case",
-        "f2": "Migration of your existing data",
-        "f3": "A single point of contact for setup",
-        "f4": "Negotiated contract terms",
-        "btn": "Get in touch"
-      },
       "includedLabel": "Included in this plan:",
       "plusProLabel": "Solo, plus:",
-      "plusEnterpriseLabel": "Firm Business, plus:",
       "solo": {
         "name": "Solo",
         "desc": "For the regulated consultant practising alone.",
         "f1": "One consultant seat",
         "f2": "Unlimited matters, clients and deadlines",
-        "f3": "Retainer agreements and electronic signature",
-        "f4": "Client portal and tamper-evident audit log",
+        "f3": "Retainer agreements, e-signature, client portal and audit log",
+        "f4": "AI connector, walled off to your firm",
         "f5": "Trust accounting: per-client ledger and bank reconciliation",
         "btn": "Request access"
       },
@@ -160,7 +149,7 @@
         "desc": "For firms working as a team.",
         "f1": "Three seats included, then {price} per month per member",
         "f2": "Per-member roles and permissions",
-        "f3": "AI connector, walled off to your firm",
+        "f3": "Everything in Solo, for every member of the team",
         "f4": "Priority support",
         "badge": "RECOMMENDED",
         "btn": "Request access"

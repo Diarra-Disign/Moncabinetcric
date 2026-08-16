@@ -252,6 +252,21 @@ export async function sessionPaiement(params: {
     },
     payment_method_collection: "always",
 
+    // LE CHAMP « CODE PROMOTIONNEL » N'APPARAÎT QUE SI ON LE DEMANDE.
+    //
+    // Stripe ne l'affiche jamais d'office. Sans ce drapeau, un coupon créé
+    // dans le tableau de bord existe bel et bien, et reste inutilisable : le
+    // client n'a aucune case où le saisir. Le commentaire de financial-hub
+    // affirmait l'inverse — « Checkout les accepte déjà sans code de notre
+    // côté » —, ce qui était faux et se serait découvert le jour d'une
+    // campagne, en lisant les plaintes de confrères à qui l'on avait donné un
+    // code refusé.
+    //
+    // C'est aussi la seule façon de faire une offre de lancement, un tarif
+    // membre CRIC ou du parrainage sans toucher au catalogue : le prix affiché
+    // reste le prix, la remise vit chez Stripe et s'éteint toute seule.
+    allow_promotion_codes: true,
+
     ...(taxeAutomatique()
       ? {
           automatic_tax: { enabled: true },

@@ -40,14 +40,12 @@ interface LandingClientProps {
       includedLabel: string
       plusProLabel: string
       plusBusinessLabel: string
-      plusEnterpriseLabel: string
       // Une clé par forfait, portant son nom. « basic » et « business »
       // désignaient Solo et Cabinet Pro : le vrai forfait Business n'aurait pas
       // pu s'ajouter sans ambiguïté.
       solo: Record<string, string>
       cabinet: Record<string, string>
       business: Record<string, string>
-      enterprise: Record<string, string>
     }
     finalCta: {
       title: string
@@ -674,8 +672,10 @@ export function LandingClient({ t }: LandingClientProps) {
             plus aucun prix affiché est un bouton mort de plus, et le rabais
             annoncé porterait sur un tarif qui n'est pas publié. */}
 
-        {/* 4 Pricing Cards */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch w-full max-w-7xl">
+        {/* Trois cartes depuis le retrait d'Enterprise. La grille passe donc
+            de quatre colonnes à trois : laissée à `xl:grid-cols-4`, elle
+            aurait posé trois cartes serrées et une colonne vide à droite. */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch w-full max-w-5xl">
           
           {/* Solo Card */}
           <div className="bg-white rounded-3xl p-8 shadow-xs border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-shadow">
@@ -785,30 +785,21 @@ export function LandingClient({ t }: LandingClientProps) {
             </Link>
           </div>
 
-          {/* Enterprise Card */}
-          <div className="bg-white rounded-3xl p-8 shadow-xs border border-slate-200 flex flex-col justify-between hover:shadow-lg transition-shadow">
-            <div>
-              <h3 className="text-xl font-extrabold text-slate-900 mb-2">{t.pricing.enterprise.name}</h3>
-              <p className="text-xs text-slate-500 mb-6 min-h-[32px]">{t.pricing.enterprise.desc}</p>
-              {/* Ce libellé était écrit en dur, donc identique en anglais sur
-                  une page par ailleurs entièrement traduite. */}
-              <div className="text-3xl sm:text-4xl font-black text-slate-900 mb-8">
-                {t.pricing.enterprise.price}
-              </div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{t.pricing.plusEnterpriseLabel}</div>
-              <Avantages
-                points={[t.pricing.enterprise.f1, t.pricing.enterprise.f2, t.pricing.enterprise.f3, t.pricing.enterprise.f4]}
-                couleurCoche="text-blue-600"
-                couleurTexte="text-slate-700"
-              />
-            </div>
-            <Link
-              href="/demo"
-              className="w-full inline-flex items-center justify-center rounded-full border border-slate-300 py-3.5 text-sm font-bold text-slate-800 hover:bg-slate-50 transition-colors"
-            >
-              {t.pricing.enterprise.btn}
-            </Link>
-          </div>
+          {/* LA CARTE « RÉSEAUX ET GRANDS CABINETS » A ÉTÉ RETIRÉE le 16 août
+              2026. Le forfait qu'elle annonçait — `enterprise` — n'était
+              souscriptible par personne : `purchasable = false` chez Stripe
+              comme en base, et absent des plans que la console d'exploitation
+              peut accorder. Aucun chemin n'y menait, ni le paiement, ni la
+              main. Une offre que personne ne peut prendre et que l'exploitant
+              ne peut pas donner n'est pas une offre.
+
+              Les grands cabinets ne perdent rien : Cabinet Business n'a aucun
+              plafond de places, à 20 $ la place supplémentaire. Et la page de
+              démonstration reste le chemin de toute conversation particulière.
+
+              Retirée « pour le moment » : la carte, ses textes et la ligne de
+              catalogue se rejouent depuis l'historique git le jour où une
+              vraie négociation le justifie. */}
 
         </div>
 
