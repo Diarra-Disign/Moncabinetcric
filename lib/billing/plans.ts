@@ -141,6 +141,77 @@ export type EffetOctroi =
   /** Rien ne prime : l'octroi rouvre effectivement l'accès. */
   | "rouvre"
 
+/**
+ * Pourquoi, exactement, cet accès est-il fermé ?
+ *
+ * ─── CE QUE L'ÉCRAN DISAIT AVANT ───────────────────────────────────────────
+ *
+ * Deux textes seulement, départagés par `plan === 'trial'` : « essai échu »,
+ * ou — pour tout le reste — « L'accès de ce cabinet a été FERMÉ. […]
+ * Contactez l'exploitant pour le rétablir. »
+ *
+ * Un consultant dont l'abonnement venait simplement de prendre fin lisait donc
+ * qu'on lui avait fermé la porte. Ce n'est pas la même chose, et cela n'appelle
+ * pas la même réaction : dans un cas il faut écrire à quelqu'un et attendre,
+ * dans l'autre il suffit de reprendre un abonnement — l'écran le propose
+ * quelques centimètres plus bas, et il ne le voyait pas.
+ *
+ * Le cas de l'impayé mérite d'être séparé du reste pour la même raison : la
+ * carte a été refusée, le geste utile est de la remplacer, pas de souscrire à
+ * nouveau ni d'écrire à l'éditeur.
+ *
+ * ─── L'ORDRE EST CELUI DE `firm_access_open()` ─────────────────────────────
+ *
+ * La suspension d'abord, parce qu'elle est souveraine : elle ferme un cabinet
+ * parfaitement à jour de ses paiements, et lui proposer de payer serait
+ * encaisser sans rouvrir.
+ *
+ * `ouvert` n'est pas un cas de repli commode : il signale que cette fonction
+ * et la base ne disent pas la même chose. L'écran ne devrait alors pas être
+ * affiché du tout.
+ */
+export type RaisonAccesFerme =
+  /** Décision de l'exploitant. Payer ne la lèverait pas. */
+  | "suspendu"
+  /** Période d'essai échue. */
+  | "essai-echu"
+  /** Paiement refusé, délai de grâce épuisé : la carte est à remplacer. */
+  | "paiement-en-souffrance"
+  /** Abonnement résilié, ou jamais souscrit sur un forfait payant. */
+  | "abonnement-termine"
+  /** Rien ne justifie une fermeture — désaccord avec la base. */
+  | "ouvert"
+
+export function raisonAccesFerme(opts: {
+  statutCabinet: string
+  plan: string
+  finEssai: string
+  statutAbonnement: string
+  graceJusqua: string
+  maintenant?: Date
+}): RaisonAccesFerme {
+  const maintenant = opts.maintenant ?? new Date()
+
+  if (opts.statutCabinet !== "active") return "suspendu"
+
+  // La courtoisie n'a ni essai ni abonnement : elle ouvre par elle-même.
+  if (opts.plan === "courtoisie") return "ouvert"
+
+  if (opts.plan === "trial") {
+    if (!opts.finEssai) return "ouvert"
+    // Comparaison sur la DATE seule, comme `current_date` côté base : un essai
+    // qui finit aujourd'hui vaut jusqu'à ce soir, pas jusqu'à minuit UTC.
+    const aujourdhui = maintenant.toISOString().slice(0, 10)
+    return opts.finEssai >= aujourdhui ? "ouvert" : "essai-echu"
+  }
+
+  if (abonnementCouvre(opts.statutAbonnement, opts.graceJusqua, maintenant)) return "ouvert"
+  if (opts.statutAbonnement === "past_due" || opts.statutAbonnement === "unpaid") {
+    return "paiement-en-souffrance"
+  }
+  return "abonnement-termine"
+}
+
 export function effetOctroi(opts: {
   statutCabinet: string
   statutAbonnement: string

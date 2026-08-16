@@ -1,6 +1,6 @@
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
-import { abonnementCouvre, effetOctroi } from "../plans"
+import { abonnementCouvre, effetOctroi, raisonAccesFerme } from "../plans"
 
 /**
  * La règle qui dit ce que produira l'octroi d'un plan depuis la console.
@@ -82,5 +82,79 @@ describe("effetOctroi", () => {
       effetOctroi({ ...base, statutAbonnement: "past_due", graceJusqua: hier }),
       "rouvre"
     )
+  })
+})
+
+/**
+ * La raison affichée à quelqu'un qui ne peut plus entrer.
+ *
+ * Ces épreuves défendent une distinction que l'écran ne faisait pas : un
+ * abonnement terminé n'est PAS une suspension. Le consultant lisait « l'accès
+ * de ce cabinet a été fermé, contactez l'exploitant » alors qu'il lui
+ * suffisait de reprendre un abonnement — proposé quelques centimètres plus
+ * bas, et qu'il ne voyait pas.
+ *
+ * `ouvert` est vérifié aussi, et pour une raison précise : il signale un
+ * désaccord entre cette fonction et `firm_access_open()`. S'il apparaît alors
+ * que l'écran s'affiche, c'est l'une des deux qui a dérivé.
+ */
+describe("raisonAccesFerme", () => {
+  const base = {
+    statutCabinet: "active",
+    plan: "solo",
+    finEssai: "",
+    statutAbonnement: "",
+    graceJusqua: "",
+  }
+  const jour = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10)
+
+  test("le cas qui a motivé la correction : forfait payant, abonnement résilié", () => {
+    assert.equal(
+      raisonAccesFerme({ ...base, statutAbonnement: "canceled" }),
+      "abonnement-termine"
+    )
+  })
+
+  test("la suspension prime sur tout, y compris un abonnement actif", () => {
+    assert.equal(
+      raisonAccesFerme({ ...base, statutCabinet: "suspended", statutAbonnement: "active" }),
+      "suspendu"
+    )
+  })
+
+  test("un essai échu hier est échu ; celui qui finit aujourd'hui court encore", () => {
+    assert.equal(raisonAccesFerme({ ...base, plan: "trial", finEssai: jour(-1) }), "essai-echu")
+    assert.equal(raisonAccesFerme({ ...base, plan: "trial", finEssai: jour(0) }), "ouvert")
+    assert.equal(raisonAccesFerme({ ...base, plan: "trial", finEssai: jour(30) }), "ouvert")
+  })
+
+  test("un impayé hors délai de grâce se distingue d'une résiliation", () => {
+    assert.equal(
+      raisonAccesFerme({ ...base, statutAbonnement: "past_due", graceJusqua: jour(-1) }),
+      "paiement-en-souffrance"
+    )
+    assert.equal(
+      raisonAccesFerme({ ...base, statutAbonnement: "unpaid", graceJusqua: "" }),
+      "paiement-en-souffrance"
+    )
+  })
+
+  test("un impayé DANS son délai de grâce n'est pas fermé du tout", () => {
+    assert.equal(
+      raisonAccesFerme({ ...base, statutAbonnement: "past_due", graceJusqua: jour(3) }),
+      "ouvert"
+    )
+  })
+
+  test("la courtoisie ouvre par elle-même, sans essai ni abonnement", () => {
+    assert.equal(raisonAccesFerme({ ...base, plan: "courtoisie" }), "ouvert")
+  })
+
+  test("un abonnement actif sur un forfait payant n'est pas fermé", () => {
+    assert.equal(raisonAccesFerme({ ...base, statutAbonnement: "active" }), "ouvert")
+  })
+
+  test("un forfait payant sans aucun abonnement se lit comme terminé", () => {
+    assert.equal(raisonAccesFerme(base), "abonnement-termine")
   })
 })

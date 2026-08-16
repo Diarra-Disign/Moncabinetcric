@@ -17,6 +17,7 @@ import { Suspense } from "react"
 import { getAbonnement } from "@/lib/data/subscription"
 import { stripeConfigure } from "@/lib/billing/stripe"
 import { getForfaitsSouscriptibles } from "@/lib/billing/catalogue"
+import { raisonAccesFerme } from "@/lib/billing/plans"
 import { SubscriptionClient } from "./settings/subscription/subscription-client"
 import { exigerSecondFacteur } from "@/lib/auth/second-facteur"
 
@@ -108,12 +109,30 @@ export default async function AppLayout({
       getForfaitsSouscriptibles(),
     ])
 
+    // POURQUOI l'accès est fermé, et non le seul fait qu'il le soit.
+    //
+    // L'écran départageait jusqu'ici sur `plan === 'trial'` et servait, pour
+    // tout le reste, le texte des SUSPENSIONS. Un consultant dont l'abonnement
+    // venait de prendre fin lisait donc qu'on lui avait fermé la porte et
+    // qu'il fallait écrire à l'exploitant — alors que le formulaire de
+    // réabonnement l'attendait quelques centimètres plus bas.
+    //
+    // La règle vit dans lib/billing/plans.ts, où elle est éprouvée contre les
+    // mêmes cas que `firm_access_open()`, dont elle doit rester le miroir.
+    const raison = raisonAccesFerme({
+      statutCabinet: firmForAccess.status,
+      plan: firmForAccess.plan,
+      finEssai: firmForAccess.trialEndsAt,
+      statutAbonnement: abonnement.statut,
+      graceJusqua: abonnement.delaiDeGrace,
+    })
+
     return (
       <AccessClosed
         firm={firmForAccess}
-        title={tAuth("accessClosedTitle")}
-        suspendedBody={tAuth("accessSuspendedBody")}
-        expiredBody={tAuth("accessExpiredBody")}
+        raison={raison}
+        title={tAuth(`closed_${raison}_title`)}
+        body={tAuth(`closed_${raison}_body`)}
         signOutLabel={tAuth("signOut")}
         planLabel={tAuth("planLabel")}
         statusLabel={tAuth("statusLabel")}

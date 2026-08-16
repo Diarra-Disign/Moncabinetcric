@@ -1,12 +1,23 @@
-import { AlertTriangle, LogOut } from "lucide-react"
+import { AlertTriangle, LogOut, Lock } from "lucide-react"
 import type { FirmIdentity } from "@/lib/data/firm"
+import type { RaisonAccesFerme } from "@/lib/billing/plans"
 import { DemandeAide } from "./demande-aide"
 
 export interface AccessClosedProps {
   firm: FirmIdentity
+  /**
+   * Pourquoi l'accès est fermé, calculé côté serveur par `raisonAccesFerme()`.
+   *
+   * Cet écran n'en jugeait pas : il départageait sur `plan === 'trial'` et
+   * servait, pour tout le reste, le texte des SUSPENSIONS. Un consultant dont
+   * l'abonnement venait de prendre fin lisait donc qu'on lui avait fermé la
+   * porte, et qu'il fallait écrire à l'exploitant — alors que le formulaire de
+   * réabonnement était juste en dessous.
+   */
+  raison: RaisonAccesFerme
+  /** Titre et corps déjà choisis pour cette raison, dans la langue de la page. */
   title: string
-  suspendedBody: string
-  expiredBody: string
+  body: string
   signOutLabel: string
   planLabel: string
   statusLabel: string
@@ -38,9 +49,9 @@ export interface AccessClosedProps {
  */
 export function AccessClosed({
   firm,
+  raison,
   title,
-  suspendedBody,
-  expiredBody,
+  body,
   signOutLabel,
   planLabel,
   statusLabel,
@@ -48,13 +59,27 @@ export function AccessClosed({
   helpLabels,
   children,
 }: AccessClosedProps) {
-  const expired = firm.status === "active" && firm.plan === "trial"
+  // Une suspension est une DÉCISION ; les trois autres raisons sont des états
+  // de compte, qui se règlent sans écrire à personne. La couleur suit cette
+  // frontière plutôt que la gravité : le rouge sur un abonnement échu ferait
+  // craindre une perte de données, alors que rien n'est perdu.
+  const decision = raison === "suspendu"
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-background px-5 py-16">
       <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-warning/15 text-warning">
-          <AlertTriangle aria-hidden className="h-5 w-5" />
+        <div
+          className={
+            decision
+              ? "mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-error/15 text-error"
+              : "mb-5 flex h-11 w-11 items-center justify-center rounded-2xl bg-warning/15 text-warning"
+          }
+        >
+          {decision ? (
+            <Lock aria-hidden className="h-5 w-5" />
+          ) : (
+            <AlertTriangle aria-hidden className="h-5 w-5" />
+          )}
         </div>
 
         <h1 className="text-xl font-black tracking-tight text-foreground">{title}</h1>
@@ -63,9 +88,7 @@ export function AccessClosed({
           <p className="mt-1 text-sm font-bold text-muted-foreground">{firm.name}</p>
         )}
 
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-          {expired ? expiredBody : suspendedBody}
-        </p>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{body}</p>
 
         <dl className="mt-6 grid grid-cols-2 gap-3 border-t border-border pt-5 text-xs">
           <div>
