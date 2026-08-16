@@ -20,7 +20,75 @@ export interface ResultatEnvoi {
   envoye: boolean
   /** Faux si RESEND_API_KEY ou EMAIL_FROM manquent : rien n'a été tenté. */
   configure: boolean
+  /**
+   * Vrai si l'adresse est réservée et que rien n'a été expédié.
+   *
+   * `envoye` reste VRAI dans ce cas, et c'est délibéré : pour l'appelant, le
+   * message a suivi son cours normal. Voir `adresseNonRoutable()`.
+   */
+  ignore?: boolean
   erreur?: string
+}
+
+/**
+ * Domaines réservés par l'IETF, qui n'appartiennent et n'appartiendront à
+ * personne — RFC 2606 et RFC 6761.
+ *
+ * Les quatre premiers sont des domaines de tête entiers ; les trois suivants
+ * sont réservés au second niveau.
+ */
+const TETE_RESERVEE = [".invalid", ".test", ".example", ".localhost"]
+const SECOND_NIVEAU_RESERVE = ["example.com", "example.net", "example.org"]
+
+/**
+ * L'adresse désigne-t-elle un domaine qui ne peut recevoir aucun courrier ?
+ *
+ * ─── POURQUOI CETTE GARDE EXISTE ───────────────────────────────────────────
+ *
+ * Les scripts d'épreuve créent des clients fictifs à des adresses en
+ * `@example.invalid`, puis déclenchent les VRAIS envois — c'est tout leur
+ * intérêt : ils éprouvent la chaîne complète plutôt qu'une imitation.
+ *
+ * Le choix de `.invalid` était bon : ce domaine est réservé, donc aucun
+ * inconnu ne reçoit jamais une épreuve. Ce qui n'avait pas été vu, c'est que
+ * LE MESSAGE PART QUAND MÊME, et qu'il rebondit.
+ *
+ * Relevé du 16 août 2026, sur le compte de production :
+ *
+ *     68 envois connus depuis le 6 août
+ *       bounced    37   54 %   ← tous vers @example.invalid
+ *       delivered  31   46 %
+ *
+ * Amazon SES, qui achemine pour Resend, tient 5 % pour un seuil d'alerte et
+ * 10 % pour un motif de suspension. Un domaine à 54 % est traité comme un
+ * expéditeur douteux, et les messages LÉGITIMES finissent en indésirables —
+ * ce qui a été constaté chez Microsoft. Autrement dit : chaque séance de mise
+ * au point abîmait la remise des courriels destinés aux vrais clients.
+ *
+ * ─── POURQUOI `envoye` RESTE VRAI ──────────────────────────────────────────
+ *
+ * Rendre `envoye: false` aurait paru plus honnête, et aurait été un piège :
+ * plusieurs appelants affichent alors un lien de secours à recopier, et les
+ * scripts d'épreuve auraient rapporté des échecs là où le parcours qu'ils
+ * vérifient s'est parfaitement déroulé. Pour l'appelant, rien ne change ; ce
+ * qui change est que le fournisseur n'est jamais contacté. `ignore` porte la
+ * nuance pour qui veut la lire.
+ *
+ * Une adresse sans arobase, ou vide, est traitée de la même façon : rien de
+ * bon ne peut sortir d'un appel au fournisseur avec un destinataire malformé.
+ */
+export function adresseNonRoutable(courriel: string): boolean {
+  const brut = (courriel ?? "").trim().toLowerCase()
+  const arobase = brut.lastIndexOf("@")
+  if (arobase < 1) return true
+
+  const domaine = brut.slice(arobase + 1).replace(/\.$/, "")
+  if (!domaine) return true
+
+  return (
+    TETE_RESERVEE.some((t) => domaine === t.slice(1) || domaine.endsWith(t)) ||
+    SECOND_NIVEAU_RESERVE.some((d) => domaine === d || domaine.endsWith(`.${d}`))
+  )
 }
 
 export function envoiConfigure(): boolean {
@@ -89,6 +157,20 @@ export async function envoyerCourriel(opts: {
   const expediteurBrut = process.env.EMAIL_FROM
 
   if (!cle || !expediteurBrut) return { envoye: false, configure: false }
+
+  // LA GARDE PASSE AVANT TOUT LE RESTE. Un domaine réservé ne reçoit rien : le
+  // seul effet d'un envoi serait un rebond, et les rebonds abîment la remise
+  // des courriels destinés aux vrais clients. La trace est écrite pour que le
+  // saut reste visible dans la sortie des scripts d'épreuve — un envoi
+  // silencieusement escamoté se prendrait un jour pour un envoi réussi.
+  if (adresseNonRoutable(opts.destinataire)) {
+    console.warn(
+      `envoyerCourriel : « ${opts.destinataire} » relève d'un domaine réservé, rien n'est expédié —`,
+      opts.sujet
+    )
+    return { envoye: true, configure: true, ignore: true }
+  }
+
   const expediteur = enTeteDe(opts.nomExpediteur)
   const repondreA = opts.repondreA?.trim() || adresseDeReponse()
 

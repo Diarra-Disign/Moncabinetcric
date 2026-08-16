@@ -15,7 +15,7 @@
  *   · LES GABARITS DE LA DEMANDE DE DÉMONSTRATION, seuls du projet à composer
  *     avec du texte écrit par un inconnu.
  */
-import { enTeteDe } from "../lib/email/send.ts"
+import { enTeteDe, adresseNonRoutable } from "../lib/email/send.ts"
 
 let echecs = 0
 const verifier = (intitule, obtenu, attendu) => {
@@ -55,6 +55,49 @@ verifier("guillemet dans le nom",
 verifier("chevrons dans le nom",
   essai("acces@moncabinetcric.com", "Cabinet <fictif>"),
   '"Cabinet <fictif>" <acces@moncabinetcric.com>')
+
+// ---------------------------------------------------------------------------
+// La garde contre les domaines réservés
+// ---------------------------------------------------------------------------
+//
+// Les épreuves de ce dépôt créent des clients fictifs en @example.invalid et
+// déclenchent les VRAIS envois. Le message partait, rebondissait, et le taux
+// de rebond du domaine atteignait 54 % — au point que les courriels légitimes
+// finissaient en indésirables chez Microsoft.
+//
+// Ces vérifications tiennent les deux côtés de la frontière : ce qui doit être
+// retenu, et surtout ce qui ne doit JAMAIS l'être. Une garde trop large est
+// pire que pas de garde du tout — elle avalerait en silence un courriel dû à
+// un vrai client, et personne ne le saurait.
+
+console.log("\nLes domaines réservés sont reconnus")
+const retenu = (adresse) => verifier(adresse.padEnd(34), adresseNonRoutable(adresse) ? "retenu" : "EXPÉDIÉ", "retenu")
+retenu("jt-1786@example.invalid")
+retenu("client@quelquechose.test")
+retenu("a@b.example")
+retenu("root@localhost")
+retenu("qui@example.com")
+retenu("qui@sous.example.org")
+retenu("avec-point-final@example.invalid.")
+retenu("MAJUSCULES@EXAMPLE.INVALID")
+
+console.log("\nUne adresse malformée ne part pas non plus")
+retenu("")
+retenu("sans-arobase")
+retenu("@sans-partie-locale.com")
+
+console.log("\nMAIS AUCUNE ADRESSE RÉELLE N'EST RETENUE")
+const laisse = (adresse) => verifier(adresse.padEnd(34), adresseNonRoutable(adresse) ? "RETENU" : "expédié", "expédié")
+laisse("infos@dgvimmigration.com")
+laisse("diarrasf@outlook.fr")
+laisse("acces@moncabinetcric.com")
+laisse("confrere@cabinet.ca")
+// Les pièges : un nom de domaine qui CONTIENT un mot réservé sans l'être.
+laisse("qui@example.company")
+laisse("qui@monexample.com")
+laisse("qui@invalid-solutions.ca")
+laisse("qui@test-immigration.qc.ca")
+laisse("qui@localhost.ca")
 
 // ---------------------------------------------------------------------------
 // Les deux courriels de la demande de démonstration
