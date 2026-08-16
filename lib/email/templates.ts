@@ -40,6 +40,28 @@ ${corps}
 </body></html>`
 }
 
+/**
+ * Neutralise ce qui vient du dehors avant de l'insérer dans du HTML.
+ *
+ * Le formulaire de démonstration est ouvert à tous : son nom, son message et
+ * ses coordonnées sont écrits par un inconnu. Sans cette fonction, une balise
+ * fermante dans un de ces champs disloque la mise en page du courriel, et un
+ * `<a href>` glissé dans le message transforme l'avis interne en un message
+ * d'apparence légitime portant un lien choisi par l'expéditeur — le tout
+ * expédié depuis notre propre domaine, signé par lui.
+ *
+ * L'apostrophe est échappée en plus des quatre habituelles : ces valeurs
+ * finissent parfois entre guillemets simples d'un attribut.
+ */
+function echapper(valeur: string): string {
+  return valeur
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 function bouton(url: string, libelle: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;"><tr><td style="background:${BLEU};border-radius:9999px;">
 <a href="${url}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">${libelle}</a>
@@ -98,14 +120,22 @@ Ce lien ne sert qu'une fois et expire dans ${jours} jours.`,
   }
 }
 
-/** Accusé de réception d'une demande de démonstration. */
+/**
+ * Accusé de réception d'une demande de démonstration.
+ *
+ * Le nom est échappé dans le HTML mais laissé nu dans la version texte, où il
+ * n'y a rien à disloquer. Le SUJET aussi le laisse nu, et volontairement : y
+ * échapper afficherait « &amp; » dans la boîte de réception de quelqu'un dont
+ * la raison sociale contient une esperluette.
+ */
 export function courrielAccuseDemande(opts: { langue: Langue; nom: string }): CourrielCompose {
+  const nom = echapper(opts.nom)
   if (opts.langue === "en") {
     return {
       sujet: "We received your request — moncabinetcric",
       html: coquille(
         "Request received",
-        `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Hello ${opts.nom}, we have your request for a demo. A regulated consultant reads it — not an autoresponder — and will write back to arrange a time.</p>
+        `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Hello ${nom}, we have your request for a demo. A regulated consultant reads it — not an autoresponder — and will write back to arrange a time.</p>
          <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">There is no open sign-up: access is granted one firm at a time, after a conversation.</p>`,
         "No action is needed on your side."
       ),
@@ -117,11 +147,97 @@ export function courrielAccuseDemande(opts: { langue: Langue; nom: string }): Co
     sujet: "Nous avons reçu votre demande — moncabinetcric",
     html: coquille(
       "Demande reçue",
-      `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Bonjour ${opts.nom}, votre demande de démonstration nous est parvenue. Elle est lue par un consultant réglementé — pas par un automate — qui vous écrira pour convenir d'un moment.</p>
+      `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Bonjour ${nom}, votre demande de démonstration nous est parvenue. Elle est lue par un consultant réglementé — pas par un automate — qui vous écrira pour convenir d'un moment.</p>
        <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Il n'y a pas d'inscription libre : un accès s'ouvre cabinet par cabinet, après échange.</p>`,
       "Aucune action n'est attendue de votre part."
     ),
     texte: `Bonjour ${opts.nom}, votre demande de démonstration nous est parvenue. Nous vous écrirons pour convenir d'un moment.`,
+  }
+}
+
+/**
+ * Avis à l'exploitant : quelqu'un vient de demander une démonstration.
+ *
+ * ─── POURQUOI CE MESSAGE EXISTE ────────────────────────────────────────────
+ *
+ * La demande était jusqu'ici écrite en base, et c'est tout. Rien ne prévenait
+ * personne. Un prospect voyait une confirmation à l'écran puis n'entendait
+ * plus rien, et l'exploitant n'apprenait son existence qu'en pensant à ouvrir
+ * `/admin`. Pour un logiciel vendu à des professionnels réglementés, ce
+ * silence est la façon la plus rapide de perdre le premier client.
+ *
+ * ─── POURQUOI IL EST EN FRANÇAIS SEULEMENT ─────────────────────────────────
+ *
+ * `platform_admins` ne stocke aucune préférence de langue. En inventer une
+ * reviendrait à choisir à la place de quelqu'un ; reprendre celle du prospect
+ * serait pire encore — un confrère anglophone ferait basculer l'avis interne
+ * dans une langue que son destinataire n'a pas choisie. Le français est la
+ * langue d'exploitation de l'éditeur. Le jour où la table porte une colonne
+ * de langue, c'est ici et dans `previenirExploitation` qu'il faut revenir.
+ *
+ * ─── CE QUE LE MESSAGE PORTE, ET POURQUOI ──────────────────────────────────
+ *
+ * Tout ce que la personne a écrit, pour qu'on puisse juger de la demande sans
+ * ouvrir la console — un avis qui oblige à aller voir ailleurs ne fait que
+ * déplacer le délai. L'adresse de réponse est celle du prospect : répondre
+ * depuis sa boîte suffit alors à engager la conversation.
+ */
+export function courrielDemandeRecue(opts: {
+  nom: string
+  courriel: string
+  cabinet?: string | null
+  telephone?: string | null
+  message?: string | null
+  /** Langue de la PAGE où la demande a été remplie — un renseignement, pas un réglage. */
+  langue: Langue
+  lienConsole: string
+}): CourrielCompose {
+  const { nom, courriel, cabinet, telephone, message, langue, lienConsole } = opts
+
+  const lignes: [string, string][] = [
+    ["Nom", nom],
+    ["Courriel", courriel],
+    ...(cabinet?.trim() ? ([["Cabinet", cabinet.trim()]] as [string, string][]) : []),
+    ...(telephone?.trim() ? ([["Téléphone", telephone.trim()]] as [string, string][]) : []),
+    ["Langue de la demande", langue === "en" ? "anglais" : "français"],
+  ]
+
+  const tableau = lignes
+    .map(
+      ([cle, valeur]) =>
+        `<tr><td style="padding:6px 16px 6px 0;font-size:13px;color:#64748b;white-space:nowrap;vertical-align:top;">${cle}</td><td style="padding:6px 0;font-size:14px;color:#0f172a;">${echapper(valeur)}</td></tr>`
+    )
+    .join("")
+
+  // Le message est rendu dans un bloc à part, pré-formaté : un paragraphe
+  // saisi avec des retours à la ligne les perdrait tous en HTML, et c'est
+  // souvent là que se trouve le renseignement qui décide de la réponse.
+  const bloc = message?.trim()
+    ? `<p style="margin:24px 0 8px;font-size:13px;font-weight:700;color:#64748b;">Message</p>
+       <div style="padding:16px;background:#f8fafc;border-radius:12px;font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-wrap;">${echapper(message.trim())}</div>`
+    : `<p style="margin:24px 0 0;font-size:13px;color:#94a3b8;">Aucun message.</p>`
+
+  const titre = cabinet?.trim() ? `${nom} — ${cabinet.trim()}` : nom
+
+  return {
+    // Le sujet porte le nom : une boîte de réception se lit en diagonale, et
+    // « Nouvelle demande » répété dix fois ne se distingue pas de lui-même.
+    sujet: `Demande de démonstration — ${titre}`,
+    html: coquille(
+      "Une demande de démonstration vient d'arriver",
+      `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">${tableau}</table>
+       ${bloc}
+       ${bouton(lienConsole, "Ouvrir la console")}`,
+      "Vous recevez cet avis parce que vous administrez la plateforme. Répondre à ce message écrit directement au prospect."
+    ),
+    texte: `Une demande de démonstration vient d'arriver.
+
+${lignes.map(([cle, valeur]) => `${cle} : ${valeur}`).join("\n")}
+
+Message :
+${message?.trim() || "(aucun)"}
+
+Console : ${lienConsole}`,
   }
 }
 

@@ -222,8 +222,10 @@ Usage : ./cric <commande> [options]
                envoie une demande et vérifie qu'elle s'affiche ensuite.
                  ./cric onglet-signature
 
-  courriel     Éprouve la fabrication de l'en-tête « De » : nom du cabinet
-               recollé sur l'adresse d'expédition sans la casser
+  courriel     Éprouve ce qui se compose avant l'envoi : l'en-tête « De »
+               (nom du cabinet recollé sur l'adresse sans la casser) et les
+               gabarits de la demande de démonstration, qui portent du texte
+               écrit par un inconnu
                  ./cric courriel
 
   modeles      Régénère l'amorçage des modèles depuis le catalogue
