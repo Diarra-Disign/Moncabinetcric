@@ -233,6 +233,104 @@ try {
   const dures = erreursConsole.filter((e) => !/favicon|manifest|404/i.test(e))
   verifier("aucune erreur console", dures.length, 0)
   if (dures.length) dures.slice(0, 3).forEach((e) => console.log(`     ${e.slice(0, 200)}`))
+
+  // =======================================================================
+  console.log("\nLe registre mensuel — le scénario complet, mois après mois")
+  // =======================================================================
+  //
+  // C'est la question à laquelle tout ce module doit répondre : « combien
+  // est-ce que je détiens pour chaque client, ce mois-ci ? »
+  //
+  // Le scénario suit un client sur quatre mois, parce que c'est la SUITE des
+  // mois qui porte la difficulté, pas un mois isolé :
+  //
+  //   avril    rien                                    → absent
+  //   mai      dépôt 3 500, retrait 2 000              → clôture 1 500
+  //   juin     aucun mouvement                         → ouverture ET clôture 1 500
+  //   juillet  retrait 1 500                           → clôture 0
+  //   août     rien                                    → ABSENT des soldes actifs
+  //   septembre nouveau dépôt 1 000                    → RÉAPPARAÎT
+  //
+  // Juin est le mois qui casse une implémentation naïve : sans mouvement, un
+  // GROUP BY sur les écritures de la période ne produit aucune ligne, et le
+  // client détenteur de 1 500 $ disparaît du registre alors que le cabinet
+  // détient toujours son argent. C'est l'erreur exacte qu'il faut prévenir.
+
+  const { data: cReg } = await admin.from("clients").insert({
+    firm_id: cabinetId, name: "Jean Tremblay", email: `jt-reg-${marque}@example.invalid`,
+    file_number: "C-REG", program: "RP", status: "active", client_type: "individual",
+  }).select("id").single()
+
+  const mois = async (debut, fin) => {
+    const { data, error } = await admin.rpc("firm_trust_monthly_register", {
+      f_id: cabinetId, p_start: debut, p_end: fin,
+    })
+    if (error) return { erreur: error.message, lignes: [] }
+    return { lignes: data ?? [] }
+  }
+  const ligneDe = (r, id) => (r.lignes ?? []).find((l) => l.client_id === id)
+
+  await admin.from("trust_ledger").insert([
+    { firm_id: cabinetId, client_id: cReg.id, entry_type: "deposit", amount: 3500, occurred_on: "2026-05-02", memo: "Paiement anticipé" },
+    { firm_id: cabinetId, client_id: cReg.id, entry_type: "transfer_to_business", amount: 2000, occurred_on: "2026-05-15", memo: "Services rendus" },
+  ])
+
+  const mai = await mois("2026-05-01", "2026-05-31")
+  if (mai.erreur) console.log(`     (la fonction manque : ${mai.erreur})`)
+  const lMai = ligneDe(mai, cReg.id)
+  verifier("mai — le client figure au registre", Boolean(lMai), true)
+  verifier("mai — solde d'ouverture", lMai?.opening ?? "—", "0.00")
+  verifier("mai — dépôts du mois", lMai?.deposits ?? "—", "3500.00")
+  verifier("mai — retraits du mois", lMai?.withdrawals ?? "—", "2000.00")
+  verifier("mai — solde de clôture", lMai?.closing ?? "—", "1500.00")
+
+  // Le mois SANS mouvement. La clôture de mai doit devenir l'ouverture de juin,
+  // et le client doit rester visible : le cabinet détient toujours ses fonds.
+  const juin = await mois("2026-06-01", "2026-06-30")
+  const lJuin = ligneDe(juin, cReg.id)
+  verifier("juin — le client reste visible sans aucun mouvement", Boolean(lJuin), true)
+  verifier("juin — l'ouverture reprend la clôture de mai", lJuin?.opening ?? "—", "1500.00")
+  verifier("juin — aucun dépôt", lJuin?.deposits ?? "—", "0.00")
+  verifier("juin — la clôture est inchangée", lJuin?.closing ?? "—", "1500.00")
+
+  await admin.from("trust_ledger").insert({
+    firm_id: cabinetId, client_id: cReg.id, entry_type: "transfer_to_business",
+    amount: 1500, occurred_on: "2026-07-20", memo: "Solde des honoraires",
+  })
+
+  const juillet = await mois("2026-07-01", "2026-07-31")
+  const lJuil = ligneDe(juillet, cReg.id)
+  verifier("juillet — le client figure, le mois où il tombe à zéro", Boolean(lJuil), true)
+  verifier("juillet — solde de clôture nul", lJuil?.closing ?? "—", "0.00")
+
+  // §7, §31, §32 : à zéro et sans mouvement, le client sort de la liste.
+  const aout = await mois("2026-08-01", "2026-08-31")
+  verifier("août — le client à zéro N'APPARAÎT PLUS", Boolean(ligneDe(aout, cReg.id)), false)
+
+  // §8 : mais son histoire reste entière.
+  const { data: histoire } = await admin
+    .from("trust_ledger").select("id").eq("client_id", cReg.id)
+  verifier("août — son historique est intact", histoire?.length ?? 0, 3)
+
+  // §9 : un nouveau dépôt le ramène, sans geste particulier.
+  await admin.from("trust_ledger").insert({
+    firm_id: cabinetId, client_id: cReg.id, entry_type: "deposit",
+    amount: 1000, occurred_on: "2026-09-08", memo: "Nouveau mandat",
+  })
+  const septembre = await mois("2026-09-01", "2026-09-30")
+  const lSept = ligneDe(septembre, cReg.id)
+  verifier("septembre — le client RÉAPPARAÎT de lui-même", Boolean(lSept), true)
+  verifier("septembre — ouverture à zéro", lSept?.opening ?? "—", "0.00")
+  verifier("septembre — clôture au nouveau dépôt", lSept?.closing ?? "—", "1000.00")
+
+  // §33 : le total du registre doit égaler le solde du cabinet. Un registre
+  // dont la somme ne retombe pas sur le solde ne vaut rien.
+  const { data: soldeCabinet } = await admin.rpc("firm_trust_balance", { f_id: cabinetId })
+  const totalRegistre = (septembre.lignes ?? [])
+    .reduce((s, l) => s + Number(l.closing), 0)
+    .toFixed(2)
+  verifier("§33 — la somme des clôtures égale le solde du cabinet",
+    totalRegistre, Number(soldeCabinet).toFixed(2))
 } finally {
   if (navigateur) await navigateur.close()
   if (cabinetId) await admin.rpc("purger_cabinet_epreuve", { p_firm_id: cabinetId })

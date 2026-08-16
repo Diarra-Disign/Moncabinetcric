@@ -72,6 +72,7 @@ case "$commande" in
   facturation-globale) exec node scripts/verify-facturation-globale.mjs "$@" ;;
   capture)      exec node scripts/capturer.mjs "$@" ;;
   rapprochement) exec node scripts/verify-fideicommis.mjs "$@" ;;
+  cloisonnement) exec node scripts/verify-cloisonnement.mjs "$@" ;;
   facture-pdf)  exec node scripts/verify-facture-pdf.mjs "$@" ;;
   modeles)      exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/generer-modeles-questionnaires.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
@@ -138,6 +139,10 @@ Usage : ./cric <commande> [options]
   roles        Éprouve la matrice des droits en base
   connecteur   Éprouve le cloisonnement du connecteur IA par cabinet
   fideicommis  Éprouve les paiements et le registre de fidéicommis
+
+  cloisonnement  Éprouve qu'une fonction recevant un cabinet en paramètre
+               refuse de servir celui du voisin — et continue de servir le sien
+                 ./cric cloisonnement
   echeances    Éprouve les échéances du dossier et les alertes du cabinet
   portail-client  Éprouve le dépôt de pièces par le client et la validation
   formulaires  Éprouve les formulaires officiels : pré-remplissage, versions,
