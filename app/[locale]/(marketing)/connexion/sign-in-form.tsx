@@ -1,32 +1,48 @@
 "use client"
 
 import * as React from "react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import { ShieldCheck, Mail, KeyRound, AlertTriangle, CheckCircle2 } from "lucide-react"
 import { getBrowserSupabase } from "@/lib/supabase/browser"
 import { leverChangementObligatoire } from "@/lib/data/portal-access"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import {
+  LONGUEUR_MINIMALE,
+  exigencesManquantes,
+  type Exigence,
+} from "@/lib/securite/regle-mot-de-passe"
 
 type Method = "password" | "magic"
 
-/**
- * Ce que le serveur exige réellement, constaté en l'éprouvant.
- *
- * Supabase refuse en dessous de douze : « Password should be at least 12
- * characters. » Cette constante n'impose rien — elle recopie la règle pour que
- * l'écran cesse d'en annoncer une autre. Si la politique change dans la console
- * Supabase, c'est ici qu'il faut la reporter, et nulle part ailleurs.
- */
-const LONGUEUR_MINIMALE = 12
+/** Clé de traduction d'une exigence, pour l'énumérer en toutes lettres. */
+const LIBELLE: Record<Exigence, string> = {
+  longueur: "ruleLongueur",
+  minuscule: "ruleMinuscule",
+  majuscule: "ruleMajuscule",
+  chiffre: "ruleChiffre",
+  symbole: "ruleSymbole",
+}
 
 const FIELD =
   "w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
 
 export function SignInForm() {
   const t = useTranslations("Auth")
+  const locale = useLocale()
   const searchParams = useSearchParams()
+
+  /** « 12 caractères, une majuscule et un symbole », dans la langue de la page. */
+  const enumereExigences = (manque: Exigence[]) =>
+    new Intl.ListFormat(locale === "en" ? "en-CA" : "fr-CA", {
+      style: "long",
+      type: "conjunction",
+    }).format(
+      manque.map((m) =>
+        m === "longueur" ? t(LIBELLE[m], { n: LONGUEUR_MINIMALE }) : t(LIBELLE[m])
+      )
+    )
 
   const [method, setMethod] = React.useState<Method>("password")
   const [email, setEmail] = React.useState("")
@@ -219,19 +235,20 @@ export function SignInForm() {
     e.preventDefault()
     setError(null)
 
-    // DOUZE, PARCE QUE C'EST CE QUE LE SERVEUR IMPOSE.
+    // LA RÈGLE VIENT D'UN SEUL ENDROIT, ET CE N'EST PLUS ICI.
     //
-    // Ce contrôle annonçait 8. L'utilisateur saisissait 8 caractères, le
-    // formulaire les acceptait, et Supabase les refusait — en anglais, sur une
-    // interface française : « Password should be at least 12 characters. »
-    // Deux règles écrites à deux endroits finissent toujours par différer, et
-    // c'est celui qui saisit qui en fait les frais.
+    // Ce contrôle annonçait 8, puis 12. À chaque fois, la console Supabase
+    // disait autre chose et l'utilisateur découvrait l'écart en anglais sur
+    // une interface française. La console exige désormais douze caractères ET
+    // quatre familles — une longueur seule ne suffit plus à décider.
     //
-    // Ce contrôle-ci ne protège rien : il est dans le navigateur, donc
-    // contournable. Sa seule raison d'être est de dire la vérité AVANT
-    // l'envoi. La règle qui compte est celle de la console Supabase.
-    if (newPassword.length < LONGUEUR_MINIMALE) {
-      setError(`Le mot de passe doit contenir au moins ${LONGUEUR_MINIMALE} caractères.`)
+    // `regle-mot-de-passe` porte cette règle pour les trois écrans qui la
+    // vérifient. Ce contrôle-ci ne protège toujours rien — il est dans le
+    // navigateur, donc contournable — et sa seule raison d'être reste de dire
+    // la vérité AVANT l'envoi.
+    const manque = exigencesManquantes(newPassword)
+    if (manque.length > 0) {
+      setError(t("passwordMissing", { liste: enumereExigences(manque) }))
       return
     }
     if (newPassword !== confirmPassword) {
@@ -382,9 +399,30 @@ export function SignInForm() {
                     minLength={LONGUEUR_MINIMALE}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder={`Minimum ${LONGUEUR_MINIMALE} caractères`}
+                    aria-describedby="nouveau-mdp-aide"
                     className={FIELD}
                   />
+                  {/* La règle s'affiche sous le champ et suit la frappe, au
+                      lieu de tenir dans un texte de substitution qui disparaît
+                      dès la première lettre saisie. */}
+                  <p
+                    id="nouveau-mdp-aide"
+                    aria-live="polite"
+                    className={cn(
+                      "mt-1 text-[11px]",
+                      newPassword.length > 0 && exigencesManquantes(newPassword).length === 0
+                        ? "text-success"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {newPassword.length === 0
+                      ? t("passwordHint")
+                      : exigencesManquantes(newPassword).length > 0
+                        ? t("passwordMissing", {
+                            liste: enumereExigences(exigencesManquantes(newPassword)),
+                          })
+                        : t("passwordReady")}
+                  </p>
                 </div>
 
                 <div>
@@ -392,7 +430,11 @@ export function SignInForm() {
                   <input
                     type="password"
                     required
-                    minLength={8}
+                    // Ce champ exigeait 8 alors que le premier en exige 12 :
+                    // un reste de l'ancienne règle, resté en place quand elle
+                    // a changé. C'est exactement le genre d'écart que
+                    // `regle-mot-de-passe` existe pour supprimer.
+                    minLength={LONGUEUR_MINIMALE}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Répétez votre mot de passe"

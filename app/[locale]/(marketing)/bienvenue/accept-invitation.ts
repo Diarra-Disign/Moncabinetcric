@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
 import { synchroniserSiegesStripe } from "@/lib/billing/seat-sync"
+import { motDePasseValide } from "@/lib/securite/regle-mot-de-passe"
 
 /**
  * Acceptation d'une invitation.
@@ -22,8 +23,6 @@ export interface AcceptResult {
   error?: "invalid" | "weak" | "exists" | "failed"
 }
 
-const MIN_PASSWORD = 12
-
 function serviceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -37,7 +36,13 @@ export async function acceptInvitation(
   password: string
 ): Promise<AcceptResult> {
   if (!token) return { ok: false, error: "invalid" }
-  if (password.length < MIN_PASSWORD) return { ok: false, error: "weak" }
+
+  // Même règle que le formulaire, parce que c'est LE MÊME CODE. Ce contrôle
+  // n'est pas un doublon de courtoisie : le formulaire vit dans le navigateur
+  // et se contourne, celui-ci non. Il épargne aussi un aller-retour vers
+  // Supabase pour un refus qu'on peut prononcer ici — et surtout un message
+  // d'erreur en anglais sur une interface française.
+  if (!motDePasseValide(password)) return { ok: false, error: "weak" }
 
   const admin = serviceClient()
   const tokenHash = createHash("sha256").update(token).digest("hex")

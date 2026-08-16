@@ -1,33 +1,69 @@
 "use client"
 
 import * as React from "react"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { CheckCircle2, Eye, EyeOff } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { acceptInvitation, type AcceptResult } from "./accept-invitation"
+import {
+  LONGUEUR_MINIMALE,
+  exigencesManquantes,
+  type Exigence,
+} from "@/lib/securite/regle-mot-de-passe"
 
 const FIELD =
   "w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
 
-const MIN_PASSWORD = 12
+/** Clé de traduction d'une exigence, pour l'énumérer en toutes lettres. */
+const LIBELLE: Record<Exigence, string> = {
+  longueur: "ruleLongueur",
+  minuscule: "ruleMinuscule",
+  majuscule: "ruleMajuscule",
+  chiffre: "ruleChiffre",
+  symbole: "ruleSymbole",
+}
 
 export function AcceptForm({ token, email }: { token: string; email: string }) {
   const t = useTranslations("Invite")
   const [fullName, setFullName] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [visible, setVisible] = React.useState(false)
-  // « tooShort » et « nameRequired » n'existent pas côté serveur : ce sont
+  // « regles » et « nameRequired » n'existent pas côté serveur : ce sont
   // les deux refus que le formulaire prononce lui-même, avant tout appel.
   const [error, setError] = React.useState<
-    AcceptResult["error"] | "tooShort" | "nameRequired" | null
+    AcceptResult["error"] | "regles" | "nameRequired" | null
   >(null)
   const [done, setDone] = React.useState(false)
   const [pending, startTransition] = React.useTransition()
 
   const champNom = React.useRef<HTMLInputElement>(null)
   const champMotDePasse = React.useRef<HTMLInputElement>(null)
+
+  // Recalculé à chaque frappe : c'est ce qui permet à la ligne d'aide de
+  // suivre la saisie au lieu d'attendre un clic pour dire ce qui cloche.
+  const manquants = exigencesManquantes(password)
+
+  /**
+   * « 12 caractères, une majuscule et un symbole » plutôt qu'une liste sèche.
+   *
+   * Les libellés sont traduits un à un, puis assemblés par Intl.ListFormat :
+   * le français relie par « et », l'anglais par « and », et la ponctuation
+   * suit la langue sans qu'on ait à l'écrire deux fois.
+   */
+  const locale = useLocale()
+  const enumere = (manque: Exigence[]) =>
+    new Intl.ListFormat(locale === "en" ? "en-CA" : "fr-CA", {
+      style: "long",
+      type: "conjunction",
+    }).format(
+      manque.map((m) =>
+        m === "longueur"
+          ? t(LIBELLE[m], { n: LONGUEUR_MINIMALE })
+          : t(LIBELLE[m])
+      )
+    )
 
   /**
    * Le bouton reste cliquable même quand la saisie est incomplète.
@@ -39,7 +75,10 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
    * arrêté, croyant la page cassée — au dernier écran du parcours, celui
    * qui ouvre son accès.
    *
-   * Cliquer dit maintenant ce qui manque, et combien il manque.
+   * Cliquer dit maintenant ce qui manque, et il ne s'agit plus seulement de
+   * la longueur : le serveur exige aussi quatre familles de caractères.
+   * Le contrôle vient de `regle-mot-de-passe`, partagé avec l'action de
+   * serveur, pour que l'écran et le serveur ne puissent pas diverger.
    */
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,8 +89,8 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
       champNom.current?.focus()
       return
     }
-    if (password.length < MIN_PASSWORD) {
-      setError("tooShort")
+    if (manquants.length > 0) {
+      setError("regles")
       champMotDePasse.current?.focus()
       return
     }
@@ -162,18 +201,33 @@ export function AcceptForm({ token, email }: { token: string; email: string }) {
             {visible ? <EyeOff aria-hidden className="h-4 w-4" /> : <Eye aria-hidden className="h-4 w-4" />}
           </button>
         </div>
-        {/* Le décompte se met à jour à la frappe : la personne voit ce
-            qu'il reste à faire au lieu de le déduire d'un bouton inerte. */}
-        <p id="invite-password-hint" className="mt-1 text-[11px] text-muted-foreground">
-          {password.length > 0 && password.length < MIN_PASSWORD
-            ? t("passwordRemaining", { n: MIN_PASSWORD - password.length })
-            : t("passwordHint")}
+        {/* La liste se met à jour à la frappe : la personne voit ce qu'il
+            reste à faire au lieu de le déduire d'un refus après coup.
+            Elle énumère ce qui MANQUE, pas ce qui est acquis — c'est plus
+            court à lire, et ça devient une confirmation dès que tout y est. */}
+        <p
+          id="invite-password-hint"
+          aria-live="polite"
+          className={cn(
+            "mt-1 text-[11px]",
+            password.length > 0 && manquants.length === 0
+              ? "text-success"
+              : "text-muted-foreground"
+          )}
+        >
+          {password.length === 0
+            ? t("passwordHint")
+            : manquants.length > 0
+              ? t("passwordMissing", { liste: enumere(manquants) })
+              : t("passwordReady")}
         </p>
       </div>
 
       {error && (
         <p role="alert" className="rounded-lg border border-error/30 bg-error/10 px-3 py-2 text-xs font-bold text-error">
-          {error === "tooShort" ? t("errorTooShort", { n: MIN_PASSWORD }) : t(messageKey)}
+          {error === "regles"
+            ? t("passwordMissing", { liste: enumere(manquants) })
+            : t(messageKey)}
         </p>
       )}
 
