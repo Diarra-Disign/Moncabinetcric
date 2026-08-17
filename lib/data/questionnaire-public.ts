@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@supabase/supabase-js"
+import { autorise, TROP_DE_TENTATIVES } from "@/lib/securite/limiter"
 import type { FormSectionShape, QuestionnaireCorrection } from "./types"
 
 /**
@@ -48,6 +49,10 @@ export interface ResultatPublic {
 export async function ouvrirParJeton(
   jeton: string
 ): Promise<{ questionnaire?: QuestionnairePublic; erreur?: string }> {
+  if (!(await autorise("jetonLecture", jeton))) {
+    return { erreur: TROP_DE_TENTATIVES }
+  }
+
   const sb = clientAnonyme()
   const { data, error } = await sb.rpc("questionnaire_ouvrir", { p_token: jeton })
 
@@ -82,6 +87,10 @@ export async function enregistrerParJeton(
   answers: Record<string, unknown>,
   progress: number
 ): Promise<ResultatPublic> {
+  if (!(await autorise("jetonEcriture", jeton))) {
+    return { ok: false, message: TROP_DE_TENTATIVES }
+  }
+
   const sb = clientAnonyme()
   const { error } = await sb.rpc("questionnaire_enregistrer", {
     p_token: jeton,
@@ -93,6 +102,10 @@ export async function enregistrerParJeton(
 }
 
 export async function soumettreParJeton(jeton: string): Promise<ResultatPublic> {
+  if (!(await autorise("jetonEcriture", jeton))) {
+    return { ok: false, message: TROP_DE_TENTATIVES }
+  }
+
   const sb = clientAnonyme()
   const { error } = await sb.rpc("questionnaire_soumettre", { p_token: jeton })
   if (error) return { ok: false, message: error.message || "Envoi impossible." }
