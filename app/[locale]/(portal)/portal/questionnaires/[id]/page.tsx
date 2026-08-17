@@ -1,7 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server"
 import { getClientQuestionnaireById } from "@/lib/data/queries"
 import { getTemplateBySlug } from "@/lib/data/questionnaire-templates"
-import { getCurrentPortalClient } from "@/lib/supabase/session"
+import { getCurrentPortalClient, getSessionSupabase } from "@/lib/supabase/session"
 import type { ClientQuestionnaire } from "@/lib/data/types"
 import { QuestionnaireClient } from "./questionnaire-client"
 import { ArrowLeft } from "lucide-react"
