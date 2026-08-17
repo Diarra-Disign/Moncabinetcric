@@ -1,59 +1,28 @@
 import "server-only"
 
-import { PDFDocument, StandardFonts, rgb, type PDFPage } from "pdf-lib"
+import { PDFDocument, StandardFonts, type PDFPage, type PDFFont } from "pdf-lib"
 import {
-  ENCRE, GRIS, TRAIT, LARGEUR, HAUTEUR, G, D,
-  argentDe, pourcentDe, ecrire, couper, droite,
-  enTete, bloc, pagination, filigrane, PALE,
+  ENCRE, GRIS, TRAIT, LARGEUR, HAUTEUR, G, D, MARINE, OR, VOILE, BLANC,
+  argentDe, pourcentDe, ecrire, couper, droite, centre,
+  enTeteOfficiel, panneauPartie, piedOfficiel, filigrane, PALE,
   type LanguePdf, type CabinetPdf,
 } from "@/lib/pdf/primitives"
 
-// Réexportés : ces deux types font partie de l'interface de la facture depuis
-// l'origine, et les appelants ne devraient pas avoir à savoir qu'ils ont
-// déménagé dans les primitives.
 export type { LanguePdf, CabinetPdf }
 
 /**
- * La facture et le reçu, en PDF.
- *
- * Composés plutôt que remplis : contrairement aux formulaires d'IRCC, il
- * n'existe pas de gabarit officiel à respecter. pdf-lib était déjà une
- * dépendance du projet ; en ajouter une seconde pour dessiner quelques lignes
- * de texte aurait coûté une chaîne de mises à jour pour rien.
- *
- * Helvetica plutôt qu'une police intégrée : les polices standard d'un PDF
- * couvrent le WinAnsi, donc les accents français. Une police à intégrer
- * pèserait trois cents kilo-octets par facture.
- *
- * MISE EN PAGE — trois partis pris qui ne sont pas décoratifs.
- *
- * 1. LE MONTANT DÛ EST EN HAUT. Le client apprend ce qu'il doit dans le
- *    premier tiers de la page, à côté de la date d'échéance. Le chercher au
- *    bas, après le détail, c'est ce qui fait qu'on repose la facture « pour
- *    plus tard ».
- *
- * 2. CHAQUE TAXE IMPRIME SON TAUX, pas seulement son montant. Une facture qui
- *    montre « TPS 5,000 % · 10,00 $ » se vérifie ; une facture qui ne montre
- *    que « 10,00 $ » se croit. Le taux vient du cabinet, jamais d'une
- *    constante écrite ici.
- *
- * 3. LE SOLDE DÛ EST DISTINCT DU TOTAL. Après un acompte, ce sont deux
- *    nombres différents, et le client n'a besoin que du second.
+ * Système d'harmonisation documentaire officiel (Factures, Reçus, Registres, Rapprochements).
+ * Calqué rigoureusement sur le modèle maître des Ententes professionnelles.
  */
 
-/**
- * Tout le vocabulaire imprimé, en un seul endroit.
- *
- * Un libellé oublié dans une fonction de dessin serait un mot français au
- * milieu d'un document anglais — et personne ne le verrait avant qu'un client
- * anglophone ne le reçoive. Les fonctions ci-dessous ne contiennent donc
- * AUCUNE chaîne visible.
- */
 const MOTS = {
   fr: {
     facture: "FACTURE",
-    recu: "REÇU",
+    factureSousTitre: "ÉMISSION OFFICIELLE",
+    recu: "REÇU DE PAIEMENT",
+    recuSousTitre: "CONFIRMATION DE RÈGLEMENT",
     consultantCric: "Consultant réglementé CRIC",
+    permisAbrege: "Permis CRIC",
     factureA: "FACTURÉ À",
     recuDe: "REÇU DE",
     dateEmise: "DATE D'ÉMISSION",
@@ -64,24 +33,24 @@ const MOTS = {
     montantDu: "MONTANT DÛ",
     montantRecu: "MONTANT REÇU",
     dossier: "DOSSIER",
-    description: "Description",
-    taux: "Taux",
-    quantite: "Qté",
-    montant: "Montant",
+    description: "DESCRIPTION DU SERVICE",
+    taux: "PRIX UNIT.",
+    quantite: "QTÉ",
+    montant: "MONTANT (CAD)",
     plusTaxes: "+ taxes",
     nonTaxable: "non taxable",
-    sousTotal: "Sous-total",
+    sousTotal: "Sous-total honoraires",
     tps: "TPS",
     tvq: "TVQ",
     exonere: "Exonérée de taxes",
-    total: "Total",
+    total: "Total facturé",
     dejaRegle: "Déjà réglé",
-    soldeDu: "SOLDE DÛ",
-    notes: "NOTES",
-    conditions: "CONDITIONS DE PAIEMENT",
+    soldeDu: "SOLDE RESTANT DÛ",
+    notes: "NOTES DU CABINET",
+    conditions: "MODALITÉS ET CONDITIONS DE PAIEMENT",
     brouillon: "BROUILLON",
     page: (n: number, sur: number) => `Page ${n} sur ${sur}`,
-    factureLiee: "Facture",
+    factureLiee: "FACTURE LIÉE",
     totalFacture: "Total de la facture",
     regleAJour: "Total réglé à ce jour",
     soldeRestant: "SOLDE RESTANT",
@@ -89,50 +58,61 @@ const MOTS = {
     fiducie2: "général du cabinet qu'au fur et à mesure des services rendus.",
     merci: "Merci de votre confiance.",
     rapprochement: "ÉTAT DE RAPPROCHEMENT",
+    rapprochementSousTitre: "COMPTE EN FIDÉICOMMIS",
     registreMensuel: "REGISTRE DU COMPTE CLIENT",
-    periodeRegistre: "PÉRIODE",
+    registreSousTitre: "COMPTE EN FIDÉICOMMIS",
+    periodeRegistre: "PÉRIODE DU REGISTRE",
     colClient: "CLIENT",
     colDerniere: "DERNIÈRE TRANSACTION",
     colOuverture: "OUVERTURE",
-    colDepots: "DÉPÔTS",
-    colRetraits: "RETRAITS",
-    colSolde: "SOLDE",
-    totauxRegistre: "TOTAUX",
+    colDepots: "DÉPÔTS (+)",
+    colRetraits: "RETRAITS (−)",
+    colSolde: "SOLDE DE CLÔTURE",
+    totauxRegistre: "TOTAUX CONSOLIDÉS",
     fondsDetenus: "TOTAL DES FONDS DÉTENUS POUR LES CLIENTS",
     aucunFonds: "Aucun client n'avait de fonds détenus au cours de cette période.",
-    responsabiliteRegistre: "Outil de tenue de registre. Le consultant demeure responsable de ses",
-    responsabiliteRegistre2: "obligations professionnelles et de ses rapprochements.",
-    compteFiducie: "Compte en fidéicommis",
+    responsabiliteRegistre: "Outil de tenue de registre conforme au règlement du Collège (CICC). Le consultant",
+    responsabiliteRegistre2: "demeure responsable de ses obligations professionnelles et de ses rapprochements.",
+    compteFiducie: "COMPTE EN FIDÉICOMMIS",
     periodeArretee: "PÉRIODE ARRÊTÉE AU",
-    soldeReleve: "SOLDE DU RELEVÉ BANCAIRE",
-    soldeRegistre: "SOLDE DU REGISTRE",
-    elementsRapprochement: "ÉLÉMENTS DE RAPPROCHEMENT",
-    aucunEcart: "Aucun élément de rapprochement : le relevé et le registre concordent exactement.",
+    soldeReleve: "Solde du relevé bancaire",
+    soldeRegistre: "Solde selon le registre clients",
+    elementsRapprochement: "ÉLÉMENTS DE RAPPROCHEMENT (AJUSTEMENTS)",
+    aucunEcart: "Aucun élément de rapprochement : le relevé bancaire et le registre concordent exactement.",
     soldeRapproche: "SOLDE RAPPROCHÉ",
     ecartResiduel: "ÉCART RÉSIDUEL",
-    ventilationClients: "VENTILATION PAR CLIENT",
-    client: "Client",
-    solde: "Solde",
-    totalVentilation: "Total de la ventilation",
+    ventilationClients: "VENTILATION PAR DOSSIER CLIENT",
+    client: "Client / Dossier",
+    solde: "Solde détenu",
+    totalVentilation: "Total de la ventilation clients",
     attestation: "J'atteste que le présent état a été dressé à partir du registre du compte en",
-    attestation2: "fidéicommis du cabinet et du relevé bancaire de la période indiquée.",
+    attestation2: "fidéicommis du cabinet et du relevé bancaire de la période indiquée conformément aux règles du CICC.",
     arreteLe: "Arrêté le",
-    par: "par",
+    par: "Par le consultant :",
+    signatureConsultant: "Signature du CRIC titulaire :",
     brouillonRappro: "NON ARRÊTÉ",
-    modeCol: "Mode",
-    dateCol: "Date",
+    modeCol: "MODE DE PAIEMENT",
+    dateCol: "DATE",
     paiement: "Paiement reçu",
-    enFiducie: "en fidéicommis",
-    compteGeneral: "compte de l'entreprise",
+    destinationCol: "DESTINATION",
+    enFiducie: "Compte fidéicommis (fiducie)",
+    compteGeneral: "Compte d'exploitation",
     modes: {
-      card: "Carte", interac: "Virement Interac", bank_transfer: "Virement bancaire",
-      cheque: "Chèque", cash: "Comptant", other: "Autre",
+      card: "Carte bancaire",
+      interac: "Virement Interac",
+      bank_transfer: "Virement bancaire",
+      cheque: "Chèque",
+      cash: "Comptant",
+      other: "Autre mode",
     } as Record<string, string>,
   },
   en: {
     facture: "INVOICE",
-    recu: "RECEIPT",
+    factureSousTitre: "OFFICIAL ISSUANCE",
+    recu: "PAYMENT RECEIPT",
+    recuSousTitre: "SETTLEMENT CONFIRMATION",
     consultantCric: "Regulated Canadian Immigration Consultant",
+    permisAbrege: "RCIC Licence",
     factureA: "BILLED TO",
     recuDe: "RECEIVED FROM",
     dateEmise: "DATE ISSUED",
@@ -143,24 +123,24 @@ const MOTS = {
     montantDu: "AMOUNT DUE",
     montantRecu: "AMOUNT RECEIVED",
     dossier: "MATTER",
-    description: "Description",
-    taux: "Rate",
-    quantite: "Qty",
-    montant: "Amount",
+    description: "SERVICE DESCRIPTION",
+    taux: "UNIT PRICE",
+    quantite: "QTY",
+    montant: "AMOUNT (CAD)",
     plusTaxes: "+ tax",
     nonTaxable: "non-taxable",
-    sousTotal: "Subtotal",
+    sousTotal: "Professional fees subtotal",
     tps: "GST",
     tvq: "QST",
     exonere: "Tax exempt",
-    total: "Total",
+    total: "Total invoiced",
     dejaRegle: "Already paid",
-    soldeDu: "BALANCE DUE",
-    notes: "NOTES",
-    conditions: "PAYMENT TERMS",
+    soldeDu: "REMAINING BALANCE DUE",
+    notes: "FIRM NOTES",
+    conditions: "PAYMENT TERMS & CONDITIONS",
     brouillon: "DRAFT",
     page: (n: number, sur: number) => `Page ${n} of ${sur}`,
-    factureLiee: "Invoice",
+    factureLiee: "LINKED INVOICE",
     totalFacture: "Invoice total",
     regleAJour: "Paid to date",
     soldeRestant: "REMAINING BALANCE",
@@ -168,44 +148,52 @@ const MOTS = {
     fiducie2: "firm's general account as services are rendered.",
     merci: "Thank you for your trust.",
     rapprochement: "RECONCILIATION STATEMENT",
+    rapprochementSousTitre: "TRUST ACCOUNT",
     registreMensuel: "CLIENT ACCOUNT REGISTER",
-    periodeRegistre: "PERIOD",
+    registreSousTitre: "TRUST ACCOUNT",
+    periodeRegistre: "REGISTER PERIOD",
     colClient: "CLIENT",
     colDerniere: "LAST TRANSACTION",
     colOuverture: "OPENING",
-    colDepots: "DEPOSITS",
-    colRetraits: "WITHDRAWALS",
-    colSolde: "BALANCE",
-    totauxRegistre: "TOTALS",
+    colDepots: "DEPOSITS (+)",
+    colRetraits: "WITHDRAWALS (−)",
+    colSolde: "CLOSING BALANCE",
+    totauxRegistre: "CONSOLIDATED TOTALS",
     fondsDetenus: "TOTAL FUNDS HELD FOR CLIENTS",
     aucunFonds: "No client held funds during this period.",
-    responsabiliteRegistre: "Record-keeping tool. The consultant remains responsible for their",
-    responsabiliteRegistre2: "professional obligations and reconciliations.",
-    compteFiducie: "Trust account",
+    responsabiliteRegistre: "Record-keeping tool complying with College (CICC) regulations. The consultant",
+    responsabiliteRegistre2: "remains responsible for their professional obligations and reconciliations.",
+    compteFiducie: "TRUST ACCOUNT",
     periodeArretee: "PERIOD ENDING",
-    soldeReleve: "BANK STATEMENT BALANCE",
-    soldeRegistre: "LEDGER BALANCE",
-    elementsRapprochement: "RECONCILING ITEMS",
-    aucunEcart: "No reconciling items: the statement and the ledger agree exactly.",
+    soldeReleve: "Bank statement balance",
+    soldeRegistre: "Balance as per client ledger",
+    elementsRapprochement: "RECONCILING ITEMS (ADJUSTMENTS)",
+    aucunEcart: "No reconciling items: the bank statement and the ledger agree exactly.",
     soldeRapproche: "RECONCILED BALANCE",
     ecartResiduel: "UNEXPLAINED DIFFERENCE",
-    ventilationClients: "BREAKDOWN BY CLIENT",
-    client: "Client",
-    solde: "Balance",
-    totalVentilation: "Total of breakdown",
+    ventilationClients: "BREAKDOWN BY CLIENT MATTER",
+    client: "Client / Matter",
+    solde: "Funds held",
+    totalVentilation: "Total client breakdown",
     attestation: "I certify that this statement was prepared from the firm's trust account",
-    attestation2: "ledger and the bank statement for the period indicated.",
+    attestation2: "ledger and the bank statement for the period indicated in compliance with CICC rules.",
     arreteLe: "Closed on",
-    par: "by",
+    par: "By consultant:",
+    signatureConsultant: "RCIC signature:",
     brouillonRappro: "NOT CLOSED",
-    modeCol: "Method",
-    dateCol: "Date",
+    modeCol: "PAYMENT METHOD",
+    dateCol: "DATE",
     paiement: "Payment received",
-    enFiducie: "in trust",
-    compteGeneral: "general account",
+    destinationCol: "DESTINATION",
+    enFiducie: "Trust account",
+    compteGeneral: "General operating account",
     modes: {
-      card: "Card", interac: "Interac transfer", bank_transfer: "Bank transfer",
-      cheque: "Cheque", cash: "Cash", other: "Other",
+      card: "Credit card",
+      interac: "Interac e-Transfer",
+      bank_transfer: "Bank wire transfer",
+      cheque: "Cheque",
+      cash: "Cash",
+      other: "Other method",
     } as Record<string, string>,
   },
 } as const
@@ -234,15 +222,15 @@ export interface FacturePdf {
   total: number
   regle: number
   notes: string
-  /** Taux du cabinet, en fraction : 0.05 s'imprime « 5,000 % ». */
   tauxTps?: number
   tauxTvq?: number
-  /** Vraie, aucune ligne de taxe n'est imprimée — une mention la remplace. */
   exonere?: boolean
   langue?: LanguePdf
 }
 
-
+/**
+ * Génération de la FACTURE PROFESSIONNELLE conforme au design des ententes.
+ */
 export async function facturePdf(f: FacturePdf, c: CabinetPdf): Promise<Uint8Array> {
   const langue: LanguePdf = f.langue ?? "fr"
   const m = MOTS[langue]
@@ -254,145 +242,175 @@ export async function facturePdf(f: FacturePdf, c: CabinetPdf): Promise<Uint8Arr
   const normal = await doc.embedFont(StandardFonts.Helvetica)
   const gras = await doc.embedFont(StandardFonts.HelveticaBold)
 
-  let y = await enTete(doc, page, c, normal, gras, m.facture, m.consultantCric)
-
-  // ---- Le bandeau : à qui, quand, combien ---------------------------------
-  const xMilieu = 300
   const solde = f.total - f.regle
 
-  bloc(page, G, y, m.factureA, couper(f.clientNom, gras, 10, 220), normal, gras)
-  let yClient = y - 28
-  for (const ligne of [f.clientAdresse, f.clientCourriel]) {
-    if (!ligne) continue
-    ecrire(page, couper(ligne, normal, 9, 220), { x: G, y: yClient, size: 9, font: normal, color: GRIS })
-    yClient -= 11
+  // 1. En-tête officiel bi-colonne
+  const reperes = [
+    { label: m.numeroFacture, valeur: f.numero },
+    { label: m.dateEmise, valeur: f.date },
+    { label: m.echeance, valeur: f.echeance || "—" },
+    { label: m.dossier, valeur: f.dossierReference ? `${f.dossierReference}${f.consultant ? ` (${f.consultant})` : ""}` : "—" },
+  ]
+
+  let y = await enTeteOfficiel(
+    doc,
+    page,
+    c,
+    normal,
+    gras,
+    { surTitre: m.facture, sousTitre: m.factureSousTitre },
+    m.permisAbrege,
+    reperes
+  )
+
+  // 2. Panneau Client « FACTURÉ À » + Encadré montant dû en haut
+  const largeurPanneau = 240
+  const lignesClient = [
+    { texte: f.clientNom, taille: 10, gras: true, couleur: ENCRE },
+    { texte: f.clientAdresse, taille: 8.5, gras: false, couleur: GRIS },
+    { texte: f.clientCourriel, taille: 8.5, gras: false, couleur: GRIS },
+  ]
+  const hPanneau = panneauPartie(page, G, y, largeurPanneau, m.factureA, lignesClient, normal, gras)
+
+  // Encadré récapitulatif Montant Dû / Solde en haut à droite
+  const xEncadre = 320
+  const largEncadre = D - xEncadre
+  page.drawRectangle({
+    x: xEncadre, y: y - hPanneau, width: largEncadre, height: hPanneau, color: VOILE,
+    borderColor: TRAIT, borderWidth: 0.5,
+  })
+  page.drawRectangle({
+    x: xEncadre, y: y - hPanneau, width: 3, height: hPanneau, color: OR,
+  })
+  ecrire(page, m.montantDu, { x: xEncadre + 12, y: y - 16, size: 8, font: gras, color: GRIS })
+  ecrire(page, argent(solde), { x: xEncadre + 12, y: y - 36, size: 15, font: gras, color: MARINE })
+  if (f.regle > 0) {
+    ecrire(page, `${m.totalFacture} : ${argent(f.total)}`, { x: xEncadre + 12, y: y - 52, size: 8, font: normal, color: GRIS })
+    ecrire(page, `${m.dejaRegle} : ${argent(f.regle)}`, { x: xEncadre + 12, y: y - 63, size: 8, font: normal, color: GRIS })
   }
 
-  bloc(page, xMilieu, y, m.dateEmise, f.date, normal, gras, false, 9.5)
-  if (f.echeance) bloc(page, D, y, m.echeance, f.echeance, normal, gras, true, 9.5)
+  y -= hPanneau + 18
 
-  const yBas = y - 46
-  bloc(page, xMilieu, yBas, m.numeroFacture, f.numero, normal, gras, false, 9.5)
-  // Le montant dû, en haut, à droite : la question du client, à l'endroit où
-  // l'œil termine sa lecture du bandeau.
-  bloc(page, D, yBas, m.montantDu, argent(solde), normal, gras, true, 14)
+  // 3. Tableau des prestations & débours
+  const largeurTableau = D - G
+  const HAUTEUR_ENTETE = 22
+  const xTaux = 370
+  const xQte = 435
+  const xMontant = D - 10
 
-  y = Math.min(yClient, yBas - 22) - 14
-  if (f.dossierReference) {
-    ecrire(page, `${m.dossier} ${f.dossierReference}${f.consultant ? ` · ${f.consultant}` : ""}`,
-      { x: G, y: y + 8, size: 8.5, font: normal, color: GRIS })
-    y -= 6
-  }
+  // Bandeau d'en-tête de tableau en MARINE pleine
+  page.drawRectangle({ x: G, y: y - HAUTEUR_ENTETE, width: largeurTableau, height: HAUTEUR_ENTETE, color: MARINE })
+  ecrire(page, m.description, { x: G + 10, y: y - 14.5, size: 8, font: gras, color: BLANC })
+  droite(page, m.taux, xTaux, y - 14.5, gras, 8, BLANC)
+  droite(page, m.quantite, xQte, y - 14.5, gras, 8, BLANC)
+  droite(page, m.montant, xMontant, y - 14.5, gras, 8, BLANC)
+  y -= HAUTEUR_ENTETE
 
-  page.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 1.6, color: ENCRE })
-  y -= 20
-
-  // ---- Le tableau ---------------------------------------------------------
-  const xTaux = 380
-  const xQte = 452
-  ecrire(page, m.description, { x: G, y, size: 8, font: normal, color: GRIS })
-  droite(page, m.taux, xTaux, y, normal, 8, GRIS)
-  droite(page, m.quantite, xQte, y, normal, 8, GRIS)
-  droite(page, m.montant, D, y, normal, 8, GRIS)
-  y -= 22
-
+  // Lignes de services
   for (const l of f.lignes) {
-    ecrire(page, couper(l.description, normal, 10, 300), { x: G, y, size: 10, font: normal, color: ENCRE })
-    droite(page, argent(l.prixUnitaire), xTaux, y, normal, 9, GRIS)
-    droite(page, String(l.quantite), xQte, y, normal, 9, GRIS)
-    droite(page, argent(l.quantite * l.prixUnitaire), D, y, normal, 9.5)
-    // La mention de taxe se place SOUS le taux, comme dans le modèle : elle
-    // qualifie le prix unitaire, pas la ligne entière.
-    droite(page, l.taxable ? m.plusTaxes : m.nonTaxable, xTaux, y - 14, normal, 8, GRIS)
-    y -= 34
+    const hLigne = 26
+    page.drawRectangle({
+      x: G, y: y - hLigne, width: largeurTableau, height: hLigne,
+      borderColor: TRAIT, borderWidth: 0.5,
+    })
+    ecrire(page, couper(l.description, normal, 9.5, 270), { x: G + 10, y: y - 13, size: 9.5, font: normal, color: ENCRE })
+    if (l.taxable) {
+      ecrire(page, `(${m.plusTaxes})`, { x: G + 10, y: y - 22, size: 7.5, font: normal, color: GRIS })
+    } else {
+      ecrire(page, `(${m.nonTaxable})`, { x: G + 10, y: y - 22, size: 7.5, font: normal, color: GRIS })
+    }
+
+    droite(page, argent(l.prixUnitaire), xTaux, y - 15, normal, 9, GRIS)
+    droite(page, String(l.quantite), xQte, y - 15, normal, 9, GRIS)
+    droite(page, argent(l.quantite * l.prixUnitaire), xMontant, y - 15, gras, 9.5, ENCRE)
+    y -= hLigne
   }
 
-  // ---- Les totaux ---------------------------------------------------------
-  const xLibelle = 470
-  y -= 6
+  // 4. Bloc des Totaux & Taxes
+  y -= 8
+  const xTotauxLibelle = 430
 
-  droite(page, m.sousTotal, xLibelle, y, normal, 9.5, GRIS)
-  droite(page, argent(f.sousTotal), D, y, normal, 9.5)
-  y -= 16
+  // Sous-total
+  droite(page, m.sousTotal, xTotauxLibelle, y, normal, 9, GRIS)
+  droite(page, argent(f.sousTotal), xMontant, y, normal, 9, ENCRE)
+  y -= 15
 
+  // Taxes
   if (f.exonere) {
-    droite(page, m.exonere, xLibelle, y, normal, 9.5, GRIS)
-    y -= 16
+    droite(page, m.exonere, xTotauxLibelle, y, normal, 9, GRIS)
+    y -= 15
   } else {
-    // Une taxe dont le taux est nul ne s'imprime pas : un cabinet hors Québec
-    // n'a pas à voir « TVQ 0,000 % » sur ses factures.
     const taxes: [string, number, number][] = [
       [m.tps, f.tauxTps ?? 0, f.tps],
       [m.tvq, f.tauxTvq ?? 0, f.tvq],
     ]
     for (const [nom, taux, valeur] of taxes) {
       if (taux <= 0 && valeur <= 0) continue
-      droite(page, `${nom} ${pourcent(taux)}`, xLibelle, y, normal, 9.5, GRIS)
-      droite(page, `+${argent(valeur)}`, D, y, normal, 9.5)
-      y -= 16
+      droite(page, `${nom} (${pourcent(taux)})`, xTotauxLibelle, y, normal, 8.5, GRIS)
+      droite(page, `+${argent(valeur)}`, xMontant, y, normal, 8.5, GRIS)
+      y -= 14
     }
   }
 
-  page.drawLine({ start: { x: 340, y: y + 8 }, end: { x: D, y: y + 8 }, thickness: 0.6, color: TRAIT })
-  y -= 6
-  droite(page, m.total, xLibelle, y, normal, 11, ENCRE)
-  droite(page, argent(f.total), D, y, normal, 11)
-  y -= 18
+  // Total général
+  page.drawLine({ start: { x: 320, y: y + 6 }, end: { x: D, y: y + 6 }, thickness: 0.5, color: TRAIT })
+  y -= 4
+  droite(page, m.total, xTotauxLibelle, y, gras, 10, MARINE)
+  droite(page, argent(f.total), xMontant, y, gras, 10, MARINE)
+  y -= 16
 
+  // Déjà réglé éventuel
   if (f.regle > 0) {
-    droite(page, m.dejaRegle, xLibelle, y, normal, 9.5, GRIS)
-    droite(page, `−${argent(f.regle)}`, D, y, normal, 9.5, GRIS)
-    y -= 16
+    droite(page, m.dejaRegle, xTotauxLibelle, y, normal, 9, GRIS)
+    droite(page, `−${argent(f.regle)}`, xMontant, y, normal, 9, GRIS)
+    y -= 15
   }
 
-  page.drawLine({ start: { x: 340, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 1.6, color: ENCRE })
-  y -= 6
-  droite(page, m.soldeDu, xLibelle, y, gras, 11)
-  droite(page, argent(solde), D, y, gras, 11)
+  // Bandeau final de SOLDE DÛ
+  const hBandeauSolde = 22
+  page.drawRectangle({ x: 320, y: y - hBandeauSolde, width: D - 320, height: hBandeauSolde, color: MARINE })
+  ecrire(page, m.soldeDu, { x: 330, y: y - 14.5, size: 9, font: gras, color: BLANC })
+  droite(page, argent(solde), xMontant, y - 14.5, gras, 10, BLANC)
+  y -= hBandeauSolde + 16
 
-  // ---- Le pied ------------------------------------------------------------
-  // Les notes SUIVENT les totaux au lieu d'être clouées en bas de page : sur
-  // une facture à deux lignes, un bloc épinglé au ras du pied paraissait
-  // détaché du document et se lisait comme une mention légale, pas comme un
-  // message du cabinet. Le plancher garde la place de la pagination.
-  let bas = Math.max(y - 44, 132)
-  if (f.notes) {
-    ecrire(page, m.notes, { x: G, y: bas, size: 8, font: gras, color: GRIS })
-    bas -= 13
-    ecrire(page, couper(f.notes, normal, 9, D - G), { x: G, y: bas, size: 9, font: normal, color: ENCRE })
-    bas -= 20
-  }
-  if (c.conditionsPaiement) {
-    ecrire(page, m.conditions, { x: G, y: bas, size: 8, font: gras, color: GRIS })
-    bas -= 13
-    for (const ligne of c.conditionsPaiement.split("\n").slice(0, 3)) {
-      ecrire(page, couper(ligne, normal, 9, D - G), { x: G, y: bas, size: 9, font: normal, color: ENCRE })
-      bas -= 11
+  // 5. Notes du cabinet & Conditions de paiement
+  let yBas = Math.max(y, 110)
+  if (f.notes || c.conditionsPaiement) {
+    const lignesNotes: string[] = []
+    if (f.notes) lignesNotes.push(`${m.notes} : ${f.notes}`)
+    if (c.conditionsPaiement) {
+      lignesNotes.push(`${m.conditions} : ${c.conditionsPaiement.split("\n")[0]}`)
+    }
+    const hEncadreNotes = lignesNotes.length * 13 + 12
+    page.drawRectangle({
+      x: G, y: yBas - hEncadreNotes, width: largeurTableau, height: hEncadreNotes, color: VOILE,
+      borderColor: TRAIT, borderWidth: 0.5,
+    })
+    page.drawRectangle({
+      x: G, y: yBas - hEncadreNotes, width: 2.5, height: hEncadreNotes, color: OR,
+    })
+    let yTxt = yBas - 12
+    for (const ligne of lignesNotes) {
+      ecrire(page, couper(ligne, normal, 8, largeurTableau - 20), {
+        x: G + 10, y: yTxt, size: 8, font: normal, color: ENCRE,
+      })
+      yTxt -= 13
     }
   }
 
-  // Les numéros de taxe engagent le cabinet : ils s'impriment quand ils
-  // existent, et rien ne les invente quand ils manquent.
-  const numeros = [c.numeroTps && `${m.tps} ${c.numeroTps}`, c.numeroTvq && `${m.tvq} ${c.numeroTvq}`]
-    .filter(Boolean).join(" · ")
-  if (numeros) ecrire(page, numeros, { x: G, y: 62, size: 8, font: normal, color: GRIS })
+  // 6. Pied de page officiel plein en MARINE
+  const numerosTaxe = [c.numeroTps && `${m.tps} : ${c.numeroTps}`, c.numeroTvq && `${m.tvq} : ${c.numeroTvq}`]
+    .filter(Boolean).join("  ·  ")
+  const mentionGauche = numerosTaxe || c.nom
+  piedOfficiel(page, f.numero, mentionGauche, 1, 1, normal, gras)
 
-  pagination(page, normal, m.page(1, 1))
-
-  // Un brouillon porte sa mention. Sans elle, une facture non émise circule et
-  // se fait payer comme une vraie — puis son numéro change à l'émission.
   if (f.statut === "draft") filigrane(page, m.brouillon, gras)
 
   return doc.save()
 }
 
 /**
- * Le reçu d'un paiement.
- *
- * Un reçu n'est pas une facture allégée : la facture dit « vous devez », le
- * reçu dit « vous avez payé ». Il porte donc le montant REÇU, sa date, son
- * mode, sa référence — et le solde qui reste, car c'est la première question
- * du client qui vient de payer.
+ * Interface & Génération du REÇU DE PAIEMENT conforme aux ententes.
  */
 export interface RecuPdf {
   numero: string
@@ -407,7 +425,6 @@ export interface RecuPdf {
   factureNumero: string
   factureTotal: number
   dejaRegle: number
-  /** Vrai si l'argent est entré en fidéicommis et non au compte général. */
   enFideicommis: boolean
   langue?: LanguePdf
 }
@@ -422,112 +439,270 @@ export async function recuPdf(r: RecuPdf, c: CabinetPdf): Promise<Uint8Array> {
   const normal = await doc.embedFont(StandardFonts.Helvetica)
   const gras = await doc.embedFont(StandardFonts.HelveticaBold)
 
-  let y = await enTete(doc, page, c, normal, gras, m.recu, m.consultantCric)
+  // 1. En-tête officiel bi-colonne
+  const reperes = [
+    { label: m.numeroRecu, valeur: r.numero },
+    { label: m.dateRecu, valeur: r.date },
+    { label: m.factureLiee, valeur: r.factureNumero || "—" },
+    { label: m.dossier, valeur: r.dossierReference || "—" },
+  ]
 
-  const xMilieu = 300
+  let y = await enTeteOfficiel(
+    doc,
+    page,
+    c,
+    normal,
+    gras,
+    { surTitre: m.recu, sousTitre: m.recuSousTitre },
+    m.permisAbrege,
+    reperes
+  )
 
-  bloc(page, G, y, m.recuDe, couper(r.clientNom, gras, 10, 220), normal, gras)
-  let yClient = y - 28
-  if (r.clientCourriel) {
-    ecrire(page, couper(r.clientCourriel, normal, 9, 220), { x: G, y: yClient, size: 9, font: normal, color: GRIS })
-    yClient -= 11
+  // 2. Panneau « REÇU DE » + Encadré Montant Reçu
+  const largeurPanneau = 240
+  const lignesClient = [
+    { texte: r.clientNom, taille: 10, gras: true, couleur: ENCRE },
+    { texte: r.clientCourriel, taille: 8.5, gras: false, couleur: GRIS },
+    { texte: r.reference ? `Réf. transaction : ${r.reference}` : "", taille: 8, gras: false, couleur: GRIS },
+  ]
+  const hPanneau = panneauPartie(page, G, y, largeurPanneau, m.recuDe, lignesClient, normal, gras)
+
+  // Encadré Montant Reçu en haut à droite
+  const xEncadre = 320
+  const largEncadre = D - xEncadre
+  page.drawRectangle({
+    x: xEncadre, y: y - hPanneau, width: largEncadre, height: hPanneau, color: VOILE,
+    borderColor: TRAIT, borderWidth: 0.5,
+  })
+  page.drawRectangle({
+    x: xEncadre, y: y - hPanneau, width: 3, height: hPanneau, color: OR,
+  })
+  ecrire(page, m.montantRecu, { x: xEncadre + 12, y: y - 16, size: 8, font: gras, color: GRIS })
+  ecrire(page, argent(r.montant), { x: xEncadre + 12, y: y - 36, size: 15, font: gras, color: MARINE })
+  ecrire(page, `${m.modeCol} : ${m.modes[r.mode] ?? r.mode}`, { x: xEncadre + 12, y: y - 52, size: 8.5, font: normal, color: ENCRE })
+  ecrire(page, r.enFideicommis ? m.enFiducie : m.compteGeneral, { x: xEncadre + 12, y: y - 64, size: 8, font: gras, color: r.enFideicommis ? MARINE : GRIS })
+
+  y -= hPanneau + 20
+
+  // 3. Tableau du Versement
+  const largeurTableau = D - G
+  const HAUTEUR_ENTETE = 22
+  const xMode = 310
+  const xDest = 420
+  const xMontant = D - 10
+
+  page.drawRectangle({ x: G, y: y - HAUTEUR_ENTETE, width: largeurTableau, height: HAUTEUR_ENTETE, color: MARINE })
+  ecrire(page, m.description, { x: G + 10, y: y - 14.5, size: 8, font: gras, color: BLANC })
+  ecrire(page, m.modeCol, { x: xMode, y: y - 14.5, size: 8, font: gras, color: BLANC })
+  ecrire(page, m.destinationCol, { x: xDest, y: y - 14.5, size: 8, font: gras, color: BLANC })
+  droite(page, m.montant, xMontant, y - 14.5, gras, 8, BLANC)
+  y -= HAUTEUR_ENTETE
+
+  const hLigne = 26
+  page.drawRectangle({
+    x: G, y: y - hLigne, width: largeurTableau, height: hLigne,
+    borderColor: TRAIT, borderWidth: 0.5,
+  })
+  ecrire(page, couper(r.notes || m.paiement, normal, 9.5, 230), { x: G + 10, y: y - 16, size: 9.5, font: normal, color: ENCRE })
+  ecrire(page, m.modes[r.mode] ?? r.mode, { x: xMode, y: y - 16, size: 9, font: normal, color: GRIS })
+  ecrire(page, r.enFideicommis ? "Fidéicommis" : "Général", { x: xDest, y: y - 16, size: 8.5, font: gras, color: r.enFideicommis ? MARINE : GRIS })
+  droite(page, argent(r.montant), xMontant, y - 16, gras, 9.5, ENCRE)
+  y -= hLigne + 16
+
+  // 4. Synthèse de la Facture rattachée
+  if (r.factureNumero) {
+    const xTotauxLibelle = 430
+    droite(page, m.totalFacture, xTotauxLibelle, y, normal, 9, GRIS)
+    droite(page, argent(r.factureTotal), xMontant, y, normal, 9, ENCRE)
+    y -= 15
+    droite(page, m.regleAJour, xTotauxLibelle, y, normal, 9, GRIS)
+    droite(page, `−${argent(r.dejaRegle)}`, xMontant, y, normal, 9, GRIS)
+    y -= 15
+
+    const soldeRestant = Math.max(0, r.factureTotal - r.dejaRegle)
+    const hBandeauSolde = 22
+    page.drawRectangle({ x: 320, y: y - hBandeauSolde, width: D - 320, height: hBandeauSolde, color: MARINE })
+    ecrire(page, m.soldeRestant, { x: 330, y: y - 14.5, size: 9, font: gras, color: BLANC })
+    droite(page, argent(soldeRestant), xMontant, y - 14.5, gras, 10, BLANC)
+    y -= hBandeauSolde + 20
   }
 
-  bloc(page, xMilieu, y, m.dateRecu, r.date, normal, gras, false, 9.5)
-  bloc(page, D, y, m.montantRecu, argent(r.montant), normal, gras, true, 14)
-
-  const yBas = y - 46
-  bloc(page, xMilieu, yBas, m.numeroRecu, r.numero, normal, gras, false, 9.5)
-  if (r.factureNumero) bloc(page, D, yBas, m.factureLiee, r.factureNumero, normal, gras, true, 9.5)
-
-  y = Math.min(yClient, yBas - 22) - 14
-  if (r.dossierReference) {
-    ecrire(page, `${m.dossier} ${r.dossierReference}`, { x: G, y: y + 8, size: 8.5, font: normal, color: GRIS })
-    y -= 6
-  }
-
-  page.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 1.6, color: ENCRE })
-  y -= 20
-
-  // ---- Le tableau, calqué sur celui de la facture -------------------------
-  // Un reçu n'a qu'une ligne, ce qui rendait tentant de l'écrire en prose. Mais
-  // c'est la MÊME lecture pour le client — quoi, comment, quand, combien — et
-  // deux mises en page pour une même lecture obligent à réapprendre où
-  // regarder. Le reçu emprunte donc les colonnes, les filets et l'échelle de
-  // la facture ; seuls les en-têtes changent.
-  const xMode = 380
-  const xDate = 465
-  ecrire(page, m.description, { x: G, y, size: 8, font: normal, color: GRIS })
-  droite(page, m.modeCol, xMode, y, normal, 8, GRIS)
-  droite(page, m.dateCol, xDate, y, normal, 8, GRIS)
-  droite(page, m.montant, D, y, normal, 8, GRIS)
-  y -= 22
-
-  ecrire(page, couper(r.notes || m.paiement, normal, 10, 300), { x: G, y, size: 10, font: normal, color: ENCRE })
-  droite(page, m.modes[r.mode] ?? r.mode, xMode, y, normal, 9, GRIS)
-  droite(page, r.date, xDate, y, normal, 9, GRIS)
-  droite(page, argent(r.montant), D, y, normal, 9.5)
-  // À la place du « + taxes » de la facture : la destination des fonds. C'est
-  // ce qui qualifie ce paiement-ci, et le client doit pouvoir le lire sur la
-  // ligne même, pas seulement dans la mention légale du bas.
-  droite(page, r.enFideicommis ? m.enFiducie : m.compteGeneral, xMode, y - 14, normal, 8, GRIS)
-  if (r.reference) ecrire(page, r.reference, { x: G, y: y - 14, size: 8, font: normal, color: GRIS })
-  y -= 34
-
-  // ---- L'échelle des totaux, identique à celle de la facture --------------
-  const xLibelle = 470
-  y -= 6
-
-  droite(page, m.totalFacture, xLibelle, y, normal, 9.5, GRIS)
-  droite(page, argent(r.factureTotal), D, y, normal, 9.5)
-  y -= 16
-  droite(page, m.regleAJour, xLibelle, y, normal, 9.5, GRIS)
-  droite(page, `−${argent(r.dejaRegle)}`, D, y, normal, 9.5, GRIS)
-  y -= 16
-
-  page.drawLine({ start: { x: 340, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 1.6, color: ENCRE })
-  y -= 6
-  droite(page, m.soldeRestant, xLibelle, y, gras, 11)
-  droite(page, argent(Math.max(0, r.factureTotal - r.dejaRegle)), D, y, gras, 11)
-  y -= 34
-
+  // 5. Mention légale fidéicommis (Article 13 CICC)
   if (r.enFideicommis) {
-    // Une somme en fiducie n'appartient pas encore au cabinet. Le taire sur
-    // le reçu laisserait croire que les honoraires sont acquis — ce que
-    // l'article 13 interdit précisément de laisser croire.
-    ecrire(page, m.fiducie1, { x: G, y, size: 8.5, font: normal, color: GRIS })
-    y -= 11
-    ecrire(page, m.fiducie2, { x: G, y, size: 8.5, font: normal, color: GRIS })
+    page.drawRectangle({
+      x: G, y: y - 36, width: largeurTableau, height: 36, color: VOILE,
+      borderColor: TRAIT, borderWidth: 0.5,
+    })
+    page.drawRectangle({
+      x: G, y: y - 36, width: 2.5, height: 36, color: OR,
+    })
+    ecrire(page, m.fiducie1, { x: G + 10, y: y - 14, size: 8, font: normal, color: ENCRE })
+    ecrire(page, m.fiducie2, { x: G + 10, y: y - 26, size: 8, font: normal, color: ENCRE })
+    y -= 46
   }
 
-  // Les notes ne sont plus répétées ici : elles servent de description à la
-  // ligne du tableau. Les imprimer deux fois ferait croire à deux mentions.
-  const bas = Math.max(y - 20, 110)
-  ecrire(page, m.merci, { x: G, y: bas, size: 9, font: normal, color: GRIS })
+  ecrire(page, m.merci, { x: G, y: Math.max(y, 100), size: 9, font: normal, color: GRIS })
 
-  // Le même pied que la facture, pour la même raison : ces numéros engagent le
-  // cabinet, et un client qui compare ses deux pièces doit les retrouver au
-  // même endroit.
-  const numeros = [c.numeroTps && `${m.tps} ${c.numeroTps}`, c.numeroTvq && `${m.tvq} ${c.numeroTvq}`]
-    .filter(Boolean).join(" · ")
-  if (numeros) ecrire(page, numeros, { x: G, y: 62, size: 8, font: normal, color: GRIS })
-
-  pagination(page, normal, m.page(1, 1))
+  // 6. Pied de page officiel plein
+  piedOfficiel(page, r.numero, c.nom, 1, 1, normal, gras)
 
   return doc.save()
 }
 
+/**
+ * Interface & Génération du REGISTRE MENSUEL DU COMPTE CLIENT (Fidéicommis).
+ */
+export interface RegistreMensuelPdf {
+  periode: string
+  lignes: {
+    nom: string
+    dernierMouvement: string | null
+    ouverture: number
+    depots: number
+    retraits: number
+    cloture: number
+  }[]
+  totaux: { ouverture: number; depots: number; retraits: number; cloture: number }
+  langue?: LanguePdf
+}
+
+export async function registreMensuelPdf(
+  r: RegistreMensuelPdf,
+  c: CabinetPdf
+): Promise<Uint8Array> {
+  const langue: LanguePdf = r.langue ?? "fr"
+  const m = MOTS[langue]
+  const argent = argentDe(langue)
+
+  const doc = await PDFDocument.create()
+  const normal = await doc.embedFont(StandardFonts.Helvetica)
+  const gras = await doc.embedFont(StandardFonts.HelveticaBold)
+
+  const pages: PDFPage[] = []
+  let page = doc.addPage([LARGEUR, HAUTEUR])
+  pages.push(page)
+
+  const xNom = G + 10
+  const xDerniere = 190
+  const xOuverture = D - 210
+  const xDepots = D - 140
+  const xRetraits = D - 70
+  const xSolde = D - 10
+  const largeurTableau = D - G
+
+  // 1. En-tête officiel
+  const reperes = [
+    { label: m.periodeRegistre, valeur: r.periode },
+    { label: m.compteFiducie, valeur: c.nom || "—" },
+    { label: "TITULAIRE CRIC", valeur: c.numeroPermis ? `${m.permisAbrege} ${c.numeroPermis}` : "—" },
+  ]
+
+  let y = await enTeteOfficiel(
+    doc,
+    page,
+    c,
+    normal,
+    gras,
+    { surTitre: m.registreMensuel, sousTitre: m.registreSousTitre },
+    m.permisAbrege,
+    reperes
+  )
+
+  // 2. Encadré de synthèse : TOTAL FONDS DÉTENUS
+  const hSynthese = 38
+  page.drawRectangle({
+    x: G, y: y - hSynthese, width: largeurTableau, height: hSynthese, color: VOILE,
+    borderColor: TRAIT, borderWidth: 0.5,
+  })
+  page.drawRectangle({
+    x: G, y: y - hSynthese, width: 3, height: hSynthese, color: OR,
+  })
+  ecrire(page, m.fondsDetenus, { x: G + 12, y: y - 16, size: 8, font: gras, color: GRIS })
+  ecrire(page, argent(r.totaux.cloture), { x: G + 12, y: y - 30, size: 14, font: gras, color: MARINE })
+  droite(page, `Période : ${r.periode}`, D - 12, y - 22, normal, 9, GRIS)
+  y -= hSynthese + 18
+
+  // 3. Dessin des colonnes du tableau
+  const HAUTEUR_ENTETE = 20
+  const enTeteColonnes = (p: PDFPage, yy: number) => {
+    p.drawRectangle({ x: G, y: yy - HAUTEUR_ENTETE, width: largeurTableau, height: HAUTEUR_ENTETE, color: MARINE })
+    ecrire(p, m.colClient, { x: xNom, y: yy - 13.5, size: 7.5, font: gras, color: BLANC })
+    ecrire(p, m.colDerniere, { x: xDerniere, y: yy - 13.5, size: 7.5, font: gras, color: BLANC })
+    droite(p, m.colOuverture, xOuverture, yy - 13.5, gras, 7.5, BLANC)
+    droite(p, m.colDepots, xDepots, yy - 13.5, gras, 7.5, BLANC)
+    droite(p, m.colRetraits, xRetraits, yy - 13.5, gras, 7.5, BLANC)
+    droite(p, m.colSolde, xSolde, yy - 13.5, gras, 7.5, BLANC)
+  }
+
+  enTeteColonnes(page, y)
+  y -= HAUTEUR_ENTETE
+
+  const BAS_PAGE = 80
+
+  if (r.lignes.length === 0) {
+    y -= 15
+    ecrire(page, m.aucunFonds, { x: G + 10, y, size: 9, font: normal, color: GRIS })
+    y -= 20
+  }
+
+  for (const l of r.lignes) {
+    if (y < BAS_PAGE + 40) {
+      page = doc.addPage([LARGEUR, HAUTEUR])
+      pages.push(page)
+      y = 780
+      // En-tête de rappel sur page 2+
+      ecrire(page, `${c.nom}  ·  ${m.registreMensuel} (${r.periode})`, { x: G, y: 792, size: 8, font: normal, color: GRIS })
+      page.drawLine({ start: { x: G, y: 784 }, end: { x: G + 40, y: 784 }, thickness: 1.6, color: OR })
+      page.drawLine({ start: { x: G + 40, y: 784 }, end: { x: D, y: 784 }, thickness: 0.5, color: TRAIT })
+      y = 760
+      enTeteColonnes(page, y)
+      y -= HAUTEUR_ENTETE
+    }
+
+    const hLigne = 20
+    page.drawRectangle({
+      x: G, y: y - hLigne, width: largeurTableau, height: hLigne,
+      borderColor: TRAIT, borderWidth: 0.5,
+    })
+    ecrire(page, couper(l.nom, gras, 8.5, xDerniere - xNom - 10), { x: xNom, y: y - 13.5, size: 8.5, font: gras, color: ENCRE })
+    ecrire(page, l.dernierMouvement ?? "—", { x: xDerniere, y: y - 13.5, size: 8, font: normal, color: GRIS })
+    droite(page, argent(l.ouverture), xOuverture, y - 13.5, normal, 8.5, GRIS)
+    droite(page, l.depots ? argent(l.depots) : "—", xDepots, y - 13.5, normal, 8.5, ENCRE)
+    droite(page, l.retraits ? argent(l.retraits) : "—", xRetraits, y - 13.5, normal, 8.5, ENCRE)
+    droite(page, argent(l.cloture), xSolde, y - 13.5, gras, 9, MARINE)
+    y -= hLigne
+  }
+
+  // 4. Ligne de Totaux Consolidés pleine en MARINE
+  if (y < BAS_PAGE + 35) {
+    page = doc.addPage([LARGEUR, HAUTEUR])
+    pages.push(page)
+    y = 760
+  }
+
+  const hTotaux = 22
+  page.drawRectangle({ x: G, y: y - hTotaux, width: largeurTableau, height: hTotaux, color: MARINE })
+  ecrire(page, m.totauxRegistre, { x: xNom, y: y - 14.5, size: 8.5, font: gras, color: BLANC })
+  droite(page, argent(r.totaux.ouverture), xOuverture, y - 14.5, gras, 8.5, BLANC)
+  droite(page, argent(r.totaux.depots), xDepots, y - 14.5, gras, 8.5, BLANC)
+  droite(page, argent(r.totaux.retraits), xRetraits, y - 14.5, gras, 8.5, BLANC)
+  droite(page, argent(r.totaux.cloture), xSolde, y - 14.5, gras, 9.5, BLANC)
+  y -= hTotaux + 20
+
+  // 5. Mention de responsabilité professionnelle
+  ecrire(page, m.responsabiliteRegistre, { x: G, y: y, size: 7.5, font: normal, color: GRIS })
+  ecrire(page, m.responsabiliteRegistre2, { x: G, y: y - 10, size: 7.5, font: normal, color: GRIS })
+
+  // 6. Pied de page officiel plein sur toutes les pages
+  pages.forEach((p, idx) => {
+    piedOfficiel(p, `REGISTRE-${r.periode}`, c.nom, idx + 1, pages.length, normal, gras)
+  })
+
+  return doc.save()
+}
 
 /**
- * L'état de rapprochement du compte en fidéicommis.
- *
- * Il partage l'en-tête, la typographie et le pied des deux autres pièces : un
- * cabinet qui remet trois documents au même inspecteur ne doit pas avoir l'air
- * d'en avoir trois origines.
- *
- * La VENTILATION PAR CLIENT y figure, et ce n'est pas une décoration. Un solde
- * global juste peut masquer un client débiteur compensé par un autre — la
- * faute la plus grave en matière de fidéicommis. L'état la rend visible.
+ * Interface & Génération de l'ÉTAT DE RAPPROCHEMENT BANCAIRE (Fidéicommis).
  */
 export interface RapprochementPdf {
   periodeFin: string
@@ -552,244 +727,127 @@ export async function rapprochementPdf(r: RapprochementPdf, c: CabinetPdf): Prom
   const normal = await doc.embedFont(StandardFonts.Helvetica)
   const gras = await doc.embedFont(StandardFonts.HelveticaBold)
 
-  let y = await enTete(doc, page, c, normal, gras, m.rapprochement, m.consultantCric)
+  // 1. En-tête officiel
+  const reperes = [
+    { label: m.periodeArretee, valeur: r.periodeFin },
+    { label: m.compteFiducie, valeur: c.nom || "—" },
+    { label: "STATUT CONFORMITÉ", valeur: r.clos ? "ARRÊTÉ & CONFORME" : "BROUILLON EN COURS" },
+  ]
 
-  const xMilieu = 300
-  bloc(page, G, y, m.compteFiducie, c.nom ? couper(c.nom, gras, 10, 220) : "-", normal, gras)
-  bloc(page, xMilieu, y, m.periodeArretee, r.periodeFin, normal, gras, false, 9.5)
-  bloc(page, D, y, m.soldeRapproche, argent(r.soldeRegistre), normal, gras, true, 14)
+  let y = await enTeteOfficiel(
+    doc,
+    page,
+    c,
+    normal,
+    gras,
+    { surTitre: m.rapprochement, sousTitre: m.rapprochementSousTitre },
+    m.permisAbrege,
+    reperes
+  )
 
-  y -= 40
-  page.drawLine({ start: { x: G, y }, end: { x: D, y }, thickness: 1.6, color: ENCRE })
-  y -= 24
+  const largeurTableau = D - G
 
-  const xLibelle = 470
-  droite(page, m.soldeReleve, xLibelle, y, normal, 9.5, GRIS)
-  droite(page, argent(r.soldeBancaire), D, y, normal, 9.5)
-  y -= 22
-
-  ecrire(page, m.elementsRapprochement, { x: G, y, size: 8, font: gras, color: GRIS })
-  y -= 16
-
-  if (r.ecarts.length === 0) {
-    ecrire(page, couper(m.aucunEcart, normal, 9, D - G), { x: G, y, size: 9, font: normal, color: GRIS })
-    y -= 18
-  } else {
-    for (const e of r.ecarts) {
-      ecrire(page, couper(e.libelle, normal, 9.5, 380), { x: G, y, size: 9.5, font: normal, color: ENCRE })
-      droite(page, `${e.montant > 0 ? "+" : "-"}${argent(Math.abs(e.montant))}`, D, y, normal, 9.5)
-      y -= 15
-    }
-  }
-
+  // 2. Encadré Tri-colonne : Relevé vs Registre vs Écart
   const explique = r.ecarts.reduce((t, e) => t + e.montant, 0)
   const residuel = Math.round((r.soldeBancaire + explique - r.soldeRegistre) * 100) / 100
 
-  y -= 4
-  page.drawLine({ start: { x: 340, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 0.6, color: TRAIT })
-  y -= 6
-  droite(page, m.soldeRegistre, xLibelle, y, normal, 10, GRIS)
-  droite(page, argent(r.soldeRegistre), D, y, normal, 10)
+  const hSynthese = 46
+  page.drawRectangle({
+    x: G, y: y - hSynthese, width: largeurTableau, height: hSynthese, color: VOILE,
+    borderColor: TRAIT, borderWidth: 0.5,
+  })
+  page.drawRectangle({
+    x: G, y: y - hSynthese, width: 3, height: hSynthese, color: residuel === 0 ? OR : MARINE,
+  })
+
+  const col1 = G + 15
+  const col2 = G + 185
+  const col3 = G + 355
+
+  ecrire(page, m.soldeReleve, { x: col1, y: y - 16, size: 7.5, font: gras, color: GRIS })
+  ecrire(page, argent(r.soldeBancaire), { x: col1, y: y - 34, size: 12, font: gras, color: ENCRE })
+
+  ecrire(page, m.soldeRegistre, { x: col2, y: y - 16, size: 7.5, font: gras, color: GRIS })
+  ecrire(page, argent(r.soldeRegistre), { x: col2, y: y - 34, size: 12, font: gras, color: MARINE })
+
+  ecrire(page, m.ecartResiduel, { x: col3, y: y - 16, size: 7.5, font: gras, color: GRIS })
+  ecrire(page, argent(residuel), {
+    x: col3, y: y - 34, size: 12, font: gras,
+    color: residuel === 0 ? MARINE : ENCRE,
+  })
+
+  y -= hSynthese + 18
+
+  // 3. Éléments de rapprochement / Ajustements
+  page.drawRectangle({ x: G, y: y - 18, width: largeurTableau, height: 18, color: MARINE })
+  ecrire(page, m.elementsRapprochement, { x: G + 10, y: y - 12.5, size: 7.5, font: gras, color: BLANC })
   y -= 18
 
-  page.drawLine({ start: { x: 340, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 1.6, color: ENCRE })
-  y -= 6
-  // L'écart résiduel est imprimé MÊME quand il vaut zéro. C'est la ligne que
-  // l'inspection cherche ; l'omettre parce qu'elle est nulle obligerait à
-  // refaire le calcul pour s'en assurer.
-  droite(page, m.ecartResiduel, xLibelle, y, gras, 11)
-  droite(page, argent(residuel), D, y, gras, 11)
-  y -= 34
-
-  ecrire(page, m.ventilationClients, { x: G, y, size: 8, font: gras, color: GRIS })
-  y -= 14
-  ecrire(page, m.client, { x: G, y, size: 8, font: normal, color: GRIS })
-  droite(page, m.solde, D, y, normal, 8, GRIS)
-  y -= 16
-
-  let totalVentile = 0
-  for (const p of r.parClient.slice(0, 28)) {
-    totalVentile += p.solde
-    ecrire(page, couper(p.nom, normal, 9.5, 380), { x: G, y, size: 9.5, font: normal, color: ENCRE })
-    droite(page, argent(p.solde), D, y, normal, 9.5, p.solde < 0 ? rgb(0.72, 0.11, 0.11) : ENCRE)
-    y -= 14
-    if (y < 150) break
-  }
-
-  y -= 4
-  page.drawLine({ start: { x: G, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 0.6, color: TRAIT })
-  y -= 6
-  droite(page, m.totalVentilation, xLibelle, y, gras, 10)
-  droite(page, argent(totalVentile), D, y, gras, 10)
-
-  let bas = 120
-  if (r.notes) {
-    ecrire(page, m.notes, { x: G, y: bas, size: 8, font: gras, color: GRIS })
-    bas -= 12
-    ecrire(page, couper(r.notes, normal, 9, D - G), { x: G, y: bas, size: 9, font: normal, color: ENCRE })
-    bas -= 18
-  }
-
-  ecrire(page, m.attestation, { x: G, y: bas, size: 8.5, font: normal, color: GRIS })
-  bas -= 11
-  ecrire(page, m.attestation2, { x: G, y: bas, size: 8.5, font: normal, color: GRIS })
-  bas -= 14
-  if (r.clos && r.closLe) {
-    ecrire(page, `${m.arreteLe} ${r.closLe}${r.closPar ? ` ${m.par} ${r.closPar}` : ""}`,
-      { x: G, y: bas, size: 8.5, font: gras, color: ENCRE })
-  }
-
-  // Un état non arrêté porte sa mention : sans elle, un brouillon circule et
-  // se fait prendre pour la pièce définitive.
-  if (!r.clos) filigrane(page, m.brouillonRappro, gras, 48, 150)
-
-  pagination(page, normal, m.page(1, 1))
-  return doc.save()
-}
-
-export interface RegistreMensuelPdf {
-  /** Le mois en toutes lettres — « mai 2026 ». */
-  periode: string
-  lignes: {
-    nom: string
-    dernierMouvement: string | null
-    ouverture: number
-    depots: number
-    retraits: number
-    cloture: number
-  }[]
-  totaux: { ouverture: number; depots: number; retraits: number; cloture: number }
-  langue?: LanguePdf
-}
-
-/**
- * Le registre du compte client, en pièce imprimable.
- *
- * ─── POURQUOI IL PAGINE, ET PAS LES AUTRES PIÈCES ──────────────────────────
- *
- * Une facture tient sur une page ; un registre, non. Un cabinet de taille
- * ordinaire détient des fonds pour quinze à quarante clients, et le jour où la
- * quarantième ligne tomberait hors de la feuille, rien ne le signalerait : le
- * PDF s'ouvrirait, paraîtrait complet, et le total ne correspondrait plus aux
- * lignes visibles. C'est exactement le genre d'erreur qu'un état comptable ne
- * doit pas pouvoir commettre.
- *
- * Les totaux sont donc écrits APRÈS la dernière ligne, sur la page où elle
- * tombe, et la pagination dit « Page 2 sur 3 » — de sorte qu'une page égarée
- * dans un classeur se remarque.
- *
- * ─── L'EN-TÊTE VIENT DU CABINET, PAS D'ICI ─────────────────────────────────
- *
- * `enTete()` pose le nom, l'adresse, le téléphone, le courriel et le numéro de
- * permis — le §19 du cahier des charges — à partir des réglages du cabinet.
- * Aucune de ces valeurs n'est recopiée : une pièce comptable qui porterait une
- * adresse périmée serait un document faux.
- */
-export async function registreMensuelPdf(
-  r: RegistreMensuelPdf,
-  c: CabinetPdf
-): Promise<Uint8Array> {
-  const langue: LanguePdf = r.langue ?? "fr"
-  const m = MOTS[langue]
-  const argent = argentDe(langue)
-
-  const doc = await PDFDocument.create()
-  const normal = await doc.embedFont(StandardFonts.Helvetica)
-  const gras = await doc.embedFont(StandardFonts.HelveticaBold)
-
-  // Colonnes fixes, définies par leur BORD DROIT pour les montants : c'est sur
-  // ce bord qu'ils s'alignent, et raisonner sur un bord gauche auquel on
-  // ajoute une largeur est exactement ce qui les a fait se chevaucher — les
-  // deux dernières colonnes finissaient à neuf points l'une de l'autre, et
-  // l'extraction de texte n'y voyait rien : les mots étaient tous présents,
-  // simplement imprimés les uns sur les autres.
-  //
-  // Quatre colonnes de montants, 68 points chacune, remontées depuis la marge
-  // de droite. Assez pour « 1 234 567,89 $ » en corps 9.
-  const xNom = G
-  const xDerniere = 200
-  const xOuverture = D - 204
-  const xDepots = D - 136
-  const xRetraits = D - 68
-  const xSolde = D
-
-  const pages: PDFPage[] = []
-  let page = doc.addPage([LARGEUR, HAUTEUR])
-  pages.push(page)
-
-  let y = await enTete(doc, page, c, normal, gras, m.registreMensuel, m.consultantCric)
-
-  bloc(page, G, y, m.periodeRegistre, r.periode, normal, gras, false, 11)
-  bloc(page, D, y, m.fondsDetenus.split(" ").slice(0, 3).join(" "), argent(r.totaux.cloture), normal, gras, true, 14)
-  y -= 44
-
-  const enTeteColonnes = (p: PDFPage, yy: number) => {
-    ecrire(p, m.colClient, { x: xNom, y: yy, size: 7, font: gras, color: GRIS })
-    ecrire(p, m.colDerniere, { x: xDerniere, y: yy, size: 7, font: gras, color: GRIS })
-    droite(p, m.colOuverture, xOuverture, yy, gras, 7, GRIS)
-    droite(p, m.colDepots, xDepots, yy, gras, 7, GRIS)
-    droite(p, m.colRetraits, xRetraits, yy, gras, 7, GRIS)
-    droite(p, m.colSolde, xSolde, yy, gras, 7, GRIS)
-    p.drawLine({ start: { x: G, y: yy - 7 }, end: { x: D, y: yy - 7 }, thickness: 1, color: ENCRE })
-  }
-
-  enTeteColonnes(page, y)
-  y -= 22
-
-  const BAS = 96
-
-  if (r.lignes.length === 0) {
-    ecrire(page, m.aucunFonds, { x: G, y, size: 9.5, font: normal, color: GRIS })
-    y -= 20
-  }
-
-  for (const l of r.lignes) {
-    if (y < BAS) {
-      page = doc.addPage([LARGEUR, HAUTEUR])
-      pages.push(page)
-      y = 786
-      enTeteColonnes(page, y)
-      y -= 22
+  if (r.ecarts.length === 0) {
+    const hLigne = 20
+    page.drawRectangle({
+      x: G, y: y - hLigne, width: largeurTableau, height: hLigne,
+      borderColor: TRAIT, borderWidth: 0.5,
+    })
+    ecrire(page, m.aucunEcart, { x: G + 10, y: y - 13.5, size: 8, font: normal, color: GRIS })
+    y -= hLigne
+  } else {
+    for (const e of r.ecarts) {
+      const hLigne = 18
+      page.drawRectangle({
+        x: G, y: y - hLigne, width: largeurTableau, height: hLigne,
+        borderColor: TRAIT, borderWidth: 0.5,
+      })
+      ecrire(page, couper(e.libelle, normal, 8.5, 340), { x: G + 10, y: y - 12.5, size: 8.5, font: normal, color: ENCRE })
+      droite(page, `${e.montant > 0 ? "+" : "−"}${argent(Math.abs(e.montant))}`, D - 10, y - 12.5, normal, 8.5, ENCRE)
+      y -= hLigne
     }
-    ecrire(page, couper(l.nom, gras, 9, xDerniere - xNom - 14), { x: xNom, y, size: 9, font: gras, color: ENCRE })
-    ecrire(page, l.dernierMouvement ?? "-", { x: xDerniere, y, size: 8.5, font: normal, color: GRIS })
-    droite(page, argent(l.ouverture), xOuverture, y, normal, 9, GRIS)
-    droite(page, l.depots ? argent(l.depots) : "-", xDepots, y, normal, 9)
-    droite(page, l.retraits ? argent(l.retraits) : "-", xRetraits, y, normal, 9)
-    droite(page, argent(l.cloture), xSolde, y, gras, 9.5)
-    y -= 16
   }
 
-  // Les totaux ne se séparent pas de la dernière ligne : s'ils ne tiennent
-  // plus, ils passent avec elle sur la page suivante.
-  if (y < BAS + 40) {
-    page = doc.addPage([LARGEUR, HAUTEUR])
-    pages.push(page)
-    y = 786
+  y -= 14
+
+  // 4. Ventilation par client
+  page.drawRectangle({ x: G, y: y - 18, width: largeurTableau, height: 18, color: MARINE })
+  ecrire(page, m.ventilationClients, { x: G + 10, y: y - 12.5, size: 7.5, font: gras, color: BLANC })
+  droite(page, m.solde, D - 10, y - 12.5, gras, 7.5, BLANC)
+  y -= 18
+
+  const clientsAffiches = r.parClient.slice(0, 10)
+  for (const cl of clientsAffiches) {
+    const hLigne = 18
+    page.drawRectangle({
+      x: G, y: y - hLigne, width: largeurTableau, height: hLigne,
+      borderColor: TRAIT, borderWidth: 0.5,
+    })
+    ecrire(page, couper(cl.nom, normal, 8.5, 340), { x: G + 10, y: y - 12.5, size: 8.5, font: normal, color: ENCRE })
+    droite(page, argent(cl.solde), D - 10, y - 12.5, gras, 8.5, MARINE)
+    y -= hLigne
   }
 
-  y -= 4
-  page.drawLine({ start: { x: G, y: y + 9 }, end: { x: D, y: y + 9 }, thickness: 1.4, color: ENCRE })
-  y -= 6
-  ecrire(page, m.totauxRegistre, { x: xNom, y, size: 9, font: gras, color: ENCRE })
-  droite(page, argent(r.totaux.ouverture), xOuverture, y, gras, 9)
-  droite(page, argent(r.totaux.depots), xDepots, y, gras, 9)
-  droite(page, argent(r.totaux.retraits), xRetraits, y, gras, 9)
-  droite(page, argent(r.totaux.cloture), xSolde, y, gras, 10)
-  y -= 30
-
-  // §33 : le total détenu, énoncé en toutes lettres. Il figure déjà au bas de
-  // la colonne, mais c'est LE chiffre qu'on vient chercher dans cette pièce.
-  page.drawRectangle({ x: G, y: y - 8, width: D - G, height: 30, color: PALE })
-  ecrire(page, m.fondsDetenus, { x: G + 10, y, size: 8.5, font: gras, color: ENCRE })
-  droite(page, argent(r.totaux.cloture), D - 10, y, gras, 13)
+  // Ligne de total ventilation
+  const totalVentile = r.parClient.reduce((t, x) => t + x.solde, 0)
+  page.drawRectangle({ x: G, y: y - 20, width: largeurTableau, height: 20, color: VOILE, borderColor: TRAIT, borderWidth: 0.5 })
+  ecrire(page, m.totalVentilation, { x: G + 10, y: y - 13.5, size: 8, font: gras, color: ENCRE })
+  droite(page, argent(totalVentile), D - 10, y - 13.5, gras, 9, MARINE)
   y -= 34
 
-  // §37 : aucune affirmation de conformité. L'outil tient le registre ; les
-  // obligations restent celles du consultant, et la pièce le dit.
-  ecrire(page, m.responsabiliteRegistre, { x: G, y, size: 7.5, font: normal, color: GRIS })
-  ecrire(page, m.responsabiliteRegistre2, { x: G, y: y - 10, size: 7.5, font: normal, color: GRIS })
+  // 5. Bloc d'attestation CICC & Signature
+  page.drawRectangle({
+    x: G, y: y - 48, width: largeurTableau, height: 48, color: VOILE,
+    borderColor: TRAIT, borderWidth: 0.5,
+  })
+  page.drawRectangle({
+    x: G, y: y - 48, width: 2.5, height: 48, color: OR,
+  })
+  ecrire(page, m.attestation, { x: G + 10, y: y - 14, size: 7.5, font: normal, color: ENCRE })
+  ecrire(page, m.attestation2, { x: G + 10, y: y - 24, size: 7.5, font: normal, color: ENCRE })
+  ecrire(page, `${m.arreteLe} ${r.closLe || r.periodeFin}  ·  ${m.par} ${r.closPar || c.nom}`, {
+    x: G + 10, y: y - 38, size: 7.5, font: gras, color: MARINE,
+  })
+  droite(page, m.signatureConsultant, D - 10, y - 38, normal, 7.5, GRIS)
 
-  pages.forEach((p, i) => pagination(p, normal, m.page(i + 1, pages.length)))
+  // 6. Pied de page officiel plein
+  piedOfficiel(page, `RAPPROCHEMENT-${r.periodeFin}`, c.nom, 1, 1, normal, gras)
+
   return doc.save()
 }

@@ -11,16 +11,9 @@ export { sur, ecrire, couper, envelopper }
 /**
  * Les primitives communes à toutes les pièces PDF du cabinet.
  *
- * Elles vivaient dans `lib/invoices/pdf.ts`, où elles étaient privées. L'entente
- * de service en a besoin des mêmes : même en-tête, même translittération, même
- * échelle typographique. Les recopier aurait donné deux moteurs — et le jour où
- * le cabinet change d'adresse, une facture et un contrat au nom de deux cabinets
- * légèrement différents. Le §17 du cahier des charges interdit précisément cela.
- *
- * Ce fichier ne contient AUCUNE chaîne visible. Les libellés restent chez
- * l'appelant, avec sa table de mots : un mot français glissé ici s'imprimerait
- * au milieu d'un document anglais, et personne ne le verrait avant qu'un client
- * anglophone ne le reçoive.
+ * Entente de service, facture, reçu, registre fidéicommis et rapprochement
+ * partagent rigoureusement le même système visuel, la même translittération,
+ * la même palette et les mêmes proportions d'en-tête et de pied.
  */
 
 export type LanguePdf = "fr" | "en"
@@ -42,20 +35,16 @@ export const ENCRE = rgb(0.06, 0.09, 0.16)
 export const GRIS = rgb(0.42, 0.45, 0.5)
 export const TRAIT = rgb(0.85, 0.87, 0.9)
 export const PALE = rgb(0.93, 0.94, 0.96)
+
 /**
- * Les deux couleurs des pièces officielles : le bandeau et son accent.
+ * Les couleurs officielles du cabinet :
  *
- * MARINE est l'ENCRE du reste de l'application — le même bleu nuit, employé en
- * aplat plutôt qu'en texte. Elle n'appartient donc à aucun cabinet en
- * particulier : c'est le jeton du système de design, et le logo reste le seul
- * élément propre à chaque cabinet.
- *
- * OR n'est qu'un filet et une ligne de sous-titre. Assez pour qu'un document
- * ait l'air composé, trop peu pour concurrencer le logo.
+ * MARINE est la couleur identitaire d'autorité du système de design.
+ * OR est le filet d'accentuation et de sous-titre officiel.
+ * VOILE est le fond des panneaux d'identification.
  */
 export const MARINE = rgb(0.09, 0.16, 0.30)
 export const OR = rgb(0.78, 0.65, 0.32)
-/** Fond des panneaux d'identification — assez pâle pour rester imprimable. */
 export const VOILE = rgb(0.96, 0.97, 0.99)
 export const BLANC = rgb(1, 1, 1)
 
@@ -73,19 +62,12 @@ export const argentDe = (langue: LanguePdf) => (v: number) =>
 
 /**
  * Un taux en pourcentage lisible : 0.09975 devient « 9,975 % ».
- *
- * Trois décimales, parce que la TVQ en compte trois. En arrondir deux
- * afficherait « 9,98 % » sur une facture calculée à 9,975 % : le client qui
- * refait l'opération ne retomberait pas sur le montant imprimé juste à côté.
  */
 export const pourcentDe = (langue: LanguePdf) => (taux: number) =>
   new Intl.NumberFormat(langue === "en" ? "en-CA" : "fr-CA", {
     style: "percent", minimumFractionDigits: 3, maximumFractionDigits: 3,
   })
     .format(taux)
-    // Intl place une espace FINE INSÉCABLE (U+202F) devant le %. Elle ne fait
-    // pas partie du WinAnsi que couvrent les polices standard d'un PDF : la
-    // laisser passer expose à un refus d'encodage au moment d'écrire la page.
     .replace(/[  ]/g, " ")
 
 /** Écrit une valeur alignée à DROITE sur x — les montants se lisent en colonne. */
@@ -97,7 +79,7 @@ export function droite(
   page.drawText(t, { x: x - police.widthOfTextAtSize(t, taille), y, size: taille, font: police, color: couleur })
 }
 
-/** Écrit une valeur CENTRÉE sur x — utilisé par la pagination. */
+/** Écrit une valeur CENTRÉE sur x — utilisé par la pagination et les bandeaux. */
 export function centre(
   page: PDFPage, texte: string, x: number, y: number,
   police: PDFFont, taille: number, couleur = GRIS
@@ -121,23 +103,128 @@ export async function logoEnOctets(url: string): Promise<{ octets: Uint8Array; t
     const type = /jpe?g/i.test(res.headers.get("content-type") ?? "") ? "jpg" : "png"
     return { octets: buf, type }
   } catch {
-    // Un logo illisible ne doit pas empêcher d'émettre une pièce. On l'omet ;
-    // le nom du cabinet reste imprimé, et la pièce reste valable.
     return null
   }
 }
 
 /**
- * L'en-tête commun à toutes les pièces : logo à gauche, cabinet à droite.
- *
- * Partagé, et c'est le point : deux en-têtes séparés auraient divergé au
- * premier changement d'adresse, et le client aurait reçu une facture et un
- * contrat au nom de deux cabinets légèrement différents.
- *
- * `mentionPermis` est fourni par l'appelant plutôt qu'écrit ici : c'est la
- * seule chaîne visible de l'en-tête, et elle doit suivre la langue du document.
- *
- * Rend l'ordonnée du bas de l'en-tête, d'où la suite du document repart.
+ * L'en-tête officiel bi-colonne standardisé (calqué sur le modèle des ententes) :
+ * - Gauche : Logo + Nom du cabinet en MARINE + Mention CRIC & Permis
+ * - Droite : Cartouche de titre plein en MARINE avec sur-titre blanc et sous-titre doré OR
+ * - Repères structurés avec filets fins TRAIT
+ */
+export async function enTeteOfficiel(
+  doc: PDFDocument,
+  page: PDFPage,
+  c: CabinetPdf,
+  normal: PDFFont,
+  gras: PDFFont,
+  titre: { surTitre: string; sousTitre: string },
+  mentionPermis: string,
+  reperes: { label: string; valeur: string }[]
+): Promise<number> {
+  const HAUT = 792
+  const xDroite = 300
+  let yGauche = HAUT
+
+  // 1. Colonne gauche : Logo et cabinet
+  const logo = await logoEnOctets(c.logoUrl)
+  if (logo) {
+    try {
+      const image = logo.type === "jpg" ? await doc.embedJpg(logo.octets) : await doc.embedPng(logo.octets)
+      const h = 44
+      const l = (image.width / image.height) * h
+      page.drawImage(image, { x: G, y: yGauche - h, width: Math.min(l, 170), height: h })
+      yGauche -= h + 12
+    } catch {
+      // Ignorer erreur de format logo
+    }
+  }
+
+  ecrire(page, couper(c.nom, gras, 15, 220), { x: G, y: yGauche - 12, size: 15, font: gras, color: MARINE })
+  yGauche -= 28
+
+  const identite = [
+    c.numeroPermis ? `${mentionPermis} ${c.numeroPermis}` : "",
+    c.adresse,
+    [c.telephone, c.courriel].filter(Boolean).join(" · "),
+  ]
+  for (const ligne of identite) {
+    if (!ligne || !ligne.trim()) continue
+    ecrire(page, couper(ligne, normal, 8.5, 230), {
+      x: G, y: yGauche, size: 8.5, font: normal, color: GRIS,
+    })
+    yGauche -= 11
+  }
+
+  // 2. Colonne droite : Cartouche de titre officiel
+  const largeurBandeau = D - xDroite
+  const hauteurBandeau = 44
+  page.drawRectangle({
+    x: xDroite, y: HAUT - hauteurBandeau, width: largeurBandeau, height: hauteurBandeau, color: MARINE,
+  })
+  centre(page, titre.surTitre, xDroite + largeurBandeau / 2, HAUT - 20, gras, 13, BLANC)
+  centre(page, titre.sousTitre, xDroite + largeurBandeau / 2, HAUT - 35, normal, 9.5, OR)
+
+  let yDroite = HAUT - hauteurBandeau - 20
+
+  // Repères avec filets fins
+  for (const r of reperes) {
+    if (!r.valeur) continue
+    ecrire(page, r.label, { x: xDroite, y: yDroite, size: 8, font: gras, color: ENCRE })
+    const xValeur = xDroite + 105
+    ecrire(page, couper(r.valeur, normal, 8.5, D - xValeur), {
+      x: xValeur, y: yDroite, size: 8.5, font: normal, color: ENCRE,
+    })
+    page.drawLine({
+      start: { x: xValeur, y: yDroite - 3 }, end: { x: D, y: yDroite - 3 },
+      thickness: 0.5, color: TRAIT,
+    })
+    yDroite -= 18
+  }
+
+  return Math.min(yGauche, yDroite) - 10
+}
+
+/**
+ * Panneau d'identification de partie avec barre de titre pleine MARINE et fond VOILE.
+ */
+export function panneauPartie(
+  page: PDFPage, x: number, y: number, largeur: number,
+  titre: string,
+  lignes: { texte: string; taille?: number; gras?: boolean; couleur?: typeof ENCRE }[],
+  normal: PDFFont, gras: PDFFont
+): number {
+  const HAUTEUR_BARRE = 18
+  const elements = lignes.filter((l) => Boolean(l.texte && l.texte.trim()))
+  const corps = elements.length * 13 + 14
+  const hauteur = HAUTEUR_BARRE + corps
+
+  page.drawRectangle({
+    x, y: y - hauteur, width: largeur, height: corps, color: VOILE,
+    borderColor: TRAIT, borderWidth: 0.5,
+  })
+  page.drawRectangle({
+    x, y: y - HAUTEUR_BARRE, width: largeur, height: HAUTEUR_BARRE, color: MARINE,
+  })
+  ecrire(page, titre, { x: x + 10, y: y - 12.5, size: 8, font: gras, color: BLANC })
+
+  let curseur = y - HAUTEUR_BARRE - 13
+  for (const l of elements) {
+    const p = l.gras ? gras : normal
+    const sz = l.taille ?? 8.5
+    const clr = l.couleur ?? (l.gras ? ENCRE : GRIS)
+    ecrire(page, couper(l.texte, p, sz, largeur - 20), {
+      x: x + 10, y: curseur, size: sz, font: p, color: clr,
+    })
+    curseur -= 13
+  }
+
+  return hauteur
+}
+
+/**
+ * En-tête classique préservé pour compatibilité.
  */
 export async function enTete(
   doc: PDFDocument, page: PDFPage, c: CabinetPdf,
@@ -146,7 +233,7 @@ export async function enTete(
   const hautCabinet = 786
   let yCabinet = hautCabinet
 
-  droite(page, couper(c.nom, gras, 12, 300), D, yCabinet, gras, 12)
+  droite(page, couper(c.nom, gras, 12, 300), D, yCabinet, gras, 12, MARINE)
   yCabinet -= 14
   for (const ligne of [
     c.adresse,
@@ -168,25 +255,18 @@ export async function enTete(
       page.drawImage(image, { x: G, y: yGauche - h + 10, width: Math.min(l, 150), height: h })
       yGauche -= h + 6
     } catch {
-      // Format non reconnu par pdf-lib : on poursuit sans logo.
+      // Poursuivre sans logo
     }
   }
 
-  // Le titre vient sous le logo, à gauche : c'est le premier mot que l'œil
-  // rencontre en descendant, et il dit de quelle pièce il s'agit.
-  // Sous les DEUX colonnes, pas seulement sous le logo. En l'absence de logo,
-  // yGauche valait encore le haut de page et le titre se posait sur la
-  // dernière ligne du cabinet — le numéro de permis, précisément.
   const yTitre = Math.min(yGauche, yCabinet) - 22
-  ecrire(page, titre, { x: G, y: yTitre, size: 26, font: gras, color: ENCRE })
+  ecrire(page, titre, { x: G, y: yTitre, size: 24, font: gras, color: MARINE })
 
-  return yTitre - 34
+  return yTitre - 30
 }
 
 /**
  * Une colonne du bandeau : une étiquette grise, sa valeur dessous.
- *
- * `aDroite` aligne le bloc sur son bord droit, pour la colonne des montants.
  */
 export function bloc(
   page: PDFPage, x: number, y: number, etiquette: string, valeur: string,
@@ -201,16 +281,31 @@ export function bloc(
   }
 }
 
-/** Le pied de page, identique sur toutes les pièces. */
+/**
+ * Le pied de page officiel plein en MARINE de 30pt (norme visuelle des ententes).
+ */
+export function piedOfficiel(
+  page: PDFPage,
+  reference: string,
+  mentionGauche: string,
+  n: number,
+  total: number,
+  normal: PDFFont,
+  gras: PDFFont
+) {
+  const HAUTEUR_PIED = 30
+  page.drawRectangle({ x: 0, y: 0, width: LARGEUR, height: HAUTEUR_PIED, color: MARINE })
+  ecrire(page, mentionGauche, { x: G, y: 11, size: 7.5, font: normal, color: BLANC })
+  droite(page, `${reference}  ·  Page ${n} sur ${total}`, D, 11, gras, 7.5, BLANC)
+}
+
+/** Le pied de page simple centré. */
 export function pagination(page: PDFPage, normal: PDFFont, libelle: string) {
   centre(page, libelle, LARGEUR / 2, 40, normal, 8)
 }
 
 /**
  * La mention en filigrane d'une pièce non définitive.
- *
- * Sans elle, un brouillon circule et se fait prendre pour la pièce définitive —
- * une facture non émise se fait payer, une entente non émise se fait signer.
  */
 export function filigrane(page: PDFPage, texte: string, gras: PDFFont, taille = 54, x = 170) {
   ecrire(page, texte, {
