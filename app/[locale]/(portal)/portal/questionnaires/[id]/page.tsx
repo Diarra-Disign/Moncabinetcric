@@ -63,7 +63,6 @@ export default async function QuestionnaireDetailPage({
         firmId: String(row.firm_id),
         clientId: String(row.client_id ?? ""),
         matterId: row.matter_id ? String(row.matter_id) : undefined,
-        matterReference: (row.matters as { reference?: string } | null)?.reference,
         title: String(row.title ?? ""),
         sections: (row.sections ?? []) as ClientQuestionnaire["sections"],
         message: String(row.message ?? ""),
