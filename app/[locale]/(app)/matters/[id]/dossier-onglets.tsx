@@ -230,6 +230,79 @@ export function DossierOnglets({
   // tout ce qui touche à l'argent et au portail suppose un client.
   const sansClient = clientId === null
 
+  // Tous les documents réels du dossier pouvant être soumis pour validation au client :
+  // regroupe les pièces d'exigences, formulaires déposés, autres documents et ententes.
+  const tousDocumentsDossier = React.useMemo(() => {
+    const map = new Map<string, { id: string; nom: string; etiquette: string }>()
+
+    for (const e of d.exigences) {
+      const docKey = e.documentId || `req:${e.id}`
+      if (!map.has(docKey)) {
+        map.set(docKey, {
+          id: docKey,
+          nom: e.documentNom || e.label,
+          etiquette: e.kind === "form" ? "Formulaire requis" : "Pièce exigée",
+        })
+      }
+    }
+
+    for (const f of d.formulaires) {
+      const docKey = f.documentId || `form:${f.id}`
+      if (!map.has(docKey)) {
+        map.set(docKey, {
+          id: docKey,
+          nom: `${f.label} (version ${f.version})`,
+          etiquette: "Formulaire IRCC",
+        })
+      }
+    }
+
+    for (const f of d.formulairesDeposes) {
+      if (f.id && !map.has(f.id)) {
+        map.set(f.id, {
+          id: f.id,
+          nom: f.nom,
+          etiquette: f.type ? `Formulaire ${f.type}` : "Formulaire IRCC",
+        })
+      }
+    }
+
+    for (const a of d.autresDocuments) {
+      if (a.id && !map.has(a.id)) {
+        map.set(a.id, {
+          id: a.id,
+          nom: a.nom,
+          etiquette: a.description || "Document libre",
+        })
+      }
+    }
+
+    for (const ent of d.ententes) {
+      const docId = ent.documentSigneId || ent.id
+      if (docId && !map.has(docId)) {
+        map.set(docId, {
+          id: docId,
+          nom: ent.nom,
+          etiquette: "Entente de service",
+        })
+      }
+    }
+
+    for (const f of d.factures) {
+      if (f.id && !map.has(`invoice:${f.id}`)) {
+        map.set(`invoice:${f.id}`, {
+          id: `invoice:${f.id}`,
+          nom: `Facture ${f.numero} (${f.montant.toFixed(2)} $)`,
+          etiquette: `Facture · ${f.description || f.statut}`,
+        })
+      }
+    }
+
+    return Array.from(map.values())
+  }, [d.exigences, d.formulaires, d.formulairesDeposes, d.autresDocuments, d.ententes, d.factures])
+
+  const [docsCochesValidation, setDocsCochesValidation] = React.useState<string[]>([])
+
   // Les deux onglets se partagent la même liste. Le classement vient de la
   // base — colonne `kind` — et non d'un motif appliqué au code ici : une règle
   // recopiée dans l'écran ne se corrige pas sans déploiement, et elle est
@@ -1546,11 +1619,9 @@ export function DossierOnglets({
           <form
             onSubmit={confirmerPuisEnvoyer(demanderValidation, (fd) => {
               const choisis = fd.getAll("documentId").map(String).filter(Boolean)
-              // On renomme les identifiants en libellés : « 3 documents » ne
-              // permet pas de vérifier qu'on n'a pas coché le passeport à la
-              // place du contrat.
+              // On renomme les identifiants en libellés pour l'écran de confirmation
               const noms = choisis
-                .map((id) => d.exigences.find((e) => e.documentId === id)?.label ?? "Document")
+                .map((id) => tousDocumentsDossier.find((doc) => doc.id === id)?.nom ?? "Document")
               const nature = String(fd.get("nature") ?? "validation")
               return {
                 action: {
@@ -1570,43 +1641,201 @@ export function DossierOnglets({
           >
             <input type="hidden" name="clientId" value={clientId ?? ""} />
             <input type="hidden" name="matterId" value={matterId} />
-            <h3 className="text-sm font-black text-foreground">Demander la validation du client</h3>
-            <p className="mt-1 max-w-prose text-xs text-muted-foreground">
-              Le client pourra confirmer que les informations sont exactes, ou signaler une erreur en
-              expliquant laquelle. Sa confirmation ne vaut pas vérification par le cabinet.
-            </p>
-
-            <div className="mt-3 space-y-2">
-              {d.exigences.filter((e) => e.documentId).length === 0 ? (
-                <p className="text-xs italic text-muted-foreground">
-                  Aucun document au dossier à soumettre pour validation.
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-black text-foreground">Demander la validation du client</h3>
+                <p className="mt-0.5 max-w-prose text-xs text-muted-foreground">
+                  Le client pourra confirmer que les informations sont exactes, ou signaler une erreur en
+                  expliquant laquelle. Sa confirmation ne vaut pas vérification par le cabinet.
                 </p>
-              ) : (
-                d.exigences.filter((e) => e.documentId).map((e) => (
-                  <label key={e.id} className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-foreground has-[:checked]:border-primary has-[:checked]:bg-primary/10">
-                    <input type="checkbox" name="documentId" value={e.documentId!} className="accent-[var(--color-primary)]" />
-                    {e.label}
-                  </label>
-                ))
+              </div>
+              {tousDocumentsDossier.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (docsCochesValidation.length === tousDocumentsDossier.length) {
+                      setDocsCochesValidation([])
+                    } else {
+                      setDocsCochesValidation(tousDocumentsDossier.map((d) => d.id))
+                    }
+                  }}
+                  className="text-xs font-bold text-primary hover:underline cursor-pointer"
+                >
+                  {docsCochesValidation.length === tousDocumentsDossier.length ? "Tout désélectionner" : "Tout sélectionner"}
+                </button>
               )}
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <label className="text-[11px] font-bold text-muted-foreground">
-                Nature
-                <select name="nature" className={cn(CHAMP, "mt-1")}>
-                  <option value="validation">Validation seule</option>
-                  <option value="signature">Signature seule</option>
-                  <option value="validation_and_signature">Validation et signature</option>
-                </select>
-              </label>
-              <label className="text-[11px] font-bold text-muted-foreground sm:col-span-2">
-                Message au client
-                <input name="message" placeholder="Merci de confirmer que les informations sont exactes." className={cn(CHAMP, "mt-1")} />
-              </label>
+            <div className="mt-4 space-y-2">
+              {tousDocumentsDossier.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-muted/20 p-5 text-center space-y-2">
+                  <FileText className="h-6 w-6 text-muted-foreground mx-auto opacity-70" />
+                  <p className="text-xs font-bold text-foreground">Aucun document n&apos;est actuellement déposé au dossier.</p>
+                  <p className="text-[11px] text-muted-foreground max-w-md mx-auto">
+                    Pour soumettre un document à la validation du candidat (ex: formulaire rempli, facture, pièce justificative), déposez-le d&apos;abord dans l&apos;onglet correspondant.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setOnglet("documents")}
+                      className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-colors cursor-pointer"
+                    >
+                      📁 Déposer dans Documents
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOnglet("formulaires")}
+                      className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-colors cursor-pointer"
+                    >
+                      📝 Déposer dans Formulaires
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOnglet("facturation")}
+                      className="px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-colors cursor-pointer"
+                    >
+                      🧾 Créer une Facture
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2 max-h-60 overflow-y-auto pr-1">
+                  {tousDocumentsDossier.map((doc) => {
+                    const coche = docsCochesValidation.includes(doc.id)
+                    return (
+                      <label
+                        key={doc.id}
+                        className={cn(
+                          "flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-xs transition-colors",
+                          coche
+                            ? "border-primary bg-primary/5 text-foreground shadow-2xs"
+                            : "border-border bg-card/60 hover:bg-muted/40 text-foreground"
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          name="documentId"
+                          value={doc.id}
+                          checked={coche}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setDocsCochesValidation((prev) => [...prev, doc.id])
+                            } else {
+                              setDocsCochesValidation((prev) => prev.filter((id) => id !== doc.id))
+                            }
+                          }}
+                          className="accent-[var(--color-primary)] mt-0.5"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="font-bold truncate block">{doc.nom}</span>
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mt-0.5 block">
+                            {doc.etiquette}
+                          </span>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-            <BoutonPetit disabled={enCours} className="mt-3">Envoyer au client</BoutonPetit>
+
+            {tousDocumentsDossier.length > 0 && (
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <label className="text-[11px] font-bold text-muted-foreground">
+                  Nature
+                  <select name="nature" className={cn(CHAMP, "mt-1")}>
+                    <option value="validation">Validation seule</option>
+                    <option value="signature">Signature seule</option>
+                    <option value="validation_and_signature">Validation et signature</option>
+                  </select>
+                </label>
+                <label className="text-[11px] font-bold text-muted-foreground sm:col-span-2">
+                  Message au client
+                  <input name="message" placeholder="Merci de confirmer que les informations sont exactes." className={cn(CHAMP, "mt-1")} />
+                </label>
+              </div>
+            )}
+
+            <div className="mt-4 flex items-center justify-between pt-3 border-t border-border/60">
+              <span className="text-xs text-muted-foreground">
+                {docsCochesValidation.length === 0
+                  ? "Cochez au moins un document ci-dessus pour activer l'envoi."
+                  : `${docsCochesValidation.length} document(s) sélectionné(s).`}
+              </span>
+              <BoutonPetit
+                disabled={enCours || docsCochesValidation.length === 0}
+                className="disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Envoyer au client
+              </BoutonPetit>
+            </div>
           </form>
+          )}
+
+          {/* Historique des validations sollicitées pour ce dossier */}
+          {!sansClient && d.validations && d.validations.length > 0 && (
+            <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+              <h3 className="text-sm font-black text-foreground flex items-center gap-2">
+                <FileCheck2 className="h-4 w-4 text-primary" />
+                Historique des validations sollicitées ({d.validations.length})
+              </h3>
+              <div className="divide-y divide-border/60">
+                {d.validations.map((v) => {
+                  const estConfirme = v.statut === "confirmed"
+                  const estErreur = v.statut === "error_reported"
+                  const estEnAttente = v.statut === "pending"
+
+                  return (
+                    <div key={v.id} className="py-3 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-foreground">{v.documentNom}</span>
+                          <span
+                            className={cn(
+                              "rounded px-2 py-0.5 text-[10px] font-bold uppercase",
+                              estConfirme && "bg-success/15 text-success",
+                              estErreur && "bg-error/15 text-error",
+                              estEnAttente && "bg-warning/15 text-warning"
+                            )}
+                          >
+                            {estConfirme
+                              ? "✅ Confirmé par le client"
+                              : estErreur
+                              ? "⚠️ Erreur signalée"
+                              : "⏳ En attente de réponse"}
+                          </span>
+                        </div>
+                        {v.message && (
+                          <p className="text-[11px] text-muted-foreground italic">
+                            Message envoyé : &laquo; {v.message} &raquo;
+                          </p>
+                        )}
+                        {v.commentaireClient && (
+                          <div className="p-2 rounded-lg bg-error/10 text-error text-[11px] font-medium border border-error/20">
+                            <strong>Retour du client :</strong> {v.commentaireClient}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground">
+                          Demandé le {new Date(v.demandeeLe).toLocaleDateString("fr-CA")}
+                          {v.repondueLe && ` · Répondu le ${new Date(v.repondueLe).toLocaleDateString("fr-CA")}`}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/api/documents/${v.documentId}`}
+                          target="_blank"
+                          rel="noopener"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-muted font-bold text-[11px] text-foreground transition-colors cursor-pointer"
+                        >
+                          <Eye className="h-3 w-3" /> Voir pièce
+                        </a>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -2179,10 +2408,14 @@ function ModaleNouvelleFacture({
 }) {
   const locale = useLocale()
   const aujourdhui = new Date().toISOString().slice(0, 10)
-  const dans30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
 
   const [date, setDate] = React.useState(aujourdhui)
-  const [echeance, setEcheance] = React.useState(facture?.dueOn || dans30)
+  const [echeance, setEcheance] = React.useState(() => {
+    if (facture?.dueOn) return facture.dueOn
+    const d = new Date()
+    d.setDate(d.getDate() + 30)
+    return d.toISOString().slice(0, 10)
+  })
   const [notes, setNotes] = React.useState(facture?.description ?? "")
   const [lignes, setLignes] = React.useState([
     { description: "", quantite: 1, prixUnitaire: 0, taxable: true },

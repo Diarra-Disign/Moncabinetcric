@@ -29,27 +29,56 @@ export async function GET(
 
   const { data: doc } = await sb
     .from("documents")
-    .select("storage_path, name")
+    .select("id, storage_path, name, category, matter_id")
     .eq("id", id)
     .maybeSingle()
 
-  if (!doc?.storage_path) {
+  if (!doc) {
     return new NextResponse("Document introuvable.", { status: 404 })
   }
 
   const telecharger = new URL(requete.url).searchParams.get("telecharger") === "1"
 
-  const { data } = await sb.storage
-    .from("documents")
-    .createSignedUrl(
-      String(doc.storage_path),
-      3600,
-      telecharger ? { download: String(doc.name ?? "document.pdf") } : {}
-    )
+  // 1. Si le document correspond à une facture, on peut servir son PDF dynamique
+  const numMatch = (doc.name || "").match(/FAC-[\w-]+/i)
+  if (numMatch) {
+    const { data: inv } = await sb
+      .from("invoices")
+      .select("id, invoice_number")
+      .eq("invoice_number", numMatch[0])
+      .maybeSingle()
 
-  if (!data?.signedUrl) {
-    return new NextResponse("Fichier illisible.", { status: 404 })
+    if (inv) {
+      const { pdfDeFacture } = await import("@/lib/invoices/document")
+      const pdf = await pdfDeFacture(sb, inv.id, "fr")
+      if (pdf) {
+        return new NextResponse(Buffer.from(pdf.octets), {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": telecharger
+              ? `attachment; filename="${pdf.numero}.pdf"`
+              : `inline; filename="${pdf.numero}.pdf"`,
+            "Cache-Control": "private, no-store",
+          },
+        })
+      }
+    }
   }
 
-  return NextResponse.redirect(data.signedUrl)
+  // 2. Si le document est stocké dans Supabase Storage
+  if (doc.storage_path) {
+    const { data } = await sb.storage
+      .from("documents")
+      .createSignedUrl(
+        String(doc.storage_path),
+        3600,
+        telecharger ? { download: String(doc.name ?? "document.pdf") } : {}
+      )
+
+    if (data?.signedUrl) {
+      return NextResponse.redirect(data.signedUrl)
+    }
+  }
+
+  return new NextResponse("Fichier non disponible pour ce document.", { status: 404 })
 }

@@ -138,6 +138,18 @@ export interface PaiementVue {
   notes: string | null
 }
 
+export interface ValidationDossier {
+  id: string
+  documentId: string
+  documentNom: string
+  kind: string
+  statut: string
+  message: string | null
+  commentaireClient: string | null
+  demandeeLe: string
+  repondueLe: string | null
+}
+
 export interface DossierComplet {
   /**
    * Les identifiants RÉELS, résolus ici.
@@ -169,6 +181,7 @@ export interface DossierComplet {
   ententes: EntenteAuDossier[]
   factures: FactureVue[]
   paiements: PaiementVue[]
+  validations: ValidationDossier[]
 
   finances: {
     facture: number
@@ -258,9 +271,11 @@ export async function getDossierComplet(
       clientId
         ? sb.from("documents").select("id").eq("client_id", clientId).eq("category", "client_upload")
         : Promise.resolve({ data: [] }),
-      clientId
-        ? sb.from("document_reviews").select("id").eq("client_id", clientId).eq("status", "pending")
-        : Promise.resolve({ data: [] }),
+      sb
+        .from("document_reviews")
+        .select("id, document_id, kind, status, message, client_comment, requested_at, responded_at")
+        .or(`matter_id.eq.${matterId}${clientId ? `,client_id.eq.${clientId}` : ""}`)
+        .order("requested_at", { ascending: false }),
       clientId
         ? sb.rpc("client_trust_balance", { c_id: clientId })
         : Promise.resolve({ data: 0 }),
@@ -472,6 +487,17 @@ export async function getDossierComplet(
       })),
     factures,
     paiements,
+    validations: (revues.data ?? []).map((r: Record<string, unknown>) => ({
+      id: String(r.id),
+      documentId: String(r.document_id),
+      documentNom: (parId.get(String(r.document_id))?.name as string) ?? "Document",
+      kind: String(r.kind ?? "validation"),
+      statut: String(r.status ?? "pending"),
+      message: (r.message as string) ?? null,
+      commentaireClient: (r.client_comment as string) ?? null,
+      demandeeLe: String(r.requested_at),
+      repondueLe: (r.responded_at as string) ?? null,
+    })),
     finances: {
       facture: totalFacture,
       paye: totalPaye,
@@ -484,7 +510,7 @@ export async function getDossierComplet(
       compteCree: Boolean(cu.data?.user_id),
       derniereConnexion: null, // auth.users n'est pas lisible sous RLS.
       documentsDeposes: (docsClient.data ?? []).length,
-      validationsEnAttente: (revues.data ?? []).length,
+      validationsEnAttente: (revues.data ?? []).filter((r: Record<string, unknown>) => r.status === "pending").length,
     },
     progression: {
       total: exigences.length,

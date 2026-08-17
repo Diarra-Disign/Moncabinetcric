@@ -8,6 +8,7 @@ import { SignatureBloc } from "@/components/documents/signature-bloc"
 import { tableauSignatures } from "@/lib/data/signatures"
 import { cn } from "@/lib/utils"
 import type { ClientQuestionnaire } from "@/lib/data/types"
+import { ValidationsEnAttente, type DemandeValidationVue } from "@/components/portal/validations-en-attente"
 
 /**
  * Portail client.
@@ -130,6 +131,39 @@ export default async function PortalPage({
     }
   }
 
+  let demandesValidation: DemandeValidationVue[] = []
+  if (firmId) {
+    const supabase = await getSessionSupabase()
+    let query = supabase
+      .from("document_reviews")
+      .select("id, document_id, kind, message, requested_at, status, documents(name)")
+      .eq("status", "pending")
+      .order("requested_at", { ascending: false })
+
+    if (realClient) {
+      query = query.eq("client_id", realClient.clientId)
+    } else {
+      query = query.eq("firm_id", firmId).limit(10)
+    }
+
+    const { data: revData } = await query
+
+    if (revData && revData.length > 0) {
+      demandesValidation = revData.map((r) => {
+        const doc = r.documents as unknown as { name?: string } | null
+        return {
+          id: String(r.id),
+          documentId: String(r.document_id),
+          documentNom: String(doc?.name ?? "Document"),
+          kind: String(r.kind ?? "validation"),
+          message: (r.message as string) ?? null,
+          requestedAt: String(r.requested_at),
+          status: String(r.status),
+        }
+      })
+    }
+  }
+
   // Aucun repli fabriqué : quand il n'y a rien, les états vides le disent.
   // Un passeport et une attestation de test de langue inventés laissaient
   // croire à un client que ses pièces étaient déjà au dossier.
@@ -231,6 +265,11 @@ export default async function PortalPage({
           )}
         </CardContent>
       </Card>
+
+      {/* ============================================================
+          SECTION : VALIDATIONS DE DOCUMENTS EN ATTENTE
+          ============================================================ */}
+      <ValidationsEnAttente demandes={demandesValidation} />
 
       {/* ============================================================
           SECTION : MES QUESTIONNAIRES (FORMULAIRES DYNAMIQUES)

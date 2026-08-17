@@ -347,15 +347,159 @@ export async function demanderValidation(formData: FormData): Promise<Resultat> 
     const membre = await moi()
     const sb = await getSessionSupabase()
 
-    const documents = formData.getAll("documentId").map(String).filter(Boolean)
-    if (documents.length === 0) {
+    const rawDocuments = formData.getAll("documentId").map(String).filter(Boolean)
+    if (rawDocuments.length === 0) {
       return { ok: false, message: "Choisissez au moins un document." }
     }
 
-    const lignes = documents.map((documentId) => ({
+    const clientId = String(formData.get("clientId") ?? "")
+    const matterId = String(formData.get("matterId") ?? "") || null
+
+    const resolvedDocIds: string[] = []
+    for (const docId of rawDocuments) {
+      if (docId.startsWith("invoice:")) {
+        const invoiceId = docId.replace("invoice:", "")
+        const { data: inv } = await sb
+          .from("invoices")
+          .select("id, invoice_number, service_description, amount")
+          .eq("id", invoiceId)
+          .maybeSingle()
+
+        if (inv) {
+          const docName = `Facture_${inv.invoice_number}.pdf`
+          const { data: existingDoc } = await sb
+            .from("documents")
+            .select("id")
+            .eq("matter_id", matterId)
+            .eq("name", docName)
+            .maybeSingle()
+
+          if (existingDoc) {
+            resolvedDocIds.push(existingDoc.id)
+          } else {
+            const { pdfDeFacture } = await import("@/lib/invoices/document")
+            const { deposerOctets } = await import("./depot")
+            const pdfDoc = await pdfDeFacture(sb, inv.id, "fr")
+
+            const { data: newDoc, error: insertErr } = await sb
+              .from("documents")
+              .insert({
+                firm_id: membre.firmId,
+                client_id: clientId || null,
+                matter_id: matterId,
+                name: docName,
+                description: inv.service_description || `Facture ${inv.invoice_number}`,
+                type: "Facture",
+                category: "other",
+                source: "cabinet",
+                status: "valid",
+                mime_type: "application/pdf",
+                size_bytes: pdfDoc?.octets?.byteLength ?? 0,
+                uploaded_by: membre.fullName || membre.email,
+                uploaded_by_user_id: membre.userId,
+              })
+              .select("id")
+              .single()
+
+            if (!insertErr && newDoc) {
+              if (pdfDoc?.octets) {
+                await deposerOctets(sb, {
+                  firmId: membre.firmId,
+                  sousDossier: clientId || "matters",
+                  documentId: newDoc.id,
+                  nom: docName,
+                  octets: pdfDoc.octets,
+                  mime: "application/pdf",
+                })
+              }
+              resolvedDocIds.push(newDoc.id)
+            }
+          }
+        }
+      } else if (docId.startsWith("req:")) {
+        const reqId = docId.replace("req:", "")
+        const { data: req } = await sb
+          .from("matter_requirements")
+          .select("id, label_fr, document_id")
+          .eq("id", reqId)
+          .maybeSingle()
+
+        if (req) {
+          if (req.document_id) {
+            resolvedDocIds.push(req.document_id)
+          } else {
+            const { data: newDoc } = await sb
+              .from("documents")
+              .insert({
+                firm_id: membre.firmId,
+                client_id: clientId || null,
+                matter_id: matterId,
+                requirement_id: req.id,
+                name: req.label_fr || "Document requis",
+                type: "Document",
+                category: "requirement",
+                source: "cabinet",
+                status: "pending_review",
+                uploaded_by: membre.fullName || membre.email,
+                uploaded_by_user_id: membre.userId,
+              })
+              .select("id")
+              .single()
+
+            if (newDoc) {
+              await sb.from("matter_requirements").update({ document_id: newDoc.id }).eq("id", req.id)
+              resolvedDocIds.push(newDoc.id)
+            }
+          }
+        }
+      } else if (docId.startsWith("form:")) {
+        const formId = docId.replace("form:", "")
+        const { data: frm } = await sb
+          .from("matter_forms")
+          .select("id, form_code, document_id")
+          .eq("id", formId)
+          .maybeSingle()
+
+        if (frm) {
+          if (frm.document_id) {
+            resolvedDocIds.push(frm.document_id)
+          } else {
+            const { data: newDoc } = await sb
+              .from("documents")
+              .insert({
+                firm_id: membre.firmId,
+                client_id: clientId || null,
+                matter_id: matterId,
+                name: `Formulaire ${frm.form_code}`,
+                type: "Formulaire",
+                category: "ircc_form",
+                source: "cabinet",
+                status: "pending_review",
+                uploaded_by: membre.fullName || membre.email,
+                uploaded_by_user_id: membre.userId,
+              })
+              .select("id")
+              .single()
+
+            if (newDoc) {
+              await sb.from("matter_forms").update({ document_id: newDoc.id }).eq("id", frm.id)
+              resolvedDocIds.push(newDoc.id)
+            }
+          }
+        }
+      } else {
+        resolvedDocIds.push(docId)
+      }
+    }
+
+    if (resolvedDocIds.length === 0) {
+      return { ok: false, message: "Impossible de résoudre les documents sélectionnés." }
+    }
+
+    const lignes = resolvedDocIds.map((documentId) => ({
       firm_id: membre.firmId,
-      client_id: String(formData.get("clientId") ?? ""),
-      matter_id: String(formData.get("matterId") ?? "") || null,
+      client_id: clientId,
+      matter_id: matterId,
       document_id: documentId,
       kind: String(formData.get("nature") ?? "validation"),
       message: String(formData.get("message") ?? "") || null,
@@ -380,7 +524,7 @@ export async function demanderValidation(formData: FormData): Promise<Resultat> 
     revalidatePath("/[locale]/matters/[id]", "page")
     return {
       ok: true,
-      message: `${documents.length} document(s) envoyé(s) au client pour validation.`,
+      message: `${resolvedDocIds.length} document(s) envoyé(s) au client pour validation.`,
     }
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
