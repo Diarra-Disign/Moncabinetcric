@@ -100,45 +100,104 @@ export default async function PortalPage({
 
     // 3. Chargement des données uniquement si un client est sélectionné (ou vrai client connecté)
     if (clientVisualise) {
-      // Dossiers du client
+      // Résolution de tous les identifiants possibles du client (UUID + legacy_id)
+      let allClientIds = [clientVisualise.id]
+      try {
+        const { data: dbClient } = await supabase
+          .from("clients")
+          .select("id, legacy_id")
+          .or(`id.eq.${clientVisualise.id},legacy_id.eq.${clientVisualise.id}`)
+          .maybeSingle()
+        if (dbClient) {
+          if (dbClient.id) allClientIds.push(String(dbClient.id))
+          if (dbClient.legacy_id) allClientIds.push(String(dbClient.legacy_id))
+        }
+      } catch {
+        // En cas de format UUID invalide sur le .or()
+      }
+      allClientIds = Array.from(new Set(allClientIds.filter(Boolean)))
+
+      // 3.1 Dossiers du client
       const { data: mData } = await supabase
         .from("matters")
         .select("id, reference, program, status, opened_date, deadline")
-        .eq("client_id", clientVisualise.id)
+        .in("client_id", allClientIds)
         .order("opened_date", { ascending: false })
 
       if (mData && mData.length > 0) {
         dossiers = mData
       } else {
         const { getMattersByClientId } = await import("@/lib/data")
-        const mbList = await getMattersByClientId(clientVisualise.id)
-        if (mbList && mbList.length > 0) {
-          dossiers = mbList.map((m) => ({
-            id: m.id,
-            reference: m.id,
-            program: m.program,
-            status: m.status,
-            opened_date: m.openedDate,
-            deadline: m.deadline,
-          }))
+        for (const cid of allClientIds) {
+          const mbList = await getMattersByClientId(cid)
+          if (mbList && mbList.length > 0) {
+            dossiers = mbList.map((m) => ({
+              id: m.id,
+              reference: m.id,
+              program: m.program,
+              status: m.status,
+              opened_date: m.openedDate,
+              deadline: m.deadline,
+            }))
+            break
+          }
         }
       }
 
-      // Pièces du client
-      const { data: dData } = await supabase
-        .from("documents")
-        .select("id, name, category, date, status, storage_path, sha256")
-        .eq("client_id", clientVisualise.id)
-        .order("created_at", { ascending: false })
-      pieces = dData ?? []
+      const matterIds = dossiers.map((d) => String(d.id)).filter(Boolean)
 
-      // Questionnaires du client
-      const { data: qData } = await supabase
+      // 3.2 Pièces du client (liées au client OU à l'un de ses dossiers)
+      let docsQuery = supabase
+        .from("documents")
+        .select("id, name, category, date, status, storage_path, sha256, client_id, matter_id")
+        .order("created_at", { ascending: false })
+
+      if (matterIds.length > 0) {
+        docsQuery = docsQuery.or(
+          `client_id.in.(${allClientIds.join(",")}),matter_id.in.(${matterIds.join(",")})`
+        )
+      } else {
+        docsQuery = docsQuery.in("client_id", allClientIds)
+      }
+
+      const { data: dData } = await docsQuery
+      if (dData && dData.length > 0) {
+        pieces = dData
+      } else {
+        const { getDocuments } = await import("@/lib/data")
+        const allDocs = await getDocuments()
+        pieces = (allDocs ?? [])
+          .filter(
+            (doc) =>
+              allClientIds.includes(doc.clientId ?? "") ||
+              matterIds.includes(doc.matterId ?? "")
+          )
+          .map((doc) => ({
+            id: doc.id,
+            name: doc.name,
+            category: doc.category,
+            date: doc.date,
+            status: "valid",
+            storage_path: null,
+            sha256: null,
+          }))
+      }
+
+      // 3.3 Questionnaires du client (liés au client OU à l'un de ses dossiers)
+      let qQuery = supabase
         .from("client_questionnaires")
         .select("id, firm_id, client_id, matter_id, title, sections, message, status, progress, reminder_count, answers, prefill, corrections, history, created_at, updated_at")
         .eq("firm_id", firmId)
-        .eq("client_id", clientVisualise.id)
 
+      if (matterIds.length > 0) {
+        qQuery = qQuery.or(
+          `client_id.in.(${allClientIds.join(",")}),matter_id.in.(${matterIds.join(",")})`
+        )
+      } else {
+        qQuery = qQuery.in("client_id", allClientIds)
+      }
+
+      const { data: qData } = await qQuery
       if (qData && qData.length > 0) {
         questionnaires = qData.map((q) => ({
           id: String(q.id),
@@ -159,15 +218,51 @@ export default async function PortalPage({
           history: (q.history ?? []) as ClientQuestionnaire["history"],
           lienActif: false,
         }))
+      } else {
+        // Fallback questionnaire de découverte/modèle pour visualiser l'expérience
+        const { getTemplateBySlug } = await import("@/lib/data/questionnaire-templates")
+        const modele = getTemplateBySlug("study_permit")
+        if (modele) {
+          questionnaires = [
+            {
+              id: `q-demo-${clientVisualise.id}`,
+              firmId: firmId || "firm-1",
+              clientId: clientVisualise.id,
+              title: `${modele.titleFr} — Recueil initial`,
+              sections: modele.sections as ClientQuestionnaire["sections"],
+              message: "Merci de compléter ces informations pour votre dossier.",
+              status: "in_progress",
+              statusAffiche: "in_progress",
+              progress: 25,
+              reminderCount: 0,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              answers: {},
+              prefill: {},
+              corrections: [],
+              history: [],
+              lienActif: false,
+            },
+          ]
+        }
       }
 
-      // Validations du client
-      const { data: revData } = await supabase
+      // 3.4 Validations de documents du client
+      let revQuery = supabase
         .from("document_reviews")
         .select("id, document_id, kind, message, requested_at, status, documents(name)")
-        .eq("client_id", clientVisualise.id)
         .eq("status", "pending")
         .order("requested_at", { ascending: false })
+
+      if (matterIds.length > 0) {
+        revQuery = revQuery.or(
+          `client_id.in.(${allClientIds.join(",")}),matter_id.in.(${matterIds.join(",")})`
+        )
+      } else {
+        revQuery = revQuery.in("client_id", allClientIds)
+      }
+
+      const { data: revData } = await revQuery
 
       if (revData && revData.length > 0) {
         demandesValidation = revData.map((r) => {
