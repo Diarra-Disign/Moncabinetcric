@@ -45,6 +45,43 @@ export default async function QuestionnaireDetailPage({
       history: [],
       lienActif: false,
     }
+  } else if (portalClient) {
+    // Les clients du portail n'ont pas de session de membre de cabinet (pas de profil
+    // dans `profiles`). On interroge donc directement le client Supabase de session :
+    // les politiques RLS `client_questionnaires_portal` vérifient `is_portal_client()`
+    // et `client_id = current_client_id()`.
+    const supabase = await getSessionSupabase()
+    const { data: row, error } = await supabase
+      .from("client_questionnaires")
+      .select("*, matters(reference), clients(legacy_id, name, email), leads(legacy_id, name, email)")
+      .eq("id", id)
+      .maybeSingle()
+
+    if (row && !error) {
+      q = {
+        id: String(row.id),
+        firmId: String(row.firm_id),
+        clientId: String(row.client_id ?? ""),
+        matterId: row.matter_id ? String(row.matter_id) : undefined,
+        matterReference: (row.matters as { reference?: string } | null)?.reference,
+        title: String(row.title ?? ""),
+        sections: (row.sections ?? []) as ClientQuestionnaire["sections"],
+        message: String(row.message ?? ""),
+        status: String(row.status ?? "draft") as ClientQuestionnaire["status"],
+        statusAffiche: String(row.status ?? "draft") as ClientQuestionnaire["statusAffiche"],
+        progress: Number(row.progress ?? 0),
+        reminderCount: Number(row.reminder_count ?? 0),
+        createdAt: String(row.created_at ?? ""),
+        updatedAt: String(row.updated_at ?? ""),
+        lastSavedAt: row.last_saved_at ? String(row.last_saved_at) : undefined,
+        submittedAt: row.submitted_at ? String(row.submitted_at) : undefined,
+        answers: (row.answers ?? {}) as Record<string, unknown>,
+        prefill: (row.prefill ?? {}) as Record<string, unknown>,
+        corrections: (row.corrections ?? []) as ClientQuestionnaire["corrections"],
+        history: (row.history ?? []) as ClientQuestionnaire["history"],
+        lienActif: false,
+      }
+    }
   } else {
     q = await getClientQuestionnaireById(id)
   }
