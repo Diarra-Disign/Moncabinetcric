@@ -795,7 +795,9 @@ export async function ententePdf(e: EntentePdf, c: CabinetPdf): Promise<ContratC
   }
 
   for (const [index, article] of e.articles.entries()) {
-    const titre = `${index + 1}. ${article.title_fr}`.toUpperCase()
+    const titre = /^ARTICLE\s+\d+/i.test(article.title_fr)
+      ? article.title_fr.toUpperCase()
+      : `${index + 1}. ${article.title_fr}`.toUpperCase()
     const lignesTitre = envelopper(titre, gras, 10, largeur)
     const lignesCorps = envelopper(article.body_fr, normal, 9.5, largeur)
 

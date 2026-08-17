@@ -15,17 +15,6 @@ import { cn } from "@/lib/utils"
  * page du PDF est approuvée. Ce composant remplit des champs ; ce que le PDF
  * en fait n'a pas changé de style — il emprunte la typographie des articles et
  * les bandeaux du tableau des honoraires qui existaient déjà.
- *
- * DEUX CHOSES QUE CET ÉCRAN REFUSE DE FAIRE À LA PLACE DU CONSULTANT.
- *
- * Il n'ÉQUILIBRE PAS l'échéancier tout seul. Quand la somme ne tombe pas
- * juste, il le DIT et donne le reste à répartir — le §9 demande cela, et rien
- * de plus. Corriger la dernière étape en silence modifierait un chiffre que le
- * consultant a écrit, et il signerait sans s'en apercevoir.
- *
- * Il ne DEVINE PAS les étapes. « Répartir en parts égales » est un bouton
- * qu'on presse, pas un comportement : un mandat se paie en trois versements
- * inégaux bien plus souvent qu'en trois tiers.
  */
 
 const CHAMP =
@@ -61,11 +50,13 @@ export function EditeurContenu({
   onChange,
   honoraires,
   proBono,
+  isConsultation = false,
 }: {
   contenu: ContenuContrat
   onChange: (c: ContenuContrat) => void
   honoraires: number
   proBono: boolean
+  isConsultation?: boolean
 }) {
   const maj = (partiel: Partial<ContenuContrat>) => onChange({ ...contenu, ...partiel })
 
@@ -89,14 +80,10 @@ export function EditeurContenu({
 
   const majEtape = (i: number, champ: keyof EtapePaiement, valeur: string | number) => {
     const copie = [...etapes]
-    // `fideicommis` est un booléen : il arrive en 1 ou 0 pour passer par la
-    // même fonction que les autres champs, plutôt que d'en écrire une seconde.
     copie[i] = {
       ...copie[i],
       [champ]: champ === "fideicommis" ? valeur === 1 : valeur,
     }
-    // Le montant suit le pourcentage à la frappe : voir le résultat pendant
-    // qu'on tape est ce qui évite de découvrir un déséquilibre à la fin.
     maj({ echeancier: recalculer(copie, honoraires) })
   }
   const deplacerEtape = (i: number, sens: -1 | 1) => {
@@ -115,8 +102,6 @@ export function EditeurContenu({
           description: "",
           declenchement: "",
           base: "montant" as const,
-          // Le reste à répartir est proposé par défaut : c'est presque
-          // toujours ce que le consultant s'apprête à saisir.
           montant: Math.max(0, etat.reste),
           statut: "a_venir" as const,
         },
@@ -140,13 +125,19 @@ export function EditeurContenu({
 
   return (
     <div className="space-y-5">
-      {/* ── Description des services (§3) ─────────────────────────────── */}
+      {/* ── Description des services / Précisions ──────────────────────── */}
       <section className="space-y-2">
-        <h4 className={TITRE}>Description des services</h4>
+        <h4 className={TITRE}>
+          {isConsultation ? "Précisions ou résumé de la consultation" : "Description des services"}
+        </h4>
         <textarea
-          rows={4}
+          rows={isConsultation ? 3 : 4}
           className={CHAMP}
-          placeholder="Services professionnels relatifs à la préparation et à la présentation d'une demande de permis de travail, incluant l'analyse de l'admissibilité…"
+          placeholder={
+            isConsultation
+              ? "Précisions sur les sujets abordés lors de la consultation (ex: évaluation du profil Entrée express, examen de l'admissibilité au permis de travail…)"
+              : "Services professionnels relatifs à la préparation et à la présentation d'une demande de permis de travail, incluant l'analyse de l'admissibilité…"
+          }
           value={contenu.servicesDescription}
           onChange={(e) => maj({ servicesDescription: e.target.value })}
         />
@@ -155,77 +146,102 @@ export function EditeurContenu({
         </p>
       </section>
 
-      {/* ── Services décomposés (§4) ──────────────────────────────────── */}
-      <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h4 className={TITRE}>Services inclus</h4>
-          <button
-            type="button"
-            onClick={() =>
-              maj({
-                servicesItems: [
-                  ...contenu.servicesItems,
-                  { position: contenu.servicesItems.length + 1, libelle: "" },
-                ],
-              })
-            }
-            className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-bold text-foreground hover:bg-muted cursor-pointer"
-          >
-            <Plus className="h-3 w-3" /> Ajouter un service
-          </button>
-        </div>
-        {contenu.servicesItems.length === 0 ? (
-          <p className="text-[11px] text-muted-foreground">
-            Facultatif. Un mandat simple se décrit en une phrase ci-dessus.
-          </p>
-        ) : (
-          <ul className="space-y-1.5">
-            {contenu.servicesItems.map((item, i) => (
-              <li key={i} className="flex items-center gap-1.5">
-                <span className="w-5 shrink-0 text-[11px] font-bold text-muted-foreground">{i + 1}.</span>
-                <input
-                  type="text"
-                  className={CHAMP}
-                  placeholder="Analyse initiale du dossier"
-                  value={item.libelle}
-                  onChange={(e) => majService(i, e.target.value)}
-                />
-                <button type="button" aria-label="Monter" onClick={() => deplacerService(i, -1)}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground cursor-pointer">
-                  <ArrowUp className="h-3 w-3" />
-                </button>
-                <button type="button" aria-label="Descendre" onClick={() => deplacerService(i, 1)}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground cursor-pointer">
-                  <ArrowDown className="h-3 w-3" />
-                </button>
-                <button type="button" aria-label="Retirer"
-                  onClick={() => maj({
-                    servicesItems: contenu.servicesItems
-                      .filter((_, k) => k !== i).map((x, k) => ({ ...x, position: k + 1 })),
-                  })}
-                  className="p-1 rounded hover:bg-error/10 text-muted-foreground hover:text-error cursor-pointer">
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* ── Services décomposés (Mandats uniquement) ───────────────────── */}
+      {!isConsultation && (
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className={TITRE}>Services inclus</h4>
+            <button
+              type="button"
+              onClick={() =>
+                maj({
+                  servicesItems: [
+                    ...contenu.servicesItems,
+                    { position: contenu.servicesItems.length + 1, libelle: "" },
+                  ],
+                })
+              }
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-bold text-foreground hover:bg-muted cursor-pointer"
+            >
+              <Plus className="h-3 w-3" /> Ajouter un service
+            </button>
+          </div>
+          {contenu.servicesItems.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground">
+              Facultatif. À remplir lorsque le mandat comprend plusieurs prestations distinctes.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {contenu.servicesItems.map((s, i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <span className="w-5 shrink-0 text-xs font-black text-primary-strong">{i + 1}</span>
+                  <input
+                    type="text"
+                    className={CHAMP}
+                    placeholder="Vérification des pièces justificatives"
+                    value={s.libelle}
+                    onChange={(e) => majService(i, e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Monter"
+                    disabled={i === 0}
+                    onClick={() => deplacerService(i, -1)}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground disabled:opacity-30 cursor-pointer"
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Descendre"
+                    disabled={i === contenu.servicesItems.length - 1}
+                    onClick={() => deplacerService(i, 1)}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground disabled:opacity-30 cursor-pointer"
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Supprimer"
+                    onClick={() =>
+                      maj({
+                        servicesItems: contenu.servicesItems
+                          .filter((_, k) => k !== i)
+                          .map((x, k) => ({ ...x, position: k + 1 })),
+                      })
+                    }
+                    className="p-1 rounded hover:bg-error/10 text-muted-foreground hover:text-error-strong cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
-      {/* ── Échéancier (§6 à §10, §12) ────────────────────────────────── */}
-      {!proBono && (
+      {/* ── Échéancier (Mandats uniquement) ────────────────────────────── */}
+      {!isConsultation && !proBono && (
         <section className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className={TITRE}>Échéancier des paiements</h4>
             <div className="flex items-center gap-1.5">
               {[2, 3, 4].map((n) => (
-                <button key={n} type="button" onClick={() => repartir(n)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-bold text-foreground hover:bg-muted cursor-pointer">
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => repartir(n)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-bold text-foreground hover:bg-muted cursor-pointer"
+                >
                   <Split className="h-3 w-3" /> {n} parts
                 </button>
               ))}
-              <button type="button" onClick={ajouterEtape}
-                className="inline-flex items-center gap-1 rounded-lg bg-primary px-2 py-1 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 cursor-pointer">
+              <button
+                type="button"
+                onClick={ajouterEtape}
+                className="inline-flex items-center gap-1 rounded-lg bg-primary px-2 py-1 text-[11px] font-bold text-primary-foreground hover:bg-primary/90 cursor-pointer"
+              >
                 <Plus className="h-3 w-3" /> Ajouter une étape
               </button>
             </div>
@@ -242,22 +258,41 @@ export function EditeurContenu({
                   <li key={i} className="rounded-xl border border-border bg-muted/20 p-2.5 space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="w-5 shrink-0 text-xs font-black text-primary-strong">{i + 1}</span>
-                      <input type="text" className={CHAMP} placeholder="Paiement initial"
+                      <input
+                        type="text"
+                        className={CHAMP}
+                        placeholder="Paiement initial"
                         value={e.description}
-                        onChange={(ev) => majEtape(i, "description", ev.target.value)} />
-                      <button type="button" aria-label="Monter" onClick={() => deplacerEtape(i, -1)}
-                        className="p-1 rounded hover:bg-muted text-muted-foreground cursor-pointer">
+                        onChange={(ev) => majEtape(i, "description", ev.target.value)}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Monter"
+                        onClick={() => deplacerEtape(i, -1)}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground cursor-pointer"
+                      >
                         <ArrowUp className="h-3 w-3" />
                       </button>
-                      <button type="button" aria-label="Descendre" onClick={() => deplacerEtape(i, 1)}
-                        className="p-1 rounded hover:bg-muted text-muted-foreground cursor-pointer">
+                      <button
+                        type="button"
+                        aria-label="Descendre"
+                        onClick={() => deplacerEtape(i, 1)}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground cursor-pointer"
+                      >
                         <ArrowDown className="h-3 w-3" />
                       </button>
-                      <button type="button" aria-label="Retirer"
-                        onClick={() => maj({
-                          echeancier: etapes.filter((_, k) => k !== i).map((x, k) => ({ ...x, position: k + 1 })),
-                        })}
-                        className="p-1 rounded hover:bg-error/10 text-muted-foreground hover:text-error cursor-pointer">
+                      <button
+                        type="button"
+                        aria-label="Retirer"
+                        onClick={() =>
+                          maj({
+                            echeancier: etapes
+                              .filter((_, k) => k !== i)
+                              .map((x, k) => ({ ...x, position: k + 1 })),
+                          })
+                        }
+                        className="p-1 rounded hover:bg-error/10 text-muted-foreground hover:text-error-strong cursor-pointer"
+                      >
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
@@ -265,63 +300,83 @@ export function EditeurContenu({
                     <div className="grid gap-2 sm:grid-cols-4">
                       <div className="flex flex-col gap-1">
                         <label className={ETIQUETTE}>Déclenchement</label>
-                        <input type="text" className={CHAMP} placeholder="À la signature"
+                        <input
+                          type="text"
+                          className={CHAMP}
+                          placeholder="À la signature"
                           value={e.declenchement ?? ""}
-                          onChange={(ev) => majEtape(i, "declenchement", ev.target.value)} />
+                          onChange={(ev) => majEtape(i, "declenchement", ev.target.value)}
+                        />
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={ETIQUETTE}>Mode</label>
-                        <select className={CHAMP} value={e.mode ?? ""}
-                          onChange={(ev) => majEtape(i, "mode", ev.target.value)}>
+                        <select
+                          className={CHAMP}
+                          value={e.mode ?? ""}
+                          onChange={(ev) => majEtape(i, "mode", ev.target.value)}
+                        >
                           <option value="">Non précisé</option>
                           {MODES_PAIEMENT.map((mo) => (
-                            <option key={mo.valeur} value={mo.valeur}>{mo.fr}</option>
+                            <option key={mo.valeur} value={mo.valeur}>
+                              {mo.fr}
+                            </option>
                           ))}
                         </select>
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={ETIQUETTE}>Base</label>
-                        {/* §8 : le consultant choisit, POUR CHAQUE étape, s'il
-                            tient le montant ou le pourcentage. */}
-                        <select className={CHAMP} value={e.base}
-                          onChange={(ev) => majEtape(i, "base", ev.target.value)}>
+                        <select
+                          className={CHAMP}
+                          value={e.base}
+                          onChange={(ev) => majEtape(i, "base", ev.target.value)}
+                        >
                           <option value="montant">Montant fixe</option>
                           <option value="pourcentage">% des honoraires</option>
                         </select>
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className={ETIQUETTE}>
-                          {e.base === "pourcentage" ? "Pourcentage" : "Montant (CAD)"}
+                          {e.base === "pourcentage" ? "Pourcentage" : "Montant"}
                         </label>
                         {e.base === "pourcentage" ? (
                           <div className="flex items-center gap-1.5">
-                            <input type="number" min={0} max={100} step={0.01} className={CHAMP}
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              className={CHAMP}
                               value={String(e.pourcentage ?? "")}
-                              onChange={(ev) => majEtape(i, "pourcentage", Number(ev.target.value) || 0)} />
+                              onChange={(ev) =>
+                                majEtape(i, "pourcentage", Number(ev.target.value) || 0)
+                              }
+                            />
                             <span className="shrink-0 text-[11px] font-bold text-foreground">
                               = {argent(e.montant)}
                             </span>
                           </div>
                         ) : (
-                          <input type="number" min={0} step={0.01} className={CHAMP}
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            className={CHAMP}
                             value={String(e.montant ?? "")}
-                            onChange={(ev) => majEtape(i, "montant", Number(ev.target.value) || 0)} />
+                            onChange={(ev) =>
+                              majEtape(i, "montant", Number(ev.target.value) || 0)
+                            }
+                          />
                         )}
                       </div>
                     </div>
 
-                    {/* ── FIDÉICOMMIS (art. 13) ──────────────────────────
-                        Une somme reçue AVANT que le service ne soit rendu
-                        n'appartient pas encore au cabinet. Le décider ICI, à
-                        la rédaction, plutôt qu'au moment d'encaisser, c'est
-                        le décider quand on y réfléchit encore — et l'acompte
-                        à la signature est le cas le plus fréquent. */}
-                    <label className={cn(
-                      "flex items-start gap-2 rounded-lg border px-2.5 py-2 cursor-pointer transition-colors",
-                      e.fideicommis
-                        ? "border-primary/40 bg-primary/5"
-                        : "border-border hover:bg-muted/40"
-                    )}>
+                    <label
+                      className={cn(
+                        "flex items-start gap-2 rounded-lg border px-2.5 py-2 cursor-pointer transition-colors",
+                        e.fideicommis
+                          ? "border-primary/40 bg-primary/5"
+                          : "border-border hover:bg-muted/40"
+                      )}
+                    >
                       <input
                         type="checkbox"
                         className="mt-0.5 accent-[var(--color-primary)]"
@@ -335,7 +390,6 @@ export function EditeurContenu({
                         </span>
                         <span className="block text-[11px] text-muted-foreground">
                           À cocher lorsque la somme est reçue AVANT que le service ne soit rendu.
-                          La facture le mentionnera, et le reçu aussi.
                         </span>
                       </span>
                     </label>
@@ -343,7 +397,6 @@ export function EditeurContenu({
                 ))}
               </ul>
 
-              {/* §9 — l'état est DIT, jamais corrigé en silence. */}
               <div
                 role="status"
                 className={cn(
@@ -353,12 +406,13 @@ export function EditeurContenu({
                     : "border-warning/40 bg-warning/10 text-warning-strong"
                 )}
               >
-                {etat.equilibre
-                  ? <Check className="h-3.5 w-3.5 shrink-0" />
-                  : <AlertTriangle className="h-3.5 w-3.5 shrink-0" />}
+                {etat.equilibre ? (
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                )}
                 <span>
-                  {etat.message}
-                  {" "}
+                  {etat.message}{" "}
                   <span className="font-semibold">
                     Réparti : {argent(etat.reparti)} sur {argent(honoraires)}.
                   </span>
@@ -406,18 +460,34 @@ export function EditeurContenu({
       {/* ── Conditions et frais (§13, §14) ────────────────────────────── */}
       <section className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <label className={TITRE}>Conditions particulières de paiement</label>
-          <textarea rows={3} className={CHAMP}
-            placeholder="Le paiement prévu à chaque étape doit être effectué avant le début des travaux correspondants."
+          <label className={TITRE}>
+            {isConsultation ? "Modalités particulières de paiement" : "Conditions particulières de paiement"}
+          </label>
+          <textarea
+            rows={3}
+            className={CHAMP}
+            placeholder={
+              isConsultation
+                ? "Honoraires payables en totalité préalablement à la tenue de la consultation…"
+                : "Le paiement prévu à chaque étape doit être effectué avant le début des travaux correspondants."
+            }
             value={contenu.conditionsPaiement}
-            onChange={(e) => maj({ conditionsPaiement: e.target.value })} />
+            onChange={(e) => maj({ conditionsPaiement: e.target.value })}
+          />
         </div>
         <div className="space-y-1.5">
           <label className={TITRE}>Frais non inclus dans les honoraires</label>
-          <textarea rows={3} className={CHAMP}
-            placeholder="Frais gouvernementaux, biométrie, examens médicaux, traduction certifiée…"
+          <textarea
+            rows={3}
+            className={CHAMP}
+            placeholder={
+              isConsultation
+                ? "Frais de demandes officielles ultérieures, débours administratifs ou démarches de représentation…"
+                : "Frais gouvernementaux, biométrie, examens médicaux, traduction certifiée…"
+            }
             value={contenu.fraisNonInclus}
-            onChange={(e) => maj({ fraisNonInclus: e.target.value })} />
+            onChange={(e) => maj({ fraisNonInclus: e.target.value })}
+          />
         </div>
       </section>
     </div>

@@ -174,6 +174,11 @@ export interface DemandeEntente {
   conditionsPaiement?: string
   /** Les frais non inclus (§14). */
   fraisNonInclus?: string
+  /** Spécifique à la consultation */
+  consultationDurationMinutes?: number
+  consultationDateTime?: string
+  consultationMode?: string
+  consultationNotes?: string
 }
 
 /**
@@ -243,6 +248,12 @@ export async function creerEntente(demande: DemandeEntente): Promise<Resultat> {
       },
       locale: "fr",
       proBono: demande.proBono,
+      consultation: {
+        dureeMinutes: demande.consultationDurationMinutes,
+        dateHeure: demande.consultationDateTime,
+        mode: demande.consultationMode,
+        notes: demande.consultationNotes,
+      },
     }
 
     const controle = verifierAvantGeneration(contexte, retenus.map((a) => `${a.titleFr}\n${a.bodyFr}`))
@@ -392,15 +403,30 @@ export async function modifierBrouillon(
     )
     if (manques.length > 0) return { ok: false, message: manques.join(" ") }
 
+    const updates: Record<string, unknown> = {
+      fees_amount: demande.honoraires,
+      taxes_amount: demande.taxes,
+      total_amount: demande.honoraires + demande.taxes,
+      ...contenuPersonnalise(demande, demande.honoraires),
+      updated_at: new Date().toISOString(),
+    }
+
+    if (demande.articles && demande.articles.length > 0) {
+      updates.articles_snapshot = demande.articles
+        .filter((a) => a.enabled)
+        .sort((x, y) => x.position - y.position)
+        .map((a, i) => ({
+          position: i + 1,
+          code: a.code,
+          title_fr: a.titleFr,
+          body_fr: a.bodyFr,
+          level: a.level,
+        }))
+    }
+
     const { data, error } = await sb
       .from("agreements")
-      .update({
-        fees_amount: demande.honoraires,
-        taxes_amount: demande.taxes,
-        total_amount: demande.honoraires + demande.taxes,
-        ...contenuPersonnalise(demande, demande.honoraires),
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq("id", id)
       .eq("status", "draft")
       .select("id")
@@ -672,4 +698,118 @@ async function signataireDeLEntente(
   }
 
   return null
+}
+
+/**
+ * Enregistre un ensemble d'articles personnalisés comme NOUVEAU MODÈLE réutilisable pour le cabinet.
+ */
+export async function sauvegarderModelePersonnalise({
+  titre,
+  description,
+  kind,
+  articles,
+}: {
+  titre: string
+  description?: string
+  kind: string
+  articles: ArticleEntente[]
+}): Promise<Resultat> {
+  try {
+    const m = await moi()
+    const sb = await getSessionSupabase()
+
+    const code = `custom_${kind}_${Date.now().toString(36)}`
+
+    const { data: template, error: errTpl } = await sb
+      .from("agreement_templates")
+      .insert({
+        firm_id: m.firmId,
+        code,
+        kind,
+        title_fr: titre,
+        title_en: titre,
+        description_fr: description || "Modèle personnalisé du cabinet",
+        description_en: description || "Custom firm template",
+        version: "1.0",
+        is_default: false,
+        created_by: m.profileId,
+      })
+      .select("id")
+      .single()
+
+    if (errTpl) return { ok: false, message: errTpl.message }
+
+    const articlesAInserer = articles
+      .filter((a) => a.enabled)
+      .map((a, idx) => ({
+        firm_id: m.firmId,
+        template_id: template.id,
+        position: (idx + 1) * 10,
+        code: a.code,
+        title_fr: a.titleFr,
+        title_en: a.titleFr,
+        body_fr: a.bodyFr,
+        body_en: a.bodyFr,
+        level: "free",
+        enabled: true,
+        optional: false,
+      }))
+
+    if (articlesAInserer.length > 0) {
+      const { error: errArt } = await sb
+        .from("agreement_template_articles")
+        .insert(articlesAInserer)
+
+      if (errArt) return { ok: false, message: errArt.message }
+    }
+
+    revalidatePath("/fr/agreements")
+    return { ok: true, message: `Modèle « ${titre} » enregistré avec succès.`, id: template.id }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
+}
+
+/**
+ * Supprime un modèle personnalisé du cabinet.
+ * Ne permet JAMAIS la suppression d'un modèle système officiel (firm_id IS NULL).
+ */
+export async function supprimerModelePersonnalise(templateId: string): Promise<Resultat> {
+  try {
+    const m = await moi()
+    const sb = await getSessionSupabase()
+
+    const { data: template, error: errCheck } = await sb
+      .from("agreement_templates")
+      .select("id, firm_id, title_fr")
+      .eq("id", templateId)
+      .maybeSingle()
+
+    if (errCheck || !template) {
+      return { ok: false, message: "Modèle introuvable." }
+    }
+
+    if (!template.firm_id || template.firm_id !== m.firmId) {
+      return {
+        ok: false,
+        message: "Les modèles officiels du système ne peuvent pas être supprimés.",
+      }
+    }
+
+    const { error: errDel } = await sb
+      .from("agreement_templates")
+      .delete()
+      .eq("id", templateId)
+      .eq("firm_id", m.firmId)
+
+    if (errDel) return { ok: false, message: errDel.message }
+
+    revalidatePath("/fr/agreements")
+    return {
+      ok: true,
+      message: `Le modèle « ${template.title_fr} » a été supprimé avec succès.`,
+    }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+  }
 }

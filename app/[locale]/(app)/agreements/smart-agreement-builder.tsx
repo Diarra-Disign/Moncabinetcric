@@ -46,6 +46,7 @@ export function SmartAgreementBuilder({
   const [objetConsultation, setObjetConsultation] = useState("")
   const [honorairesConsultationCents, setHonorairesConsultationCents] = useState(0)
   const [consultationProBono, setConsultationProBono] = useState(false)
+  const [dureeConsultationMinutes, setDureeConsultationMinutes] = useState(60)
 
   // Mentions que l'article 24 exige et qu'aucun autre champ ne recueillait.
   const [conseilsPreliminaires, setConseilsPreliminaires] = useState("")
@@ -787,6 +788,25 @@ export function SmartAgreementBuilder({
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 pt-3">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-semibold text-slate-600">Durée :</span>
+                      <div className="flex gap-1">
+                        {[30, 45, 60, 90, 120].map((d) => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setDureeConsultationMinutes(d)}
+                            className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-colors ${
+                              dureeConsultationMinutes === d
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            }`}
+                          >
+                            {d} min
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <label className="flex items-center gap-2 text-xs">
                       <span className="font-semibold text-slate-600">
                         Honoraires de la consultation ($)

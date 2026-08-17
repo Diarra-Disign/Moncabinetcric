@@ -76,6 +76,13 @@ export interface ContexteEntente {
   locale: string
   /** Pro bono : l'absence d'honoraires est le propos du contrat, pas un oubli. */
   proBono?: boolean
+  /** Paramètres spécifiques à la consultation initiale */
+  consultation?: {
+    dureeMinutes?: number
+    dateHeure?: string
+    mode?: string
+    notes?: string
+  }
 }
 
 /**
@@ -158,7 +165,11 @@ export function variablesDe(ctx: ContexteEntente): Record<string, string> {
     province_client: (c.province ?? "").trim(),
     code_postal_client: (c.postalCode ?? "").trim(),
     pays_client: (c.country ?? "").trim(),
-    date_naissance_client: c.birthDate ? dateLongue(c.birthDate, l) : "",
+    date_naissance_client: c.birthDate ? dateLongue(c.birthDate, l) : (c.country ? "—" : "S/O"),
+    nationalite_client: (c.country ?? "").trim() || "S/O",
+    statut_canada_client: "S/O",
+    passeport_client: "S/O",
+    langue_preferee_client: l === "en" ? "Anglais / English" : "Français",
 
     // Le cabinet — jamais retapé, toujours issu des Paramètres (§9)
     nom_cabinet: f.nom.trim(),
@@ -197,8 +208,23 @@ export function variablesDe(ctx: ContexteEntente): Record<string, string> {
 
     // L'entente
     numero_contrat: ctx.entente.numero,
+    numero_entente: ctx.entente.numero,
     date_contrat: dateLongue(ctx.entente.date, l),
+    date_entente: dateLongue(ctx.entente.date, l),
     titre_contrat: ctx.entente.titre,
+
+    // Consultation initiale
+    duree_consultation: `${ctx.consultation?.dureeMinutes ?? 60} minutes`,
+    date_consultation: ctx.consultation?.dateHeure ? dateLongue(ctx.consultation.dateHeure, l) : "",
+    heure_consultation: ctx.consultation?.dateHeure
+      ? new Date(ctx.consultation.dateHeure).toLocaleTimeString(l === "en" ? "en-CA" : "fr-CA", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "",
+    mode_consultation: ctx.consultation?.mode ?? (l === "en" ? "videoconference" : "visioconférence"),
+    resume_consultation: ctx.consultation?.notes ?? "",
+    notes_consultation: ctx.consultation?.notes ?? "",
   }
 }
 
