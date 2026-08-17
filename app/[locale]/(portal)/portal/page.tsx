@@ -7,7 +7,6 @@ import { ActionsFichier } from "@/components/documents/file-actions"
 import { SignatureBloc } from "@/components/documents/signature-bloc"
 import { tableauSignatures } from "@/lib/data/signatures"
 import { cn } from "@/lib/utils"
-import { getClientQuestionnairesByClientId } from "@/lib/data/queries"
 import type { ClientQuestionnaire } from "@/lib/data/types"
 
 /**
@@ -97,7 +96,38 @@ export default async function PortalPage({
       }
     ]
   } else if (firmId && realClient) {
-    questionnaires = await getClientQuestionnairesByClientId(realClient.clientId)
+    // Les questionnaires ne passent PAS par `getClientQuestionnairesByClientId` :
+    // cette fonction exige `currentFirmId()`, qui exige un profil de membre.
+    // Un client du portail n'est pas un membre — c'est un compte rattaché via
+    // `client_users`. On interroge donc directement avec le client de session
+    // dont les politiques portail assurent le cloisonnement.
+    const supabase = await getSessionSupabase()
+    const { data: qData } = await supabase
+      .from("client_questionnaires")
+      .select("id, firm_id, client_id, matter_id, title, sections, message, status, progress, reminder_count, answers, prefill, corrections, history, created_at, updated_at")
+      .eq("firm_id", realClient.firmId)
+      .eq("client_id", realClient.clientId)
+    if (qData && qData.length > 0) {
+      questionnaires = qData.map((q) => ({
+        id: String(q.id),
+        firmId: String(q.firm_id),
+        clientId: String(q.client_id),
+        title: String(q.title ?? ""),
+        sections: (q.sections ?? []) as ClientQuestionnaire["sections"],
+        message: String(q.message ?? ""),
+        status: String(q.status ?? "draft") as ClientQuestionnaire["status"],
+        statusAffiche: String(q.status ?? "draft") as ClientQuestionnaire["statusAffiche"],
+        progress: Number(q.progress ?? 0),
+        reminderCount: Number(q.reminder_count ?? 0),
+        createdAt: String(q.created_at ?? ""),
+        updatedAt: String(q.updated_at ?? ""),
+        answers: (q.answers ?? {}) as Record<string, unknown>,
+        prefill: (q.prefill ?? {}) as Record<string, unknown>,
+        corrections: (q.corrections ?? []) as ClientQuestionnaire["corrections"],
+        history: (q.history ?? []) as ClientQuestionnaire["history"],
+        lienActif: false,
+      }))
+    }
   }
 
   // Aucun repli fabriqué : quand il n'y a rien, les états vides le disent.

@@ -410,13 +410,16 @@ export async function rattacherClient(formData: FormData): Promise<Resultat> {
 
     // La RLS borne déjà les deux au cabinet de la session : un identifiant
     // emprunté ne trouve simplement aucune ligne.
+    // Le mapper toClient() renvoie le legacy_id quand il existe — on choisit
+    // la bonne colonne selon le format reçu.
+    const estUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)
     const { data: client } = await sb
-      .from("clients").select("id, name").eq("id", clientId).maybeSingle()
+      .from("clients").select("id, name").eq(estUUID ? "id" : "legacy_id", clientId).maybeSingle()
     if (!client) return { ok: false, message: "Client introuvable dans ce cabinet." }
 
     const { error } = await sb
       .from("matters")
-      .update({ client_id: clientId, client_name: client.name })
+      .update({ client_id: client.id, client_name: client.name })
       .eq("id", matterId)
 
     if (error) return { ok: false, message: lisible(error) }

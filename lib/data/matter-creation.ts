@@ -81,11 +81,24 @@ export async function creerDossierPourClient(formData: FormData): Promise<Result
     // Le client est relu en base : reprendre les valeurs transmises par le
     // formulaire reviendrait à laisser le navigateur décider de l'identité du
     // titulaire du mandat.
-    const { data: client } = await sb
+    //
+    // Le mapper `toClient()` renvoie `legacy_id` à la place de `id` quand il
+    // existe (compatibilité ascendante). Côté base, `id` est un UUID et
+    // `legacy_id` ressemble à `c-1786…`. On choisit donc la bonne colonne
+    // selon le format reçu.
+    const estUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)
+    const colonne = estUUID ? "id" : "legacy_id"
+
+    const { data: client, error: clientErr } = await sb
       .from("clients")
       .select("id, name, client_type, program")
-      .eq("id", clientId)
+      .eq(colonne, clientId)
+      .eq("firm_id", membre.firmId)
       .maybeSingle()
+    if (clientErr) {
+      console.error("[creerDossierPourClient] Erreur lecture client :", clientErr.message, { clientId, colonne, firmId: membre.firmId })
+      return { ok: false, message: "Impossible de lire la fiche client. Réessayez." }
+    }
     if (!client) return { ok: false, message: "Ce client est introuvable." }
 
     const programme = programmeSaisi || PROGRAMME_PAR_SERVICE[service] || String(client.program ?? "") || service
