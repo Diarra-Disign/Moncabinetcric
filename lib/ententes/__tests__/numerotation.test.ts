@@ -6,7 +6,7 @@ import {
   renumeroterCorps,
   renumeroterArticles,
   type ArticleNum,
-} from "../numerotation.ts"
+} from "../numerotation"
 
 describe("Numérotation séquentielle dynamique des articles", () => {
   test("extrait le numéro d'article du titre", () => {
