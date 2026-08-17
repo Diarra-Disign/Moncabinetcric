@@ -44,14 +44,21 @@ export default async function PortalLayout({
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
       {isPreview && (
-        <div className="bg-indigo-950 text-white text-xs py-2 px-4 sm:px-8 flex items-center justify-between border-b border-indigo-800 shadow-sm z-40">
-          <div className="flex items-center gap-2">
-            <span className="bg-indigo-700 text-white px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider">Mode Aperçu</span>
-            <span className="font-medium text-slate-200">Vous visualisez l&apos;interface du Portail Client telle qu&apos;elle apparaît pour vos candidats à l&apos;immigration.</span>
+        <div className="bg-amber-950 text-amber-100 text-xs py-3 px-4 sm:px-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-amber-800 shadow-md sticky top-0 z-50">
+          <div className="flex items-center gap-3">
+            <span className="bg-amber-600 text-white px-2.5 py-1 rounded-md text-[11px] font-black uppercase tracking-wider shrink-0 shadow-xs">
+              👁 MODE APERÇU — Lecture seule
+            </span>
+            <span className="font-medium text-amber-200 text-xs">
+              Vous visualisez le portail en tant que consultant. <strong>Les actions réservées au client sont désactivées.</strong>
+            </span>
           </div>
           {membre && (
-            <Link href="/dashboard" className="bg-white text-indigo-950 hover:bg-slate-100 font-bold px-3 py-1 rounded-xl text-[11px] transition-colors shadow-xs">
-              ← Retour au Tableau de bord
+            <Link
+              href="/clients"
+              className="bg-white text-amber-950 hover:bg-amber-50 font-bold px-3.5 py-1.5 rounded-xl text-xs transition-colors shadow-xs shrink-0 self-start sm:self-auto"
+            >
+              ← Quitter l&apos;aperçu
             </Link>
           )}
         </div>

@@ -10,6 +10,22 @@ export interface ResultatAction {
 
 export async function repondreValidation(formData: FormData): Promise<ResultatAction> {
   try {
+    const { getCurrentPortalClient, getCurrentMember } = await import("@/lib/supabase/session")
+    const realClient = await getCurrentPortalClient()
+    const membre = await getCurrentMember()
+
+    // 1. Verrou serveur strict : le consultant en mode aperçu n'a pas le droit d'agir à la place du client
+    if (membre && !realClient) {
+      return {
+        ok: false,
+        message: "Action refusée : Vous êtes en mode aperçu (lecture seule). Les actions sont réservées au client.",
+      }
+    }
+
+    if (!realClient) {
+      return { ok: false, message: "Session client invalide ou expirée." }
+    }
+
     const sb = await getSessionSupabase()
     const reviewId = String(formData.get("reviewId") ?? "").trim()
     const decision = String(formData.get("decision") ?? "").trim() // "confirmed" ou "error_reported"

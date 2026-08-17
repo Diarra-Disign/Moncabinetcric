@@ -4,6 +4,7 @@ import * as React from "react"
 import { CheckCircle2, AlertTriangle, FileText, Download, MessageSquare, Loader2, Send } from "lucide-react"
 import { repondreValidation, type ResultatAction } from "@/lib/data/portal-review-actions"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 
 export interface DemandeValidationVue {
   id: string
@@ -18,8 +19,10 @@ export interface DemandeValidationVue {
 
 export function ValidationsEnAttente({
   demandes = [],
+  isReadOnlyPreview = false,
 }: {
   demandes: DemandeValidationVue[]
+  isReadOnlyPreview?: boolean
 }) {
   const [resultat, setResultat] = React.useState<ResultatAction | null>(null)
   const [enCours, demarrer] = React.useTransition()
@@ -114,28 +117,45 @@ export function ValidationsEnAttente({
                     <>
                       <button
                         type="button"
-                        disabled={enCours}
+                        disabled={enCours || isReadOnlyPreview}
                         onClick={() => soumettre(d.id, "confirmed")}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                        title={isReadOnlyPreview ? "Confirmation réservée au client" : undefined}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 font-bold text-xs shadow-xs transition-colors",
+                          isReadOnlyPreview
+                            ? "opacity-50 cursor-not-allowed text-white/80"
+                            : "hover:bg-emerald-700 text-white cursor-pointer disabled:opacity-50"
+                        )}
                       >
                         {enCours ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <CheckCircle2 className="h-3.5 w-3.5" />
                         )}
-                        Confirmer l&apos;exactitude
+                        {isReadOnlyPreview
+                          ? "Confirmer — réservé au client"
+                          : "Confirmer l'exactitude"}
                       </button>
 
                       <button
                         type="button"
-                        disabled={enCours}
+                        disabled={enCours || isReadOnlyPreview}
                         onClick={() => {
                           setErreurDocId(d.id)
                           setCommentaire("")
                         }}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-warning/30 bg-warning/5 hover:bg-warning/15 font-bold text-xs text-amber-700 dark:text-amber-300 transition-colors cursor-pointer disabled:opacity-50"
+                        title={isReadOnlyPreview ? "Signalement réservé au client" : undefined}
+                        className={cn(
+                          "inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-warning/30 bg-warning/5 font-bold text-xs text-amber-700 dark:text-amber-300 transition-colors",
+                          isReadOnlyPreview
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:bg-warning/15 cursor-pointer disabled:opacity-50"
+                        )}
                       >
-                        <AlertTriangle className="h-3.5 w-3.5" /> Signaler une erreur
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        {isReadOnlyPreview
+                          ? "Signaler — réservé au client"
+                          : "Signaler une erreur"}
                       </button>
                     </>
                   )}

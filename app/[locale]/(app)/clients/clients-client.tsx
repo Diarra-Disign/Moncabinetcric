@@ -630,6 +630,16 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                         <KeyRound className="w-4 h-4 text-primary-strong" />
                       </button>
 
+                      <a
+                        href={`/fr/portal?previewClientId=${client.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Voir le portail client en mode aperçu (lecture seule)"
+                        className="p-1.5 text-muted-foreground hover:text-primary-strong hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <ExternalLink className="w-4 h-4 text-primary-strong" />
+                      </a>
+
                       <button
                         type="button"
                         onClick={(e) => handleDeleteClient(client.id, e)}
@@ -794,13 +804,13 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <a
-                  href={`${typeof window !== "undefined" ? window.location.origin : "https://moncabinetcric.vercel.app"}/fr/portal`}
+                  href={`/fr/portal?previewClientId=${selectedPortalClient.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 px-4 py-2.5 rounded-xl border border-primary/40 bg-primary/15 hover:bg-primary/10 text-primary-strong font-bold text-center text-xs transition-colors flex items-center justify-center gap-2"
                 >
                   <ExternalLink className="w-4 h-4 text-primary-strong" />
-                  <span>Tester le Portail (Aperçu)</span>
+                  <span>👁 Voir le Portail (Mode Aperçu)</span>
                 </a>
 
                 {/* Un lien mailto sans mot de passe expédierait au client un

@@ -26,6 +26,7 @@ interface ActionsFichierProps {
   labels: EtiquettesFichier
   /** Le client du portail ne vérifie pas : c'est un contrôle du cabinet. */
   peutVerifier?: boolean
+  isReadOnlyPreview?: boolean
   onChange?: () => void
 }
 
@@ -43,6 +44,7 @@ export function ActionsFichier({
   sha256,
   labels,
   peutVerifier = true,
+  isReadOnlyPreview = false,
   onChange,
 }: ActionsFichierProps) {
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -88,25 +90,40 @@ export function ActionsFichier({
           <>
             <button
               type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={enCours !== null}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+              onClick={() => {
+                if (!isReadOnlyPreview) inputRef.current?.click()
+              }}
+              disabled={enCours !== null || isReadOnlyPreview}
+              title={isReadOnlyPreview ? "Téléversement réservé au client" : undefined}
+              className={cn(
+                "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground transition-colors",
+                isReadOnlyPreview
+                  ? "opacity-50 cursor-not-allowed bg-muted/40"
+                  : "hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+              )}
             >
               {enCours === "depot" ? (
                 <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <UploadCloud aria-hidden className="h-3.5 w-3.5" />
               )}
-              {enCours === "depot" ? labels.uploadRunning : labels.upload}
+              {isReadOnlyPreview
+                ? "Téléversement — réservé au client"
+                : enCours === "depot"
+                ? labels.uploadRunning
+                : labels.upload}
             </button>
             <input
               ref={inputRef}
               type="file"
+              disabled={isReadOnlyPreview}
               className="hidden"
               accept=".pdf,.jpg,.jpeg,.png,.heic"
               onChange={deposer}
             />
-            <span className="text-[11px] text-muted-foreground">{labels.uploadHint}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {isReadOnlyPreview ? "Mode aperçu (lecture seule) actif" : labels.uploadHint}
+            </span>
           </>
         ) : (
           <>

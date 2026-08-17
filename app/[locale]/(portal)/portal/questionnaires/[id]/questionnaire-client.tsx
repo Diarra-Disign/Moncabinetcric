@@ -401,11 +401,22 @@ export function QuestionnaireClient({
             ) : (
               <button
                 type="button"
-                disabled={status === "cancelled" || status === "completed"}
+                disabled={status === "cancelled" || status === "completed" || isApercu}
                 onClick={handleFinalSubmit}
-                className="px-4 py-2 rounded-xl bg-success hover:bg-success/90 text-white font-bold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                title={isApercu ? "Soumission réservée au client" : undefined}
+                className={cn(
+                  "px-4 py-2 rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5",
+                  isApercu
+                    ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+                    : "bg-success hover:bg-success/90 text-white cursor-pointer"
+                )}
               >
-                <Send className="h-4 w-4" /> {locale === "en" ? "Submit Questionnaire" : "Soumettre le questionnaire"}
+                <Send className="h-4 w-4" />
+                {isApercu
+                  ? "Soumission — réservé au client"
+                  : locale === "en"
+                  ? "Submit Questionnaire"
+                  : "Soumettre le questionnaire"}
               </button>
             )}
           </div>
