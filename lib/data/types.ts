@@ -213,26 +213,60 @@ export interface AuditLogEntry {
   actionEn: string
 }
 
+export type CalendarEventStatus =
+  | "ready"
+  | "pending_doc"
+  | "completed"
+  | "confirmed"
+  | "pending"
+  | "cancelled"
+  | "no_show"
+
+export type CalendarEventType =
+  | "visio"
+  | "deadline"
+  | "signing"
+  | "consultation"
+  | "followup"
+  | "hearing"
+  | "phone"
+  | "in_person"
+  | "other"
+
+export type CalendarPlatform =
+  | "zoom"
+  | "google_meet"
+  | "calendly"
+  | "teams"
+  | "in_person"
+  | "phone"
+  | "whatsapp"
+  | "other"
+
 export interface CalendarEvent {
-  /** Durée en minutes, pour calculer l'heure de fin. */
-  durationMinutes?: number
   id: string
   title: string
   clientName: string
-  clientInitials: string
-  avatarBg: string
-  matterId: string
-  program: string
-  type: "visio" | "deadline" | "signing"
-  platform?: "zoom" | "google_meet" | "calendly"
+  clientInitials?: string
+  avatarBg?: string
+  matterId?: string
+  clientId?: string
+  leadId?: string
+  program?: string
+  type: CalendarEventType | string
+  platform?: CalendarPlatform | string
   link?: string
   date: string // YYYY-MM-DD
-  dayName: string // "31 juil. 2026"
-  time: string // "10 h 00 – 11 h 00 (HE)"
-  hour: number // 8 to 17
-  status: "ready" | "pending_doc" | "completed"
+  dayName?: string // "31 juil. 2026"
+  time?: string // "10 h 00 – 11 h 00 (HE)"
+  hour?: number // 8 to 23
+  durationMinutes?: number
+  status: CalendarEventStatus | string
   trustBalance?: string
   notes?: string
+  consultantName?: string
+  consultantId?: string
+  createdAt?: string
 }
 
 export interface GovernmentFee {

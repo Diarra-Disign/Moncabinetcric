@@ -589,8 +589,7 @@ export async function createEvent(
   const firmId = await currentFirmId()
   const supabase = await db()
 
-  // Le dossier est référencé par son numéro lisible côté interface ; la
-  // table attend une clé étrangère.
+  // Résolution du dossier si fourni
   let matterUuid: string | null = null
   if (data.matterId) {
     const bare = decodeURIComponent(data.matterId).replace("#", "")
@@ -603,44 +602,38 @@ export async function createEvent(
     if (m) matterUuid = m.id as string
   }
 
-  // start_time et end_time sont obligatoires et de type texte. Ils se
-  // déduisent de l'heure de début et de la durée : les omettre faisait
-  // échouer l'insertion entière.
-  const debut = String(data.hour ?? 9).padStart(2, "0") + ":00"
-  const dureeMin = data.durationMinutes ?? 60
-  const finMinutes = (data.hour ?? 9) * 60 + dureeMin
-  const fin =
-    String(Math.min(23, Math.floor(finMinutes / 60))).padStart(2, "0") +
-    ":" +
-    String(finMinutes % 60).padStart(2, "0")
+  // Vérification de la validité UUID du client pour éviter les erreurs de clé étrangère
+  const isUuid = (v?: string | null): boolean =>
+    Boolean(v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v))
 
-  // L'interface et le schéma ont des vocabulaires distincts : elle parle
-  // de « visio » et de « ready », la base n'accepte que consultation /
-  // deadline / hearing / followup et confirmed / pending / cancelled.
-  // La traduction se fait ici, à la frontière, plutôt que d'imposer le
-  // vocabulaire de la base à l'affichage.
-  const TYPES = ["consultation", "deadline", "hearing", "followup"]
-  const STATUTS = ["confirmed", "pending", "cancelled"]
-  const type = TYPES.includes(String(data.type)) ? String(data.type) : "consultation"
-  const status = STATUTS.includes(String(data.status)) ? String(data.status) : "confirmed"
+  let clientUuid: string | null = null
+  if (isUuid(data.clientId)) {
+    const { data: c } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("firm_id", firmId)
+      .eq("id", data.clientId!)
+      .maybeSingle()
+    if (c) clientUuid = c.id as string
+  }
 
   const payload = {
     firm_id: firmId,
     matter_id: matterUuid,
-    client_id: data.clientId ?? null,
+    client_id: clientUuid,
     title: data.title,
     client_name: data.clientName ?? "",
-    type,
-    start_time: debut,
-    end_time: fin,
-    location: data.platform ?? "",
+    client_initials: data.clientInitials ?? null,
+    avatar_bg: data.avatarBg ?? "bg-primary",
+    type: data.type || "consultation",
     platform: data.platform ?? null,
     link: data.link ?? null,
     date: toDateOnly(data.date, today()),
     day_name: data.dayName ?? null,
     time: data.time ?? null,
     hour: data.hour ?? null,
-    status,
+    duration_minutes: data.durationMinutes ?? 60,
+    status: data.status || "confirmed",
     program: data.program ?? null,
     notes: data.notes ?? null,
   }
@@ -653,6 +646,81 @@ export async function createEvent(
 
   if (error) fail("createEvent", error.message)
   return toCalendarEvent(inserted)
+}
+
+export async function updateCalendarEvent(
+  id: string,
+  data: Partial<CalendarEvent>
+): Promise<CalendarEvent> {
+  const firmId = await currentFirmId()
+  const supabase = await db()
+
+  const payload: Record<string, unknown> = {}
+  if (data.title !== undefined) payload.title = data.title
+  if (data.clientName !== undefined) payload.client_name = data.clientName
+  if (data.type !== undefined) payload.type = data.type
+  if (data.status !== undefined) payload.status = data.status
+  if (data.platform !== undefined) payload.platform = data.platform
+  if (data.link !== undefined) payload.link = data.link
+  if (data.date !== undefined) payload.date = data.date
+  if (data.dayName !== undefined) payload.day_name = data.dayName
+  if (data.time !== undefined) payload.time = data.time
+  if (data.hour !== undefined) payload.hour = data.hour
+  if (data.durationMinutes !== undefined) payload.duration_minutes = data.durationMinutes
+  if (data.notes !== undefined) payload.notes = data.notes
+  if (data.program !== undefined) payload.program = data.program
+
+  const { data: updated, error } = await supabase
+    .from("calendar_events")
+    .update(payload)
+    .eq("id", id)
+    .eq("firm_id", firmId)
+    .select("*, matters(reference)")
+    .single()
+
+  if (error) fail("updateCalendarEvent", error.message)
+  return toCalendarEvent(updated)
+}
+
+export async function deleteCalendarEvent(id: string): Promise<{ ok: boolean; message: string }> {
+  const firmId = await currentFirmId()
+  const supabase = await db()
+
+  const { error } = await supabase
+    .from("calendar_events")
+    .delete()
+    .eq("id", id)
+    .eq("firm_id", firmId)
+
+  if (error) fail("deleteCalendarEvent", error.message)
+  return { ok: true, message: "Rendez-vous supprimé avec succès." }
+}
+
+export async function rescheduleCalendarEvent(
+  id: string,
+  newDateIso: string,
+  newHour: number,
+  formattedTime: string,
+  formattedDayName: string
+): Promise<CalendarEvent> {
+  const firmId = await currentFirmId()
+  const supabase = await db()
+
+  const { data: updated, error } = await supabase
+    .from("calendar_events")
+    .update({
+      date: newDateIso,
+      hour: newHour,
+      time: formattedTime,
+      day_name: formattedDayName,
+    })
+    .eq("id", id)
+    .eq("firm_id", firmId)
+    .select("*, matters(reference)")
+    .single()
+
+  if (error) fail("rescheduleCalendarEvent", error.message)
+  return toCalendarEvent(updated)
 }
 
 // --- Questionnaires Clients -------------------------------------------

@@ -123,10 +123,39 @@ export async function createEvent(
   data: Omit<CalendarEvent, "id"> & { id?: string; clientId?: string }
 ): Promise<CalendarEvent> {
   if (isSupabaseSource()) return (await sbWrites()).createEvent(data)
-  // Aucun magasin d'événements en mode mock : on rend l'objet créé, que
-  // l'appelant ajoute à son état local. Le mode mock ne sert qu'à
-  // éprouver l'interface.
   return { ...data, id: data.id || `evt-${Date.now()}` }
+}
+
+export async function updateCalendarEvent(
+  id: string,
+  data: Partial<CalendarEvent>
+): Promise<CalendarEvent> {
+  if (isSupabaseSource()) return (await sbWrites()).updateCalendarEvent(id, data)
+  return { id, ...data } as CalendarEvent
+}
+
+export async function deleteCalendarEvent(id: string): Promise<{ ok: boolean; message: string }> {
+  if (isSupabaseSource()) return (await sbWrites()).deleteCalendarEvent(id)
+  return { ok: true, message: "Rendez-vous supprimé avec succès." }
+}
+
+export async function rescheduleCalendarEvent(
+  id: string,
+  newDateIso: string,
+  newHour: number,
+  formattedTime: string,
+  formattedDayName: string
+): Promise<CalendarEvent> {
+  if (isSupabaseSource()) {
+    return (await sbWrites()).rescheduleCalendarEvent(id, newDateIso, newHour, formattedTime, formattedDayName)
+  }
+  return {
+    id,
+    date: newDateIso,
+    hour: newHour,
+    time: formattedTime,
+    dayName: formattedDayName,
+  } as CalendarEvent
 }
 
 export async function createInvoice(data: Omit<InvoiceRecord, "id"> & { id?: string }): Promise<InvoiceRecord> {

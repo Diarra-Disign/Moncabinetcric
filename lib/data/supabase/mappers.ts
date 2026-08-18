@@ -159,6 +159,7 @@ export function toCalendarEvent(r: Row): CalendarEvent {
     clientInitials: str(r.client_initials),
     avatarBg: str(r.avatar_bg),
     matterId: str((r.matters as Row | null)?.reference),
+    clientId: optStr(r.client_id),
     program: str(r.program),
     type: r.type as CalendarEvent["type"],
     platform: (r.platform as CalendarEvent["platform"]) ?? undefined,
@@ -166,10 +167,8 @@ export function toCalendarEvent(r: Row): CalendarEvent {
     date: dateStr(r.date),
     dayName: str(r.day_name),
     time: str(r.time),
-    // La grille place les rendez-vous par cette heure. Un événement créé
-    // hors de l'application — import, ou demain un flux Calendly — porte
-    // start_time sans hour, et deviendrait invisible. On la déduit.
-    hour: num(r.hour) || Number.parseInt(String(r.start_time ?? "").slice(0, 2), 10) || 9,
+    hour: num(r.hour) || 9,
+    durationMinutes: optNum(r.duration_minutes) || 60,
     status: r.status as CalendarEvent["status"],
     trustBalance: optStr(r.trust_balance),
     notes: optStr(r.notes),
