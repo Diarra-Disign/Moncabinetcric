@@ -50,6 +50,7 @@ export function SuiviEcheancier({
   const [chargement, setChargement] = React.useState(true)
   const [enCours, setEnCours] = React.useState<number | null>(null)
   const [aConfirmer, setAConfirmer] = React.useState<number | null>(null)
+  const [message, setMessage] = React.useState<{ ok: boolean; texte: string } | null>(null)
   const recharger = React.useCallback(async () => {
     const s = await suiviEcheancier(agreementId)
     setSuivi(s)
