@@ -104,14 +104,14 @@ export function Topbar({ searchDb = [], member = null, notifications = [], nonLu
 
           {/* DROPDOWN D'APERÇU RECHERCHE GLOBALE */}
           {isOpen && query.trim() !== "" && (
-            <div className="absolute left-0 right-0 top-12 bg-white rounded-2xl border border-slate-300 shadow-2xl p-2 z-[120] animate-fadeIn max-h-80 overflow-y-auto ring-1 ring-slate-900/10">
-              <div className="px-3 py-1.5 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100 flex items-center justify-between">
+            <div className="absolute left-0 right-0 top-12 bg-card rounded-2xl border border-border shadow-2xl p-2 z-[120] animate-fadeIn max-h-80 overflow-y-auto ring-1 ring-foreground/10">
+              <div className="px-3 py-1.5 text-[10px] font-black uppercase text-muted-foreground border-b border-border flex items-center justify-between">
                 <span>Recherche globale ({filteredResults.length})</span>
-                <span className="text-blue-600 font-mono">MonCabinetCRIC</span>
+                <span className="text-primary-strong font-mono">MonCabinetCRIC</span>
               </div>
 
               {filteredResults.length === 0 ? (
-                <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                <div className="p-4 text-center text-xs text-muted-foreground font-medium">
                   Aucun résultat trouvé pour &quot;{query}&quot;
                 </div>
               ) : (
@@ -123,16 +123,16 @@ export function Topbar({ searchDb = [], member = null, notifications = [], nonLu
                         setIsOpen(false)
                         router.push(item.href as Parameters<typeof router.push>[0])
                       }}
-                      className="p-2.5 rounded-xl hover:bg-blue-50/90 transition-colors cursor-pointer flex items-center justify-between group border border-transparent hover:border-blue-200"
+                      className="p-2.5 rounded-xl hover:bg-primary/8 transition-colors cursor-pointer flex items-center justify-between group border border-transparent hover:border-primary/20"
                     >
                       <div>
-                        <div className="text-xs font-black text-slate-900 group-hover:text-blue-600 transition-colors flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                        <div className="text-xs font-black text-foreground group-hover:text-primary-strong transition-colors flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                           <span>{item.title}</span>
                         </div>
-                        <div className="text-[10px] font-semibold text-slate-500 pl-3">{item.subtitle}</div>
+                        <div className="text-[10px] font-semibold text-muted-foreground pl-3">{item.subtitle}</div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary-strong transition-colors" />
                     </div>
                   ))}
                 </div>

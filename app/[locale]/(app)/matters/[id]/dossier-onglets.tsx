@@ -67,19 +67,28 @@ const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
 ]
 
 const STATUT_PIECE: Record<string, { texte: string; ton: string }> = {
-  missing:    { texte: "Non reçu",   ton: "bg-muted text-muted-foreground" },
-  requested:  { texte: "Demandé",    ton: "bg-primary/10 text-primary-strong" },
-  received:   { texte: "À vérifier", ton: "bg-warning/15 text-warning" },
-  verified:   { texte: "Validé",     ton: "bg-success/15 text-success" },
-  to_correct: { texte: "À corriger", ton: "bg-error/15 text-error" },
-  expired:    { texte: "Expiré",     ton: "bg-error/15 text-error" },
+  missing:    { texte: "Non reçu",          ton: "bg-muted text-muted-foreground" },
+  requested:  { texte: "Demandé",           ton: "bg-primary/10 text-primary-strong" },
+  received:   { texte: "Reçu / À vérifier", ton: "bg-warning/15 text-warning-strong" },
+  uploaded:   { texte: "Déposé / À vérifier", ton: "bg-warning/15 text-warning-strong" },
+  pending:    { texte: "En attente",        ton: "bg-muted text-muted-foreground" },
+  verified:   { texte: "Validé ✓",          ton: "bg-success/15 text-success-strong" },
+  approved:   { texte: "Approuvé ✓",        ton: "bg-success/15 text-success-strong" },
+  valid:      { texte: "Conforme ✓",        ton: "bg-success/15 text-success-strong" },
+  to_correct: { texte: "À corriger",        ton: "bg-error/15 text-error-strong" },
+  rejected:   { texte: "Refusé",            ton: "bg-error/15 text-error-strong" },
+  expired:    { texte: "Expiré",            ton: "bg-error/15 text-error-strong" },
+  invalid:    { texte: "Non conforme",      ton: "bg-error/15 text-error-strong" },
+  draft:      { texte: "Brouillon",         ton: "bg-muted text-muted-foreground" },
+  signed:     { texte: "Signé ✓",           ton: "bg-success/15 text-success-strong" },
+  completed:  { texte: "Complété ✓",        ton: "bg-success/15 text-success-strong" },
 }
 
 const STATUT_ECHEANCE: Record<string, { texte: string; ton: string }> = {
   todo:        { texte: "À faire",   ton: "bg-muted text-muted-foreground" },
   in_progress: { texte: "En cours",  ton: "bg-primary/10 text-primary-strong" },
-  done:        { texte: "Terminé",   ton: "bg-success/15 text-success" },
-  overdue:     { texte: "En retard", ton: "bg-error/15 text-error" },
+  done:        { texte: "Terminé",   ton: "bg-success/15 text-success-strong" },
+  overdue:     { texte: "En retard", ton: "bg-error/15 text-error-strong" },
   cancelled:   { texte: "Annulé",    ton: "bg-muted text-muted-foreground" },
 }
 
