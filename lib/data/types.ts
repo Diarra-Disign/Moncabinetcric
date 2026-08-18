@@ -631,3 +631,136 @@ export interface ClientQuestionnaire {
   destinataireCourriel?: string
 }
 
+// ---------------------------------------------------------------------------
+// Registre des Rencontres & Notes de Dossier (CICC)
+// ---------------------------------------------------------------------------
+
+export type MeetingNoteType =
+  | "consultation"
+  | "appointment"
+  | "in_person"
+  | "phone"
+  | "videoconference"
+  | "google_meet"
+  | "zoom"
+  | "whatsapp"
+  | "email_exchange"
+  | "other"
+
+export type MeetingNoteReason =
+  | "consultation_initiale"
+  | "suivi_dossier"
+  | "verification_documents"
+  | "preparation_demande"
+  | "signature_document"
+  | "explication_procedure"
+  | "mise_a_jour"
+  | "demande_info"
+  | "autre"
+
+export type MeetingNoteStatus = "draft" | "finalized" | "archived"
+
+export type MeetingNoteVisibility = "internal" | "shared_client"
+
+export interface MeetingNoteSections {
+  discussedInfo?: string
+  observations?: string
+  decisions?: string
+  requestedDocs?: string
+  actionItems?: string
+  nextSteps?: string
+  nextFollowupDate?: string
+}
+
+export interface MeetingNoteHistoryEntry {
+  modifiedAt: string
+  modifiedBy: string
+  modifiedByName: string
+  changeSummary?: string
+  previousContent?: string
+}
+
+export interface MeetingNoteDocumentRef {
+  id: string
+  name: string
+  category: string
+  addedAt: string
+}
+
+export interface MeetingNote {
+  id: string
+  firmId: string
+  matterId: string
+  clientId?: string | null
+  calendarEventId?: string | null
+
+  reference: string // ex: "REN-2026-0001"
+  meetingDate: string // "YYYY-MM-DD"
+  meetingTime?: string | null // "HH:MM"
+  durationMinutes: number
+
+  meetingType: MeetingNoteType
+  meetingTypeOther?: string | null
+
+  reason: MeetingNoteReason
+  reasonOther?: string | null
+
+  subject: string
+  content: string
+  sections: MeetingNoteSections
+
+  nextMeetingDate?: string | null
+  nextMeetingTime?: string | null
+  nextMeetingReason?: string | null
+  nextMeetingNotes?: string | null
+
+  status: MeetingNoteStatus
+  visibility: MeetingNoteVisibility
+
+  sharedAt?: string | null
+  sharedBy?: string | null
+
+  createdBy?: string | null
+  createdByName?: string | null
+  createdAt: string
+
+  updatedBy?: string | null
+  updatedByName?: string | null
+  updatedAt: string
+
+  finalizedAt?: string | null
+  finalizedBy?: string | null
+
+  history: MeetingNoteHistoryEntry[]
+  documents?: MeetingNoteDocumentRef[]
+}
+
+export interface MeetingNoteInput {
+  matterId: string
+  clientId?: string | null
+  calendarEventId?: string | null
+
+  meetingDate: string
+  meetingTime?: string | null
+  durationMinutes: number
+
+  meetingType: MeetingNoteType
+  meetingTypeOther?: string | null
+
+  reason: MeetingNoteReason
+  reasonOther?: string | null
+
+  subject: string
+  content: string
+  sections?: MeetingNoteSections
+
+  nextMeetingDate?: string | null
+  nextMeetingTime?: string | null
+  nextMeetingReason?: string | null
+  nextMeetingNotes?: string | null
+
+  status?: MeetingNoteStatus
+  visibility?: MeetingNoteVisibility
+  documentIds?: string[]
+}
+

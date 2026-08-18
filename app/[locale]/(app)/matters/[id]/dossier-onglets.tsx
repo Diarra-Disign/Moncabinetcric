@@ -6,10 +6,11 @@ import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
   Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Wand2, PenLine,
-  FolderPlus, Download, FileCheck2
+  FolderPlus, Download, FileCheck2, MessageSquareText
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
 import { OngletSignature } from "@/components/signature/onglet-signature"
+import { OngletRencontresNotes } from "@/components/matters/onglet-rencontres-notes"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import {
   ajouterEcheance, changerEtatEcheance, declarerDossier, demanderValidation,
@@ -46,7 +47,7 @@ import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-
 
 type Onglet =
   | "apercu" | "documents" | "formulaires" | "facturation"
-  | "paiements" | "echeances" | "signature" | "portail" | "argumentaire"
+  | "paiements" | "echeances" | "signature" | "rencontres" | "portail" | "argumentaire"
 
 const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
   { cle: "apercu", libelle: "Vue d'ensemble", icone: ShieldCheck },
@@ -60,6 +61,7 @@ const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
   // même client. L'écran Signatures d'ensemble reste, pour le survol du
   // cabinet ; celui-ci répond à « où en est CE dossier ».
   { cle: "signature", libelle: "Signature", icone: PenLine },
+  { cle: "rencontres", libelle: "Rencontres & notes", icone: MessageSquareText },
   { cle: "portail", libelle: "Portail client", icone: Users },
   { cle: "argumentaire", libelle: "Argumentaire IRCC", icone: Wand2 },
 ]
@@ -1838,6 +1840,20 @@ export function DossierOnglets({
             </div>
           )}
         </div>
+      )}
+
+      {/* ------------------------------------------------------------ */}
+      {onglet === "rencontres" && (
+        <OngletRencontresNotes
+          matterId={matterId}
+          clientId={clientId}
+          clientName={clientName}
+          documentsDossier={tousDocumentsDossier.map((d) => ({
+            id: d.id,
+            name: d.nom,
+            category: d.etiquette,
+          }))}
+        />
       )}
 
       {/* ------------------------------------------------------------ */}
