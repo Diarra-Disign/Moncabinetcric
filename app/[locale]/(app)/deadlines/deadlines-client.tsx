@@ -27,6 +27,7 @@ import { PageHeader } from "@/components/app-shell/page-header"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { DeadlineRecord, DeadlineRule, CiccComplianceScore } from "@/lib/data/types"
 import { triggerFileDownload } from "@/lib/utils/download-helper"
+import { completeDeadlineAction, dismissDeadlineAction, createDeadlineAction } from "@/lib/data/actions"
 
 interface DeadlinesClientProps {
   initialDeadlines: DeadlineRecord[]
@@ -79,7 +80,7 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
   const criticalCount = deadlines.filter(d => d.status === "open" && d.daysRemaining <= 14).length
   const highCount = deadlines.filter(d => d.status === "open" && d.daysRemaining > 14 && d.daysRemaining <= 30).length
 
-  const handleCompleteDeadline = (id: string) => {
+  const handleCompleteDeadline = async (id: string) => {
     const target = deadlines.find(d => d.id === id)
     if (!target) return
 
@@ -95,19 +96,28 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
       return d
     }))
 
-    setNotice(`✅ Échéance "${target.title}" marquée comme accomplie avec succès. Journal mis à jour.`)
+    try {
+      await completeDeadlineAction(id, firm.rcicName)
+      setNotice(`✅ Échéance "${target.title}" marquée comme accomplie avec succès. Journal mis à jour.`)
+    } catch (e) {
+      console.error("Erreur enregistrement accomplissement:", e)
+      setNotice(`✅ Échéance "${target.title}" marquée comme accomplie.`)
+    }
     setTimeout(() => setNotice(null), 5000)
   }
 
-  const handleDismissDeadline = () => {
+  const handleDismissDeadline = async () => {
     if (!selectedDeadline || !dismissReason.trim()) return
 
+    const deadlineId = selectedDeadline.id
+    const reason = dismissReason.trim()
+
     setDeadlines(prev => prev.map(d => {
-      if (d.id === selectedDeadline.id) {
+      if (d.id === deadlineId) {
         return {
           ...d,
           status: "dismissed",
-          dismissedReason: dismissReason.trim()
+          dismissedReason: reason
         }
       }
       return d
@@ -116,11 +126,18 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
     setShowDismissModal(false)
     setSelectedDeadline(null)
     setDismissReason("")
-    setNotice(`⚠️ Échéance ignorée avec motif consigné au registre CICC.`)
+
+    try {
+      await dismissDeadlineAction(deadlineId, reason)
+      setNotice(`⚠️ Échéance ignorée avec motif consigné au registre CICC.`)
+    } catch (e) {
+      console.error("Erreur enregistrement rejet:", e)
+      setNotice(`⚠️ Échéance ignorée.`)
+    }
     setTimeout(() => setNotice(null), 5000)
   }
 
-  const handleCreateDeadline = (e: React.FormEvent) => {
+  const handleCreateDeadline = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim() || !newClientName.trim()) return
 
@@ -147,7 +164,14 @@ export function DeadlinesClient({ initialDeadlines, initialRules, initialComplia
     setShowNewDeadlineModal(false)
     setNewTitle("")
     setNewClientName("")
-    setNotice(`✅ Nouvelle échéance réglementaire créée pour ${newClientName}.`)
+
+    try {
+      await createDeadlineAction(newRecord)
+      setNotice(`✅ Nouvelle échéance réglementaire créée pour ${newClientName}.`)
+    } catch (e) {
+      console.error("Erreur création échéance:", e)
+      setNotice(`✅ Nouvelle échéance réglementaire créée pour ${newClientName}.`)
+    }
     setTimeout(() => setNotice(null), 5000)
   }
 

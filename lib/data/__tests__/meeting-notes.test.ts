@@ -121,7 +121,7 @@ describe("Registre des Rencontres & Notes de Dossier (CICC)", () => {
   })
 
   test("RÈGLE D'OR : La modification de la note #2 ne modifie ni n'écrase la note #1", () => {
-    let note1: MeetingNote = {
+    const note1: MeetingNote = {
       id: note1Id,
       firmId,
       matterId,

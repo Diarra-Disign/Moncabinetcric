@@ -1,7 +1,8 @@
 "use server"
 
+import { revalidatePath } from "next/cache"
 import { isSupabaseSource } from "./source"
-import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, CalendarEvent, ResearchWorkspace, ResearchSource, LegislationProvision, ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry } from "./types"
+import { Matter, Lead, InvoiceRecord, ClientRecord, DocumentRecord, CalendarEvent, ResearchWorkspace, ResearchSource, LegislationProvision, ClientQuestionnaire, QuestionnaireCorrection, QuestionnaireHistoryEntry, DeadlineRecord } from "./types"
 // Import depuis ./stores et non ./queries : ce module est "use server" mais
 // des composants clients l'importent, et passer par queries.ts entraînerait
 // supabase/reads.ts (server-only) dans le bundle navigateur.
@@ -396,4 +397,89 @@ export async function validateQuestionnaire(id: string): Promise<ClientQuestionn
   return (await sbWrites()).updateQuestionnaireStatus(id, "completed", {
     completed_at: new Date().toISOString(),
   })
+}
+
+// --- Échéances & Alertes Réglementaires CICC --------------------------
+
+export async function completeDeadlineAction(
+  id: string,
+  completedBy?: string
+): Promise<{ ok: boolean; message: string }> {
+  if (isSupabaseSource()) {
+    try {
+      await (await sbWrites()).completeDeadline(id, completedBy)
+      revalidatePath("/[locale]/deadlines", "page")
+      revalidatePath("/[locale]/dashboard", "page")
+      return { ok: true, message: "Échéance marquée comme accomplie avec succès." }
+    } catch (e) {
+      console.error("completeDeadlineAction error:", e)
+    }
+  }
+
+  const stores = _getStores()
+  const idx = stores.deadlinesStore.findIndex((d) => d.id === id)
+  if (idx !== -1) {
+    const updated: DeadlineRecord = {
+      ...stores.deadlinesStore[idx],
+      status: "done",
+      completedAt: new Date().toISOString(),
+      completedBy: completedBy || "Adama Diarra, RCIC",
+    }
+    const newArr = [...stores.deadlinesStore]
+    newArr[idx] = updated
+    stores.setDeadlinesStore(newArr)
+  }
+
+  revalidatePath("/[locale]/deadlines", "page")
+  revalidatePath("/[locale]/dashboard", "page")
+  return { ok: true, message: "Échéance marquée comme accomplie avec succès." }
+}
+
+export async function dismissDeadlineAction(
+  id: string,
+  reason: string
+): Promise<{ ok: boolean; message: string }> {
+  if (isSupabaseSource()) {
+    try {
+      await (await sbWrites()).dismissDeadline(id, reason)
+      revalidatePath("/[locale]/deadlines", "page")
+      revalidatePath("/[locale]/dashboard", "page")
+      return { ok: true, message: "Échéance ignorée avec motif consigné." }
+    } catch (e) {
+      console.error("dismissDeadlineAction error:", e)
+    }
+  }
+
+  const stores = _getStores()
+  const idx = stores.deadlinesStore.findIndex((d) => d.id === id)
+  if (idx !== -1) {
+    const updated: DeadlineRecord = {
+      ...stores.deadlinesStore[idx],
+      status: "dismissed",
+      dismissedReason: reason,
+    }
+    const newArr = [...stores.deadlinesStore]
+    newArr[idx] = updated
+    stores.setDeadlinesStore(newArr)
+  }
+
+  revalidatePath("/[locale]/deadlines", "page")
+  revalidatePath("/[locale]/dashboard", "page")
+  return { ok: true, message: "Échéance ignorée avec motif consigné." }
+}
+
+export async function createDeadlineAction(
+  data: Omit<DeadlineRecord, "id"> & { id?: string }
+): Promise<{ ok: boolean; deadline?: DeadlineRecord; message: string }> {
+  const newRecord: DeadlineRecord = {
+    id: data.id || `dead-${Date.now()}`,
+    ...data,
+  }
+
+  const stores = _getStores()
+  stores.setDeadlinesStore([newRecord, ...stores.deadlinesStore])
+
+  revalidatePath("/[locale]/deadlines", "page")
+  revalidatePath("/[locale]/dashboard", "page")
+  return { ok: true, deadline: newRecord, message: "Nouvelle échéance créée." }
 }

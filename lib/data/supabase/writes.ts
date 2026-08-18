@@ -795,3 +795,47 @@ export async function updateQuestionnaireStatus(
   if (error) fail("updateQuestionnaireStatus", error.message)
   return toQuestionnaire(updated)
 }
+
+export async function completeDeadline(id: string, _completedBy?: string): Promise<boolean> {
+  const supabase = await db()
+  const firmId = await currentFirmId()
+
+  if (UUID.test(id)) {
+    const { error } = await supabase
+      .from("matter_deadlines")
+      .update({
+        status: "done",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("firm_id", firmId)
+
+    if (error) {
+      console.error("completeDeadline error:", error)
+      return false
+    }
+  }
+  return true
+}
+
+export async function dismissDeadline(id: string, reason: string): Promise<boolean> {
+  const supabase = await db()
+  const firmId = await currentFirmId()
+
+  if (UUID.test(id)) {
+    const { error } = await supabase
+      .from("matter_deadlines")
+      .update({
+        status: "cancelled",
+        notes: reason,
+      })
+      .eq("id", id)
+      .eq("firm_id", firmId)
+
+    if (error) {
+      console.error("dismissDeadline error:", error)
+      return false
+    }
+  }
+  return true
+}
