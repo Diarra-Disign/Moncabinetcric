@@ -212,8 +212,15 @@ export function CreerEntente({
         mode: modeConsultation,
         notes: notesConsultation,
       } : undefined,
+      mandat: !isConsultation ? {
+        descriptionServices: (contenu.servicesDescription?.trim() || (contenu.servicesItems.length > 0 ? contenu.servicesItems.map((s, i) => `${i + 1}. ${s.libelle}`).join("\n") : "")) || undefined,
+        exclusionsSpecifiques: contenu.fraisNonInclus?.trim() || undefined,
+        echeancierDescription: contenu.echeancier.length > 0
+          ? contenu.echeancier.map((e, i) => `${i + 1}. ${e.description || 'Étape ' + (i + 1)} : ${e.montant} $ CAD (${e.declenchement || 'À l\'échéance'})`).join("\n")
+          : undefined,
+      } : undefined,
     }
-  }, [source, honoraires, modele, proBono, isConsultation, effDuree, dateHeure, modeConsultation, notesConsultation])
+  }, [source, honoraires, modele, proBono, isConsultation, effDuree, dateHeure, modeConsultation, notesConsultation, contenu])
 
   /** L'aperçu, composé avec les articles renumérotés dynamiquement. */
   const apercu = React.useMemo(() => {

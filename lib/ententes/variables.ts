@@ -83,6 +83,20 @@ export interface ContexteEntente {
     mode?: string
     notes?: string
   }
+  /** Paramètres spécifiques au mandat de services professionnels (Art. 24 CICC) */
+  mandat?: {
+    conseilsPreliminaires?: string
+    personnelIntervenant?: string
+    instructionsClient?: string
+    descriptionServices?: string
+    exclusionsSpecifiques?: string
+    dateFinMandat?: string
+    tauxHoraire?: string
+    heuresEstimees?: string
+    echeancierDescription?: string
+    deboursPrevisibles?: string
+    documentsSpecifiques?: string
+  }
 }
 
 /**
@@ -225,6 +239,48 @@ export function variablesDe(ctx: ContexteEntente): Record<string, string> {
     mode_consultation: ctx.consultation?.mode ?? (l === "en" ? "videoconference" : "visioconférence"),
     resume_consultation: ctx.consultation?.notes ?? "",
     notes_consultation: ctx.consultation?.notes ?? "",
+
+    // Mandat de services professionnels (Art. 24 CICC)
+    conseils_preliminaires: ctx.mandat?.conseilsPreliminaires ||
+      (l === "en"
+        ? "Initial consultation and preliminary eligibility assessment conducted regarding the appropriate immigration stream."
+        : "Évaluation préliminaire d'admissibilité effectuée et analyse des voies d'immigration appropriées."),
+    personnel_intervenant: ctx.mandat?.personnelIntervenant ||
+      (l === "en"
+        ? "Administrative staff, paralegals, and legal assistants of the Firm under the RCIC's direct supervision."
+        : "Personnel administratif, parajuristes et assistants juridiques du Cabinet sous la supervision directe du CRIC."),
+    instructions_client: ctx.mandat?.instructionsClient ||
+      (l === "en"
+        ? "Preparation, verification, and official lodging of the immigration application as agreed."
+        : "Préparation, vérification et transmission officielle de la demande d'immigration convenue."),
+    description_services_detailles: ctx.mandat?.descriptionServices ||
+      (l === "en"
+        ? "Complete representation, documentation assembly, statutory forms, and case monitoring."
+        : "Représentation complète, assemblage documentaire, formulaires réglementaires et suivi de dossier."),
+    exclusions_specifiques: ctx.mandat?.exclusionsSpecifiques ||
+      (l === "en"
+        ? "No specific exclusions beyond statutory exclusions described above."
+        : "Aucune exclusion spécifique au-delà des exclusions générales mentionnées ci-dessus."),
+    date_fin_mandat: ctx.mandat?.dateFinMandat ||
+      (l === "en"
+        ? "Upon final statutory decision rendered by immigration authorities."
+        : "À la décision finale rendue par les autorités compétentes."),
+    taux_horaire: ctx.mandat?.tauxHoraire
+      ? argent(Number(ctx.mandat.tauxHoraire) || 0, l)
+      : (l === "en" ? "N/A (Flat Fee)" : "S/O (Forfait convenu)"),
+    heures_estimees: ctx.mandat?.heuresEstimees || (l === "en" ? "N/A (Flat Fee)" : "S/O (Forfait)"),
+    echeancier_etapes: ctx.mandat?.echeancierDescription ||
+      (l === "en"
+        ? "Payments structured according to milestones detailed in schedule."
+        : "Versements échelonnés selon les étapes détaillées ci-après."),
+    debours_previsibles: ctx.mandat?.deboursPrevisibles ||
+      (l === "en"
+        ? "Official government processing fees, biometrics, certified translations, and medical fees as applicable."
+        : "Frais de traitement gouvernementaux, biométrie, examens médicaux et traductions certifiées le cas échéant."),
+    documents_specifiques: ctx.mandat?.documentsSpecifiques ||
+      (l === "en"
+        ? "Any additional supporting documents requested by immigration authorities."
+        : "Toute pièce justificative additionnelle requise par les autorités d'immigration."),
   }
 }
 

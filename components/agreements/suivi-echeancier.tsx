@@ -50,15 +50,23 @@ export function SuiviEcheancier({
   const [chargement, setChargement] = React.useState(true)
   const [enCours, setEnCours] = React.useState<number | null>(null)
   const [aConfirmer, setAConfirmer] = React.useState<number | null>(null)
-  const [message, setMessage] = React.useState<{ ok: boolean; texte: string } | null>(null)
-
-  const relire = React.useCallback(async () => {
+  const recharger = React.useCallback(async () => {
     const s = await suiviEcheancier(agreementId)
     setSuivi(s)
     setChargement(false)
   }, [agreementId])
 
-  React.useEffect(() => { void relire() }, [relire])
+  React.useEffect(() => {
+    let actif = true
+    void (async () => {
+      const s = await suiviEcheancier(agreementId)
+      if (actif) {
+        setSuivi(s)
+        setChargement(false)
+      }
+    })()
+    return () => { actif = false }
+  }, [agreementId])
 
   const facturer = async (rang: number) => {
     setEnCours(rang)
@@ -69,7 +77,7 @@ export function SuiviEcheancier({
     setAConfirmer(null)
     // On RELIT plutôt que de poser l'état à la main : le statut vient de la
     // base, et l'écrire ici ferait exactement la seconde vérité qu'on évite.
-    if (r.ok) await relire()
+    if (r.ok) await recharger()
   }
 
   const etapes = suivi?.etapes ?? []

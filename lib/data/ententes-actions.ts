@@ -254,6 +254,13 @@ export async function creerEntente(demande: DemandeEntente): Promise<Resultat> {
         mode: demande.consultationMode,
         notes: demande.consultationNotes,
       },
+      mandat: {
+        descriptionServices: demande.servicesDescription || (demande.servicesItems && demande.servicesItems.length > 0 ? demande.servicesItems.map((s, i) => `${i + 1}. ${s.libelle}`).join("\n") : undefined),
+        exclusionsSpecifiques: demande.fraisNonInclus || undefined,
+        echeancierDescription: demande.echeancier && demande.echeancier.length > 0
+          ? demande.echeancier.map((e, i) => `${i + 1}. ${e.description || 'Étape ' + (i + 1)} : ${e.montant} $ CAD (${e.declenchement || 'À l\'échéance'})`).join("\n")
+          : undefined,
+      },
     }
 
     const controle = verifierAvantGeneration(contexte, retenus.map((a) => `${a.titleFr}\n${a.bodyFr}`))
