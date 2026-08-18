@@ -209,14 +209,14 @@ export function OngletRencontresNotes({
 
         <div className="p-3.5 rounded-xl border border-border bg-card">
           <span className="text-[11px] text-muted-foreground block font-medium">Comptes rendus finalisés</span>
-          <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400 mt-0.5 block">{stats.finalisees}</span>
-          <span className="text-[10px] text-emerald-600">Verrouillés & officiels</span>
+          <span className="text-xl font-bold text-success-strong mt-0.5 block">{stats.finalisees}</span>
+          <span className="text-[10px] text-success">Verrouillés & officiels</span>
         </div>
 
         <div className="p-3.5 rounded-xl border border-border bg-card">
           <span className="text-[11px] text-muted-foreground block font-medium">Brouillons en cours</span>
-          <span className="text-xl font-bold text-amber-700 dark:text-amber-400 mt-0.5 block">{stats.brouillons}</span>
-          <span className="text-[10px] text-amber-600">À finaliser</span>
+          <span className="text-xl font-bold text-warning-strong mt-0.5 block">{stats.brouillons}</span>
+          <span className="text-[10px] text-warning">À finaliser</span>
         </div>
       </div>
 
@@ -298,7 +298,7 @@ export function OngletRencontresNotes({
             onClick={() => setFiltreStatut(filtreStatut === "brouillons" ? "tous" : "brouillons")}
             className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
               filtreStatut === "brouillons"
-                ? "bg-amber-100 text-amber-900 border-amber-300 font-medium"
+                ? "bg-warning/15 text-warning-strong border-warning/40 font-medium"
                 : "bg-card border-border text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -309,7 +309,7 @@ export function OngletRencontresNotes({
             onClick={() => setFiltreStatut(filtreStatut === "partagees" ? "tous" : "partagees")}
             className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
               filtreStatut === "partagees"
-                ? "bg-sky-100 text-sky-900 border-sky-300 font-medium"
+                ? "bg-primary/10 text-primary-strong border-primary/30 font-medium"
                 : "bg-card border-border text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -357,9 +357,9 @@ export function OngletRencontresNotes({
                 <div
                   className={`absolute left-0 top-0 bottom-0 w-1 ${
                     note.status === "finalized"
-                      ? "bg-emerald-500"
+                      ? "bg-success"
                       : note.status === "draft"
-                      ? "bg-amber-500"
+                      ? "bg-warning"
                       : "bg-muted"
                   }`}
                 />
@@ -403,11 +403,11 @@ export function OngletRencontresNotes({
                       {/* Badges de bas de carte */}
                       <div className="flex flex-wrap items-center gap-2 pt-2 text-[11px]">
                         {note.status === "finalized" ? (
-                          <Badge variant="success" className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] py-0">
+                          <Badge variant="outline" className="bg-success/15 text-success-strong border-success/30 text-[10px] py-0 font-semibold">
                             <CheckCircle2 className="h-3 w-3 mr-1" /> Finalisée
                           </Badge>
                         ) : note.status === "draft" ? (
-                          <Badge variant="secondary" className="text-[10px] py-0">
+                          <Badge variant="outline" className="bg-warning/15 text-warning-strong border-warning/30 text-[10px] py-0 font-semibold">
                             Brouillon
                           </Badge>
                         ) : (
@@ -417,7 +417,7 @@ export function OngletRencontresNotes({
                         )}
 
                         {note.visibility === "shared_client" ? (
-                          <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200 text-[10px] py-0 flex items-center gap-1">
+                          <Badge variant="outline" className="bg-primary/10 text-primary-strong border-primary/25 text-[10px] py-0 flex items-center gap-1">
                             <Share2 className="h-3 w-3" /> Portail client
                           </Badge>
                         ) : (

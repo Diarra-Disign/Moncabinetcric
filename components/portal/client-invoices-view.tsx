@@ -59,28 +59,28 @@ export function ClientInvoicesView({ invoices = [], clientName, firmName }: Clie
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-300 mb-2">
+        <div className="p-4 rounded-2xl border border-success/30 bg-success/5 shadow-xs flex flex-col justify-between">
+          <div className="flex items-center justify-between text-success-strong mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Total Réglé</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <CheckCircle2 className="h-4 w-4 text-success" />
           </div>
           <div>
-            <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{formatMontant(totalPaye)}</span>
-            <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">Avances & paiements honorés</p>
+            <span className="text-2xl font-black text-success-strong">{formatMontant(totalPaye)}</span>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Avances & paiements honorés</p>
           </div>
         </div>
 
         <div className={`p-4 rounded-2xl border shadow-xs flex flex-col justify-between ${
           soldeDu > 0
-            ? "border-amber-500/40 bg-amber-500/5 text-amber-950 dark:text-amber-200"
+            ? "border-warning/40 bg-warning/5"
             : "border-border bg-card"
         }`}>
           <div className="flex items-center justify-between text-muted-foreground mb-2">
             <span className="text-xs font-bold uppercase tracking-wider">Solde Restant Dû</span>
-            <CreditCard className="h-4 w-4 text-amber-600" />
+            <CreditCard className="h-4 w-4 text-warning" />
           </div>
           <div>
-            <span className={`text-2xl font-black ${soldeDu > 0 ? "text-amber-700 dark:text-amber-300" : "text-foreground"}`}>
+            <span className={`text-2xl font-black ${soldeDu > 0 ? "text-warning-strong" : "text-foreground"}`}>
               {formatMontant(soldeDu)}
             </span>
             <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -137,12 +137,12 @@ export function ClientInvoicesView({ invoices = [], clientName, firmName }: Clie
                           variant="outline"
                           className={`text-[10px] font-semibold ${
                             isPaid
-                              ? "border-emerald-500/40 text-emerald-700 bg-emerald-500/10"
+                              ? "border-success/30 text-success-strong bg-success/15"
                               : isPartial
-                              ? "border-primary/40 text-primary bg-primary/10"
+                              ? "border-primary/30 text-primary-strong bg-primary/10"
                               : isOverdue
-                              ? "border-rose-500/40 text-rose-700 bg-rose-500/10"
-                              : "border-amber-500/40 text-amber-700 bg-amber-500/10"
+                              ? "border-error/30 text-error-strong bg-error/15"
+                              : "border-warning/40 text-warning-strong bg-warning/15"
                           }`}
                         >
                           {isPaid ? "Payée ✓" : isPartial ? "Partielle" : isOverdue ? "En retard" : "En attente"}

@@ -152,46 +152,46 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
       <div className="bg-card rounded-3xl p-5 border border-border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         
         {/* PROGRAM CATEGORY TABS */}
-        <div className="flex items-center gap-1.5 bg-muted p-1.5 rounded-2xl overflow-x-auto">
+        <div className="flex items-center gap-1 bg-muted/60 p-1.5 rounded-2xl border border-border overflow-x-auto">
           <button
             onClick={() => setActiveTab("all")}
-            className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "all" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === "all" ? "bg-primary text-primary-foreground shadow-xs font-black" : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
             Tous ({matters.length})
           </button>
           <button
             onClick={() => setActiveTab("pr")}
-            className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "pr" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === "pr" ? "bg-primary text-primary-foreground shadow-xs font-black" : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
-            Résidence Permanente (PEQ / EE)
+            Résidence Permanente
           </button>
           <button
             onClick={() => setActiveTab("work")}
-            className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "work" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === "work" ? "bg-primary text-primary-foreground shadow-xs font-black" : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
             Permis Travail / EIMT
           </button>
           <button
             onClick={() => setActiveTab("study")}
-            className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "study" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === "study" ? "bg-primary text-primary-foreground shadow-xs font-black" : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
             Permis Études & CAQ
           </button>
           <button
             onClick={() => setActiveTab("tr")}
-            className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === "tr" ? "bg-primary text-primary-foreground shadow-md font-black" : "text-foreground/70 hover:text-foreground"
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === "tr" ? "bg-primary text-primary-foreground shadow-xs font-black" : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
-            Résidence Temporaire (Visa, Super Visa)
+            Résidence Temporaire
           </button>
         </div>
 
@@ -204,7 +204,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
               placeholder="Chercher par nom, dossier #DOS..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm font-bold rounded-xl bg-muted/60 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
+              className="w-full pl-10 pr-4 py-2.5 text-xs font-bold rounded-xl bg-muted/60 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
             />
           </div>
 
@@ -213,7 +213,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
             onChange={(e) => setFilterStatus(e.target.value as "all" | "valid" | "alert" | "review")}
             className="h-10 px-3 text-xs font-bold rounded-xl bg-muted/60 border border-border focus:bg-card focus:border-primary focus:outline-none cursor-pointer"
           >
-            <option value="all">Tous statut</option>
+            <option value="all">Tous statuts</option>
             <option value="valid">Conformes ✓</option>
             <option value="alert">Alertes ⚠️</option>
             <option value="review">En révision</option>
@@ -244,8 +244,8 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                   onClick={() => setSelectedMatter(m)}
                   className={`p-6 rounded-3xl border transition-all duration-200 cursor-pointer text-left space-y-3 relative group ${
                     isSelected
-                      ? "bg-gradient-to-r from-blue-50/90 to-indigo-50/70 border-primary shadow-md ring-2 ring-blue-500/20"
-                      : "bg-card border-border hover:border-primary/30 hover:shadow-sm"
+                      ? "bg-primary/6 border-primary shadow-xs ring-2 ring-primary/20"
+                      : "bg-card border-border hover:border-primary/40 hover:shadow-xs"
                   }`}
                 >
                   {/* HEADER ROW */}
