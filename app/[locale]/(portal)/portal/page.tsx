@@ -356,19 +356,19 @@ export default async function PortalPage({
           })
         } else {
           // Fallback mock agreements
-          const { getAgreements } = await import("@/lib/data/ententes")
+          const { getAgreements } = await import("@/lib/data")
           const ags = await getAgreements()
-          signaturesList = ags
-            .filter((a) => allClientIds.includes(a.clientId ?? "") || a.clientName === clientVisualise?.name)
+          signaturesList = (ags ?? [])
+            .filter((a) => a.clientName === clientVisualise?.name || (a.matterId && matterIds.includes(a.matterId)))
             .map((a) => ({
               id: a.id,
-              title: a.title,
+              title: `Entente de services — ${a.program || "Immigration"}`,
               reference: a.reference,
-              status: (a.status === "signed" ? "signed" : a.status === "sent" ? "pending" : "pending") as PortalSignatureItem["status"],
-              createdAt: a.createdAt,
-              signedAt: a.signedAt,
-              signUrl: `/fr/agreements/${a.id}/sign`,
-              documentName: a.title,
+              status: (a.status === "fully_signed" ? "signed" : "pending") as PortalSignatureItem["status"],
+              createdAt: a.date,
+              signedAt: a.status === "fully_signed" ? a.date : undefined,
+              signUrl: `/fr/agreements`,
+              documentName: `Entente_${a.reference}.pdf`,
             }))
         }
       } catch {
