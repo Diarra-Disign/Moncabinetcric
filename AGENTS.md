@@ -7,6 +7,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Directives de Validation Préalable du Plan
 - **Présentation & Validation Obligatoire du Plan** : Avant d'exécuter tout plan d'implémentation, modification architecturale ou nouvelle fonctionnalité, l'agent doit TOUJOURS présenter le plan d'action clair et détaillé à l'utilisateur et attendre sa validation explicite avant de commencer à coder.
 
+# Directives de Publication & Déploiement
+- **Règle Globale de Publication** : Avant toute publication sur un serveur externe ou un service d'hébergement (ou push GitHub / déploiement), l'agent doit TOUJOURS demander à l'utilisateur : *"Est-ce que je peux le faire ?"*
+
 # Directives d'Aperçu & Rendu (Preview Links)
 - À la fin de chaque modification de code ou d'interface utilisateur, fournir à l'utilisateur les liens d'accès direct / URL d'aperçu vers les pages ou composants modifiés (ex: `http://localhost:3000/fr/landing`, `http://localhost:3000/fr/dashboard`).
 
