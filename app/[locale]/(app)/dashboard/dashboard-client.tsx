@@ -210,7 +210,8 @@ export function DashboardClient({
     return () => window.removeEventListener("cric_open_widgets_modal", handleOpenModal)
   }, [])
 
-  const criticalDeadlines = deadlines.filter(d => d.severity === "critical" && d.status === "open")
+  const openDeadlines = deadlines.filter((d) => d.status === "open")
+  const criticalDeadlines = openDeadlines.filter((d) => d.severity === "critical")
 
   // L'index vient du serveur, et c'est le MÊME que celui de la barre du haut.
   // Le tableau de bord en tenait un second, « const SEARCH_DATABASE = [] », qui
@@ -253,8 +254,8 @@ export function DashboardClient({
          *
          * Trois états, tirés des données, et un seul qui pulse.
          */
-        const critiques = deadlines.filter((d) => d.daysRemaining <= 14).length
-        const proches = deadlines.filter((d) => d.daysRemaining > 14 && d.daysRemaining <= 30).length
+        const critiques = openDeadlines.filter((d) => d.daysRemaining <= 14).length
+        const proches = openDeadlines.filter((d) => d.daysRemaining > 14 && d.daysRemaining <= 30).length
 
         const etat = critiques > 0 ? "critique" : proches > 0 ? "vigilance" : "calme"
 
@@ -280,9 +281,9 @@ export function DashboardClient({
             icone: "bg-success text-background",
             titre: "Toutes les échéances légales LIPR/RIPR sont sous contrôle",
             detail:
-              deadlines.length > 0
-                ? `${deadlines.length} échéance${deadlines.length > 1 ? "s" : ""} suivie${deadlines.length > 1 ? "s" : ""}, aucune dans les 30 prochains jours.`
-                : "Aucune échéance enregistrée pour le moment.",
+              openDeadlines.length > 0
+                ? `${openDeadlines.length} échéance${openDeadlines.length > 1 ? "s" : ""} active${openDeadlines.length > 1 ? "s" : ""}, aucune critique dans les 30 prochains jours.`
+                : "Toutes les échéances ont été traitées ou accomplies.",
             pulse: false,
           },
         }[etat]
@@ -320,7 +321,7 @@ export function DashboardClient({
               onClick={() => router.push("/deadlines")}
               className="px-5 py-2.5 rounded-2xl bg-foreground text-background hover:opacity-90 text-xs font-extrabold shadow-md transition-all shrink-0 cursor-pointer flex items-center gap-2"
             >
-              <span>Ouvrir l&apos;avertisseur ({deadlines.length})</span>
+              <span>Ouvrir l&apos;avertisseur ({openDeadlines.length})</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -535,13 +536,13 @@ export function DashboardClient({
             </div>
             <div>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black text-warning-strong tracking-tight">{deadlines.length}</span>
+                <span className="text-3xl font-black text-warning-strong tracking-tight">{openDeadlines.length}</span>
                 <span className="inline-flex items-center gap-1 text-xs font-extrabold text-warning-strong bg-warning/15 border border-warning/40 px-2 py-0.5 rounded-full">
                   <Clock className="w-3 h-3" /> Suivi &lt; 30j
                 </span>
               </div>
               <p className="text-xs font-bold text-muted-foreground mt-1 flex items-center justify-between">
-                <span>Console des échéances</span>
+                <span>Console des échéances ({openDeadlines.length} active{openDeadlines.length > 1 ? "s" : ""})</span>
                 <ChevronRight className="w-3.5 h-3.5 text-warning group-hover:translate-x-1 transition-transform" />
               </p>
             </div>

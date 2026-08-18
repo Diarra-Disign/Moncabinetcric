@@ -4,6 +4,9 @@ import { listerDossiersRecents } from "@/lib/data/dossiers-recents"
 import { construireRecherche } from "@/lib/data/recherche"
 import { DashboardClient } from "./dashboard-client"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export default async function DashboardPage({
   params,
 }: {
