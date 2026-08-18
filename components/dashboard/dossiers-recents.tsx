@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { Link } from "@/i18n/routing"
 import { Search, ArrowUpRight, FolderOpen, CalendarClock, X } from "lucide-react"
 import { chercherDossiersRecents } from "@/lib/data/dossiers-recents-actions"
 import {
@@ -110,12 +111,12 @@ export function DossiersRecents({ initial }: { initial: PageDossiersRecents }) {
                 : `${page.dossiers.length} affiché${page.dossiers.length > 1 ? "s" : ""} sur ${page.total}`}
             </p>
           </div>
-          <a
-            href="/fr/matters"
+          <Link
+            href="/matters"
             className="text-xs font-extrabold text-primary-strong hover:underline flex items-center gap-1 min-h-9"
           >
             Voir tous les dossiers <ArrowUpRight className="w-3.5 h-3.5" />
-          </a>
+          </Link>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -225,10 +226,12 @@ export function DossiersRecents({ initial }: { initial: PageDossiersRecents }) {
                 ? "Élargissez la période ou effacez la recherche."
                 : "Les dossiers sur lesquels vous travaillerez apparaîtront ici."}
             </p>
-            <a href="/fr/matters"
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border font-bold text-xs text-foreground hover:bg-muted min-h-9">
+            <Link
+              href="/matters"
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border font-bold text-xs text-foreground hover:bg-muted min-h-9"
+            >
               Voir tous les dossiers <ArrowUpRight className="w-3.5 h-3.5" />
-            </a>
+            </Link>
           </div>
         ) : (
           page.dossiers.map((d) => {

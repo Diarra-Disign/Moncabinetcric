@@ -41,6 +41,7 @@ export function Topbar({ searchDb = [], member = null, notifications = [], nonLu
   const [query, setQuery] = React.useState("")
   const [isOpen, setIsOpen] = React.useState(false)
   const topbarRef = React.useRef<HTMLDivElement>(null)
+  const searchInputRef = React.useRef<HTMLInputElement>(null)
 
   const filteredResults = query.trim() === "" ? [] : searchDb.filter(item =>
     item.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -48,13 +49,24 @@ export function Topbar({ searchDb = [], member = null, notifications = [], nonLu
   )
 
   React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        setIsOpen(true)
+      }
+    }
     const handleClickOutside = (e: MouseEvent) => {
       if (topbarRef.current && !topbarRef.current.contains(e.target as Node)) {
         setIsOpen(false)
       }
     }
+    window.addEventListener("keydown", handleKeyDown)
     document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
   }, [])
 
   const handleOpenCustomizeModal = () => {
@@ -81,8 +93,9 @@ export function Topbar({ searchDb = [], member = null, notifications = [], nonLu
             aria-hidden="true"
           />
           <Input
+            ref={searchInputRef}
             id="search-field"
-            className="block h-10 w-full rounded-2xl border border-border bg-muted/30 pl-9 pr-8 text-xs font-bold text-foreground placeholder:text-muted-foreground focus:bg-background focus:ring-1 focus:ring-primary shadow-2xs"
+            className="block h-10 w-full rounded-2xl border border-border bg-muted/30 pl-9 pr-12 text-xs font-bold text-foreground placeholder:text-muted-foreground focus:bg-background focus:ring-1 focus:ring-primary shadow-2xs"
             placeholder={t('searchPlaceholder')}
             type="search"
             value={query}
@@ -92,14 +105,18 @@ export function Topbar({ searchDb = [], member = null, notifications = [], nonLu
               setIsOpen(true)
             }}
           />
-          {query && (
+          {query ? (
             <button
               type="button"
               onClick={() => setQuery("")}
-              className="absolute right-3 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <X className="h-3.5 w-3.5" />
             </button>
+          ) : (
+            <kbd className="pointer-events-none absolute right-3 hidden sm:inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] font-bold text-muted-foreground">
+              ⌘K
+            </kbd>
           )}
 
           {/* DROPDOWN D'APERÇU RECHERCHE GLOBALE */}

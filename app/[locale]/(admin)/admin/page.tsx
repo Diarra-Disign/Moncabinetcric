@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { getTranslations } from "next-intl/server"
 import { Building2, Users, AlertTriangle, Terminal, Lock, Ban, CreditCard, Clock } from "lucide-react"
 import {
@@ -293,12 +294,12 @@ export default async function AdminPage({
             </span>
           </h2>
           <div className="flex flex-wrap items-center gap-2">
-            <a
+            <Link
               href="/fr/admin/utilisateurs"
               className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
             >
               <Users aria-hidden className="h-3.5 w-3.5" /> Utilisateurs
-            </a>
+            </Link>
             <CreerCabinet labels={etiquettes} />
           </div>
         </div>
@@ -325,12 +326,12 @@ export default async function AdminPage({
             Rechercher
           </button>
           {recherche && (
-            <a
+            <Link
               href="/fr/admin"
               className="min-h-9 rounded-lg px-3 py-1.5 text-xs font-bold text-muted-foreground hover:bg-muted"
             >
               Effacer
-            </a>
+            </Link>
           )}
         </form>
 

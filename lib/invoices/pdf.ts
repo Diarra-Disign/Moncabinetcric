@@ -374,7 +374,7 @@ export async function facturePdf(f: FacturePdf, c: CabinetPdf): Promise<Uint8Arr
   y -= hBandeauSolde + 16
 
   // 5. Notes du cabinet & Conditions de paiement
-  let yBas = Math.max(y, 110)
+  const yBas = Math.max(y, 110)
   if (f.notes || c.conditionsPaiement) {
     const lignesNotes: string[] = []
     if (f.notes) lignesNotes.push(`${m.notes} : ${f.notes}`)

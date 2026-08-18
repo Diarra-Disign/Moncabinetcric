@@ -2570,7 +2570,33 @@ function ModaleNouvelleFacture({
           </div>
 
           <div className="space-y-2">
-            <span className="text-[11px] font-bold text-muted-foreground">Services facturés</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-muted-foreground">Services & Débours facturés</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-muted-foreground">Modèles :</span>
+                <button
+                  type="button"
+                  onClick={() => setLignes((prev) => [...prev, { description: "Honoraires professionnels — Jalon 1 (Ouverture & Analyse)", quantite: 1, prixUnitaire: 1200, taxable: true }])}
+                  className="px-2 py-0.5 rounded-lg border border-border bg-muted/50 text-[10px] font-bold hover:bg-muted text-foreground cursor-pointer"
+                >
+                  + Jalon 1 (50%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLignes((prev) => [...prev, { description: "Honoraires professionnels — Jalon 2 (Soumission IRCC)", quantite: 1, prixUnitaire: 1200, taxable: true }])}
+                  className="px-2 py-0.5 rounded-lg border border-border bg-muted/50 text-[10px] font-bold hover:bg-muted text-foreground cursor-pointer"
+                >
+                  + Jalon 2 (50%)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLignes((prev) => [...prev, { description: "Débours — Frais de traitement gouvernementaux (IRCC)", quantite: 1, prixUnitaire: 550, taxable: false }])}
+                  className="px-2 py-0.5 rounded-lg border border-primary/30 bg-primary/10 text-primary-strong text-[10px] font-bold hover:bg-primary/20 cursor-pointer"
+                >
+                  + Débours IRCC
+                </button>
+              </div>
+            </div>
             {lignes.map((l, i) => (
               <div key={i} className="grid gap-2 sm:grid-cols-[1fr_5rem_7rem_auto] items-start">
                 <input
@@ -2617,7 +2643,7 @@ function ModaleNouvelleFacture({
               onClick={() => setLignes((prev) => [...prev, { description: "", quantite: 1, prixUnitaire: 0, taxable: true }])}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border font-bold text-xs hover:bg-muted cursor-pointer text-foreground"
             >
-              <Plus className="h-3.5 w-3.5" /> Ajouter une ligne
+              <Plus className="h-3.5 w-3.5" /> Ajouter une ligne personnalisée
             </button>
           </div>
 

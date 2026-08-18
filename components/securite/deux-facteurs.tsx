@@ -63,8 +63,28 @@ export function DeuxFacteurs() {
   }, [])
 
   React.useEffect(() => {
-    void recharger()
-  }, [recharger])
+    let actif = true
+    const sb = getBrowserSupabase()
+    void sb.auth.mfa.listFactors().then(({ data, error }) => {
+      if (!actif) return
+      if (error) {
+        setErreur(error.message)
+        setEtape("repos")
+        return
+      }
+      setFacteurs(
+        (data?.all ?? []).map((f) => ({
+          id: f.id,
+          statut: f.status,
+          cree: (f.created_at ?? "").slice(0, 10),
+        }))
+      )
+      setEtape("repos")
+    })
+    return () => {
+      actif = false
+    }
+  }, [])
 
   const commencer = async () => {
     setErreur(null)

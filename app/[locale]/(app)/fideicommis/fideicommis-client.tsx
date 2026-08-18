@@ -69,6 +69,15 @@ export function FideicommisClient({
     })
 
   const debiteurs = registre.parClient.filter((c) => c.solde < 0)
+  
+  // Règle F25 CICC : Alerte sur les fonds détenus en fidéicommis sans mouvement depuis > 30 jours
+  const aujourdhui = new Date()
+  const fondsDormants = registre.parClient.filter((c) => {
+    if (c.solde <= 0 || !c.dernierMouvement) return false
+    const dateMvt = new Date(c.dernierMouvement)
+    const diffJours = Math.floor((aujourdhui.getTime() - dateMvt.getTime()) / (1000 * 60 * 60 * 24))
+    return diffJours >= 30
+  })
 
   return (
     <div className="flex flex-col gap-6 pb-16">
@@ -137,6 +146,20 @@ export function FideicommisClient({
         </div>
       )}
 
+      {fondsDormants.length > 0 && (
+        <div className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4">
+          <AlertTriangle aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-warning-strong" />
+          <div>
+            <p className="text-sm font-black text-warning-strong">
+              Alerte CICC (Art. 28) : {fondsDormants.length} client(s) avec des fonds fidéicommis inactifs depuis plus de 30 jours.
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Vérifiez si des débours ou honoraires sont à prélever, ou si le solde doit être restitué au client.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ---- Le solde ---- */}
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-border bg-card p-5">
@@ -173,22 +196,32 @@ export function FideicommisClient({
           </p>
         ) : (
           <ul className="mt-3 divide-y divide-border">
-            {registre.parClient.map((c) => (
-              <li key={c.clientId} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-foreground">{c.clientNom}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {c.ecritures} écriture(s){c.dernierMouvement ? ` · dernier le ${c.dernierMouvement}` : ""}
-                  </p>
-                </div>
-                <span className={cn(
-                  "shrink-0 text-sm font-black tabular-nums",
-                  c.solde < 0 ? "text-error-strong" : "text-foreground"
-                )}>
-                  {argent(c.solde)}
-                </span>
-              </li>
-            ))}
+            {registre.parClient.map((c) => {
+              const estDormant = fondsDormants.some((fd) => fd.clientId === c.clientId)
+              return (
+                <li key={c.clientId} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-foreground">{c.clientNom}</p>
+                      {estDormant && (
+                        <span className="rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider bg-warning/15 text-warning-strong border border-warning/30">
+                          Inactif &gt; 30j
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {c.ecritures} écriture(s){c.dernierMouvement ? ` · dernier le ${c.dernierMouvement}` : ""}
+                    </p>
+                  </div>
+                  <span className={cn(
+                    "shrink-0 text-sm font-black tabular-nums",
+                    c.solde < 0 ? "text-error-strong" : "text-foreground"
+                  )}>
+                    {argent(c.solde)}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>

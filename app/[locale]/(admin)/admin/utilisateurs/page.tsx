@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { Users, Search, ArrowLeft } from "lucide-react"
 import { getAdminUtilisateurs } from "@/lib/data/admin"
 import { cn } from "@/lib/utils"
@@ -59,12 +60,12 @@ export default async function UtilisateursPage({
   return (
     <div className="space-y-6">
       <header>
-        <a
+        <Link
           href="/fr/admin"
           className="mb-3 inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft aria-hidden className="h-3.5 w-3.5" /> Console d&apos;exploitation
-        </a>
+        </Link>
         <h1 className="flex flex-wrap items-center gap-2 text-2xl font-black tracking-tight text-foreground sm:text-3xl">
           <Users aria-hidden className="h-6 w-6 text-muted-foreground" />
           Utilisateurs
@@ -100,12 +101,12 @@ export default async function UtilisateursPage({
           Rechercher
         </button>
         {recherche && (
-          <a
+          <Link
             href="/fr/admin/utilisateurs"
             className="min-h-9 rounded-lg px-3 py-1.5 text-xs font-bold text-muted-foreground hover:bg-muted"
           >
             Effacer
-          </a>
+          </Link>
         )}
       </form>
 

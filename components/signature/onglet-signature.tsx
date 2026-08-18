@@ -87,7 +87,18 @@ export function OngletSignature({
     setChargement(false)
   }, [matterId])
 
-  React.useEffect(() => { void relire() }, [relire])
+  React.useEffect(() => {
+    let actif = true
+    void listerSignatures({ matterId }).then((data) => {
+      if (actif) {
+        setDemandes(data)
+        setChargement(false)
+      }
+    })
+    return () => {
+      actif = false
+    }
+  }, [matterId])
 
   const agir = async (action: () => Promise<{ ok: boolean; message: string }>) => {
     setMessage(null)

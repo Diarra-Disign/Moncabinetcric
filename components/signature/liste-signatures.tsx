@@ -107,6 +107,14 @@ export function ListeSignatures({
     setHistorique({ id, entrees: await journalSignature(id) })
   }
 
+  const lignesTriees = React.useMemo(() => {
+    return [...lignes].sort((a, b) => {
+      const dateA = a.requestedAt ? new Date(a.requestedAt).getTime() : 0
+      const dateB = b.requestedAt ? new Date(b.requestedAt).getTime() : 0
+      return dateB - dateA
+    })
+  }, [lignes])
+
   return (
     <>
       {message && (
@@ -121,7 +129,7 @@ export function ListeSignatures({
       )}
 
       <ul className="space-y-3">
-        {lignes.map((l) => (
+        {lignesTriees.map((l) => (
           <li key={l.demandeId} className="rounded-2xl border border-border bg-card p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">

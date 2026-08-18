@@ -12,6 +12,7 @@ import { ValidationsEnAttente, type DemandeValidationVue } from "@/components/po
 import { journaliserAccesApercuPortail } from "@/lib/data/portal-audit"
 import { SelecteurClientApercu, type ClientApercuItem } from "@/components/portal/selecteur-client-apercu"
 import { ClientInvoicesView, type PortalInvoice } from "@/components/portal/client-invoices-view"
+import { ClientSignaturesView, type PortalSignatureItem } from "@/components/portal/client-signatures-view"
 
 /**
  * Portail client & Mode Aperçu en Lecture Seule pour le Consultant.
@@ -63,6 +64,7 @@ export default async function PortalPage({
   let cabinet: Record<string, unknown> = {}
   let questionnaires: ClientQuestionnaire[] = []
   let demandesValidation: DemandeValidationVue[] = []
+  let signaturesList: PortalSignatureItem[] = []
 
   if (firmId) {
     const supabase = await getSessionSupabase()
@@ -330,6 +332,48 @@ export default async function PortalPage({
             matterReference: inv.matterId,
           }))
       }
+
+      // 3.6 Signatures et Ententes de services du client
+      try {
+        const { data: sigData } = await supabase
+          .from("signature_requests")
+          .select("id, title, status, created_at, signed_at, sign_token, document_id, documents(name)")
+          .in("client_id", allClientIds)
+          .order("created_at", { ascending: false })
+
+        if (sigData && sigData.length > 0) {
+          signaturesList = sigData.map((s) => {
+            const doc = s.documents as unknown as { name?: string } | null
+            return {
+              id: String(s.id),
+              title: String(s.title ?? "Entente de services professionnels"),
+              status: (s.status === "completed" ? "signed" : s.status === "declined" ? "declined" : s.status === "expired" ? "expired" : "pending") as PortalSignatureItem["status"],
+              createdAt: s.created_at ? String(s.created_at) : undefined,
+              signedAt: s.signed_at ? String(s.signed_at) : undefined,
+              signUrl: s.sign_token ? `/s/${s.sign_token}` : undefined,
+              documentName: doc?.name ? String(doc.name) : undefined,
+            }
+          })
+        } else {
+          // Fallback mock agreements
+          const { getAgreements } = await import("@/lib/data/ententes")
+          const ags = await getAgreements()
+          signaturesList = ags
+            .filter((a) => allClientIds.includes(a.clientId ?? "") || a.clientName === clientVisualise?.name)
+            .map((a) => ({
+              id: a.id,
+              title: a.title,
+              reference: a.reference,
+              status: (a.status === "signed" ? "signed" : a.status === "sent" ? "pending" : "pending") as PortalSignatureItem["status"],
+              createdAt: a.createdAt,
+              signedAt: a.signedAt,
+              signUrl: `/fr/agreements/${a.id}/sign`,
+              documentName: a.title,
+            }))
+        }
+      } catch {
+        // En cas d'erreur de requête
+      }
     }
   }
 
@@ -592,6 +636,16 @@ export default async function PortalPage({
                 ))}
               </div>
             )}
+          </section>
+
+          {/* ============================================================
+              SECTION : MES ENTENTES ET SIGNATURES ÉLECTRONIQUES CICC
+              ============================================================ */}
+          <section id="signatures" className="space-y-3">
+            <ClientSignaturesView
+              signatures={signaturesList}
+              isReadOnlyPreview={apercu}
+            />
           </section>
 
           {/* ============================================================
