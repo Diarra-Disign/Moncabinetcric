@@ -4,6 +4,9 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Directives de Validation Préalable du Plan
+- **Présentation & Validation Obligatoire du Plan** : Avant d'exécuter tout plan d'implémentation, modification architecturale ou nouvelle fonctionnalité, l'agent doit TOUJOURS présenter le plan d'action clair et détaillé à l'utilisateur et attendre sa validation explicite avant de commencer à coder.
+
 # Directives d'Aperçu & Rendu (Preview Links)
 - À la fin de chaque modification de code ou d'interface utilisateur, fournir à l'utilisateur les liens d'accès direct / URL d'aperçu vers les pages ou composants modifiés (ex: `http://localhost:3000/fr/landing`, `http://localhost:3000/fr/dashboard`).
 

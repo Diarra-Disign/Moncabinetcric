@@ -308,3 +308,6 @@ Après **CHAQUE** modification de code :
 ### 7. Règle Globale de Publication
 Avant toute publication sur un serveur externe ou un service d'hébergement, vous **DEVEZ** poser la question à l'utilisateur :
 > *"Est-ce que tu peux le faire ?"*
+
+### 8. Règle de Présentation et Validation Préalable de Plan
+Avant d'exécuter tout plan d'implémentation, refonte, correction d'envergure ou ajout de fonctionnalité, vous **DEVEZ** impérativement présenter le plan d'action détaillé à l'utilisateur et attendre sa validation explicite avant d'écrire ou de modifier le code.
