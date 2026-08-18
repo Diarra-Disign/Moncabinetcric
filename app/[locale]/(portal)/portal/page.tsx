@@ -11,6 +11,7 @@ import type { ClientQuestionnaire } from "@/lib/data/types"
 import { ValidationsEnAttente, type DemandeValidationVue } from "@/components/portal/validations-en-attente"
 import { journaliserAccesApercuPortail } from "@/lib/data/portal-audit"
 import { SelecteurClientApercu, type ClientApercuItem } from "@/components/portal/selecteur-client-apercu"
+import { ClientInvoicesView, type PortalInvoice } from "@/components/portal/client-invoices-view"
 
 /**
  * Portail client & Mode Aperçu en Lecture Seule pour le Consultant.
@@ -58,6 +59,7 @@ export default async function PortalPage({
 
   let dossiers: Record<string, unknown>[] = []
   let pieces: Record<string, unknown>[] = []
+  let factures: PortalInvoice[] = []
   let cabinet: Record<string, unknown> = {}
   let questionnaires: ClientQuestionnaire[] = []
   let demandesValidation: DemandeValidationVue[] = []
@@ -277,6 +279,56 @@ export default async function PortalPage({
             status: String(r.status),
           }
         })
+      }
+
+      // 3.5 Factures & Reçus du client
+      let invQuery = supabase
+        .from("invoices")
+        .select("id, number, date, due_date, subtotal, tax, total, paid_amount, status, created_at, matters(reference)")
+        .order("created_at", { ascending: false })
+
+      if (matterIds.length > 0) {
+        invQuery = invQuery.or(
+          `client_id.in.(${allClientIds.join(",")}),matter_id.in.(${matterIds.join(",")})`
+        )
+      } else {
+        invQuery = invQuery.in("client_id", allClientIds)
+      }
+
+      const { data: invData } = await invQuery
+      if (invData && invData.length > 0) {
+        factures = invData.map((inv) => {
+          const mat = inv.matters as unknown as { reference?: string } | null
+          return {
+            id: String(inv.id),
+            number: String(inv.number ?? "FAC-000"),
+            date: String(inv.date ?? ""),
+            dueDate: (inv.due_date as string) || undefined,
+            subtotal: Number(inv.subtotal ?? 0),
+            tax: Number(inv.tax ?? 0),
+            total: Number(inv.total ?? 0),
+            paidAmount: Number(inv.paid_amount ?? 0),
+            status: (inv.status as PortalInvoice["status"]) || "pending",
+            matterReference: mat?.reference || undefined,
+          }
+        })
+      } else {
+        const { getInvoices } = await import("@/lib/data")
+        const allInvs = await getInvoices()
+        factures = (allInvs ?? [])
+          .filter((inv) => allClientIds.includes(inv.clientId ?? "") || inv.clientName === clientVisualise?.name)
+          .map((inv) => ({
+            id: inv.id,
+            number: inv.invoiceNumber || inv.id,
+            date: inv.date,
+            dueDate: undefined,
+            subtotal: inv.amount,
+            tax: 0,
+            total: inv.amount,
+            paidAmount: inv.status === "paid" ? inv.amount : 0,
+            status: inv.status === "paid" ? "paid" : inv.status === "partial" ? "partial" : inv.status === "overdue" ? "overdue" : "pending",
+            matterReference: inv.matterId,
+          }))
       }
     }
   }
@@ -540,6 +592,17 @@ export default async function PortalPage({
                 ))}
               </div>
             )}
+          </section>
+
+          {/* ============================================================
+              SECTION : MES FACTURES ET REÇUS CICC
+              ============================================================ */}
+          <section id="factures" className="space-y-3">
+            <ClientInvoicesView
+              invoices={factures}
+              clientName={clientVisualise?.name ?? ""}
+              firmName={(cabinet?.name as string) ?? undefined}
+            />
           </section>
 
           <section id="pieces">

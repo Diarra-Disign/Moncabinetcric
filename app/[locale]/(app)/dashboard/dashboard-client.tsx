@@ -488,8 +488,12 @@ export function DashboardClient({
           
           {/* KPI 1: DOSSIERS ACTIFS IRCC (CLIC -> BASCULE VERS /matters) */}
           <div 
+            role="link"
+            tabIndex={0}
+            aria-label="Accéder aux dossiers actifs IRCC"
             onClick={() => router.push("/matters")}
-            className="group bg-gradient-to-br from-primary/8 via-card to-primary/5 p-6 rounded-3xl border border-primary/30 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-primary hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push("/matters") } }}
+            className="group bg-gradient-to-br from-primary/8 via-card to-primary/5 p-6 rounded-3xl border border-primary/30 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-primary hover:shadow-xl hover:scale-[1.02] active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-all duration-300 flex flex-col justify-between cursor-pointer"
           >
             <div className="flex items-center justify-between pb-4">
               <div className="flex items-center gap-1.5">
@@ -504,20 +508,24 @@ export function DashboardClient({
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-black text-foreground tracking-tight">{counts.activeMatters}</span>
               </div>
-              <p className="text-xs font-bold text-muted-foreground mt-1">Cliquer pour basculer vers les dossiers</p>
+              <p className="text-xs font-bold text-muted-foreground mt-1 flex items-center justify-between">
+                <span>Voir les dossiers</span>
+                <ChevronRight className="w-3.5 h-3.5 text-primary group-hover:translate-x-1 transition-transform" />
+              </p>
             </div>
           </div>
 
           {/* KPI 2: ÉCHÉANCES IMMINENTES J-30 (CLIC -> BASCULE VERS /deadlines) */}
           <div 
+            role="link"
+            tabIndex={0}
+            aria-label="Accéder aux échéances réglementaires critiques"
             onClick={() => router.push("/deadlines")}
-            className="group bg-gradient-to-br from-warning/8 via-card to-warning/5 p-6 rounded-3xl border border-warning/40 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-warning hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push("/deadlines") } }}
+            className="group bg-gradient-to-br from-warning/8 via-card to-warning/5 p-6 rounded-3xl border border-warning/40 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-warning hover:shadow-xl hover:scale-[1.02] active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-warning focus-visible:outline-none transition-all duration-300 flex flex-col justify-between cursor-pointer"
           >
             <div className="flex items-center justify-between pb-4">
               <div className="flex items-center gap-1.5">
-                {/* Même défaut que le bandeau : ce point palpitait au-dessus
-                    d'un zéro. Il ne s'anime plus que lorsqu'il y a
-                    effectivement quelque chose à signaler. */}
                 <span className={cn("w-2 h-2 rounded-full bg-warning", criticalDeadlines.length > 0 && "animate-ping")} />
                 <span className="text-xs font-black uppercase tracking-wider text-warning-strong">ÉCHÉANCES CRITIQUES</span>
               </div>
@@ -532,14 +540,21 @@ export function DashboardClient({
                   <Clock className="w-3 h-3" /> Suivi &lt; 30j
                 </span>
               </div>
-              <p className="text-xs font-bold text-muted-foreground mt-1">Cliquer pour ouvrir la console d&apos;échéances</p>
+              <p className="text-xs font-bold text-muted-foreground mt-1 flex items-center justify-between">
+                <span>Console des échéances</span>
+                <ChevronRight className="w-3.5 h-3.5 text-warning group-hover:translate-x-1 transition-transform" />
+              </p>
             </div>
           </div>
 
           {/* KPI 3: PIÈCES VALIDÉES & CONFORMES (CLIC -> BASCULE VERS /documents) */}
           <div 
+            role="link"
+            tabIndex={0}
+            aria-label="Accéder au coffre-fort des pièces vérifiées CICC"
             onClick={() => router.push("/documents")}
-            className="group bg-gradient-to-br from-success/8 via-card to-success/5 p-6 rounded-3xl border border-success/30 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-success hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push("/documents") } }}
+            className="group bg-gradient-to-br from-success/8 via-card to-success/5 p-6 rounded-3xl border border-success/30 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-success hover:shadow-xl hover:scale-[1.02] active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-success focus-visible:outline-none transition-all duration-300 flex flex-col justify-between cursor-pointer"
           >
             <div className="flex items-center justify-between pb-4">
               <div className="flex items-center gap-1.5">
@@ -560,14 +575,21 @@ export function DashboardClient({
                   </span>
                 )}
               </div>
-              <p className="text-xs font-bold text-muted-foreground mt-1">Cliquer pour ouvrir le coffre-fort</p>
+              <p className="text-xs font-bold text-muted-foreground mt-1 flex items-center justify-between">
+                <span>Coffre-fort documentaire</span>
+                <ChevronRight className="w-3.5 h-3.5 text-success group-hover:translate-x-1 transition-transform" />
+              </p>
             </div>
           </div>
 
           {/* KPI 4: SCORE DE CONFORMITÉ RÉGLEMENTAIRE (CLIC -> OUVRE MODAL DÉCOMPOSITION CICC) */}
           <div 
+            role="button"
+            tabIndex={0}
+            aria-label="Voir le détail du score de conformité CICC"
             onClick={() => setShowComplianceModal(true)}
-            className="group bg-gradient-to-br from-primary/8 via-card to-primary/5 p-6 rounded-3xl border border-primary/30 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-primary hover:shadow-xl hover:scale-[1.02] transition-all duration-300 flex flex-col justify-between cursor-pointer"
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setShowComplianceModal(true) } }}
+            className="group bg-gradient-to-br from-primary/8 via-card to-primary/5 p-6 rounded-3xl border border-primary/30 shadow-[0_4px_20px_rgba(0,0,0,0.02)] hover:border-primary hover:shadow-xl hover:scale-[1.02] active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none transition-all duration-300 flex flex-col justify-between cursor-pointer"
           >
             <div className="flex items-center justify-between pb-4">
               <div className="flex items-center gap-1.5">
@@ -590,7 +612,10 @@ export function DashboardClient({
               <div className="h-2.5 w-full bg-muted rounded-full mt-2.5 overflow-hidden flex">
                 <div className="h-full bg-primary w-[98%] rounded-full" />
               </div>
-              <p className="text-[11px] font-bold text-foreground mt-1">Cliquer pour voir les 7 critères CICC</p>
+              <p className="text-[11px] font-bold text-foreground mt-1 flex items-center justify-between">
+                <span>7 critères CICC</span>
+                <ChevronRight className="w-3.5 h-3.5 text-primary group-hover:translate-x-1 transition-transform" />
+              </p>
             </div>
           </div>
 

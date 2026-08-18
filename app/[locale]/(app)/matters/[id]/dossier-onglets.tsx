@@ -432,8 +432,68 @@ export function DossierOnglets({
           )
   }
 
+  // Calcul de la complétude globale du dossier
+  const totalExigences = d.exigences.length
+  const exigencesValidees = d.exigences.filter((e) => e.status === "verified" || e.status === "uploaded").length
+  const ententeSignee = d.ententes.some((e) => Boolean(e.documentSigneId) || e.statutSignature === "completed" || e.statutSignature === "signed")
+  const aDesFactures = d.factures.length > 0
+
+  let scoreCompletude = 0
+  if (totalExigences > 0) {
+    const ratioPieces = (exigencesValidees / totalExigences) * 70
+    const bonusEntente = ententeSignee ? 20 : 0
+    const bonusFacture = aDesFactures ? 10 : 0
+    scoreCompletude = Math.round(ratioPieces + bonusEntente + bonusFacture)
+  } else {
+    scoreCompletude = ententeSignee ? 80 : 40
+  }
+  scoreCompletude = Math.min(100, Math.max(0, scoreCompletude))
+
   return (
     <div className="flex flex-col gap-5">
+      {/* BANDEAU DE COMPLÉTUDE ET CONFORMITÉ DU DOSSIER IRCC */}
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+          <div className="flex items-center gap-3">
+            <div className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+              scoreCompletude >= 80
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+            }`}>
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black text-foreground">
+                  Complétude du dossier · {scoreCompletude}%
+                </span>
+                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                  scoreCompletude >= 80
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                    : "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300"
+                }`}>
+                  {scoreCompletude >= 80 ? "✓ Prêt pour soumission IRCC" : "En cours de constitution"}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {exigencesValidees}/{totalExigences} pièce(s) vérifiée(s) · {ententeSignee ? "Entente signée" : "Entente non signée"} · {d.factures.length} facture(s)
+              </p>
+            </div>
+          </div>
+          <div className="text-right font-mono text-xs font-bold text-muted-foreground self-start sm:self-center">
+            {exigencesValidees === totalExigences && totalExigences > 0 ? "Exigences documentaires prêtes" : `${Math.max(0, totalExigences - exigencesValidees)} pièce(s) en attente`}
+          </div>
+        </div>
+        <div className="h-2 w-full rounded-full bg-muted overflow-hidden flex">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${
+              scoreCompletude >= 80 ? "bg-emerald-500" : "bg-amber-500"
+            }`}
+            style={{ width: `${scoreCompletude}%` }}
+          />
+        </div>
+      </div>
+
       {/* Le bandeau des onglets défile horizontalement plutôt que de se
           replier : sept onglets serrés sur un téléphone deviennent
           illisibles, et un menu déroulant cacherait ce qu'on cherche. */}
