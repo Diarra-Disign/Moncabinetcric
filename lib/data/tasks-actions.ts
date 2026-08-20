@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
+import { getSessionSupabase } from "@/lib/supabase/session"
+import { exigerPermission } from "@/lib/auth/permissions"
 import { messageErreur } from "@/lib/data/erreurs"
 import { journaliser } from "./journal"
 
@@ -38,8 +39,7 @@ const SchemaModificationTache = z.object({
  */
 export async function creerTache(formData: FormData): Promise<ResultatTache> {
   try {
-    const membre = await getCurrentMember()
-    if (!membre) return { ok: false, message: "Session expirée. Reconnectez-vous." }
+    const membre = await exigerPermission("records.write")
 
     const brut = {
       title: formData.get("title"),
@@ -125,8 +125,7 @@ export async function basculerEtatTache(
   locale: string = "fr"
 ): Promise<ResultatTache> {
   try {
-    const membre = await getCurrentMember()
-    if (!membre) return { ok: false, message: "Session expirée." }
+    const membre = await exigerPermission("records.write")
 
     const sb = await getSessionSupabase()
 
@@ -182,8 +181,7 @@ export async function basculerEtatTache(
  */
 export async function modifierTache(formData: FormData): Promise<ResultatTache> {
   try {
-    const membre = await getCurrentMember()
-    if (!membre) return { ok: false, message: "Session expirée." }
+    const membre = await exigerPermission("records.write")
 
     const brut = {
       id: formData.get("id"),
@@ -248,8 +246,7 @@ export async function modifierTache(formData: FormData): Promise<ResultatTache> 
  */
 export async function supprimerTache(taskId: string, locale: string = "fr"): Promise<ResultatTache> {
   try {
-    const membre = await getCurrentMember()
-    if (!membre) return { ok: false, message: "Session expirée." }
+    const membre = await exigerPermission("records.delete")
 
     const sb = await getSessionSupabase()
 
