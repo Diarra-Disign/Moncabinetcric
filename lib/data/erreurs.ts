@@ -63,79 +63,59 @@ export function messageErreur(
     return table.generic
   }
 
-  // Si c'est un code direct connu
+  // 1. Chaîne directe
   if (typeof erreur === "string") {
-    if (table[erreur]) return table[erreur]
-    if (/row-level security/i.test(erreur)) return table["42501"]
-    if (/failed to fetch|networkerror/i.test(erreur)) return table.network
-    if (/jwt expired|session expir/i.test(erreur)) return table.unauthorized
-    return erreur
+    const s = erreur.trim()
+    if (table[s]) return table[s]
+    if (/row-level security/i.test(s)) return table["42501"]
+    if (/failed to fetch|networkerror/i.test(s)) return table.network
+    if (/jwt expired|session expir/i.test(s)) return table.unauthorized
+    return table.generic
   }
 
-  // Si c'est un objet (Error, PostgrestError ou similaire)
-  if (typeof erreur === "object") {
-    const err = erreur as ErreurTechnique & { name?: string }
+  // 2. Objet d'erreur (PostgrestError, Error, etc.)
+  if (typeof erreur === "object" && erreur !== null) {
+    const err = erreur as ErreurTechnique & { name?: string; isBusinessError?: boolean }
     const code = String(err.code ?? "").trim()
     const brut = String(err.message ?? "").trim()
 
-    // 1. Détection par code d'erreur SQL / PostgREST
+    // A. Code PostgreSQL / PostgREST standard reconnu
     if (code && table[code]) {
       return table[code]
     }
 
-    // 2. Détection par motif dans le message
-    if (/row-level security/i.test(brut) || code === "42501") {
+    // B. Déclencheur métier PostgreSQL explicite (RAISE EXCEPTION = code P0001) ou erreur métier explicite
+    if (code === "P0001" || err.isBusinessError || err.name === "BusinessError") {
+      return brut || table.generic
+    }
+
+    // C. Détection par motif précis dans le message technique Postgres
+    if (/row-level security|permission denied/i.test(brut)) {
       return table["42501"]
     }
-    if (/duplicate key|unique constraint/i.test(brut) || code === "23505") {
+    if (/duplicate key|unique constraint/i.test(brut)) {
       return table["23505"]
     }
-    if (/foreign key|violates foreign key/i.test(brut) || code === "23503") {
+    if (/foreign key|violates foreign key/i.test(brut)) {
       return table["23503"]
     }
-    if (/null value in column|violates not-null/i.test(brut) || code === "23502") {
+    if (/null value in column|violates not-null/i.test(brut)) {
       return table["23502"]
     }
-    if (/check constraint/i.test(brut) || code === "23514") {
+    if (/check constraint/i.test(brut)) {
       return table["23514"]
+    }
+    if (/invalid input syntax/i.test(brut)) {
+      return table["22P02"]
     }
     if (/failed to fetch|network/i.test(brut)) {
       return table.network
     }
-
-    // 3. Préservation des messages explicites rédigés en français par nos triggers métier
-    // (ex: "Le solde passerait à -100.00$", "La période est déjà close", "Le compte est clôturé")
-    if (
-      brut.includes("débiteur") ||
-      brut.includes("solde") ||
-      brut.includes("clos") ||
-      brut.includes("clôturé") ||
-      brut.includes("introuvable") ||
-      brut.includes("obligatoire") ||
-      brut.includes("invalide")
-    ) {
-      return brut
-    }
-
-    // 4. Si le message commence par une chaîne technique Postgres "PostgrestError: ..." ou "error: ...",
-    // on ne la fuit pas, on utilise le repli générique.
-    if (
-      brut.includes("syntax error") ||
-      brut.includes("column \"") ||
-      brut.includes("relation \"") ||
-      brut.includes("schema cache") ||
-      brut.includes("table '") ||
-      brut.includes("SELECT") ||
-      brut.includes("INSERT") ||
-      brut.includes("UPDATE")
-    ) {
-      return table.generic
-    }
-
-    if (brut && !/^[A-Z0-9_]+$/.test(brut)) {
-      return brut
+    if (/jwt expired|session expir/i.test(brut)) {
+      return table.unauthorized
     }
   }
 
+  // Tout message non explicitement reconnu retourne le message générique
   return table.generic
 }

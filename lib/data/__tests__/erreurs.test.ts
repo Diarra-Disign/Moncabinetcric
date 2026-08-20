@@ -45,9 +45,9 @@ test("messageErreur — gestion bilingue des erreurs PostgreSQL", () => {
     "L'élément demandé est introuvable."
   )
 
-  // Messages métier explicites préservés
+  // Messages métier explicites des déclencheurs (code P0001) préservés
   assert.equal(
-    messageErreur({ message: "Solde débiteur de 150.00 CAD interdit" }, "fr"),
+    messageErreur({ code: "P0001", message: "Solde débiteur de 150.00 CAD interdit" }, "fr"),
     "Solde débiteur de 150.00 CAD interdit"
   )
 
