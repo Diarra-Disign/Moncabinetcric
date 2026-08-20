@@ -177,6 +177,94 @@ try {
     p_firm_id: cabA.firmId, p_kind: "system", p_title: "Depuis l'anonyme", p_body: "",
   })
   verifier("anon ne peut pas appeler notifier directement", Boolean(eAnon), true)
+
+  // =========================================================================
+  console.log("\nDeuxième passe — le noyau, les sièges, la numérotation")
+  // =========================================================================
+  // Chez soi, la réponse du membre doit être IDENTIQUE à celle de la clé de
+  // service. Comparer à une valeur écrite en dur dirait seulement que la
+  // fonction rend quelque chose ; comparer aux deux dit qu'elle rend la
+  // MÊME chose — c'est la seule formulation qui distingue « la garde laisse
+  // passer » de « la garde a tout vidé pour tout le monde ».
+  const chezMoi = async (fn, args) => {
+    const [{ data: vu }, { data: reel }] = await Promise.all([
+      membreA.rpc(fn, args), admin.rpc(fn, args),
+    ])
+    return JSON.stringify(vu) === JSON.stringify(reel) && vu !== null
+  }
+
+  verifier("son état d'accès lui est rendu", await chezMoi("firm_access_open", { f_id: cabA.firmId }), true)
+  verifier("son forfait lui est rendu", await chezMoi("firm_effective_plan", { f_id: cabA.firmId }), true)
+  verifier("ses fonctionnalités lui sont rendues",
+    await chezMoi("firm_has_feature", { f_id: cabA.firmId, feature_key: "trust" }), true)
+  verifier("son effectif lui est rendu", await chezMoi("firm_seats_taken", { f_id: cabA.firmId }), true)
+  verifier("le détail de ses sièges lui est rendu", await chezMoi("firm_seat_counts", { f_id: cabA.firmId }), true)
+  verifier("son rapprochement lui est rendu",
+    await chezMoi("trust_reconciliation_status", { f_id: cabA.firmId }), true)
+
+  const { data: numFac } = await membreA.rpc("next_invoice_number", { p_firm_id: cabA.firmId })
+  verifier("son prochain numéro de facture", /^[A-Z]+-\d{4}-\d{6}$/.test(String(numFac)), true)
+  const { data: numCli } = await membreA.rpc("next_client_file_number", { p_firm_id: cabA.firmId })
+  verifier("son prochain numéro de dossier client", /^CRIC-\d{4}-\d{4}$/.test(String(numCli)), true)
+  const { data: numDos } = await membreA.rpc("next_matter_reference", { p_firm_id: cabA.firmId })
+  verifier("sa prochaine référence de dossier", /-\d{4}-\d{5}$/.test(String(numDos)), true)
+  const { data: numRen } = await membreA.rpc("prochaine_reference_rencontre", { f_id: cabA.firmId })
+  verifier("sa prochaine référence de rencontre", /^REN-\d{4}-\d{4}$/.test(String(numRen)), true)
+
+  // =========================================================================
+  console.log("\n…et le voisin ne livre plus ni forfait, ni effectif, ni volume")
+  // =========================================================================
+  const rien = async (fn, args, attendu) => {
+    const { data } = await membreA.rpc(fn, args)
+    return Array.isArray(data) ? data.length === 0 : data === attendu
+  }
+
+  verifier("l'état d'accès du voisin", await rien("firm_access_open", { f_id: cabB.firmId }, false), true)
+  verifier("le forfait du voisin", await rien("firm_effective_plan", { f_id: cabB.firmId }, null), true)
+  verifier("les fonctionnalités du voisin",
+    await rien("firm_has_feature", { f_id: cabB.firmId, feature_key: "trust" }, false), true)
+  verifier("l'effectif du voisin", await rien("firm_seats_taken", { f_id: cabB.firmId }, 0), true)
+  verifier("le détail des sièges du voisin", await rien("firm_seat_counts", { f_id: cabB.firmId }, null), true)
+  verifier("le plafond de sièges du voisin", await rien("firm_seat_limit", { f_id: cabB.firmId }, null), true)
+  verifier("le rapprochement du voisin", await rien("trust_reconciliation_status", { f_id: cabB.firmId }, null), true)
+  verifier("le volume de factures du voisin", await rien("next_invoice_number", { p_firm_id: cabB.firmId }, null), true)
+  verifier("le volume de clients du voisin", await rien("next_client_file_number", { p_firm_id: cabB.firmId }, null), true)
+  verifier("le volume de dossiers du voisin", await rien("next_matter_reference", { p_firm_id: cabB.firmId }, null), true)
+  verifier("le volume de rencontres du voisin", await rien("prochaine_reference_rencontre", { f_id: cabB.firmId }, null), true)
+
+  // =========================================================================
+  console.log("\nLa clé publique ne peut même plus les appeler")
+  // =========================================================================
+  for (const [fn, args] of [
+    ["firm_effective_plan", { f_id: cabA.firmId }],
+    ["firm_seats_taken", { f_id: cabA.firmId }],
+    ["next_invoice_number", { p_firm_id: cabA.firmId }],
+    ["trust_reconciliation_status", { f_id: cabA.firmId }],
+  ]) {
+    const { error } = await anonPur.rpc(fn, args)
+    verifier(`anon refusé sur ${fn}`, Boolean(error), true)
+  }
+
+  // =========================================================================
+  console.log("\nUn cabinet SUSPENDU voit encore son forfait — la porte de sortie")
+  // =========================================================================
+  // La régression que la garde de la première passe aurait provoquée si on
+  // l'avait posée ici : `peut_lire_cabinet()` exige un accès OUVERT, donc un
+  // cabinet suspendu se serait vu répondre « aucun forfait » par l'écran
+  // même qui lui sert à se réabonner. C'est pourquoi le noyau et les sièges
+  // s'appuient sur `membre_du_cabinet()`, qui ne regarde que l'appartenance.
+  await admin.from("firms").update({ status: "suspended" }).eq("id", cabA.firmId)
+
+  const { data: planSusp } = await membreA.rpc("firm_effective_plan", { f_id: cabA.firmId })
+  verifier("suspendu : son forfait reste lisible", planSusp, "courtoisie")
+  const { data: siegesSusp } = await membreA.rpc("firm_seats_taken", { f_id: cabA.firmId })
+  verifier("suspendu : son effectif reste lisible", Number(siegesSusp) >= 1, true)
+  const { data: accesSusp } = await membreA.rpc("firm_access_open", { f_id: cabA.firmId })
+  verifier("suspendu : mais l'accès est bien fermé", accesSusp, false)
+  const { data: numSusp } = await membreA.rpc("next_invoice_number", { p_firm_id: cabA.firmId })
+  verifier("suspendu : et il ne numérote plus rien", numSusp, null)
+
+  await admin.from("firms").update({ status: "active" }).eq("id", cabA.firmId)
 } finally {
   for (const id of temoins) await admin.from("notifications").delete().eq("id", id)
   for (const c of [cabA, cabB]) {

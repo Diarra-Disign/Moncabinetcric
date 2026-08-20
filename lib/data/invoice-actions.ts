@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Créer une facture depuis un dossier.
@@ -68,6 +69,13 @@ export async function creerFacture(formData: FormData): Promise<Resultat> {
 
     const { data: numero, error: eNum } = await sb.rpc("next_invoice_number", { p_firm_id: membre.firmId })
     if (eNum) return { ok: false, message: `Numérotation impossible : ${eNum.message}` }
+    // La fonction rend `null` sans lever quand le cabinet n'est plus ouvert —
+    // c'est la garde de cloisonnement. Sans ce contrôle, l'insertion suivante
+    // partirait avec un numéro vide et la base refuserait en langage
+    // technique, alors que la vraie cause est l'abonnement.
+    if (!numero) {
+      return { ok: false, message: "Numérotation impossible : l'accès du cabinet est fermé." }
+    }
 
     const { data: facture, error } = await sb
       .from("invoices")
@@ -92,7 +100,7 @@ export async function creerFacture(formData: FormData): Promise<Resultat> {
       if (error.code === "23505") {
         return { ok: false, message: "Ce numéro de facture existe déjà. Réessayez : un nouveau sera calculé." }
       }
-      return { ok: false, message: error.message }
+      return { ok: false, message: messageErreur(error) }
     }
 
     const { error: eLignes } = await sb.from("invoice_lines").insert(
@@ -111,7 +119,7 @@ export async function creerFacture(formData: FormData): Promise<Resultat> {
       // La facture existe déjà mais n'a aucune ligne : la laisser ainsi
       // donnerait une pièce à zéro dollar qu'on croirait valide. On la retire.
       await sb.from("invoices").delete().eq("id", facture.id)
-      return { ok: false, message: `Lignes refusées : ${eLignes.message}` }
+      return { ok: false, message: `Lignes refusées : ${messageErreur(eLignes)}` }
     }
 
     revalidatePath(`/${locale}/matters`)
@@ -119,7 +127,7 @@ export async function creerFacture(formData: FormData): Promise<Resultat> {
 
     return { ok: true, numero: String(numero), message: `Facture ${numero} créée.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -133,28 +141,20 @@ export async function emettreFacture(formData: FormData): Promise<Resultat> {
     const locale = String(formData.get("locale") ?? "fr")
 
     const { error } = await sb.from("invoices").update({ status: "issued" }).eq("id", id)
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     revalidatePath(`/${locale}/matters`)
     return { ok: true, message: "Facture émise." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
 /**
  * Traduit les refus de la base en phrases lisibles.
- *
- * Les messages levés par les déclencheurs sont déjà écrits pour être lus :
- * ils sont repris tels quels. Les réécrire ici en produirait une seconde
- * version, qui finirait par dire autre chose que la règle.
  */
-function lisible(e: { message?: string; code?: string } | null): string {
-  const brut = e?.message ?? "Erreur inattendue."
-  if (e?.code === "42501" || /row-level security/i.test(brut)) {
-    return "Vous n'avez pas le droit d'effectuer cette action."
-  }
-  return brut
+function lisible(e: { message?: string; code?: string } | null, locale = "fr"): string {
+  return messageErreur(e, locale)
 }
 
 /** Remplace les lignes d'un brouillon. La base refuse si la facture est émise. */
@@ -205,7 +205,7 @@ export async function modifierFacture(formData: FormData): Promise<Resultat> {
     revalidatePath(`/${locale}/matters`)
     return { ok: true, message: "Facture modifiée." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -222,7 +222,7 @@ export async function supprimerFacture(formData: FormData): Promise<Resultat> {
     revalidatePath(`/${locale}/matters`)
     return { ok: true, message: "Brouillon supprimé." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -259,7 +259,7 @@ export async function annulerFacture(formData: FormData): Promise<Resultat> {
     revalidatePath(`/${locale}/matters`)
     return { ok: true, message: "Facture annulée. Son numéro reste dans la suite." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -334,7 +334,7 @@ export async function envoyerFactureAuClient(formData: FormData): Promise<Result
     revalidatePath(`/${locale}/matters`)
     return { ok: true, message: `Facture ${doc.numero} envoyée à ${doc.clientCourriel}.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -437,6 +437,6 @@ export async function envoyerRecuAuClient(formData: FormData): Promise<Resultat>
     revalidatePath(`/${locale}/matters`)
     return { ok: true, message: `Reçu ${doc.numero} envoyé à ${doc.clientCourriel}.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

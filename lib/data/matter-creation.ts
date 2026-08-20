@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Ouvrir un dossier depuis la fiche d'un client.
@@ -106,7 +107,13 @@ export async function creerDossierPourClient(formData: FormData): Promise<Result
     let reference = referenceSaisie
     if (!reference) {
       const { data, error } = await sb.rpc("next_matter_reference", { p_firm_id: membre.firmId })
-      if (error) return { ok: false, message: `Numérotation impossible : ${error.message}` }
+      if (error) return { ok: false, message: `Numérotation impossible : ${messageErreur(error)}` }
+      // `String(null)` rendrait la chaîne « null », qui s'inscrirait telle
+      // quelle comme référence du dossier. La fonction rend `null` sans lever
+      // quand le cabinet n'est plus ouvert — c'est la garde de cloisonnement.
+      if (!data) {
+        return { ok: false, message: "Numérotation impossible : l'accès du cabinet est fermé." }
+      }
       reference = String(data)
     }
 
@@ -141,7 +148,7 @@ export async function creerDossierPourClient(formData: FormData): Promise<Result
       if (error.code === "23505") {
         return { ok: false, message: "Ce numéro de dossier existe déjà. Réessayez : un nouveau sera calculé." }
       }
-      return { ok: false, message: error.message }
+      return { ok: false, message: messageErreur(error) }
     }
 
     revalidatePath(`/${locale}/matters`)
@@ -149,6 +156,6 @@ export async function creerDossierPourClient(formData: FormData): Promise<Result
 
     return { ok: true, reference, message: `Dossier ${reference} ouvert pour ${client.name}.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

@@ -53,3 +53,6 @@ next-env.d.ts
 # Identité réelle du cabinet : coordonnées professionnelles et numéro de
 # permis CICC. Le modèle firm-identity.example.json est versionné, pas lui.
 firm-identity.json
+
+# Rapports Playwright, régénérés à chaque exécution.
+test-results/

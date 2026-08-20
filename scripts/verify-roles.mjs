@@ -67,6 +67,14 @@ function probeSql(userId, statement) {
         allowed := false;
       end;
       perform set_config('role', 'postgres', true);
+      -- ET LES REVENDICATIONS DU JETON, qui ne se remettent pas d'elles-mêmes.
+      -- set_config(..., true) vit jusqu'à la fin de la TRANSACTION, non de
+      -- ce bloc, et toutes les sondes voyagent ici dans une seule requête.
+      -- Sans cette ligne, auth.uid() gardait l'identité de la sonde
+      -- précédente pour les instructions de préparation qui suivent — et
+      -- protect_firm_columns(), qui n'exempte que les appels sans session,
+      -- refusait de poser le forfait d'épreuve. Le script s'arrêtait là.
+      perform set_config('request.jwt.claims', '', true);
       insert into _probe_results(allowed) values (allowed);
     end
     $probe$;`
