@@ -44,8 +44,12 @@ export function WidgetTaches({
   const [quickAssignee, setQuickAssignee] = useState<string>("")
   const [filtre, setFiltre] = useState<"todo" | "done">("todo")
   const [filtreMembre, setFiltreMembre] = useState<"all" | "mine">("all")
-
-  const aujourdhui = new Date().toISOString().slice(0, 10)
+  const aujourdhui = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Toronto",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date())
 
   const tachesFiltrees = tasks.filter((task) => {
     if (filtre === "todo" && task.status === "done") return false

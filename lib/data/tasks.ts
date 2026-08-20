@@ -124,6 +124,19 @@ export async function listerTachesCabinet(filtres?: {
 }
 
 /**
+ * Date d'aujourd'hui dans le fuseau horaire du cabinet (Heure de l'Est / America/Toronto),
+ * au format ISO YYYY-MM-DD.
+ */
+export function dateAujourdhuiCabinet(fuseau = "America/Toronto"): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: fuseau,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date())
+}
+
+/**
  * Statistiques rapides sur les tâches du cabinet.
  */
 export async function statistiquesTaches(): Promise<{
@@ -133,7 +146,7 @@ export async function statistiquesTaches(): Promise<{
   terminees: number
 }> {
   const sb = await getSessionSupabase()
-  const aujourdhui = new Date().toISOString().slice(0, 10)
+  const aujourdhui = dateAujourdhuiCabinet()
 
   const { data } = await sb
     .from("tasks")
