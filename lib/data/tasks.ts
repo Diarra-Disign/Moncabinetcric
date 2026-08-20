@@ -137,47 +137,6 @@ export function dateAujourdhuiCabinet(fuseau = "America/Toronto"): string {
 }
 
 /**
- * Statistiques rapides sur les tâches du cabinet.
- */
-export async function statistiquesTaches(): Promise<{
-  total: number
-  enAttente: number
-  enRetard: number
-  terminees: number
-}> {
-  const sb = await getSessionSupabase()
-  const aujourdhui = dateAujourdhuiCabinet()
-
-  const { data } = await sb
-    .from("tasks")
-    .select("status, due_date")
-
-  if (!data) return { total: 0, enAttente: 0, enRetard: 0, terminees: 0 }
-
-  let enAttente = 0
-  let enRetard = 0
-  let terminees = 0
-
-  for (const t of data) {
-    if (t.status === "done") {
-      terminees++
-    } else if (t.status !== "cancelled") {
-      enAttente++
-      if (t.due_date && t.due_date < aujourdhui) {
-        enRetard++
-      }
-    }
-  }
-
-  return {
-    total: data.length,
-    enAttente,
-    enRetard,
-    terminees,
-  }
-}
-
-/**
  * Liste les collaborateurs du cabinet pour l'attribution des tâches.
  */
 export async function listerMembresCabinet(): Promise<TaskMember[]> {
