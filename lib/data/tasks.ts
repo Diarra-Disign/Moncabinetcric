@@ -185,6 +185,7 @@ export async function listerMembresCabinet(): Promise<TaskMember[]> {
   const { data, error } = await sb
     .from("profiles")
     .select("id, full_name, cicc_role, email")
+    .eq("status", "active")
     .order("full_name", { ascending: true })
 
   if (error || !data) {
