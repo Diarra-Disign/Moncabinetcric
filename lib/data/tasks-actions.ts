@@ -203,7 +203,7 @@ export async function modifierTache(formData: FormData): Promise<ResultatTache> 
 
     const { data: existante } = await sb
       .from("tasks")
-      .select("id, matter_id")
+      .select("id, matter_id, title")
       .eq("id", d.id)
       .maybeSingle()
 
@@ -226,6 +226,13 @@ export async function modifierTache(formData: FormData): Promise<ResultatTache> 
       return { ok: false, message: messageErreur(error, d.locale) }
     }
 
+    await journaliser(sb, membre, {
+      action: "task.update",
+      entityType: "task",
+      entityId: d.id,
+      resume: `Tâche modifiée : « ${d.title ?? existante.title} »`,
+    })
+
     if (existante.matter_id) {
       revalidatePath(`/${d.locale}/matters/${existante.matter_id}`)
     }
@@ -237,7 +244,7 @@ export async function modifierTache(formData: FormData): Promise<ResultatTache> 
       id: d.id,
     }
   } catch (e) {
-    return { ok: false, message: messageErreur(e) }
+    return { ok: false, message: messageErreur(e, "fr") }
   }
 }
 
