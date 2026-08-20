@@ -52,6 +52,40 @@ const MESSAGES_EN: Record<string, string> = {
   "not_found": "Resource not found.",
 }
 
+/**
+ * Ce message a-t-il été rédigé par PostgreSQL lui-même, plutôt que par l'un
+ * de nos déclencheurs ?
+ *
+ * PostgreSQL et PostgREST écrivent leurs erreurs dans des gabarits fixes, en
+ * anglais, en citant les noms internes des tables et des contraintes. Ce sont
+ * exactement les chaînes qu'on ne veut pas montrer : elles ne disent rien à
+ * un consultant et exposent la structure de la base.
+ *
+ * Nos déclencheurs, eux, écrivent une phrase destinée à être lue. Reconnaître
+ * le gabarit technique plutôt que d'essayer de reconnaître le français évite
+ * l'écueil de la version précédente, qui laissait passer tout message
+ * contenant un mot comme « solde » ou « invalide ».
+ */
+function redigeParPostgres(message: string): boolean {
+  return [
+    /violates (check|unique|foreign key|not-null|exclusion) constraint/i,
+    /new row for relation "/i,
+    /duplicate key value/i,
+    /null value in column "/i,
+    /insert or update on table "/i,
+    /update or delete on table "/i,
+    /violates row-level security policy/i,
+    /permission denied for (table|schema|relation|function|sequence)/i,
+    /invalid input syntax for/i,
+    /value too long for type/i,
+    /column .* does not exist/i,
+    /relation "[^"]+" does not exist/i,
+    /schema cache/i,
+    /JSON object requested/i,
+    /could not find the/i,
+  ].some((motif) => motif.test(message))
+}
+
 export function messageErreur(
   erreur: unknown,
   locale: string = "fr"
@@ -79,14 +113,31 @@ export function messageErreur(
     const code = String(err.code ?? "").trim()
     const brut = String(err.message ?? "").trim()
 
-    // A. Code PostgreSQL / PostgREST standard reconnu
-    if (code && table[code]) {
-      return table[code]
-    }
-
-    // B. Déclencheur métier PostgreSQL explicite (RAISE EXCEPTION = code P0001) ou erreur métier explicite
+    // A. Erreur métier déclarée comme telle, quel que soit son code.
     if (code === "P0001" || err.isBusinessError || err.name === "BusinessError") {
       return brut || table.generic
+    }
+
+    // B. Code standard reconnu — MAIS le code ne suffit pas à décider.
+    //
+    // Dix-neuf déclencheurs de ce dépôt lèvent avec un code STANDARD :
+    // `errcode = 'check_violation'` (23514) ou `'insufficient_privilege'`
+    // (42501). Leur message, lui, est une phrase écrite pour un humain :
+    //
+    //     « Solde en fidéicommis débiteur interdit : le client passerait
+    //       à -100.00. Un solde négatif signifie que les fonds d'un autre
+    //       client seraient employés. »
+    //
+    // Rendre `table[code]` sur la foi du seul code remplacerait cette
+    // phrase — la plus importante de l'application, celle qui empêche
+    // d'employer l'argent d'un client pour un autre — par « Les données
+    // fournies ne respectent pas les critères de validation. »
+    //
+    // Le discriminant n'est donc pas le code mais la FORME du message :
+    // PostgreSQL rédige ses propres violations dans un gabarit fixe, que
+    // nos déclencheurs n'emploient jamais.
+    if (code && table[code]) {
+      return brut && !redigeParPostgres(brut) ? brut : table[code]
     }
 
     // C. Détection par motif précis dans le message technique Postgres
