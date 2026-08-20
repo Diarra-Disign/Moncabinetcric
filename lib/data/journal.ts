@@ -73,16 +73,17 @@ export async function journaliser(
   acteur: Acteur,
   entree: {
     action: string
-    entityType: "client" | "lead" | "matter" | "agreement" | "document"
+    entityType: "client" | "lead" | "matter" | "agreement" | "document" | "task"
     entityId: string
     matterId?: string | null
-    changements: ChangementJournal[]
+    changements?: ChangementJournal[]
     resume?: string
   }
 ): Promise<void> {
-  if (entree.changements.length === 0) return
+  const chgs = entree.changements ?? []
+  if (chgs.length === 0 && !entree.resume) return
 
-  const noms = entree.changements.map((c) => c.libelle.toLowerCase())
+  const noms = chgs.map((c) => c.libelle.toLowerCase())
   const resume =
     entree.resume ??
     `${noms.length === 1 ? "Champ modifié" : `${noms.length} champs modifiés`} : ${noms.join(", ")}`

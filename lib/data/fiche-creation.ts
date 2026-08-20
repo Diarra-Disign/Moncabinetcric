@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { journaliser } from "./journal"
 import { validerFiche, libelleChamp, type ChampsFiche } from "./fiche-criteres"
 import type { MembreModificateur } from "./fiche-modification"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Créer une fiche client ou prospect.
@@ -162,7 +163,7 @@ export async function creerFiche(
       .select("id")
       .single()
 
-    if (error || !data) return { ok: false, message: error?.message ?? "Création impossible." }
+    if (error || !data) return { ok: false, message: messageErreur(error) }
 
     await journaliser(sb, membre, {
       action: "client.create",
@@ -179,6 +180,6 @@ export async function creerFiche(
       reference: fileNumber,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

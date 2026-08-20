@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { getSessionSupabase } from "@/lib/supabase/session"
 import { exigerPermission } from "@/lib/auth/permissions"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Ajustement des permissions d'un membre, par le cabinet.
@@ -57,7 +58,7 @@ export async function ajusterPermission(formData: FormData): Promise<ResultatPer
         .delete()
         .eq("profile_id", profilId)
         .eq("permission", permission)
-      if (error) return { ok: false, message: error.message }
+      if (error) return { ok: false, message: messageErreur(error) }
 
       revalidatePath("/[locale]/settings", "page")
       return { ok: true, message: `« ${p.label_fr} » suit de nouveau le rôle du membre.` }
@@ -67,7 +68,7 @@ export async function ajusterPermission(formData: FormData): Promise<ResultatPer
       { profile_id: profilId, permission, granted: valeur === "1", granted_at: new Date().toISOString() },
       { onConflict: "profile_id,permission" }
     )
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     revalidatePath("/[locale]/settings", "page")
     return {
@@ -75,6 +76,6 @@ export async function ajusterPermission(formData: FormData): Promise<ResultatPer
       message: `« ${p.label_fr} » ${valeur === "1" ? "accordée" : "retirée"}. Effet immédiat.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

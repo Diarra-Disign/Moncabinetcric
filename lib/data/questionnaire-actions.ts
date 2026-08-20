@@ -8,6 +8,7 @@ import { siteUrl } from "@/lib/site-url"
 import { identiteCourriel } from "./questionnaires"
 import { verifierSections } from "./questionnaire-structure"
 import { libelleCivilite, nomAvecCivilite } from "./identite"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Actions de la bibliothèque de questionnaires.
@@ -31,16 +32,12 @@ async function moi() {
   return membre
 }
 
-function lisible(e: { message?: string; code?: string } | null): string {
-  const brut = e?.message ?? "Erreur inattendue."
-  if (e?.code === "42501" || /row-level security/i.test(brut)) {
-    return "Vous n'avez pas le droit d'effectuer cette action."
-  }
-  if (e?.code === "23505") return "Cet élément existe déjà."
+function lisible(e: { message?: string; code?: string } | null, locale = "fr"): string {
+  const brut = e?.message ?? ""
   if (/client_questionnaires_destinataire/.test(brut)) {
     return "Un questionnaire s'adresse à un client OU à un prospect, jamais aux deux."
   }
-  return brut
+  return messageErreur(e, locale)
 }
 
 /**
@@ -209,7 +206,7 @@ export async function envoyerQuestionnaire(formData: FormData): Promise<Resultat
     }
     return { ok: true, lien, message: `Questionnaire envoyé à ${courriel}.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -336,7 +333,7 @@ export async function envoyerRappel(formData: FormData): Promise<Resultat> {
     revalidatePath(`/${locale}/questionnaires`)
     return { ok: true, lien, message: `Rappel envoyé à ${courriel}. Un nouveau lien remplace le précédent.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -371,7 +368,7 @@ export async function prolongerDateLimite(formData: FormData): Promise<Resultat>
     revalidatePath(`/${locale}/questionnaires`)
     return { ok: true, message: date ? `Date limite reportée au ${date}.` : "Date limite retirée." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -399,7 +396,7 @@ export async function revoquerLien(formData: FormData): Promise<Resultat> {
     revalidatePath(`/${locale}/questionnaires`)
     return { ok: true, message: "Le lien a été désactivé." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -432,7 +429,7 @@ export async function demanderCorrection(formData: FormData): Promise<Resultat> 
     revalidatePath(`/${locale}/questionnaires`)
     return { ok: true, message: "Correction demandée." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -457,7 +454,7 @@ export async function cloreQuestionnaire(formData: FormData): Promise<Resultat> 
     revalidatePath(`/${locale}/questionnaires`)
     return { ok: true, message: "Questionnaire clos." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -506,7 +503,7 @@ export async function dupliquerModele(formData: FormData): Promise<Resultat> {
     revalidatePath(`/${locale}/questionnaires`)
     return { ok: true, message: `« ${nouveauTitre} » ajouté à votre bibliothèque.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -593,7 +590,7 @@ export async function enregistrerModele(formData: FormData): Promise<Resultat> {
     revalidatePath(`/${locale}/questionnaires`)
     return { ok: true, message: `« ${titreFr} » ajouté à votre bibliothèque.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -615,7 +612,7 @@ export async function supprimerModele(formData: FormData): Promise<Resultat> {
     revalidatePath(`/${locale}/questionnaires`)
     return { ok: true, message: "Questionnaire retiré de la bibliothèque." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -644,6 +641,6 @@ export async function definirParDefaut(formData: FormData): Promise<Resultat> {
     revalidatePath(`/${locale}/questionnaires`)
     return { ok: true, message: "Questionnaire proposé par défaut aux prospects." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

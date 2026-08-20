@@ -45,9 +45,11 @@ export default async function MatterDetailPage({
   // Les clients du cabinet, pour rattacher un dossier qui n'en a pas. Lus
   // sous RLS : la liste ne peut contenir que des clients du même cabinet.
   const { getSessionSupabase, getCurrentMember } = await import("@/lib/supabase/session")
-  const [member, clientsRes] = await Promise.all([
+  const { listerMembresCabinet } = await import("@/lib/data/tasks")
+  const [member, clientsRes, members] = await Promise.all([
     getCurrentMember(),
-    (await getSessionSupabase()).from("clients").select("id, name, file_number, email").order("name")
+    (await getSessionSupabase()).from("clients").select("id, name, file_number, email").order("name"),
+    listerMembresCabinet(),
   ])
   const clientsBruts = clientsRes.data
   // profileId et non userId : c'est le profil qui désigne l'auteur d'une
@@ -192,6 +194,7 @@ export default async function MatterDetailPage({
           clientName={matter.clientName}
           courrielClient={clientsBruts?.find((c) => String(c.id) === dossier.clientId)?.email ?? ""}
           programName={matter.program}
+          members={members}
         />
       )}
 

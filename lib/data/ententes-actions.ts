@@ -7,6 +7,7 @@ import { ligneDePartie, partieDepuisCabinet } from "@/lib/ententes/contractant"
 import { verifierAvantGeneration, variablesDe, substituer } from "@/lib/ententes/variables"
 import type { ContexteEntente } from "@/lib/ententes/variables"
 import { recalculer, verifierEcheancier, type EtapePaiement } from "@/lib/ententes/echeancier"
+import { messageErreur } from "@/lib/data/erreurs"
 
 export interface Resultat {
   ok: boolean
@@ -314,7 +315,7 @@ export async function creerEntente(demande: DemandeEntente): Promise<Resultat> {
       .select("id")
       .single()
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     // Toutes les colonnes, même vides : PostgREST unifie le jeu de colonnes
     // d'un insert groupé, et une partie sans courriel ferait échouer l'insert
@@ -338,7 +339,7 @@ export async function creerEntente(demande: DemandeEntente): Promise<Resultat> {
     revalidatePath("/fr/agreements")
     return { ok: true, message: `${contexte.entente.numero} créée en brouillon.`, id: String(creee.id) }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -438,7 +439,7 @@ export async function modifierBrouillon(
       .eq("status", "draft")
       .select("id")
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
     if (!data || data.length === 0) {
       return {
         ok: false,
@@ -451,7 +452,7 @@ export async function modifierBrouillon(
     revalidatePath("/fr/agreements")
     return { ok: true, message: "Brouillon enregistré.", id }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -488,7 +489,7 @@ export async function emettreEntente(id: string): Promise<Resultat> {
     }
     return { ok: resultat.ok, message: resultat.message, id: resultat.documentId }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -525,7 +526,7 @@ export async function facturerEtapeEntente(
     }
     return r
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -612,7 +613,7 @@ export async function envoyerPourSignature(id: string, note?: string): Promise<R
       return {
         ok: true,
         id: envoi.demandeId,
-        message: `${envoi.message} L'état de ${entente.reference} n'a pas pu être mis à jour : ${error.message}`,
+        message: `${envoi.message} L'état de ${entente.reference} n'a pas pu être mis à jour : ${messageErreur(error)}`,
       }
     }
 
@@ -624,7 +625,7 @@ export async function envoyerPourSignature(id: string, note?: string): Promise<R
       message: `${entente.reference} est partie en signature. ${envoi.message}`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -667,7 +668,7 @@ export async function relancerEntente(id: string): Promise<Resultat> {
     if (r.ok) revalidatePath("/fr/agreements")
     return { ...r, id: String(demande.id) }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -767,13 +768,13 @@ export async function sauvegarderModelePersonnalise({
         .from("agreement_template_articles")
         .insert(articlesAInserer)
 
-      if (errArt) return { ok: false, message: errArt.message }
+      if (errArt) return { ok: false, message: messageErreur(errArt) }
     }
 
     revalidatePath("/fr/agreements")
     return { ok: true, message: `Modèle « ${titre} » enregistré avec succès.`, id: template.id }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -809,7 +810,7 @@ export async function supprimerModelePersonnalise(templateId: string): Promise<R
       .eq("id", templateId)
       .eq("firm_id", m.firmId)
 
-    if (errDel) return { ok: false, message: errDel.message }
+    if (errDel) return { ok: false, message: messageErreur(errDel) }
 
     revalidatePath("/fr/agreements")
     return {
@@ -817,6 +818,6 @@ export async function supprimerModelePersonnalise(templateId: string): Promise<R
       message: `Le modèle « ${template.title_fr} » a été supprimé avec succès.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

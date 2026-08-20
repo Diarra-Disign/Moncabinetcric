@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
+import { messageErreur } from "@/lib/data/erreurs"
 
 export interface Resultat { ok: boolean; message: string; id?: string }
 
@@ -19,12 +20,13 @@ async function moi() {
  * COMBIEN le client passerait en négatif. Le remplacer par un « erreur
  * inattendue » ferait perdre l'information la plus utile de tout le module.
  */
-function lisible(e: { message?: string; code?: string }): string {
-  const m = String(e?.message ?? "")
-  if (m.includes("débiteur")) return m
-  if (e?.code === "23505") return "Un rapprochement existe déjà pour cette période."
-  if (m.includes("clos")) return m
-  return m || "La base a refusé l'opération."
+function lisible(e: { message?: string; code?: string }, locale = "fr"): string {
+  if (e?.code === "23505") {
+    return locale === "en"
+      ? "A reconciliation already exists for this period."
+      : "Un rapprochement existe déjà pour cette période."
+  }
+  return messageErreur(e, locale)
 }
 
 const nombre = (v: FormDataEntryValue | null) =>
@@ -81,7 +83,7 @@ export async function enregistrerMouvementFideicommis(formData: FormData): Promi
     revalidatePath(`/${String(formData.get("locale") ?? "fr")}/fideicommis`)
     return { ok: true, message: "Mouvement enregistré au registre.", id: String(data.id) }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -155,7 +157,7 @@ export async function enregistrerRapprochement(formData: FormData): Promise<Resu
     revalidatePath(`/${String(formData.get("locale") ?? "fr")}/fideicommis`)
     return { ok: true, message: "Rapprochement enregistré.", id: String(data.id) }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -207,7 +209,7 @@ export async function cloreRapprochement(formData: FormData): Promise<Resultat> 
     revalidatePath(`/${String(formData.get("locale") ?? "fr")}/fideicommis`)
     return { ok: true, message: "Rapprochement arrêté. Il ne peut plus être modifié." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -221,6 +223,6 @@ export async function supprimerRapprochement(formData: FormData): Promise<Result
     revalidatePath(`/${String(formData.get("locale") ?? "fr")}/fideicommis`)
     return { ok: true, message: "Brouillon supprimé." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

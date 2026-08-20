@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js"
 import { autorise, TROP_DE_TENTATIVES } from "@/lib/securite/limiter"
 import type { FormSectionShape, QuestionnaireCorrection } from "./types"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Le questionnaire vu par son destinataire, sans compte.
@@ -59,7 +60,7 @@ export async function ouvrirParJeton(
   // Le message vient de la base : « lien invalide », « lien désactivé »,
   // « questionnaire annulé ». Les distinguer aide le destinataire à savoir
   // s'il doit vérifier son lien ou écrire au cabinet.
-  if (error) return { erreur: error.message || "Ce lien n'est pas valide." }
+  if (error) return { erreur: messageErreur(error) }
   if (!data) return { erreur: "Ce lien n'est pas valide." }
 
   const d = data as Record<string, unknown>
@@ -97,7 +98,7 @@ export async function enregistrerParJeton(
     p_answers: answers,
     p_progress: progress,
   })
-  if (error) return { ok: false, message: error.message || "Enregistrement impossible." }
+  if (error) return { ok: false, message: messageErreur(error) }
   return { ok: true, message: "Enregistré." }
 }
 
@@ -108,6 +109,6 @@ export async function soumettreParJeton(jeton: string): Promise<ResultatPublic> 
 
   const sb = clientAnonyme()
   const { error } = await sb.rpc("questionnaire_soumettre", { p_token: jeton })
-  if (error) return { ok: false, message: error.message || "Envoi impossible." }
+  if (error) return { ok: false, message: messageErreur(error) }
   return { ok: true, message: "Questionnaire transmis au cabinet." }
 }

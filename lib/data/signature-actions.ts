@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
 import { SignatureService } from "@/lib/signature/service"
+import { messageErreur } from "@/lib/data/erreurs"
 import type { DemandeSignature, EtatDemande, EntreeJournalSignature } from "@/lib/signature/contrat"
 import type { EvenementSignature } from "@/lib/signature/statuts"
 import { apparier, type EmplacementSignature } from "@/lib/ententes/emplacements"
@@ -196,7 +197,7 @@ export async function envoyerEnSignature(
       message: `Demande envoyée. ${verdictCourriel(courrier)}`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -347,7 +348,7 @@ export async function annulerSignature(demandeId: string, motif?: string): Promi
     revalidatePath("/fr/signatures")
     return r
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -388,7 +389,7 @@ export async function relancerSignature(
         : `Nouveau lien engendré. ${verdictCourriel(courrier)}`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -447,7 +448,7 @@ export async function lienPourSigner(
 
     return { ok: true, lien, message: "Ouverture de votre page de signature." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -522,7 +523,7 @@ export async function archiverSignature(demandeId: string): Promise<Resultat> {
       .is("archived_at", null)
       .select("id")
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
     if (!data || data.length === 0) {
       return { ok: false, message: "Archivage refusé : vérifiez vos droits sur ce cabinet." }
     }
@@ -533,7 +534,7 @@ export async function archiverSignature(demandeId: string): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: "Demande de signature archivée." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -557,7 +558,7 @@ export async function restaurerSignature(demandeId: string): Promise<Resultat> {
       .not("archived_at", "is", null)
       .select("id, status")
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
     if (!data || data.length === 0) {
       return { ok: false, message: "Cette demande n'est pas archivée." }
     }
@@ -570,7 +571,7 @@ export async function restaurerSignature(demandeId: string): Promise<Resultat> {
       message: `Demande restaurée. Elle reste ${data[0].status === "expired" ? "expirée" : "annulée"}.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -689,7 +690,7 @@ export async function supprimerSignatureDefinitivement(
       .in("status", CLOSES)
       .select("id")
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
     if (!data || data.length === 0) {
       return { ok: false, message: "Suppression refusée : vérifiez vos droits sur ce cabinet." }
     }
@@ -704,7 +705,7 @@ export async function supprimerSignatureDefinitivement(
       message: "Demande supprimée définitivement. Le document reste au dossier.",
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 

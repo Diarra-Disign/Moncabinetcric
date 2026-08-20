@@ -2,6 +2,7 @@ import "server-only"
 
 import { randomBytes, createHash } from "node:crypto"
 import { getServerSupabase } from "@/lib/supabase/server"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Authentification du connecteur d'intelligence artificielle.
@@ -137,7 +138,7 @@ export async function creerCle(opts: {
     expires_at: opts.jours ? new Date(Date.now() + opts.jours * 86400000).toISOString() : null,
   })
 
-  if (error) return { ok: false, message: error.message }
+  if (error) return { ok: false, message: messageErreur(error) }
 
   return {
     ok: true,

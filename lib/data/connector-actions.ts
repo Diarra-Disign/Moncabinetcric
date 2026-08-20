@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 import { creerCle } from "@/lib/data/connector-auth"
 import { exigerPermission } from "@/lib/auth/permissions"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Pilotage du connecteur par le cabinet.
@@ -50,7 +51,7 @@ export async function basculerConnecteur(formData: FormData): Promise<ResultatCo
       })
       .eq("firm_id", membre.firmId)
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     revalidatePath("/[locale]/settings/connector", "page")
     return {
@@ -62,7 +63,7 @@ export async function basculerConnecteur(formData: FormData): Promise<ResultatCo
         : "Connecteur fermé. Toutes les clés cessent de fonctionner immédiatement.",
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -89,7 +90,7 @@ export async function creerCleApi(formData: FormData): Promise<ResultatConnecteu
     revalidatePath("/[locale]/settings/connector", "page")
     return { ok: true, message: r.message, cle: r.cle.cle }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -109,11 +110,11 @@ export async function revoquerCleApi(formData: FormData): Promise<ResultatConnec
       .eq("id", id)
       .eq("firm_id", membre.firmId)
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     revalidatePath("/[locale]/settings/connector", "page")
     return { ok: true, message: "Clé révoquée. Elle cesse de fonctionner immédiatement." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

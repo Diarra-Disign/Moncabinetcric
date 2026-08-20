@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Promotion d'un rendez-vous en prospect ou en client.
@@ -100,12 +101,12 @@ export async function creerProspectDepuisRdv(formData: FormData): Promise<Result
       .select("id")
       .single()
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     revalidatePath("/[locale]/pipeline", "page")
     return { ok: true, message: `Prospect « ${nom} » créé.`, id: data.id as string }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -150,7 +151,7 @@ export async function creerClientDepuisRdv(formData: FormData): Promise<Resultat
       .select("id")
       .single()
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     // Le prospect correspondant n'est pas supprimé : l'historique du
     // pipeline — origine, durée du cycle, valeur estimée face au réel —
@@ -163,8 +164,8 @@ export async function creerClientDepuisRdv(formData: FormData): Promise<Resultat
 
     revalidatePath("/[locale]/clients", "page")
     revalidatePath("/[locale]/pipeline", "page")
-    return { ok: true, message: `Client « ${nom} » créé — dossier ${numero}.`, id: data.id as string }
+    return { ok: true, message: `Fiche client créée pour ${nom}.`, id: data.id as string }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

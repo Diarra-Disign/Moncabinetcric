@@ -135,11 +135,11 @@ export function courrielAccuseDemande(opts: { langue: Langue; nom: string }): Co
       sujet: "We received your request — moncabinetcric",
       html: coquille(
         "Request received",
-        `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Hello ${nom}, we have your request for a demo. A regulated consultant reads it — not an autoresponder — and will write back to arrange a time.</p>
-         <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">There is no open sign-up: access is granted one firm at a time, after a conversation.</p>`,
-        "No action is needed on your side."
+        `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Hello ${nom}, we have received your demo request. Our team will contact you shortly to schedule a time that fits your availability.</p>
+         <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Access to MonCabinetCRIC is configured individually for each firm.</p>`,
+        "No action is required on your side."
       ),
-      texte: `Hello ${opts.nom}, we have your request for a demo and will write back to arrange a time.`,
+      texte: `Hello ${opts.nom}, we have received your demo request. Our team will contact you shortly to schedule a time.`,
     }
   }
 
@@ -147,11 +147,11 @@ export function courrielAccuseDemande(opts: { langue: Langue; nom: string }): Co
     sujet: "Nous avons reçu votre demande — moncabinetcric",
     html: coquille(
       "Demande reçue",
-      `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Bonjour ${nom}, votre demande de démonstration nous est parvenue. Elle est lue par un consultant réglementé — pas par un automate — qui vous écrira pour convenir d'un moment.</p>
-       <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">Il n'y a pas d'inscription libre : un accès s'ouvre cabinet par cabinet, après échange.</p>`,
-      "Aucune action n'est attendue de votre part."
+      `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Bonjour ${nom}, nous avons bien reçu votre demande de démonstration. Notre équipe vous contactera très prochainement pour convenir d'un créneau adapté à vos disponibilités.</p>
+       <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">L'accès à MonCabinetCRIC est configuré individuellement pour chaque cabinet.</p>`,
+      "Aucune action n'est requise de votre part."
     ),
-    texte: `Bonjour ${opts.nom}, votre demande de démonstration nous est parvenue. Nous vous écrirons pour convenir d'un moment.`,
+    texte: `Bonjour ${opts.nom}, nous avons bien reçu votre demande de démonstration. Notre équipe vous contactera très prochainement pour convenir d'un créneau.`,
   }
 }
 

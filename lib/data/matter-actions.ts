@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Actions du dossier client.
@@ -30,18 +31,9 @@ async function moi() {
 
 /**
  * Traduit une erreur Postgres en phrase lisible.
- *
- * Les messages levés par les déclencheurs sont déjà écrits pour être lus —
- * c'est pourquoi ils sont repris tels quels. Les codes techniques, eux, ne
- * disent rien à personne.
  */
-function lisible(e: { message?: string; code?: string } | null): string {
-  const brut = e?.message ?? "Erreur inattendue."
-  if (e?.code === "42501" || /row-level security/i.test(brut)) {
-    return "Vous n'avez pas le droit d'effectuer cette action."
-  }
-  if (e?.code === "23505") return "Cet élément existe déjà."
-  return brut
+function lisible(e: { message?: string; code?: string } | null, locale = "fr"): string {
+  return messageErreur(e, locale)
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +59,7 @@ export async function marquerRecue(formData: FormData): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: "Pièce marquée reçue. Elle reste à vérifier." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -106,7 +98,7 @@ export async function marquerVerifiee(formData: FormData): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: "Pièce vérifiée." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -134,7 +126,7 @@ export async function renvoyerACorriger(formData: FormData): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: "Pièce renvoyée à corriger." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -169,7 +161,7 @@ export async function declarerDossier(formData: FormData): Promise<Resultat> {
       message: statut === "complete" ? "Dossier déclaré complet." : "Dossier prêt à être soumis.",
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -223,7 +215,7 @@ export async function enregistrerPaiement(formData: FormData): Promise<Resultat>
           : `${montant.toFixed(2)} $ enregistrés au compte de l'entreprise.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -255,7 +247,7 @@ export async function virerHonoraires(formData: FormData): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: `${montant.toFixed(2)} $ virés au compte de l'entreprise.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -288,7 +280,7 @@ export async function ajouterEcheance(formData: FormData): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: "Échéance ajoutée." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -310,7 +302,7 @@ export async function changerEtatEcheance(formData: FormData): Promise<Resultat>
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: "Échéance mise à jour." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -333,7 +325,7 @@ export async function ouvrirFormulaire(formData: FormData): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: "Exemplaire ouvert, pré-rempli depuis le dossier." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -527,7 +519,7 @@ export async function demanderValidation(formData: FormData): Promise<Resultat> 
       message: `${resolvedDocIds.length} document(s) envoyé(s) au client pour validation.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -570,7 +562,7 @@ export async function rattacherClient(formData: FormData): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: `Dossier rattaché à ${client.name}. Les paiements et le portail sont maintenant accessibles.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -600,7 +592,7 @@ export async function inviterClientAuPortail(formData: FormData): Promise<Result
         : r.message,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -674,7 +666,7 @@ export async function deposerFormulaire(formData: FormData): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: `« ${nom} » déposé au dossier.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -763,7 +755,7 @@ export async function deposerAutreDocument(formData: FormData): Promise<Resultat
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: `« ${nom} » rangé au dossier.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -830,7 +822,7 @@ export async function deposerPourExigence(formData: FormData): Promise<Resultat>
       message: `« ${fichier.name} » déposé. La pièce est reçue et reste à vérifier.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -860,7 +852,7 @@ export async function apercuDocument(formData: FormData): Promise<Resultat & { u
 
     return { ok: true, message: `Ouverture de « ${doc.name} »…`, url: lien.url }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -903,7 +895,7 @@ export async function retirerDocument(formData: FormData): Promise<Resultat> {
         : `« ${doc.name} » retiré.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -1008,7 +1000,7 @@ export async function reclasserDocument(documentId: string, categorie: string): 
 
     return { ok: true, message: `« ${doc.name} » déplacé vers ${nomDe(categorie)}.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 

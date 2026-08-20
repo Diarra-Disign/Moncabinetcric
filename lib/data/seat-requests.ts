@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
 import { getCurrentPlatformAdmin, getSessionSupabase } from "@/lib/supabase/session"
 import { exigerPermission } from "@/lib/auth/permissions"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Demandes de places : le cabinet demande, l'exploitant accorde.
@@ -62,7 +63,7 @@ export async function demanderSieges(formData: FormData): Promise<ResultatSieges
           message: "Une demande est déjà en attente pour ce cabinet. Attendez la réponse avant d'en déposer une autre.",
         }
       }
-      return { ok: false, message: error.message }
+      return { ok: false, message: messageErreur(error) }
     }
 
     revalidatePath("/[locale]/settings", "page")
@@ -71,7 +72,7 @@ export async function demanderSieges(formData: FormData): Promise<ResultatSieges
       message: `Demande de ${seats} place(s) envoyée. Vous serez informé de la réponse.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -128,7 +129,7 @@ export async function repondreDemandeSieges(formData: FormData): Promise<Resulta
       })
       .eq("id", id)
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     if (decision === "approved" && accordees > 0) {
       const { error: eSieges } = await supabase
@@ -142,7 +143,7 @@ export async function repondreDemandeSieges(formData: FormData): Promise<Resulta
       if (eSieges) {
         return {
           ok: false,
-          message: `Demande marquée accordée, mais les places n'ont pas été ajoutées : ${eSieges.message}`,
+          message: `Demande marquée accordée, mais les places n'ont pas été ajoutées : ${messageErreur(eSieges)}`,
         }
       }
     }
@@ -177,6 +178,6 @@ export async function repondreDemandeSieges(formData: FormData): Promise<Resulta
       message: decision === "refused" ? "Demande refusée." : "Précisions demandées au cabinet.",
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

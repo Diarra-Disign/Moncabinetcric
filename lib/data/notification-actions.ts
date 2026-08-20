@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
+import { messageErreur } from "@/lib/data/erreurs"
 
 export interface Resultat {
   ok: boolean
@@ -34,11 +35,11 @@ export async function marquerLues(formData: FormData): Promise<Resultat> {
         { onConflict: "notification_id,profile_id", ignoreDuplicates: true }
       )
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     revalidatePath("/", "layout")
     return { ok: true, message: "Notifications marquées comme lues." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

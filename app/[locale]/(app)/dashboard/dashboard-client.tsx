@@ -39,8 +39,8 @@ import {
   Settings
 } from "lucide-react"
 import { Link, useRouter } from "@/i18n/routing"
-
-import { CiccComplianceScore, DeadlineRecord } from "@/lib/data/types"
+import { WidgetTaches } from "@/components/dashboard/widget-taches"
+import { CiccComplianceScore, DeadlineRecord, TaskRecord, TaskMember } from "@/lib/data/types"
 
 interface SearchItem {
   id: string
@@ -120,6 +120,9 @@ export function DashboardClient({
   dossiersRecents = { dossiers: [], total: 0 },
   indexRecherche = [],
   repartition = [],
+  initialTasks = [],
+  members = [],
+  currentMemberId,
 }: { 
   t: DashboardLabels
   deadlines?: DeadlineRecord[]
@@ -128,6 +131,9 @@ export function DashboardClient({
   dossiersRecents?: PageDossiersRecents
   indexRecherche?: ResultatRecherche[]
   repartition?: { programme: string; nombre: number; pourcentage: number }[]
+  initialTasks?: TaskRecord[]
+  members?: TaskMember[]
+  currentMemberId?: string
 }) {
   const firm = useFirm()
   const router = useRouter()
@@ -678,16 +684,16 @@ export function DashboardClient({
             )}
           </div>
 
-          {/* RACCOURCIS DE PRODUCTIVITÉ EN 1-CLIC */}
+          {/* ACCÈS RAPIDES AUX MODULES */}
           <div className="bg-foreground text-background rounded-3xl p-6 shadow-xl border border-primary/25 flex flex-col justify-between gap-5 relative overflow-hidden">
             <div className="pointer-events-none absolute -bottom-16 -right-16 w-48 h-48 rounded-full bg-primary/20 blur-2xl" />
 
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Zap className="w-5 h-5 text-warning" />
-                <h3 className="font-black text-base text-background">Raccourcis SaaS 1-Clic</h3>
+                <Layers className="w-5 h-5 text-primary" />
+                <h3 className="font-black text-base text-background">Accès rapides</h3>
               </div>
-              <p className="text-xs text-background/70">Accès direct aux modules clés de votre cabinet</p>
+              <p className="text-xs text-background/70">Modules et espaces de travail du quotidien</p>
             </div>
 
             <div className="flex flex-col gap-2.5 relative z-10">
@@ -697,8 +703,8 @@ export function DashboardClient({
                   className="w-full inline-flex items-center justify-between p-3 rounded-2xl bg-background/10 hover:bg-background/20 border border-background/15 text-background text-xs font-bold transition-all cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <Wand2 className="w-4 h-4 text-success" />
-                    <span>Autoremplissage IRCC</span>
+                    <FileText className="w-4 h-4 text-primary" />
+                    <span>Documents & Formulaires</span>
                   </span>
                   <ArrowUpRight className="w-4 h-4 text-background/60" />
                 </button>
@@ -710,8 +716,8 @@ export function DashboardClient({
                   className="w-full inline-flex items-center justify-between p-3 rounded-2xl bg-background/10 hover:bg-background/20 border border-background/15 text-background text-xs font-bold transition-all cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-warning" />
-                    <span>Facture & Fidéicommis</span>
+                    <FileCheck2 className="w-4 h-4 text-warning" />
+                    <span>Facturation & Finances</span>
                   </span>
                   <ArrowUpRight className="w-4 h-4 text-background/60" />
                 </button>
@@ -723,8 +729,8 @@ export function DashboardClient({
                   className="w-full inline-flex items-center justify-between p-3 rounded-2xl bg-background/10 hover:bg-background/20 border border-background/15 text-background text-xs font-bold transition-all cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-primary" />
-                    <span>Paramètres Cabinet</span>
+                    <Settings className="w-4 h-4 text-muted-foreground" />
+                    <span>Paramètres du cabinet</span>
                   </span>
                   <ArrowUpRight className="w-4 h-4 text-background/60" />
                 </button>
@@ -735,38 +741,47 @@ export function DashboardClient({
         </div>
       )}
 
-      {/* 3.5. AGENDA & RENCONTRES DU JOUR (WIDGET DÉDIÉ) */}
-      {widgetsState.todayAgenda && (
-        <div className="bg-card rounded-3xl border border-border shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 space-y-4 animate-fadeIn">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-primary/12 text-primary-strong flex items-center justify-center font-bold">
-                <Clock className="w-5 h-5" />
+      {/* 3.5. AGENDA & TÂCHES OPÉRATIONNELLES (GRILLE DÉDIÉE) */}
+      <div className="grid gap-6 lg:grid-cols-2 items-stretch animate-fadeIn">
+        {widgetsState.todayAgenda && (
+          <div className="bg-card rounded-3xl border border-border shadow-[0_4px_20px_rgba(0,0,0,0.02)] p-6 space-y-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-primary/12 text-primary-strong flex items-center justify-center font-bold">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-foreground">Agenda & Consultations du Jour</h3>
+                  <p className="text-xs text-muted-foreground font-medium">Vos rencontres du jour</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-black text-base text-foreground">Agenda & Consultations du Jour</h3>
-                <p className="text-xs text-muted-foreground font-medium">Vos rencontres du jour</p>
-              </div>
+              <Link href="/calendar">
+                <button type="button" className="text-xs font-extrabold text-primary-strong hover:text-foreground flex items-center gap-1 cursor-pointer">
+                  <span>Ouvrir l&apos;Agenda complet</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                </button>
+              </Link>
             </div>
-            <Link href="/calendar">
-              <button type="button" className="text-xs font-extrabold text-primary-strong hover:text-foreground flex items-center gap-1 cursor-pointer">
-                <span>Ouvrir l&apos;Agenda complet</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </button>
-            </Link>
-          </div>
 
-          {/* Les trois rendez-vous qui figuraient ici étaient écrits en dur,
-              avec les clients d'un cabinet fictif. Ils s'affichaient donc sur
-              un cabinet réel n'ayant aucun rendez-vous. */}
-          <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
-            <p className="text-xs font-bold text-muted-foreground">Aucun rendez-vous planifié</p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              Les rencontres à venir apparaîtront ici.
-            </p>
+            {/* Les trois rendez-vous qui figuraient ici étaient écrits en dur,
+                avec les clients d'un cabinet fictif. Ils s'affichaient donc sur
+                un cabinet réel n'ayant aucun rendez-vous. */}
+            <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center flex-1 flex flex-col items-center justify-center">
+              <p className="text-xs font-bold text-muted-foreground">Aucun rendez-vous planifié</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Les rencontres à venir apparaîtront ici.
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Widget Tâches Opérationnelles */}
+        <WidgetTaches
+          initialTasks={initialTasks}
+          members={members}
+          currentMemberId={currentMemberId}
+        />
+      </div>
 
       {/* 4. SECTION PRINCIPALE : DOSSIERS RÉCENTS & JAUGE DE STOCKAGE AUDITABLE */}
       {widgetsState.mattersList && (

@@ -1,6 +1,7 @@
 import "server-only"
 
 import { getSessionSupabase } from "@/lib/supabase/session"
+import type { TaskRecord, TaskPriority, TaskStatus } from "./types"
 
 /**
  * Le dossier client, vu comme un tout.
@@ -182,6 +183,7 @@ export interface DossierComplet {
   factures: FactureVue[]
   paiements: PaiementVue[]
   validations: ValidationDossier[]
+  taches: TaskRecord[]
 
   finances: {
     facture: number
@@ -246,7 +248,7 @@ export async function getDossierComplet(
 
   // Lancées ensemble : ces lectures ne dépendent pas les unes des autres, et
   // les enchaîner ajouterait autant d'allers-retours que d'onglets.
-  const [exig, bloq, ech, form, fact, paie, cu, docsClient, revues, soldeFid, docs, demandes] =
+  const [exig, bloq, ech, form, fact, paie, cu, docsClient, revues, soldeFid, docs, demandes, tachesData] =
     await Promise.all([
       sb.rpc("matter_requirements_view", { m_id: matterId }),
       sb.rpc("matter_blocking_requirements", { m_id: matterId }),
@@ -296,6 +298,16 @@ export async function getDossierComplet(
           signature_recipients(full_name, role, status, signed_at, rank)
         `)
         .eq("documents.matter_id", matterId),
+      sb.from("tasks")
+        .select(`
+          *,
+          matters:matter_id(reference),
+          clients:client_id(name),
+          assigne:assigned_to(full_name),
+          auteur:created_by(full_name)
+        `)
+        .eq("matter_id", matterId)
+        .order("created_at", { ascending: false }),
     ])
 
   // Les documents indexés par leur identifiant, pour joindre nom et date à
@@ -487,6 +499,39 @@ export async function getDossierComplet(
       })),
     factures,
     paiements,
+    taches: ((tachesData as { data?: Array<Record<string, unknown>> })?.data ?? []).map((t) => {
+      const mat = t.matters as { reference?: string } | Array<{ reference?: string }> | null
+      const cli = t.clients as { name?: string } | Array<{ name?: string }> | null
+      const asg = t.assigne as { full_name?: string } | Array<{ full_name?: string }> | null
+      const aut = t.auteur as { full_name?: string } | Array<{ full_name?: string }> | null
+
+      const matRef = Array.isArray(mat) ? mat[0]?.reference : mat?.reference
+      const cliNom = Array.isArray(cli) ? cli[0]?.name : cli?.name
+      const asgNom = Array.isArray(asg) ? asg[0]?.full_name : asg?.full_name
+      const autNom = Array.isArray(aut) ? aut[0]?.full_name : aut?.full_name
+
+      return {
+        id: String(t.id),
+        firmId: String(t.firm_id),
+        matterId: t.matter_id ? String(t.matter_id) : null,
+        matterReference: matRef ?? null,
+        clientId: t.client_id ? String(t.client_id) : null,
+        clientName: cliNom ?? null,
+        title: String(t.title ?? ""),
+        description: (t.description as string) ?? null,
+        priority: (t.priority as TaskPriority) || "normal",
+        status: (t.status as TaskStatus) || "todo",
+        dueDate: (t.due_date as string) ?? null,
+        createdBy: (t.created_by as string) ?? null,
+        createdByName: autNom ?? null,
+        assignedTo: (t.assigned_to as string) ?? null,
+        assignedToName: asgNom ?? null,
+        completedAt: (t.completed_at as string) ?? null,
+        completedBy: (t.completed_by as string) ?? null,
+        createdAt: String(t.created_at ?? ""),
+        updatedAt: String(t.updated_at ?? ""),
+      }
+    }),
     validations: (revues.data ?? []).map((r: Record<string, unknown>) => ({
       id: String(r.id),
       documentId: String(r.document_id),

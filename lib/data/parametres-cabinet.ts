@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { valider } from "./fiche-criteres"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * L'identité du cabinet : l'écrire, et savoir qu'elle a été écrite.
@@ -174,7 +175,7 @@ export async function updateFirmSettingsAvec(
       .eq("id", firmId)
       .select("id")
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     if (!data || data.length === 0) {
       return {
@@ -187,6 +188,6 @@ export async function updateFirmSettingsAvec(
 
     return { ok: true, message: "Paramètres enregistrés." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

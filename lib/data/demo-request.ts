@@ -6,6 +6,7 @@ import { autorise, TROP_DE_TENTATIVES } from "@/lib/securite/limiter"
 import { envoyerCourriel, adresseDeReponse } from "@/lib/email/send"
 import { courrielAccuseDemande, courrielDemandeRecue } from "@/lib/email/templates"
 import { siteUrl } from "@/lib/site-url"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Demande de démonstration déposée depuis la page publique.
@@ -180,7 +181,7 @@ export async function enregistrerDemandeDemo(
     locale: d.langue,
   })
 
-  if (error) return { ok: false, erreur: error.message }
+  if (error) return { ok: false, erreur: messageErreur(error) }
 
   // L'ÉCRITURE D'ABORD, LES COURRIELS ENSUITE, et jamais l'inverse : un envoi
   // réussi suivi d'une écriture ratée laisserait un prospect à qui l'on a

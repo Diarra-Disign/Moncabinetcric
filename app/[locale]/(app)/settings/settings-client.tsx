@@ -131,12 +131,12 @@ export function SettingsClient() {
 
 
   // Stripe State
-  const [stripeConnected, setStripeConnected] = React.useState(true)
-  const [stripeAccountId, setStripeAccountId] = React.useState("acct_1M89x2KkL90aZZ2")
-  const [publishableKey, setPublishableKey] = React.useState("pk_live_51M89x2KkL90aZZ2...")
+  const [stripeConnected, setStripeConnected] = React.useState(false)
+  const [stripeAccountId, setStripeAccountId] = React.useState("")
+  const [publishableKey, setPublishableKey] = React.useState("")
 
   // Zoom / Meet / Calendly State
-  const [zoomConnected, setZoomConnected] = React.useState(true)
+  const [zoomConnected, setZoomConnected] = React.useState(false)
   const [zoomEmail, setZoomEmail] = React.useState("")
   const [calendlyUrl, setCalendlyUrl] = React.useState("")  // À saisir par le cabinet : aucun lien par défaut.
   const [preferredPlatform, setPreferredPlatform] = React.useState<"calendly" | "zoom" | "google_meet">("calendly")
@@ -342,7 +342,7 @@ export function SettingsClient() {
             type="button"
             onClick={() => setActiveTab("stripe")}
             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-              activeTab === "stripe" ? "bg-card text-success-strong shadow-xs" : "text-foreground/75 hover:text-foreground"
+              activeTab === "stripe" ? "bg-card text-primary-strong shadow-xs" : "text-foreground/75 hover:text-foreground"
             }`}
           >
             <CreditCard className="w-4 h-4" />
@@ -778,22 +778,38 @@ export function SettingsClient() {
                 <h3 className="text-lg font-black text-foreground">Intégration Stripe Connect (Paiements Fidéicommis & Général)</h3>
                 <p className="text-xs text-muted-foreground font-medium">Encaissez les honoraires par carte de crédit sans gérer les données bancaires (Conforme PCI-DSS).</p>
               </div>
-              <span className="inline-flex items-center gap-1 bg-success/15 text-success-strong border border-success/40 font-mono text-xs font-bold px-3 py-1 rounded-full">
-                <Check className="w-3.5 h-3.5" /> Connecté à Stripe
-              </span>
+              {stripeConnected ? (
+                <span className="inline-flex items-center gap-1 bg-success/15 text-success-strong border border-success/40 font-mono text-xs font-bold px-3 py-1 rounded-full">
+                  <Check className="w-3.5 h-3.5" /> Connecté à Stripe
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 bg-muted text-muted-foreground border border-border font-mono text-xs font-bold px-3 py-1 rounded-full">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Non configuré
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              <div className="bg-muted/40 p-4 rounded-2xl border border-border flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-foreground">Identifiant de Compte Stripe Connect :</span>
-                  <span className="font-mono text-xs font-black text-foreground">{stripeAccountId}</span>
+              {stripeConnected ? (
+                <div className="bg-muted/40 p-4 rounded-2xl border border-border flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground">Identifiant de Compte Stripe Connect :</span>
+                    <span className="font-mono text-xs font-black text-foreground">{stripeAccountId}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-border pt-2">
+                    <span className="text-xs font-bold text-foreground">Clé Publique (Publishable Key) :</span>
+                    <span className="font-mono text-xs text-muted-foreground">{publishableKey}</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between border-t border-border pt-2">
-                  <span className="text-xs font-bold text-foreground">Clé Publique (Publishable Key) :</span>
-                  <span className="font-mono text-xs text-muted-foreground">{publishableKey}</span>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-6 flex flex-col items-center justify-center text-center gap-2">
+                  <CreditCard className="w-8 h-8 text-muted-foreground" />
+                  <p className="text-xs font-bold text-foreground">Aucun compte Stripe Connect rattaché</p>
+                  <p className="text-[11px] text-muted-foreground max-w-md">
+                    L&apos;encaissement direct par carte de crédit sera activé après la liaison de votre compte Stripe Connect. Les encaissements enregistrés manuellement demeurent pleinement opérationnels.
+                  </p>
                 </div>
-              </div>
+              )}
 
               <div className="bg-primary/10 border border-primary/30 text-primary-strong p-4 rounded-2xl text-xs font-medium leading-relaxed flex items-start gap-2.5">
                 <Lock className="w-4 h-4 text-primary shrink-0 mt-0.5" />
@@ -813,9 +829,19 @@ export function SettingsClient() {
                 <h3 className="text-lg font-black text-foreground">Intégration Calendly & Visioconférence (Zoom / Google Meet)</h3>
                 <p className="text-xs text-muted-foreground font-medium">Fournissez votre lien Calendly/TidyCal personnel ou utilisez la génération automatique Zoom/Meet pour vos clients.</p>
               </div>
-              <span className="inline-flex items-center gap-1 bg-primary/15 text-primary-strong border border-primary/30 font-mono text-xs font-bold px-3 py-1 rounded-full">
-                <Check className="w-3.5 h-3.5" /> Calendly & Zoom Activés
-              </span>
+              {calendlyUrl.trim() ? (
+                <span className="inline-flex items-center gap-1 bg-success/15 text-success-strong border border-success/40 font-mono text-xs font-bold px-3 py-1 rounded-full">
+                  <Check className="w-3.5 h-3.5" /> Calendly configuré
+                </span>
+              ) : zoomConnected ? (
+                <span className="inline-flex items-center gap-1 bg-primary/15 text-primary-strong border border-primary/30 font-mono text-xs font-bold px-3 py-1 rounded-full">
+                  <Check className="w-3.5 h-3.5" /> Zoom Activé
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 bg-muted text-muted-foreground border border-border font-mono text-xs font-bold px-3 py-1 rounded-full">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Non configuré
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -851,8 +877,8 @@ export function SettingsClient() {
                 <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Compte Zoom / Google Associé</label>
                 <input
                   type="email"
-                  required
                   value={zoomEmail}
+                  placeholder="votre-email@cabinet.ca"
                   onChange={(e) => setZoomEmail(e.target.value)}
                   className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted/40 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
                 />

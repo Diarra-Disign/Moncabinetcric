@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getCurrentPlatformAdmin, getSessionSupabase } from "@/lib/supabase/session"
 import { invaliderCatalogue } from "@/lib/billing/catalogue"
 import { journaliserExploitation } from "./platform-audit"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Pilotage du catalogue par l'exploitant.
@@ -111,7 +112,7 @@ export async function modifierForfait(formData: FormData): Promise<ResultatCatal
       .maybeSingle()
 
     const { error } = await supabase.from("plan_limits").update(champs).eq("plan", plan)
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     invaliderCatalogue()
     await journaliser({
@@ -131,7 +132,7 @@ export async function modifierForfait(formData: FormData): Promise<ResultatCatal
       message: `Forfait « ${champs.label_fr} » mis à jour. Les abonnements en cours gardent leur tarif ; seules les nouvelles souscriptions suivent.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -166,7 +167,7 @@ export async function basculerFonctionnalite(formData: FormData): Promise<Result
       .from("plan_features")
       .upsert({ plan, feature, enabled: activer }, { onConflict: "plan,feature" })
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     await journaliser({
       actorId: admin.userId,
@@ -182,7 +183,7 @@ export async function basculerFonctionnalite(formData: FormData): Promise<Result
       message: `« ${f?.label_fr ?? feature} » ${activer ? "activée" : "retirée"} pour ${plan}. Effet immédiat sur tous les cabinets de ce forfait.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -234,7 +235,7 @@ export async function accorderException(formData: FormData): Promise<ResultatCat
       { onConflict: "firm_id,feature" }
     )
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     await journaliser({
       actorId: admin.userId,
@@ -254,7 +255,7 @@ export async function accorderException(formData: FormData): Promise<ResultatCat
         : "Exception posée sans échéance. Pensez à la revoir : rien ne la retirera à votre place.",
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -276,7 +277,7 @@ export async function retirerException(formData: FormData): Promise<ResultatCata
       .eq("firm_id", firmId)
       .eq("feature", feature)
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     await journaliser({
       actorId: admin.userId,
@@ -291,6 +292,6 @@ export async function retirerException(formData: FormData): Promise<ResultatCata
     revalidatePath("/[locale]/admin", "page")
     return { ok: true, message: "Exception retirée. Le cabinet suit de nouveau son forfait." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

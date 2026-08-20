@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto"
 import { getSessionSupabase, getCurrentMember, getCurrentPortalClient } from "@/lib/supabase/session"
 import { deposerOctets, BUCKET, type ResultatDepot } from "./depot"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Dépôt et récupération des fichiers.
@@ -68,7 +69,7 @@ export async function lienTelechargement(
 ): Promise<{ url?: string; erreur?: string }> {
   const supabase = await getSessionSupabase()
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(chemin, secondes)
-  if (error) return { erreur: error.message }
+  if (error) return { erreur: messageErreur(error) }
   return { url: data.signedUrl }
 }
 
@@ -102,7 +103,7 @@ export async function verifierEmpreinte(
     .createSignedUrl(fiche.storage_path as string, 60)
 
   if (erreurLien || !signe?.signedUrl) {
-    return { ok: false, message: `Fichier illisible : ${erreurLien?.message ?? ""}` }
+    return { ok: false, message: `Fichier illisible : ${messageErreur(erreurLien)}` }
   }
 
   const reponse = await fetch(signe.signedUrl, { cache: "no-store" })

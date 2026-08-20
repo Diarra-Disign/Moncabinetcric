@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
 import { journalDeLaFiche } from "./journal"
 import type { ChampsFiche, EntreeJournal } from "./fiche-criteres"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Modifier une fiche client ou prospect.
@@ -71,7 +72,7 @@ export async function modifierFiche(
     }
     return r
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -102,7 +103,7 @@ export async function creerFiche(
     }
     return r
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 

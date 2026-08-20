@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 import { exigerPermission } from "@/lib/auth/permissions"
 import { synchroniserSiegesStripe } from "@/lib/billing/seat-sync"
+import { messageErreur } from "@/lib/data/erreurs"
 import { STATUTS_MEMBRE, type StatutMembre } from "./membre-criteres"
 
 /**
@@ -77,7 +78,7 @@ export async function inviterMembre(formData: FormData): Promise<ResultatMembre>
       expires_at: new Date(Date.now() + validite * 86400000).toISOString(),
     })
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     // Une invitation vivante occupe une place, donc en facture une : la
     // réconciliation part maintenant et non à l'acceptation, sans quoi le
@@ -93,7 +94,7 @@ export async function inviterMembre(formData: FormData): Promise<ResultatMembre>
       lien: `/fr/bienvenue?jeton=${jeton}`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -124,7 +125,7 @@ export async function changerRole(formData: FormData): Promise<ResultatMembre> {
     }
 
     const { error } = await supabase.from("profiles").update({ cicc_role: role }).eq("id", profilId)
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     // Le prix d'une place dépend du rôle qui l'occupe : passer une adjointe
     // consultante change ce que le cabinet paie.
@@ -133,7 +134,7 @@ export async function changerRole(formData: FormData): Promise<ResultatMembre> {
     revalidatePath("/[locale]/settings", "page")
     return { ok: true, message: "Rôle mis à jour." + (sync.modifie ? ` ${sync.message}` : "") }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -195,7 +196,7 @@ export async function changerStatutMembre(formData: FormData): Promise<ResultatM
       })
       .eq("id", profilId)
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     const sync = await synchroniserSiegesStripe(membre.firmId)
 
@@ -206,7 +207,7 @@ export async function changerStatutMembre(formData: FormData): Promise<ResultatM
       message: `${qui} — ${LIBELLE_STATUT[statut]}.` + (sync.modifie ? ` ${sync.message}` : ""),
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -224,7 +225,7 @@ export async function revoquerInvitation(formData: FormData): Promise<ResultatMe
       .eq("id", id)
       .is("accepted_at", null)
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     const sync = await synchroniserSiegesStripe(membre.firmId)
 
@@ -234,6 +235,6 @@ export async function revoquerInvitation(formData: FormData): Promise<ResultatMe
       message: "Invitation révoquée. Le lien ne fonctionne plus." + (sync.modifie ? ` ${sync.message}` : ""),
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

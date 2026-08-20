@@ -7,6 +7,7 @@ import { envoyerCourriel, adresseDeReponse } from "@/lib/email/send"
 import { courrielInvitation, type Langue } from "@/lib/email/templates"
 import { siteUrl } from "@/lib/site-url"
 import { journaliserExploitation } from "./platform-audit"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Actions de la console d'exploitation.
@@ -120,7 +121,7 @@ export async function creerCabinet(formData: FormData): Promise<ResultatAction> 
       if (error.code === "23505") {
         return { ok: false, message: "Un cabinet porte déjà ce numéro de permis." }
       }
-      return { ok: false, message: error.message }
+      return { ok: false, message: messageErreur(error) }
     }
 
     // Le jeton n'est jamais stocké : seule son empreinte l'est. Une fuite
@@ -140,7 +141,7 @@ export async function creerCabinet(formData: FormData): Promise<ResultatAction> 
       // d'annoncer un succès dont il faudrait découvrir la moitié manquante.
       return {
         ok: false,
-        message: `Cabinet créé, mais l'invitation a échoué : ${erreurInvitation.message}`,
+        message: `Cabinet créé, mais l'invitation a échoué : ${messageErreur(erreurInvitation)}`,
       }
     }
 
@@ -204,7 +205,7 @@ export async function creerCabinet(formData: FormData): Promise<ResultatAction> 
       lien,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -243,7 +244,7 @@ export async function ecarterDemande(formData: FormData): Promise<ResultatAction
       })
       .eq("id", id)
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     await journaliserExploitation({
       actorId: admin.userId,
@@ -256,7 +257,7 @@ export async function ecarterDemande(formData: FormData): Promise<ResultatAction
     revalidatePath("/[locale]/admin", "page")
     return { ok: true, message: "Demande écartée." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -312,7 +313,7 @@ export async function changerPlan(formData: FormData): Promise<ResultatAction> {
       .update({ plan, trial_ends_at: echeance, updated_at: new Date().toISOString() })
       .eq("id", id)
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     await journaliserExploitation({
       actorId: admin.userId,
@@ -327,7 +328,7 @@ export async function changerPlan(formData: FormData): Promise<ResultatAction> {
     revalidatePath("/[locale]/admin", "page")
     return { ok: true, message: `Plan passé à « ${plan} ».` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -355,7 +356,7 @@ export async function basculerAcces(formData: FormData): Promise<ResultatAction>
       })
       .eq("id", id)
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     // FERMER UN CABINET EST LE GESTE LE PLUS LOURD DE CETTE CONSOLE, et il ne
     // laissait aucune trace : `journaliser()` vivait dans catalogue-actions.ts
@@ -383,6 +384,6 @@ export async function basculerAcces(formData: FormData): Promise<ResultatAction>
         : "Accès rouvert.",
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

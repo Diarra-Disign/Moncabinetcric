@@ -3,7 +3,8 @@
 import { randomInt } from "node:crypto"
 import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
-import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
+import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
+import { messageErreur } from "@/lib/data/erreurs"
 import { exigerPermission } from "@/lib/auth/permissions"
 
 /**
@@ -123,7 +124,7 @@ export async function ouvrirAccesPortail(formData: FormData): Promise<ResultatAc
         // de l'obligation de changer de mot de passe.
         app_metadata: { ...existant.app_metadata, must_change_password: true },
       })
-      if (error) return { ok: false, message: `Compte existant : ${error.message}` }
+      if (error) return { ok: false, message: `Compte existant : ${messageErreur(error)}` }
       userId = existant.id
     } else {
       const { data, error } = await admin.auth.admin.createUser({
@@ -136,7 +137,7 @@ export async function ouvrirAccesPortail(formData: FormData): Promise<ResultatAc
         app_metadata: { must_change_password: true },
       })
       if (error || !data.user) {
-        return { ok: false, message: `Création du compte : ${error?.message ?? "échec"}` }
+        return { ok: false, message: `Création du compte : ${messageErreur(error)}` }
       }
       userId = data.user.id
     }
@@ -158,7 +159,7 @@ export async function ouvrirAccesPortail(formData: FormData): Promise<ResultatAc
     if (erreurLien) {
       return {
         ok: false,
-        message: `Le compte existe mais n'a pas pu être rattaché au dossier : ${erreurLien.message}`,
+        message: `Le compte existe mais n'a pas pu être rattaché au dossier : ${messageErreur(erreurLien)}`,
       }
     }
 
@@ -171,7 +172,7 @@ export async function ouvrirAccesPortail(formData: FormData): Promise<ResultatAc
       courriel,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -198,9 +199,9 @@ export async function leverChangementObligatoire(): Promise<{ ok: boolean; messa
       app_metadata: { ...user.app_metadata, must_change_password: false },
     })
 
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
     return { ok: true, message: "Mot de passe enregistré." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

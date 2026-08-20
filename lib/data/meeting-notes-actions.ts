@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { getSessionSupabase, getCurrentMember } from "@/lib/supabase/session"
 import type { MeetingNote, MeetingNoteInput, MeetingNoteHistoryEntry } from "./types"
 import type { Resultat } from "./matter-actions"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Actions du Registre des Rencontres & Notes de dossier.
@@ -21,12 +22,8 @@ async function moi() {
 }
 
 function lisible(e: { message?: string; code?: string } | null): string {
-  const brut = e?.message ?? "Erreur inattendue."
-  if (e?.code === "42501" || /row-level security/i.test(brut)) {
-    return "Vous n'avez pas le droit d'effectuer cette action."
-  }
   if (e?.code === "23505") return "Cette référence de rencontre existe déjà."
-  return brut
+  return messageErreur(e)
 }
 
 interface RawDbMeetingNote {
@@ -290,7 +287,7 @@ export async function creerNoteRencontre(input: MeetingNoteInput): Promise<Resul
       message: `Compte-rendu ${noteCreee.reference} enregistré avec succès.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -388,7 +385,7 @@ export async function modifierNoteRencontre(
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: `Note ${existante.reference} mise à jour.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -428,7 +425,7 @@ export async function finaliserNoteRencontre(id: string): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: `Compte-rendu ${note.reference} finalisé et officialisé.` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -456,7 +453,7 @@ export async function archiverNoteRencontre(id: string): Promise<Resultat> {
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: "Note de rencontre archivée." }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -502,7 +499,7 @@ export async function partagerNoteAvecClient(id: string): Promise<Resultat> {
       message: `Compte-rendu ${note.reference} partagé avec le client sur son portail.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -546,6 +543,6 @@ export async function creerEcheanceDepuisNote(
     revalidatePath("/[locale]/matters/[id]", "page")
     return { ok: true, message: `Échéance créée et liée au dossier (réf. ${note.reference}).` }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

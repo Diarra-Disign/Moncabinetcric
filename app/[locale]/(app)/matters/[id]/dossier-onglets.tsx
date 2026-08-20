@@ -6,11 +6,13 @@ import {
   AlertTriangle, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight,
   Clock, Eye, FileSignature, FileText, Landmark, Receipt, ShieldCheck, Trash2,
   Send, Upload, Users, X, Edit3, MessageSquare, History, Plus, Wand2, PenLine,
-  FolderPlus, Download, FileCheck2, MessageSquareText
+  FolderPlus, Download, FileCheck2, MessageSquareText, ListTodo
 } from "lucide-react"
 import type { DossierComplet } from "@/lib/data/matter-file"
+import type { TaskMember } from "@/lib/data/types"
 import { OngletSignature } from "@/components/signature/onglet-signature"
 import { OngletRencontresNotes } from "@/components/matters/onglet-rencontres-notes"
+import { OngletTaches } from "@/components/matters/onglet-taches"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import {
   ajouterEcheance, changerEtatEcheance, declarerDossier, demanderValidation,
@@ -46,13 +48,14 @@ import { SubmissionLetterBuilder } from "@/components/matters/submission-letter-
  */
 
 type Onglet =
-  | "apercu" | "documents" | "formulaires" | "facturation"
+  | "apercu" | "documents" | "formulaires" | "taches" | "facturation"
   | "paiements" | "echeances" | "signature" | "rencontres" | "portail" | "argumentaire"
 
 const ONGLETS: { cle: Onglet; libelle: string; icone: React.ElementType }[] = [
   { cle: "apercu", libelle: "Vue d'ensemble", icone: ShieldCheck },
   { cle: "documents", libelle: "Documents", icone: FileText },
   { cle: "formulaires", libelle: "Formulaires", icone: FileSignature },
+  { cle: "taches", libelle: "Tâches", icone: ListTodo },
   { cle: "facturation", libelle: "Facturation", icone: Receipt },
   { cle: "paiements", libelle: "Paiements", icone: Banknote },
   { cle: "echeances", libelle: "Échéances", icone: CalendarClock },
@@ -106,7 +109,7 @@ const CHAMP =
   "w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 
 export function DossierOnglets({
-  dossier, matterId, clientId, statutDossier, clientsDuCabinet, clientQuestionnaires: initialQuestionnaires = [], modeles = [], consultant, clientName, courrielClient = "", programName,
+  dossier, matterId, clientId, statutDossier, clientsDuCabinet, clientQuestionnaires: initialQuestionnaires = [], modeles = [], consultant, clientName, courrielClient = "", programName, members = [],
 }: {
   dossier: DossierComplet
   matterId: string
@@ -125,6 +128,7 @@ export function DossierOnglets({
   courrielClient?: string
   /** Nom du programme, pour la lettre IA d'argumentaire. */
   programName: string
+  members?: TaskMember[]
 }) {
   const [onglet, setOnglet] = React.useState<Onglet>("apercu")
   // L'identité du cabinet vient du contexte, donc des Paramètres : le permis
@@ -1198,6 +1202,16 @@ export function DossierOnglets({
             </div>
           ))}
         </div>
+      )}
+
+      {/* ------------------------------------------------------------ */}
+      {onglet === "taches" && (
+        <OngletTaches
+          matterId={d.matterId}
+          clientId={d.clientId}
+          initialTasks={d.taches ?? []}
+          members={members}
+        />
       )}
 
       {/* ------------------------------------------------------------ */}

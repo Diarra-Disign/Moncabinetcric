@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { getSessionSupabase } from "@/lib/supabase/session"
+import { messageErreur } from "@/lib/data/erreurs"
 
 export interface ResultatAction {
   ok: boolean
@@ -60,7 +61,7 @@ export async function repondreValidation(formData: FormData): Promise<ResultatAc
       .eq("id", reviewId)
 
     if (error) {
-      return { ok: false, message: error.message }
+      return { ok: false, message: messageErreur(error) }
     }
 
     if (rev) {
@@ -97,6 +98,6 @@ export async function repondreValidation(formData: FormData): Promise<ResultatAc
           : "Signalement d'erreur enregistré. Le consultant en a été notifié.",
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

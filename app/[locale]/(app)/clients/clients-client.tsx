@@ -64,6 +64,8 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
    * cliquée, pas sur les cent lignes du tableau.
    */
   const [courrielCopie, setCourrielCopie] = React.useState<string | null>(null)
+  /** Fiche dont le numéro de téléphone vient d'être copié. */
+  const [telephoneCopie, setTelephoneCopie] = React.useState<string | null>(null)
   /** Le client pour lequel on ouvre un dossier, ou null. */
   const [dossierPour, setDossierPour] = React.useState<ClientRecord | null>(null)
   // La modification d'une fiche client N'EXISTAIT PAS : ni bouton, ni action,
@@ -193,6 +195,20 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
       setTimeout(() => setCourrielCopie((c) => (c === client.id ? null : c)), 2500)
     } catch {
       setActionNotice(`Copie impossible. Adresse de ${client.name} : ${adresse}`)
+      setTimeout(() => setActionNotice(null), 8000)
+    }
+  }
+
+  const copierTelephone = async (client: ClientRecord) => {
+    const numero = (client.phone ?? "").trim()
+    if (!numero) return
+
+    try {
+      await navigator.clipboard.writeText(numero)
+      setTelephoneCopie(client.id)
+      setTimeout(() => setTelephoneCopie((c) => (c === client.id ? null : c)), 2500)
+    } catch {
+      setActionNotice(`Copie impossible. Numéro de ${client.name} : ${numero}`)
       setTimeout(() => setActionNotice(null), 8000)
     }
   }
@@ -577,13 +593,37 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                         {courrielCopie === client.id ? `Adresse de ${client.name} copiée.` : ""}
                       </span>
 
-                      <a
-                        href={`tel:${client.phone}`}
-                        title={`Appeler au ${client.phone}`}
-                        className="p-1.5 text-muted-foreground hover:text-primary-strong hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
-                      >
-                        <Phone className="w-4 h-4" />
-                      </a>
+                      {/* Téléphone : lien tel: avec copie automatique dans le
+                          presse-papier ou état inactif si absent. */}
+                      {client.phone ? (
+                        <a
+                          href={`tel:${client.phone}`}
+                          onClick={(e) => { e.stopPropagation(); void copierTelephone(client) }}
+                          title={
+                            telephoneCopie === client.id
+                              ? `Numéro copié : ${client.phone}`
+                              : `Copier ${client.phone}, et composer s'il y a un logiciel de téléphonie`
+                          }
+                          className="p-1.5 text-muted-foreground hover:text-primary-strong hover:bg-primary/10 rounded-xl transition-colors cursor-pointer"
+                        >
+                          {telephoneCopie === client.id ? (
+                            <Check className="w-4 h-4 text-success-strong" />
+                          ) : (
+                            <Phone className="w-4 h-4" />
+                          )}
+                        </a>
+                      ) : (
+                        <span
+                          title="Aucun numéro de téléphone à cette fiche"
+                          className="p-1.5 text-muted-foreground/40 rounded-xl cursor-not-allowed"
+                        >
+                          <Phone className="w-4 h-4" />
+                        </span>
+                      )}
+
+                      <span className="sr-only" aria-live="polite">
+                        {telephoneCopie === client.id ? `Numéro de ${client.name} copié.` : ""}
+                      </span>
 
                       <button
                         type="button"

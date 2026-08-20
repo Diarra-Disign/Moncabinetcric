@@ -3,6 +3,7 @@ import "server-only"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { ecarts, journaliser } from "./journal"
 import type { ChampsFiche } from "./fiche-criteres"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * La modification d'une fiche, séparée de la session.
@@ -111,7 +112,7 @@ export async function modifierFiche(
     if (!avant) return { ok: false, message: "Cette fiche est introuvable." }
 
     const { error } = await sb.from(table).update(charge).eq("id", id)
-    if (error) return { ok: false, message: error.message }
+    if (error) return { ok: false, message: messageErreur(error) }
 
     const changements = ecarts(avant as Record<string, unknown>, charge)
     await journaliser(sb, {
@@ -135,6 +136,6 @@ export async function modifierFiche(
         : `${changements.length} renseignements mis à jour.`,
     }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }

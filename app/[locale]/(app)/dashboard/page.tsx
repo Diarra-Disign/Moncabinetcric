@@ -2,6 +2,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server"
 import { getDeadlines, getCiccComplianceScore, getMatters, getDocuments } from "@/lib/data/queries"
 import { listerDossiersRecents } from "@/lib/data/dossiers-recents"
 import { construireRecherche } from "@/lib/data/recherche"
+import { listerTachesCabinet, listerMembresCabinet } from "@/lib/data/tasks"
+import { getCurrentMember } from "@/lib/supabase/session"
 import { DashboardClient } from "./dashboard-client"
 
 export const dynamic = "force-dynamic"
@@ -20,7 +22,7 @@ export default async function DashboardPage({
   // recherche vient de construireRecherche(), la même source que la barre du
   // haut — le tableau de bord en tenait une seconde, déclarée vide, qui
   // répondait « aucun résultat » quoi qu'on tape.
-  const [tDashboard, deadlines, complianceScore, matters, documents, dossiersRecents, indexRecherche] =
+  const [tDashboard, deadlines, complianceScore, matters, documents, dossiersRecents, indexRecherche, tasks, members, currentMember] =
     await Promise.all([
       getTranslations("Dashboard"),
       getDeadlines(),
@@ -29,6 +31,9 @@ export default async function DashboardPage({
       getDocuments(),
       listerDossiersRecents({ limite: 8 }),
       construireRecherche(),
+      listerTachesCabinet(),
+      listerMembresCabinet(),
+      getCurrentMember(),
     ])
 
   // La répartition des programmes annonçait « 25 dossiers (55%) » avec des
@@ -78,6 +83,9 @@ export default async function DashboardPage({
       dossiersRecents={dossiersRecents}
       repartition={repartition}
       indexRecherche={indexRecherche}
+      initialTasks={tasks}
+      members={members}
+      currentMemberId={currentMember?.profileId}
     />
   )
 }

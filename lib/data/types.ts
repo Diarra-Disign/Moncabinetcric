@@ -798,3 +798,50 @@ export interface MeetingNoteInput {
   documentIds?: string[]
 }
 
+/**
+ * Gestion des Tâches (F33 - PRD V1).
+ */
+export type TaskPriority = "low" | "normal" | "high" | "urgent"
+export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled"
+
+export interface TaskRecord {
+  id: string
+  firmId: string
+  matterId?: string | null
+  matterReference?: string | null
+  clientId?: string | null
+  clientName?: string | null
+  title: string
+  description?: string | null
+  priority: TaskPriority
+  status: TaskStatus
+  dueDate?: string | null
+  createdBy?: string | null
+  createdByName?: string | null
+  assignedTo?: string | null
+  assignedToName?: string | null
+  completedAt?: string | null
+  completedBy?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TaskInput {
+  matterId?: string | null
+  clientId?: string | null
+  title: string
+  description?: string | null
+  priority?: TaskPriority
+  status?: TaskStatus
+  dueDate?: string | null
+  assignedTo?: string | null
+}
+
+export interface TaskMember {
+  id: string
+  fullName: string
+  role: string
+  email?: string
+}
+
+

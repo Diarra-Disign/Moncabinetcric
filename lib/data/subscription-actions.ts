@@ -8,6 +8,7 @@ import { type Cadence } from "@/lib/billing/plans"
 import { getPlan } from "@/lib/billing/catalogue"
 import { exigerPermission } from "@/lib/auth/permissions"
 import { siteUrl } from "@/lib/site-url"
+import { messageErreur } from "@/lib/data/erreurs"
 
 /**
  * Souscription et gestion de l'abonnement, côté cabinet.
@@ -216,7 +217,7 @@ export async function ouvrirPaiement(formData: FormData): Promise<ResultatPaieme
 
     return { ok: true, message: "Redirection vers le paiement sécurisé.", url }
   } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Erreur inattendue." }
+    return { ok: false, message: messageErreur(e) }
   }
 }
 
@@ -255,7 +256,7 @@ export async function ouvrirPortail(formData: FormData): Promise<ResultatPaiemen
 
     return { ok: true, message: "Redirection vers le portail de facturation.", url }
   } catch (e) {
-    const brut = e instanceof Error ? e.message : "Erreur inattendue."
+    const brut = e instanceof Error ? e.message : ""
     // Stripe exige qu'une configuration de portail ait été enregistrée une
     // fois dans le tableau de bord. Son message parle de « configuration »
     // sans dire laquelle : traduit ici, parce que la personne qui lit cet
@@ -267,6 +268,6 @@ export async function ouvrirPortail(formData: FormData): Promise<ResultatPaiemen
           "Le portail de facturation n'est pas encore ouvert. Écrivez-nous : nous vous transmettons vos factures et modifions votre moyen de paiement dans l'intervalle.",
       }
     }
-    return { ok: false, message: brut }
+    return { ok: false, message: messageErreur(e) }
   }
 }
