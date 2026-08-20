@@ -86,6 +86,7 @@ export async function listerTachesCabinet(filtres?: {
   assignedToMe?: boolean
   status?: TaskStatus
   priority?: TaskPriority
+  limit?: number
 }): Promise<TaskRecord[]> {
   const sb = await getSessionSupabase()
   const membre = await getCurrentMember()
@@ -111,6 +112,10 @@ export async function listerTachesCabinet(filtres?: {
 
   if (filtres?.priority) {
     requete = requete.eq("priority", filtres.priority)
+  }
+
+  if (filtres?.limit && filtres.limit > 0) {
+    requete = requete.limit(filtres.limit)
   }
 
   const { data, error } = await requete

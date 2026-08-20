@@ -31,7 +31,7 @@ export default async function DashboardPage({
       getDocuments(),
       listerDossiersRecents({ limite: 8 }),
       construireRecherche(),
-      listerTachesCabinet(),
+      listerTachesCabinet({ limit: 20 }),
       listerMembresCabinet(),
       getCurrentMember(),
     ])
