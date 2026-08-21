@@ -115,3 +115,11 @@ d'un cabinet est illisible depuis un autre.
 - Pas de création de rendez-vous **vers** Calendly. La relève est à sens unique.
 - Pas de rappel par courriel avant un rendez-vous — cela exigerait la tâche
   planifiée, donc le forfait Vercel Pro.
+
+## Où le cabinet crée son jeton
+
+Adresse directe : https://calendly.com/integrations/api_webhooks
+
+La page d'aide de Calendly décrit un chemin de menu — « Automations →
+Integrations & apps » — qui n'existe pas dans toutes les interfaces : il varie
+selon le forfait et les refontes. L'écran renvoie donc à l'adresse, pas au menu.

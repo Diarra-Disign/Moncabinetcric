@@ -68,10 +68,25 @@ export function RaccordCalendly({ etat }: { etat: EtatCalendly }) {
             <KeyRound aria-hidden className="h-4 w-4 text-primary-strong" />
             Relever automatiquement les rendez-vous
           </h4>
+          {/* UNE ADRESSE DIRECTE, ET NON UN CHEMIN DE MENU.
+              La consigne renvoyait d'abord à « Automations → Integrations &
+              apps », repris de la page d'aide de Calendly. Ce menu n'existe pas
+              partout : il varie selon le forfait et selon les refontes de leur
+              interface, et le cabinet s'est retrouvé à chercher une entrée
+              absente. L'adresse, elle, ne bouge pas. */}
           <p className="mt-1 max-w-xl text-[11px] leading-relaxed text-muted-foreground">
             Les rendez-vous réservés par vos clients apparaissent dans votre calendrier à
-            son ouverture. Créez un jeton chez Calendly — <span className="font-bold">Automations →
-            Integrations &amp; apps → API and webhooks → Get a token now</span> — puis collez-le ici.
+            son ouverture. Créez un jeton sur{" "}
+            <a
+              href="https://calendly.com/integrations/api_webhooks"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold text-primary-strong underline underline-offset-2 hover:no-underline"
+            >
+              la page API &amp; Webhooks de Calendly
+            </a>{" "}
+            — bouton <span className="font-bold">Get a token now</span> — puis collez-le ici.
+            Connectez-vous à Calendly avant d&apos;ouvrir ce lien.
           </p>
         </div>
         {etat.raccorde ? (
