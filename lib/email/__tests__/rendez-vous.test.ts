@@ -106,3 +106,34 @@ test("composerMomentRendezVous — un libellé humain ne produit jamais « NaN �
   const en = composerMomentRendezVous("2026-09-15", "10 h 00 – 11 h 00", "en")
   assert.ok(!/NaN/.test(en.heureLisible), `reçu « ${en.heureLisible} »`)
 })
+
+test("courrielRendezVous — n'invite jamais à reprendre rendez-vous quand un lien existe", () => {
+  // LE DÉFAUT SIGNALÉ. « Google Meet » est la modalité par défaut, le champ du
+  // lien restait vide, et le courriel retombait sur le lien de RÉSERVATION :
+  // on invitait à reprendre rendez-vous quelqu'un à qui l'on venait d'en fixer
+  // un. Les deux liens ne doivent jamais coexister.
+  const c = courrielRendezVous({
+    ...BASE, langue: "fr",
+    lienRencontre: "https://meet.google.com/abc-defg-hij",
+    lienReservation: "https://calendly.com/x/y",
+  })
+  assert.ok(c.html.includes("meet.google.com/abc-defg-hij"), "la salle doit figurer")
+  assert.ok(c.html.includes("Rejoindre la rencontre"))
+  // Le gabarit reçoit les deux, mais l'appelant ne doit transmettre le lien de
+  // réservation QUE faute de lien de rencontre — c'est ce que fait
+  // annoncerRendezVous(). Ici on vérifie qu'un lecteur ne voit pas d'abord une
+  // invitation à déplacer ce qu'on vient de fixer.
+  const posRencontre = c.html.indexOf("Rejoindre la rencontre")
+  const posReport = c.html.indexOf("nouveau créneau")
+  assert.ok(posReport === -1 || posReport > posRencontre,
+    "reprogrammer ne doit jamais précéder rejoindre")
+})
+
+test("courrielRendezVous — une salle Google Meet traverse intacte", () => {
+  // Les codes Meet portent des tirets ; un échappement trop zélé les casserait
+  // et le client cliquerait sur une adresse morte.
+  const salle = "https://meet.google.com/abc-defg-hij"
+  const c = courrielRendezVous({ ...BASE, langue: "fr", lienRencontre: salle })
+  assert.ok(c.html.includes(`href="${salle}"`), "l'adresse doit être intacte dans le href")
+  assert.ok(c.texte.includes(salle))
+})

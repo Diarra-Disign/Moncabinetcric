@@ -44,7 +44,7 @@ export async function annoncerRendezVous(opts: {
     const sb = getServerSupabase()
     const { data: cabinet } = await sb
       .from("firms")
-      .select("name, reply_to_email, email, email_sender_name, booking_url")
+      .select("name, reply_to_email, email, email_sender_name, booking_url, meeting_room_url")
       .eq("id", opts.firmId)
       .maybeSingle()
 
@@ -58,6 +58,20 @@ export async function annoncerRendezVous(opts: {
     // client écrire à une boîte que personne ne relève.
     const repondreA = (cabinet?.reply_to_email as string) || (cabinet?.email as string) || null
 
+    // ── LA SALLE DU CABINET EN REPLI ────────────────────────────────────
+    //
+    // La fenêtre de prise de rendez-vous pré-remplit déjà le lien. Ce repli
+    // couvre les rendez-vous nés ailleurs — relève Calendly, saisie par une
+    // autre voie — pour qu'un client ne reçoive jamais une convocation en
+    // visioconférence sans porte d'entrée.
+    //
+    // Il ne s'applique PAS aux rencontres en personne ni au téléphone : y
+    // glisser un lien de visioconférence ferait attendre le client devant un
+    // écran pendant qu'on l'attend au bureau.
+    const enPersonne = opts.modalite === "in_person" || opts.modalite === "phone"
+    const lien = (opts.lienRencontre ?? "").trim()
+      || (enPersonne ? "" : ((cabinet?.meeting_room_url as string) ?? "").trim())
+
     const compose = courrielRendezVous({
       langue,
       nomClient: opts.nomClient,
@@ -68,11 +82,11 @@ export async function annoncerRendezVous(opts: {
       fuseauLisible,
       dureeMinutes: opts.dureeMinutes,
       modalite: opts.modalite ?? undefined,
-      lienRencontre: opts.lienRencontre ?? undefined,
+      lienRencontre: lien || undefined,
       // Le lien de réservation ne sert de repli que s'il n'y a pas de lien de
       // rencontre : proposer « choisissez un autre créneau » sous un bouton
       // « rejoindre » inviterait à déplacer ce qu'on vient de fixer.
-      lienReservation: opts.lienRencontre ? undefined : ((cabinet?.booking_url as string) || undefined),
+      lienReservation: lien ? undefined : ((cabinet?.booking_url as string) || undefined),
       reponsePossible: Boolean(repondreA),
     })
 

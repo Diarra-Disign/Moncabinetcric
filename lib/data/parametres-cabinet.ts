@@ -71,6 +71,7 @@ export interface IdentiteCabinet {
   invoicePrefix?: string
   paymentTerms?: string
   bookingUrl?: string
+  meetingRoomUrl?: string
 }
 
 export interface ResultatParametres {
@@ -112,6 +113,7 @@ const COLONNES: { champ: keyof IdentiteCabinet; colonne: string; vide: "null" | 
   { champ: "invoicePrefix", colonne: "invoice_prefix", vide: "null" },
   { champ: "paymentTerms", colonne: "payment_terms", vide: "null" },
   { champ: "bookingUrl", colonne: "booking_url", vide: "null" },
+  { champ: "meetingRoomUrl", colonne: "meeting_room_url", vide: "null" },
 ]
 
 /**
@@ -143,6 +145,15 @@ function controler(identite: IdentiteCabinet): string[] {
   if (lien && !/^https:\/\/[^\s<>"]+$/i.test(lien)) {
     manques.push(
       "Le lien de prise de rendez-vous doit être une adresse complète commençant par https://"
+    )
+  }
+
+  // Même règle pour la salle de rencontre, et pour la même raison : elle part
+  // dans un courriel signé du cabinet.
+  const salle = (identite.meetingRoomUrl ?? "").trim()
+  if (salle && !/^https:\/\/[^\s<>"]+$/i.test(salle)) {
+    manques.push(
+      "Le lien de la salle de rencontre doit être une adresse complète commençant par https://"
     )
   }
 

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import {
   X,
   Calendar,
@@ -168,7 +169,18 @@ function ModalPriseRendezVousContent({
   const [durationMinutes, setDurationMinutes] = React.useState(60)
   const [consultantId, setConsultantId] = React.useState(CONSULTANTS[0].id)
   const [modalite, setModalite] = React.useState("google_meet")
-  const [meetingLink, setMeetingLink] = React.useState("")
+  // ── LA SALLE DU CABINET, PRÉ-REMPLIE ──────────────────────────────────────
+  //
+  // « Google Meet » est la modalité par défaut, et ce champ restait VIDE. Tout
+  // rendez-vous partait donc sans lien, et le courriel du client retombait sur
+  // le lien de réservation — on invitait à reprendre rendez-vous quelqu'un à
+  // qui l'on venait d'en fixer un.
+  //
+  // La salle enregistrée dans les réglages remplit le champ d'avance. Elle
+  // reste modifiable : une rencontre à trois sur un autre lien arrive.
+  const cabinet = useFirm()
+  const salleCabinet = (cabinet.meetingRoomUrl ?? "").trim()
+  const [meetingLink, setMeetingLink] = React.useState(salleCabinet)
   /**
    * Prévenir le client par courriel.
    *
@@ -250,6 +262,19 @@ function ModalPriseRendezVousContent({
       (l.email && l.email.toLowerCase().includes(rechercheContact.toLowerCase()))
   )
 
+  // Le lien suit la modalité — mais il est DÉRIVÉ, non recopié dans un état.
+  //
+  // Un `useEffect` qui appelle `setMeetingLink` à chaque changement de modalité
+  // paraît naturel et provoque des rendus en cascade : React le signale
+  // désormais comme une erreur. Ici, rien n'est synchronisé — la valeur est
+  // simplement calculée au moment où l'on en a besoin.
+  //
+  // Un rendez-vous en cabinet ou au téléphone n'emporte aucun lien : le
+  // courriel du client annoncerait sinon les deux à la fois, et il attendrait
+  // devant un écran pendant qu'on l'attend au bureau.
+  const sansVisio = modalite === "in_person" || modalite === "phone"
+  const lienEffectif = sansVisio ? "" : (meetingLink.trim() || salleCabinet)
+
   const plage = calculerPlageHoraire(startTime, durationMinutes)
 
   const handleValiderFormulaire = (e: React.FormEvent) => {
@@ -299,7 +324,7 @@ function ModalPriseRendezVousContent({
         program: contactProgram || "Immigration Canada",
         type: TYPES_RENDEZ_VOUS.find((t) => t.val === typeRdv)?.categorie || "consultation",
         platform: modalite,
-        link: meetingLink.trim() || undefined,
+        link: lienEffectif || undefined,
         date,
         dayName,
         time: plage.libelle,
@@ -801,7 +826,7 @@ function ModalPriseRendezVousContent({
                     {contactEmail.trim() ? (
                       <>
                         Un courriel part à <span className="font-mono font-bold">{contactEmail.trim()}</span>{" "}
-                        avec la date, l&apos;heure{meetingLink.trim() ? " et le lien de la rencontre" : ""}.
+                        avec la date, l&apos;heure{lienEffectif ? " et le lien de la rencontre" : ""}.
                       </>
                     ) : (
                       "Aucune adresse courriel pour ce contact — rien ne sera envoyé."

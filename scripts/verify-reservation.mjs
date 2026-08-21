@@ -67,6 +67,33 @@ await sb.from("firms").update({ booking_url: null }).eq("id", cab.id)
 const { data: vide } = await sb.from("firms").select("booking_url").eq("id", cab.id).single()
 verifier("le lien peut être effacé", vide?.booking_url === null)
 
+// ── 6. La salle de rencontre, même règle et même contrainte ───────────────
+// C'est ELLE que le client reçoit avec chaque rendez-vous. Le lien de
+// réservation sert à PRENDRE rendez-vous ; la salle sert à le TENIR — l'écran
+// confondait les deux, au point d'inviter à reprendre rendez-vous quelqu'un à
+// qui l'on venait d'en fixer un.
+const salle = "https://meet.google.com/abc-defg-hij"
+const { error: eSalle } = await sb.from("firms").update({ meeting_room_url: salle }).eq("id", cab.id)
+verifier("la salle de rencontre s'écrit", !eSalle, eSalle?.message)
+const { data: salleRelue } = await sb.from("firms").select("meeting_room_url").eq("id", cab.id).single()
+verifier("la salle RELUE est bien celle écrite", salleRelue?.meeting_room_url === salle,
+  `reçu ${JSON.stringify(salleRelue?.meeting_room_url)}`)
+
+for (const mauvaise of ["javascript:alert(1)", "meet.google.com/sans-schema", "http://meet.google.com/x"]) {
+  const { error } = await sb.from("firms").update({ meeting_room_url: mauvaise }).eq("id", cab.id)
+  verifier(`la base refuse la salle « ${mauvaise.slice(0, 30)} »`, !!error)
+}
+
+const { data: salleIntacte } = await sb.from("firms").select("meeting_room_url").eq("id", cab.id).single()
+verifier("la salle valide survit aux refus", salleIntacte?.meeting_room_url === salle)
+
+// Les deux liens sont INDÉPENDANTS : effacer l'un ne touche pas l'autre.
+await sb.from("firms").update({ booking_url: null }).eq("id", cab.id)
+const { data: apresEffacement } = await sb.from("firms")
+  .select("booking_url, meeting_room_url").eq("id", cab.id).single()
+verifier("effacer le lien de réservation laisse la salle intacte",
+  apresEffacement?.booking_url === null && apresEffacement?.meeting_room_url === salle)
+
 await sb.rpc("purger_cabinet_epreuve", { p_firm_id: cab.id })
 
 console.log(

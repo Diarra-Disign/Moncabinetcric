@@ -149,6 +149,11 @@ export function SettingsClient({ calendly }: { calendly: EtatCalendly }) {
   //
   // Il n'en reste qu'un, et il part maintenant avec le formulaire.
   const [bookingUrl, setBookingUrl] = React.useState(firm.bookingUrl ?? "")
+  // La salle de rencontre permanente. Le lien de réservation ci-dessus sert à
+  // PRENDRE rendez-vous ; celui-ci sert à le TENIR. Deux choses distinctes que
+  // l'écran confondait, au point d'envoyer au client une invitation à
+  // reprendre rendez-vous alors qu'on venait de lui en fixer un.
+  const [meetingRoomUrl, setMeetingRoomUrl] = React.useState(firm.meetingRoomUrl ?? "")
 
   // Le même contrôle que la base et que le serveur, mais rendu tout de suite.
   // La contrainte Postgres reste le dernier rempart ; ici on évite seulement
@@ -157,6 +162,11 @@ export function SettingsClient({ calendly }: { calendly: EtatCalendly }) {
     const v = bookingUrl.trim()
     return v.length > 0 && !/^https:\/\/[^\s<>"]+$/i.test(v)
   }, [bookingUrl])
+
+  const salleInvalide = React.useMemo(() => {
+    const v = meetingRoomUrl.trim()
+    return v.length > 0 && !/^https:\/\/[^\s<>"]+$/i.test(v)
+  }, [meetingRoomUrl])
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -184,6 +194,7 @@ export function SettingsClient({ calendly }: { calendly: EtatCalendly }) {
       paymentTerms,
       logoUrl,
       bookingUrl,
+      meetingRoomUrl,
     }
 
     // ── PLUS DE COPIE DANS LE NAVIGATEUR ───────────────────────────────
@@ -815,79 +826,129 @@ export function SettingsClient({ calendly }: { calendly: EtatCalendly }) {
           <div className="flex flex-col gap-5 animate-fadeIn">
             <div className="border-b border-border pb-3 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-foreground">Prise de rendez-vous en ligne</h3>
+                <h3 className="text-lg font-black text-foreground">Rencontres et rendez-vous</h3>
                 <p className="text-xs text-muted-foreground font-medium">
-                  Votre lien de réservation Calendly, TidyCal ou Cal.com, offert à vos clients depuis leur portail.
+                  Votre salle de visioconférence, envoyée à vos clients avec chaque rendez-vous.
                 </p>
               </div>
-              {/* La pastille suit la BASE, non la frappe en cours : elle
-                  annonçait « configuré » sur un état React que le
-                  rechargement effaçait. */}
-              {(firm.bookingUrl ?? "").trim() ? (
+              {/* La pastille suit la BASE, non la frappe en cours. */}
+              {(firm.meetingRoomUrl ?? "").trim() ? (
                 <span className="inline-flex items-center gap-1 bg-success/15 text-success-strong border border-success/40 font-mono text-xs font-bold px-3 py-1 rounded-full">
-                  <Check className="w-3.5 h-3.5" /> Lien enregistré
+                  <Check className="w-3.5 h-3.5" /> Salle enregistrée
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 bg-muted text-muted-foreground border border-border font-mono text-xs font-bold px-3 py-1 rounded-full">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Aucun lien
+                  <AlertTriangle className="w-3.5 h-3.5" /> Aucune salle
                 </span>
               )}
             </div>
 
             <div className="flex flex-col gap-4">
+              {/* ── LA SALLE, QUI EST L'ESSENTIEL ────────────────────────── */}
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="lien-reservation" className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">
-                  Votre lien de réservation
+                <label htmlFor="salle-rencontre" className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">
+                  Votre salle de rencontre
                 </label>
                 <div className="relative flex items-center">
-                  <Globe aria-hidden className="absolute left-3 w-4 h-4 text-muted-foreground" />
+                  <Video aria-hidden className="absolute left-3 w-4 h-4 text-muted-foreground" />
                   <input
-                    id="lien-reservation"
+                    id="salle-rencontre"
                     type="url"
                     inputMode="url"
-                    placeholder="https://calendly.com/votre-nom/consultation"
-                    value={bookingUrl}
-                    onChange={(e) => setBookingUrl(e.target.value)}
-                    aria-invalid={lienInvalide || undefined}
-                    aria-describedby="lien-reservation-aide"
+                    placeholder="https://meet.google.com/abc-defg-hij"
+                    value={meetingRoomUrl}
+                    onChange={(e) => setMeetingRoomUrl(e.target.value)}
+                    aria-invalid={salleInvalide || undefined}
+                    aria-describedby="salle-rencontre-aide"
                     className={`placeholder:text-foreground/60 w-full pl-9 pr-4 py-2.5 text-xs font-bold font-mono rounded-2xl bg-muted/40 border focus:bg-card focus:outline-none transition-all ${
-                      lienInvalide ? "border-danger focus:border-danger" : "border-border focus:border-primary"
+                      salleInvalide ? "border-danger focus:border-danger" : "border-border focus:border-primary"
                     }`}
                   />
                 </div>
-                <p id="lien-reservation-aide" className={`text-[11px] ${lienInvalide ? "text-danger-strong font-bold" : "text-muted-foreground"}`}>
-                  {lienInvalide
-                    ? "L'adresse doit être complète et commencer par https://"
-                    : "Vos clients le verront sur leur portail. Laissez vide pour ne rien proposer."}
+                <p id="salle-rencontre-aide" className={`text-[11px] leading-relaxed ${salleInvalide ? "text-danger-strong font-bold" : "text-muted-foreground"}`}>
+                  {salleInvalide ? (
+                    "L'adresse doit être complète et commencer par https://"
+                  ) : (
+                    <>
+                      Sur{" "}
+                      <a href="https://meet.google.com" target="_blank" rel="noopener noreferrer"
+                        className="font-bold text-primary-strong underline underline-offset-2 hover:no-underline">
+                        meet.google.com
+                      </a>{" "}
+                      : <span className="font-bold">Nouvelle réunion → Créer une réunion pour plus tard</span>.
+                      Copiez l&apos;adresse obtenue et collez-la ici. Zoom, Teams ou Whereby conviennent aussi.
+                    </>
+                  )}
                 </p>
               </div>
 
-              {(firm.bookingUrl ?? "").trim() ? (
+              {(firm.meetingRoomUrl ?? "").trim() ? (
                 <a
-                  href={firm.bookingUrl}
+                  href={firm.meetingRoomUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex w-fit items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:bg-muted"
                 >
-                  <Globe aria-hidden className="w-3.5 h-3.5 text-muted-foreground" />
-                  Ouvrir la page que verront vos clients
+                  <Video aria-hidden className="w-3.5 h-3.5 text-muted-foreground" />
+                  Ouvrir ma salle pour l&apos;essayer
                 </a>
               ) : null}
 
-              <RaccordCalendly etat={calendly} />
-
-              {/* Ce qui existe, dit sans promettre ce qui n'existe pas. Il n'y
-                  a ni intégration Zoom, ni Google Meet, ni synchronisation :
-                  l'écran l'annonçait, et ces trois contrôles ne menaient
-                  nulle part. */}
-              <div className="bg-muted/40 border border-border text-muted-foreground p-4 rounded-2xl text-xs leading-relaxed flex items-start gap-2.5">
+              {/* Ce que fait la salle, et l'objection qu'on se pose forcément. */}
+              <div className="bg-primary/10 border border-primary/25 text-primary-strong p-4 rounded-2xl text-xs leading-relaxed flex items-start gap-2.5">
                 <Video aria-hidden className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                  Le rendez-vous se prend et se tient chez votre fournisseur — c&apos;est lui qui
-                  envoie les invitations et crée le lien de visioconférence. Le cabinet ne conserve
-                  que l&apos;adresse de réservation, pour l&apos;offrir à vos clients.
+                  Chaque rendez-vous en visioconférence portera ce lien, et votre client le
+                  recevra par courriel. <strong>La même salle sert tous vos clients</strong> : ce
+                  n&apos;est pas un risque, car Google Meet retient les arrivants en salle
+                  d&apos;attente jusqu&apos;à ce que vous les admettiez. Deux clients qui se
+                  suivent ne se croisent pas.
                 </span>
               </div>
+
+              {/* ── LA RÉSERVATION EN LIBRE-SERVICE, REPLIÉE ─────────────────
+                  Elle n'est plus au centre : le cabinet fixe ses rendez-vous
+                  depuis le calendrier, et le client reçoit le lien. Ceci ne
+                  sert qu'à ceux qui ont déjà un Calendly. */}
+              <details className="rounded-2xl border border-border bg-muted/20">
+                <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold text-foreground marker:content-none">
+                  <span className="inline-flex items-center gap-2">
+                    <Globe aria-hidden className="w-3.5 h-3.5 text-muted-foreground" />
+                    Réservation en libre-service (Calendly, TidyCal) — facultatif
+                  </span>
+                </summary>
+
+                <div className="flex flex-col gap-4 border-t border-border p-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="lien-reservation" className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">
+                      Votre lien de réservation
+                    </label>
+                    <div className="relative flex items-center">
+                      <Globe aria-hidden className="absolute left-3 w-4 h-4 text-muted-foreground" />
+                      <input
+                        id="lien-reservation"
+                        type="url"
+                        inputMode="url"
+                        placeholder="https://calendly.com/votre-nom/consultation"
+                        value={bookingUrl}
+                        onChange={(e) => setBookingUrl(e.target.value)}
+                        aria-invalid={lienInvalide || undefined}
+                        aria-describedby="lien-reservation-aide"
+                        className={`placeholder:text-foreground/60 w-full pl-9 pr-4 py-2.5 text-xs font-bold font-mono rounded-2xl bg-muted/40 border focus:bg-card focus:outline-none transition-all ${
+                          lienInvalide ? "border-danger focus:border-danger" : "border-border focus:border-primary"
+                        }`}
+                      />
+                    </div>
+                    <p id="lien-reservation-aide" className={`text-[11px] ${lienInvalide ? "text-danger-strong font-bold" : "text-muted-foreground"}`}>
+                      {lienInvalide
+                        ? "L'adresse doit être complète et commencer par https://"
+                        : "Offert à vos clients sur leur portail. Laissez vide pour ne rien proposer."}
+                    </p>
+                  </div>
+
+                  <RaccordCalendly etat={calendly} />
+                </div>
+              </details>
             </div>
           </div>
         )}
