@@ -645,7 +645,37 @@ export async function createEvent(
     .single()
 
   if (error) fail("createEvent", error.message)
-  return toCalendarEvent(inserted)
+
+  const evenement = toCalendarEvent(inserted)
+
+  // ── L'ANNONCE AU CLIENT, APRÈS L'ÉCRITURE ET JAMAIS AVANT ────────────────
+  //
+  // L'ordre n'est pas un détail. Envoyer d'abord, écrire ensuite, exposerait
+  // au pire des cas : le client reçoit une convocation pour un rendez-vous que
+  // la base n'a jamais enregistré.
+  //
+  // Et `annoncerRendezVous()` ne lève jamais : si elle levait ici, le
+  // consultant verrait « erreur » sur un rendez-vous pourtant enregistré, et
+  // le saisirait une seconde fois.
+  if (data.prevenirClient && (data.contactEmail ?? "").trim()) {
+    const { annoncerRendezVous } = await import("@/lib/calendrier/annonce-rendez-vous")
+    const annonce = await annoncerRendezVous({
+      firmId,
+      courrielClient: String(data.contactEmail),
+      nomClient: data.clientName ?? "",
+      motif: data.title,
+      date: String(payload.date),
+      // `heureDebut`, jamais `time` : celui-ci porte un libellé humain.
+      heure: (data.heureDebut ?? "").trim() || `${String(data.hour ?? 9).padStart(2, "0")}:00`,
+      dureeMinutes: data.durationMinutes ?? 60,
+      modalite: data.platform ?? null,
+      lienRencontre: data.link ?? null,
+    })
+    evenement.annonceEnvoyee = annonce.envoye
+    evenement.annonceRaison = annonce.raison
+  }
+
+  return evenement
 }
 
 export async function updateCalendarEvent(

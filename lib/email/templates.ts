@@ -423,3 +423,169 @@ ${document} has been signed by every party. ${cabinet} keeps a copy and its cert
 ${document} a été signé par toutes les parties. ${cabinet} en conserve une copie et son certificat.`,
   }
 }
+
+/**
+ * Le rendez-vous fixé par le cabinet, annoncé à son client.
+ *
+ * ─── POURQUOI LA DATE EST ÉCRITE EN TOUTES LETTRES ─────────────────────────
+ *
+ * « 2026-09-15 14:30 » se lit mal, et surtout se lit de deux façons selon le
+ * pays du lecteur. Un candidat à l'immigration vient rarement d'un pays qui
+ * écrit les dates comme le Canada. « Le mardi 15 septembre 2026 à 14 h 30 » ne
+ * se confond avec rien — et le jour de la semaine sert de contrôle : qui lit
+ * « mardi » alors qu'il attendait un lundi écrit pour demander.
+ *
+ * ─── LE FUSEAU EST NOMMÉ, TOUJOURS ─────────────────────────────────────────
+ *
+ * Le cabinet reçoit des clients qui sont encore à l'étranger. « 14 h 30 » sans
+ * fuseau fait manquer le rendez-vous à qui est à Dakar ou à Manille. La mention
+ * de l'heure de l'Est n'est pas une précaution de juriste : c'est la différence
+ * entre une rencontre tenue et une rencontre manquée.
+ *
+ * ─── LE LIEN N'EST PAS TOUJOURS LÀ, ET CE N'EST PAS UNE ERREUR ─────────────
+ *
+ * Un rendez-vous en personne n'a pas de lien de visioconférence. Le courriel
+ * part quand même : le client doit connaître la date. Le lien de réservation du
+ * cabinet, lui, figure en repli pour reprogrammer — c'est la seule chose utile
+ * à offrir quand on ne peut pas offrir de porte d'entrée à la rencontre.
+ */
+export function courrielRendezVous(opts: {
+  langue: Langue
+  nomClient: string
+  nomCabinet: string
+  motif: string
+  /** Déjà composée pour l'humain : « mardi 15 septembre 2026 ». */
+  dateLisible: string
+  /** « 14 h 30 » en français, « 2:30 p.m. » en anglais. */
+  heureLisible: string
+  fuseauLisible: string
+  dureeMinutes: number
+  modalite?: string
+  lienRencontre?: string
+  lienReservation?: string
+  reponsePossible: boolean
+}): CourrielCompose {
+  const en = opts.langue === "en"
+  const nom = echapper(opts.nomClient.trim() || (en ? "Hello" : "Bonjour"))
+  const cabinet = echapper(opts.nomCabinet.trim())
+  const motif = echapper(opts.motif.trim())
+  const modalite = echapper((opts.modalite ?? "").trim())
+  const lien = (opts.lienRencontre ?? "").trim()
+  const reservation = (opts.lienReservation ?? "").trim()
+
+  const sujet = en
+    ? `Your appointment — ${opts.dateLisible} at ${opts.heureLisible}`
+    : `Votre rendez-vous — ${opts.dateLisible} à ${opts.heureLisible}`
+
+  const ligne = (etiquette: string, valeur: string) =>
+    `<tr><td style="padding:6px 16px 6px 0;font-size:14px;color:#64748b;white-space:nowrap;">${etiquette}</td>` +
+    `<td style="padding:6px 0;font-size:14px;font-weight:700;color:#0f172a;">${valeur}</td></tr>`
+
+  const details =
+    `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 0;">` +
+    ligne(en ? "Date" : "Date", `${opts.dateLisible}`) +
+    ligne(en ? "Time" : "Heure", `${opts.heureLisible} (${opts.fuseauLisible})`) +
+    ligne(en ? "Duration" : "Durée", en ? `${opts.dureeMinutes} minutes` : `${opts.dureeMinutes} minutes`) +
+    ligne(en ? "Purpose" : "Motif", motif) +
+    (modalite ? ligne(en ? "Format" : "Modalité", modalite) : "") +
+    `</table>`
+
+  const corps =
+    `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">` +
+    (en
+      ? `Hello ${nom},<br><br>Your appointment with <strong>${cabinet}</strong> is confirmed.`
+      : `Bonjour ${nom},<br><br>Votre rendez-vous avec <strong>${cabinet}</strong> est confirmé.`) +
+    `</p>` +
+    details +
+    (lien
+      ? bouton(lien, en ? "Join the meeting" : "Rejoindre la rencontre") +
+        `<p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">` +
+        (en
+          ? `If the button does not work, copy this address: ${echapper(lien)}`
+          : `Si le bouton ne fonctionne pas, copiez cette adresse : ${echapper(lien)}`) +
+        `</p>`
+      : `<p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#334155;">` +
+        (en
+          ? `Details on where to meet will follow separately.`
+          : `Les précisions sur le lieu de la rencontre vous parviendront séparément.`) +
+        `</p>`) +
+    (reservation
+      ? `<p style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#64748b;">` +
+        (en
+          ? `Need another time? <a href="${reservation}" style="color:${BLEU};">Choose a new slot</a>.`
+          : `Un autre moment vous conviendrait mieux ? <a href="${reservation}" style="color:${BLEU};">Choisissez un nouveau créneau</a>.`) +
+        `</p>`
+      : "")
+
+  const pied = opts.reponsePossible
+    ? en
+      ? `Sent by ${cabinet}. Reply to this message if you have a question.`
+      : `Envoyé par ${cabinet}. Répondez à ce message si vous avez une question.`
+    : en
+      ? `Sent by ${cabinet}.`
+      : `Envoyé par ${cabinet}.`
+
+  const texte = [
+    en ? `Hello ${opts.nomClient},` : `Bonjour ${opts.nomClient},`,
+    "",
+    en
+      ? `Your appointment with ${opts.nomCabinet} is confirmed.`
+      : `Votre rendez-vous avec ${opts.nomCabinet} est confirmé.`,
+    "",
+    `${en ? "Date" : "Date"} : ${opts.dateLisible}`,
+    `${en ? "Time" : "Heure"} : ${opts.heureLisible} (${opts.fuseauLisible})`,
+    `${en ? "Duration" : "Durée"} : ${opts.dureeMinutes} minutes`,
+    `${en ? "Purpose" : "Motif"} : ${opts.motif}`,
+    modalite ? `${en ? "Format" : "Modalité"} : ${opts.modalite}` : "",
+    "",
+    lien ? `${en ? "Join the meeting" : "Rejoindre la rencontre"} : ${lien}` : "",
+    reservation ? `${en ? "Another time" : "Un autre moment"} : ${reservation}` : "",
+  ].filter((l) => l !== "").join("\n")
+
+  return { sujet, html: coquille(en ? "Appointment confirmed" : "Rendez-vous confirmé", corps, pied), texte }
+}
+
+/**
+ * La date et l'heure d'un rendez-vous, écrites pour être lues.
+ *
+ * `date` arrive en « 2026-09-15 » et `heure` en « 14:30 ». Les deux sont
+ * interprétées DANS LE FUSEAU DU CABINET : construire un `Date` depuis
+ * « 2026-09-15 » seul le place à minuit UTC, soit 20 h la veille à Gatineau, et
+ * le courriel annoncerait le 14 septembre au lieu du 15.
+ */
+export function composerMomentRendezVous(
+  date: string,
+  heure: string,
+  langue: Langue,
+  fuseau = "America/Toronto"
+): { dateLisible: string; heureLisible: string; fuseauLisible: string } {
+  const [a, m, j] = date.split("-").map(Number)
+
+  // `heure` DOIT être « HH:MM ». Ailleurs dans l'application circule aussi un
+  // libellé humain — « 10 h 00 – 11 h 00 (60 min) » — et le confondre avec
+  // celui-ci donnerait NaN, donc « NaN h 00 » dans un courriel envoyé à un
+  // client. On retombe sur 9 h plutôt que d'écrire une absurdité.
+  const [hBrut, minBrut] = (heure || "").split(":").map(Number)
+  const h = Number.isFinite(hBrut) && hBrut >= 0 && hBrut <= 23 ? hBrut : 9
+  const min = Number.isFinite(minBrut) && minBrut >= 0 && minBrut <= 59 ? minBrut : 0
+
+  // Midi UTC comme point d'ancrage : à cette heure-là, aucun fuseau du globe
+  // n'est encore la veille ou déjà le lendemain, donc le jour de la semaine et
+  // la date restent ceux qu'on a écrits.
+  const ancre = new Date(Date.UTC(a, (m || 1) - 1, j || 1, 12, 0, 0))
+  const loc = langue === "en" ? "en-CA" : "fr-CA"
+
+  const dateLisible = new Intl.DateTimeFormat(loc, {
+    weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+  }).format(ancre)
+
+  const heureLisible = langue === "en"
+    ? new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" })
+        .format(new Date(Date.UTC(a, (m || 1) - 1, j || 1, h, min)))
+    : `${h} h ${String(min).padStart(2, "0")}`
+
+  const fuseauLisible = new Intl.DateTimeFormat(loc, { timeZone: fuseau, timeZoneName: "long" })
+    .formatToParts(ancre).find((p) => p.type === "timeZoneName")?.value ?? fuseau
+
+  return { dateLisible, heureLisible, fuseauLisible }
+}

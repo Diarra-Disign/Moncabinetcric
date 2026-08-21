@@ -267,6 +267,25 @@ export interface CalendarEvent {
   consultantName?: string
   consultantId?: string
   createdAt?: string
+  /**
+   * Adresse du contact, et volonté de le prévenir. Ces deux champs TRANSITENT
+   * de la fenêtre de prise de rendez-vous vers l'action serveur ; ils ne sont
+   * pas des colonnes de `calendar_events` et n'y sont jamais écrits. Le
+   * courriel d'un client vit dans sa fiche, à un seul endroit — le recopier
+   * dans chaque rendez-vous créerait des adresses périmées que personne ne
+   * penserait à mettre à jour.
+   */
+  contactEmail?: string
+  prevenirClient?: boolean
+  /**
+   * L'heure de début en « HH:MM ». Distincte de `time`, qui porte un LIBELLÉ
+   * humain — « 10 h 00 – 11 h 00 (60 min) ». Découper ce libellé sur « : »
+   * donnerait NaN, et le courriel annoncerait une heure absurde au client.
+   */
+  heureDebut?: string
+  /** Compte rendu de l'envoi, rempli par le serveur au retour. */
+  annonceEnvoyee?: boolean
+  annonceRaison?: string
 }
 
 export interface GovernmentFee {

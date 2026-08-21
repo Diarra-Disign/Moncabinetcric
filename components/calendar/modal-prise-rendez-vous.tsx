@@ -169,6 +169,15 @@ function ModalPriseRendezVousContent({
   const [consultantId, setConsultantId] = React.useState(CONSULTANTS[0].id)
   const [modalite, setModalite] = React.useState("google_meet")
   const [meetingLink, setMeetingLink] = React.useState("")
+  /**
+   * Prévenir le client par courriel.
+   *
+   * Coché d'avance — c'est ce qu'on veut presque toujours — mais VISIBLE.
+   * Certains rendez-vous sont internes, ou notés après coup pour quelqu'un
+   * déjà prévenu au téléphone. Un courriel parti sans qu'on le sache serait
+   * une mauvaise surprise, et il ne se rattrape pas.
+   */
+  const [prevenirClient, setPrevenirClient] = React.useState(true)
   const [notesInternes, setNotesInternes] = React.useState("")
   const [statut, setStatut] = React.useState<"confirmed" | "pending">("confirmed")
 
@@ -300,9 +309,29 @@ function ModalPriseRendezVousContent({
         notes: notesInternes.trim() || undefined,
         consultantName: consultantChoisi?.nom || "Adama Diarra, RCIC",
         consultantId: consultantChoisi?.id,
+        // L'heure BRUTE, en plus du libellé : voir le commentaire sur
+        // `heureDebut` dans les types.
+        heureDebut: startTime,
+        contactEmail: contactEmail.trim(),
+        prevenirClient: prevenirClient && Boolean(contactEmail.trim()),
       }
 
       const evtCree = await createEvent(payload)
+
+      // Le rendez-vous est enregistré. Si l'annonce n'est pas partie, on le DIT
+      // au lieu de fermer sur un succès muet : le consultant croirait son
+      // client prévenu et ne le rappellerait pas.
+      if (payload.prevenirClient && evtCree.annonceEnvoyee === false) {
+        setErreur(
+          `Rendez-vous enregistré, mais le client n'a pas été prévenu. ${
+            evtCree.annonceRaison ?? ""
+          } Prévenez-le vous-même.`
+        )
+        onRendezVousCree(evtCree)
+        setShowConfirmation(false)
+        return
+      }
+
       onRendezVousCree(evtCree)
       onFermer()
     } catch (e) {
@@ -746,6 +775,40 @@ function ModalPriseRendezVousContent({
                   />
                 </div>
               )}
+
+              {/* L'annonce au client. Placée sous le lien de rencontre parce
+                  que c'est LUI que le courriel transporte : les deux se lisent
+                  ensemble. */}
+              <label
+                className={`flex items-start gap-2.5 rounded-xl border p-3 ${
+                  contactEmail.trim()
+                    ? "border-border bg-muted/20 cursor-pointer"
+                    : "border-dashed border-border bg-muted/10"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={prevenirClient && Boolean(contactEmail.trim())}
+                  disabled={!contactEmail.trim()}
+                  onChange={(e) => setPrevenirClient(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary disabled:opacity-40"
+                />
+                <span className="text-[11px] leading-relaxed">
+                  <span className="block font-bold text-foreground">
+                    Prévenir le client par courriel
+                  </span>
+                  <span className="block text-muted-foreground">
+                    {contactEmail.trim() ? (
+                      <>
+                        Un courriel part à <span className="font-mono font-bold">{contactEmail.trim()}</span>{" "}
+                        avec la date, l&apos;heure{meetingLink.trim() ? " et le lien de la rencontre" : ""}.
+                      </>
+                    ) : (
+                      "Aucune adresse courriel pour ce contact — rien ne sera envoyé."
+                    )}
+                  </span>
+                </span>
+              </label>
             </div>
 
             {/* 5. Notes internes & Statut */}
