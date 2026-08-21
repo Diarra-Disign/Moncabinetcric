@@ -72,7 +72,7 @@ export default async function PortalPage({
     // 1. Infos du cabinet
     const { data: firmRes } = await supabase
       .from("firms")
-      .select("name, owner_name, rcic_license_number")
+      .select("name, owner_name, rcic_license_number, booking_url")
       .eq("id", firmId)
       .maybeSingle()
     cabinet = firmRes ?? {}
@@ -513,7 +513,10 @@ export default async function PortalPage({
             </a>
           )}
 
-          <VirtualMeetingCard consultantName={(cabinet?.owner_name as string) ?? ""} />
+          <VirtualMeetingCard
+            consultantName={(cabinet?.owner_name as string) ?? ""}
+            calendlyUrl={(cabinet?.booking_url as string) ?? ""}
+          />
 
           {/* Avancement : affiché si un dossier existe */}
           <Card className="border-primary/20 bg-primary/5">

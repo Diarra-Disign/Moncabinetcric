@@ -28,6 +28,8 @@ export interface FirmIdentity {
   email: string
   /** Adresse qui reçoit les réponses aux courriels envoyés aux clients. */
   replyToEmail: string
+  /** Lien public de prise de rendez-vous — Calendly, TidyCal, Cal.com. */
+  bookingUrl: string
   /** Nom affiché dans la boîte du destinataire. */
   emailSenderName: string
   /** Numéros d'inscription, imprimés sur les factures. */
@@ -70,6 +72,7 @@ export const EMPTY_FIRM: FirmIdentity = {
   phone: "",
   email: "",
   replyToEmail: "",
+  bookingUrl: "",
   emailSenderName: "",
   taxGstNumber: "",
   taxQstNumber: "",
@@ -101,6 +104,7 @@ export interface FirmRow {
   phone: string | null
   email: string | null
   reply_to_email?: string | null
+  booking_url?: string | null
   email_sender_name?: string | null
   tax_gst_number?: string | null
   tax_qst_number?: string | null
@@ -134,6 +138,7 @@ export function mapFirmRow(row: FirmRow): FirmIdentity {
     phone: row.phone ?? "",
     email: row.email ?? "",
     replyToEmail: row.reply_to_email ?? "",
+    bookingUrl: row.booking_url ?? "",
     emailSenderName: row.email_sender_name ?? "",
     taxGstNumber: row.tax_gst_number ?? "",
     taxQstNumber: row.tax_qst_number ?? "",

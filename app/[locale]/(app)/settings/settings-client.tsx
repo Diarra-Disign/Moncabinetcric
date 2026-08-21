@@ -4,18 +4,14 @@ import * as React from "react"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { 
   Building2, 
-  User, 
   ShieldCheck, 
   CreditCard, 
   Video, 
-  Calendar, 
   Save, 
   CheckCircle2, 
   Lock, 
   FileText, 
-  DollarSign, 
   Globe, 
-  Key, 
   Upload,
   Check,
   AlertTriangle,
@@ -130,16 +126,35 @@ export function SettingsClient() {
   // Taxes state
 
 
-  // Stripe State
-  const [stripeConnected, setStripeConnected] = React.useState(false)
-  const [stripeAccountId, setStripeAccountId] = React.useState("")
-  const [publishableKey, setPublishableKey] = React.useState("")
+  // Stripe Connect n'est pas branché, et ces trois valeurs le disent.
+  //
+  // C'étaient des `useState` dont aucun `set` n'était jamais appelé : un état
+  // qui ne change pas est une constante, et l'écrire comme un état laissait
+  // croire qu'un branchement viendrait le remplir. Le jour où Stripe Connect
+  // existera, ces lignes redeviendront des états — et le compilateur signalera
+  // tout ce qu'il faut alors rebrancher.
+  const stripeConnected = false
+  const stripeAccountId = ""
+  const publishableKey = ""
 
-  // Zoom / Meet / Calendly State
-  const [zoomConnected, setZoomConnected] = React.useState(false)
-  const [zoomEmail, setZoomEmail] = React.useState("")
-  const [calendlyUrl, setCalendlyUrl] = React.useState("")  // À saisir par le cabinet : aucun lien par défaut.
-  const [preferredPlatform, setPreferredPlatform] = React.useState<"calendly" | "zoom" | "google_meet">("calendly")
+  // Le lien de prise de rendez-vous, LU DEPUIS LA BASE.
+  //
+  // Quatre états vivaient ici : un lien Calendly, un mode de visioconférence,
+  // un compte Zoom/Google et un booléen « Zoom connecté ». Aucun n'était
+  // envoyé au serveur, et la table `firms` n'avait aucune colonne où les
+  // écrire. L'écran annonçait « enregistrés avec succès », puis le
+  // rafraîchissement relisait la base et vidait les champs.
+  //
+  // Il n'en reste qu'un, et il part maintenant avec le formulaire.
+  const [bookingUrl, setBookingUrl] = React.useState(firm.bookingUrl ?? "")
+
+  // Le même contrôle que la base et que le serveur, mais rendu tout de suite.
+  // La contrainte Postgres reste le dernier rempart ; ici on évite seulement
+  // au cabinet d'apprendre sa faute de frappe après un aller-retour.
+  const lienInvalide = React.useMemo(() => {
+    const v = bookingUrl.trim()
+    return v.length > 0 && !/^https:\/\/[^\s<>"]+$/i.test(v)
+  }, [bookingUrl])
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -166,6 +181,7 @@ export function SettingsClient() {
       invoicePrefix,
       paymentTerms,
       logoUrl,
+      bookingUrl,
     }
 
     // ── PLUS DE COPIE DANS LE NAVIGATEUR ───────────────────────────────
@@ -247,7 +263,7 @@ export function SettingsClient() {
 
       <PageHeader
         title="Paramètres Cabinet & Intégrations"
-        subtitle="Personnalisez les informations légales, numéros de taxe, intégrations Stripe et visioconférence de votre étude."
+        subtitle="Identité du cabinet, numéros de taxe, encaissement par carte et prise de rendez-vous."
         action={
           <div className="flex items-center gap-3">
             {/* L'abonnement était jusqu'ici sans porte d'entrée : la page
@@ -281,37 +297,6 @@ export function SettingsClient() {
           </div>
         }
       />
-
-      {/* BANNIÈRE DE BIENVENUE MULTI-TENANT */}
-      <div className="bg-foreground text-background rounded-3xl p-6 shadow-xl border border-primary/25 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="pointer-events-none absolute -top-24 -right-24 w-64 h-64 rounded-full bg-primary/20 blur-3xl" />
-        
-        <div className="flex items-center gap-4 relative z-10">
-          <div className="h-12 w-12 rounded-2xl bg-background/15 text-background flex items-center justify-center font-black shadow-md shrink-0">
-            <Building2 className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black tracking-tight text-background">Profil Cabinet CRIC & Intégrations APIs (V1 SaaS)</h2>
-              <span className="bg-background/15 text-background border border-background/25 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                Multi-Tenant Isolé
-              </span>
-            </div>
-            <p className="text-xs text-background/70 mt-0.5">
-              Personnalisez les factures, numéros de taxes, Stripe Connect & visio Zoom de votre cabinet
-            </p>
-          </div>
-        </div>
-
-        <button 
-          type="button"
-          onClick={handleSaveSettings}
-          className="inline-flex items-center gap-2 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 text-xs font-bold transition-all shadow-md cursor-pointer self-end md:self-auto"
-        >
-          <Save className="w-4 h-4" />
-          <span>Enregistrer les Modifications</span>
-        </button>
-      </div>
 
       {/* HEADER & ONGLETS DE NAVIGATION DE PARAMÈTRES */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-card p-4 rounded-3xl border border-border shadow-[0_4px_20px_rgba(0,0,0,0.02)]">
@@ -814,7 +799,9 @@ export function SettingsClient() {
               <div className="bg-primary/10 border border-primary/30 text-primary-strong p-4 rounded-2xl text-xs font-medium leading-relaxed flex items-start gap-2.5">
                 <Lock className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <span>
-                  <strong>Isolation Fidéicommis :</strong> Les acomptes payés par carte bancaire sont dirigés directement vers votre sous-compte Fidéicommis Stripe avec rapprochement automatique dans le SaaS.
+                  <strong>Fidéicommis :</strong> les encaissements par carte ne sont pas encore
+                  rattachés au compte en fidéicommis. Les acomptes reçus se saisissent depuis
+                  l&apos;écran Fidéicommis, qui tient le registre et le rapprochement.
                 </span>
               </div>
             </div>
@@ -826,68 +813,75 @@ export function SettingsClient() {
           <div className="flex flex-col gap-5 animate-fadeIn">
             <div className="border-b border-border pb-3 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-foreground">Intégration Calendly & Visioconférence (Zoom / Google Meet)</h3>
-                <p className="text-xs text-muted-foreground font-medium">Fournissez votre lien Calendly/TidyCal personnel ou utilisez la génération automatique Zoom/Meet pour vos clients.</p>
+                <h3 className="text-lg font-black text-foreground">Prise de rendez-vous en ligne</h3>
+                <p className="text-xs text-muted-foreground font-medium">
+                  Votre lien de réservation Calendly, TidyCal ou Cal.com, offert à vos clients depuis leur portail.
+                </p>
               </div>
-              {calendlyUrl.trim() ? (
+              {/* La pastille suit la BASE, non la frappe en cours : elle
+                  annonçait « configuré » sur un état React que le
+                  rechargement effaçait. */}
+              {(firm.bookingUrl ?? "").trim() ? (
                 <span className="inline-flex items-center gap-1 bg-success/15 text-success-strong border border-success/40 font-mono text-xs font-bold px-3 py-1 rounded-full">
-                  <Check className="w-3.5 h-3.5" /> Calendly configuré
-                </span>
-              ) : zoomConnected ? (
-                <span className="inline-flex items-center gap-1 bg-primary/15 text-primary-strong border border-primary/30 font-mono text-xs font-bold px-3 py-1 rounded-full">
-                  <Check className="w-3.5 h-3.5" /> Zoom Activé
+                  <Check className="w-3.5 h-3.5" /> Lien enregistré
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 bg-muted text-muted-foreground border border-border font-mono text-xs font-bold px-3 py-1 rounded-full">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Non configuré
+                  <AlertTriangle className="w-3.5 h-3.5" /> Aucun lien
                 </span>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Votre Lien de Réservation Calendly / TidyCal</label>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="lien-reservation" className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">
+                  Votre lien de réservation
+                </label>
                 <div className="relative flex items-center">
-                  <Globe className="absolute left-3 w-4 h-4 text-muted-foreground" />
+                  <Globe aria-hidden className="absolute left-3 w-4 h-4 text-muted-foreground" />
                   <input
+                    id="lien-reservation"
                     type="url"
+                    inputMode="url"
                     placeholder="https://calendly.com/votre-nom/consultation"
-                    value={calendlyUrl}
-                    onChange={(e) => setCalendlyUrl(e.target.value)}
-                    className="placeholder:text-foreground/60 w-full pl-9 pr-4 py-2.5 text-xs font-bold font-mono rounded-2xl bg-muted/40 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
+                    value={bookingUrl}
+                    onChange={(e) => setBookingUrl(e.target.value)}
+                    aria-invalid={lienInvalide || undefined}
+                    aria-describedby="lien-reservation-aide"
+                    className={`placeholder:text-foreground/60 w-full pl-9 pr-4 py-2.5 text-xs font-bold font-mono rounded-2xl bg-muted/40 border focus:bg-card focus:outline-none transition-all ${
+                      lienInvalide ? "border-danger focus:border-danger" : "border-border focus:border-primary"
+                    }`}
                   />
                 </div>
-                <p className="text-[11px] text-muted-foreground">Ce lien sera proposé automatiquement à vos candidats sur leur Portail Client et dans vos signatures de courriels.</p>
+                <p id="lien-reservation-aide" className={`text-[11px] ${lienInvalide ? "text-danger-strong font-bold" : "text-muted-foreground"}`}>
+                  {lienInvalide
+                    ? "L'adresse doit être complète et commencer par https://"
+                    : "Vos clients le verront sur leur portail. Laissez vide pour ne rien proposer."}
+                </p>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Mode de visioconférence par défaut</label>
-                <select
-                  value={preferredPlatform}
-                  onChange={(e) => setPreferredPlatform(e.target.value as "calendly" | "zoom" | "google_meet")}
-                  className="w-full px-4 py-2.5 text-xs font-bold rounded-2xl bg-muted/40 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
+              {(firm.bookingUrl ?? "").trim() ? (
+                <a
+                  href={firm.bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex w-fit items-center gap-2 rounded-2xl border border-border bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-colors hover:bg-muted"
                 >
-                  <option value="calendly">Utiliser mon lien Calendly (Prise de RDV libre par le client)</option>
-                  <option value="zoom">Zoom Video (Lien généré automatiquement)</option>
-                  <option value="google_meet">Google Meet (Lien généré via Google Calendar)</option>
-                </select>
-              </div>
+                  <Globe aria-hidden className="w-3.5 h-3.5 text-muted-foreground" />
+                  Ouvrir la page que verront vos clients
+                </a>
+              ) : null}
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-muted-foreground uppercase tracking-wider">Compte Zoom / Google Associé</label>
-                <input
-                  type="email"
-                  value={zoomEmail}
-                  placeholder="votre-email@cabinet.ca"
-                  onChange={(e) => setZoomEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted/40 border border-border focus:bg-card focus:border-primary focus:outline-none transition-all"
-                />
-              </div>
-
-              <div className="md:col-span-2 bg-primary/10 border border-primary/30 text-primary-strong p-4 rounded-2xl text-xs font-medium leading-relaxed flex items-start gap-2.5">
-                <Video className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              {/* Ce qui existe, dit sans promettre ce qui n'existe pas. Il n'y
+                  a ni intégration Zoom, ni Google Meet, ni synchronisation :
+                  l'écran l'annonçait, et ces trois contrôles ne menaient
+                  nulle part. */}
+              <div className="bg-muted/40 border border-border text-muted-foreground p-4 rounded-2xl text-xs leading-relaxed flex items-start gap-2.5">
+                <Video aria-hidden className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Synchronisation bidirectionnelle :</strong> Lorsqu&apos;un client choisit un créneau via votre lien Calendly ou que vous planifiez une visio depuis sa fiche dossier, la date et le lien de rencontre sont synchronisés en temps réel sur le <strong>Portail Client</strong>.
+                  Le rendez-vous se prend et se tient chez votre fournisseur — c&apos;est lui qui
+                  envoie les invitations et crée le lien de visioconférence. Le cabinet ne conserve
+                  que l&apos;adresse de réservation, pour l&apos;offrir à vos clients.
                 </span>
               </div>
             </div>

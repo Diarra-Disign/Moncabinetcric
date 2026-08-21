@@ -37,14 +37,17 @@ export function VirtualMeetingCard({ calendlyUrl = "", consultantName = "" }: Vi
           <p className="mt-1 text-sm text-slate-500">
             Votre consultant vous transmettra un lien lorsqu&apos;un rendez-vous sera fixé.
           </p>
+          {/* Un vrai lien plutôt qu'un `window.open` : celui-ci laissait la
+              page ouverte tenir une poignée sur `window.opener`, et il privait
+              le client du clic-milieu et du menu contextuel. */}
           {calendlyUrl && (
-            <Button
-              variant="outline"
-              onClick={() => window.open(calendlyUrl, "_blank")}
+            <Button asChild variant="outline"
               className="mt-5 gap-2 text-xs font-bold border-slate-300 text-slate-800 bg-white hover:bg-slate-100 rounded-2xl px-6 py-3"
             >
-              <Calendar className="w-4 h-4 text-blue-600" />
-              <span>Demander un créneau</span>
+              <a href={calendlyUrl} target="_blank" rel="noopener noreferrer">
+                <Calendar className="w-4 h-4 text-blue-600" />
+                <span>Demander un créneau</span>
+              </a>
             </Button>
           )}
         </CardContent>

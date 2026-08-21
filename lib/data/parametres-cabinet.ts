@@ -70,6 +70,7 @@ export interface IdentiteCabinet {
   taxQstRate?: number
   invoicePrefix?: string
   paymentTerms?: string
+  bookingUrl?: string
 }
 
 export interface ResultatParametres {
@@ -110,6 +111,7 @@ const COLONNES: { champ: keyof IdentiteCabinet; colonne: string; vide: "null" | 
   { champ: "taxQstNumber", colonne: "tax_qst_number", vide: "null" },
   { champ: "invoicePrefix", colonne: "invoice_prefix", vide: "null" },
   { champ: "paymentTerms", colonne: "payment_terms", vide: "null" },
+  { champ: "bookingUrl", colonne: "booking_url", vide: "null" },
 ]
 
 /**
@@ -131,6 +133,19 @@ function controler(identite: IdentiteCabinet): string[] {
     const m = valider(cle as "email" | "phone" | "postal_code", valeur)
     if (m) manques.push(m)
   }
+
+  // Le lien de réservation est PUBLIÉ : il apparaît sur le portail du
+  // candidat, sous le nom du cabinet. Une adresse en `javascript:` ou en
+  // `data:` y deviendrait un piège que le cabinet aurait l'air d'avoir posé
+  // lui-même. On n'accepte donc que https — pas même http, parce qu'un lien
+  // de rendez-vous en clair expose le nom du candidat dans l'adresse.
+  const lien = (identite.bookingUrl ?? "").trim()
+  if (lien && !/^https:\/\/[^\s<>"]+$/i.test(lien)) {
+    manques.push(
+      "Le lien de prise de rendez-vous doit être une adresse complète commençant par https://"
+    )
+  }
+
   return manques
 }
 
