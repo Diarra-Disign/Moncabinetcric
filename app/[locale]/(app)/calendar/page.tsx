@@ -1,4 +1,5 @@
 import { CalendarClient } from "./calendar-client"
+import { ReleveAuChargement } from "./releve-au-chargement"
 import { getEvents, getClients, getMatters, getLeads } from "@/lib/data"
 
 export default async function CalendarPage() {
@@ -16,11 +17,16 @@ export default async function CalendarPage() {
   ])
 
   return (
-    <CalendarClient
+    <>
+      {/* La relève part APRÈS l'affichage : le calendrier ne doit jamais
+          attendre Calendly. Voir l'en-tête du composant. */}
+      <ReleveAuChargement />
+      <CalendarClient
       initialEvents={events}
       clients={clients}
       matters={matters}
       leads={leads}
-    />
+      />
+    </>
   )
 }

@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import { useFirm } from "@/components/app-shell/firm-provider"
+import { RaccordCalendly } from "@/components/calendar/raccord-calendly"
+import type { EtatCalendly } from "@/lib/data/calendly-actions"
 import { 
   Building2, 
   ShieldCheck, 
@@ -29,7 +31,7 @@ const CHAMP_PARAM =
   "w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted/40 border border-border " +
   "focus:bg-card focus:border-primary focus:outline-none transition-all"
 
-export function SettingsClient() {
+export function SettingsClient({ calendly }: { calendly: EtatCalendly }) {
   const firm = useFirm()
   const router = useRouter()
   const [activeTab, setActiveTab] = React.useState<"cabinet" | "taxes" | "stripe" | "zoom">("cabinet")
@@ -871,6 +873,8 @@ export function SettingsClient() {
                   Ouvrir la page que verront vos clients
                 </a>
               ) : null}
+
+              <RaccordCalendly etat={calendly} />
 
               {/* Ce qui existe, dit sans promettre ce qui n'existe pas. Il n'y
                   a ni intégration Zoom, ni Google Meet, ni synchronisation :

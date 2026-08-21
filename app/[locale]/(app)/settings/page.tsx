@@ -11,6 +11,7 @@ import { SeatRequestPanel } from "@/components/settings/seat-request-panel"
 import { getDemandesDuCabinet, getPlacesDuCabinet } from "@/lib/data/seat-reads"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 import { DeuxFacteurs } from "@/components/securite/deux-facteurs"
+import { etatCalendly } from "@/lib/data/calendly-actions"
 
 export default async function SettingsPage({
   params,
@@ -46,7 +47,12 @@ export default async function SettingsPage({
     membrePeut("firm.members"),
   ])
 
-  const [places, demandes] = await Promise.all([getPlacesDuCabinet(), getDemandesDuCabinet()])
+  const [places, demandes, calendly] = await Promise.all([
+    getPlacesDuCabinet(),
+    getDemandesDuCabinet(),
+    // Ne rend JAMAIS le jeton — seulement raccordé ou non, et les deux dates.
+    etatCalendly(),
+  ])
 
   // Défaut du rôle et ajustement individuel sont passés séparément : l'écran
   // doit pouvoir distinguer « suit le rôle » de « accordée », faute de quoi il
@@ -93,7 +99,7 @@ export default async function SettingsPage({
 
   return (
     <div className="space-y-8">
-      <SettingsClient />
+      <SettingsClient calendly={calendly} />
       {/* Le second facteur est un réglage PERSONNEL, pas un réglage du cabinet :
           chacun enrôle le sien, et personne ne peut l'activer pour autrui. Il
           se place donc avant les panneaux d'équipe, qui gouvernent les autres. */}
