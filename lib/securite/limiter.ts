@@ -32,6 +32,11 @@ export const QUOTAS = {
   jetonLecture: { max: 120, secondes: 3600 },
   /** Apposition ou refus de signature : quelques essais suffisent. */
   jetonEcriture: { max: 20, secondes: 3600 },
+  /** Consultation de la page publique de réservation — on regarde, on hésite. */
+  rdvLecture: { max: 60, secondes: 3600 },
+  /** Réservation effective : trois par heure et par adresse suffisent
+      largement à un client honnête, et arrêtent qui remplirait l'agenda. */
+  rdvEcriture: { max: 3, secondes: 3600 },
 } as const
 
 /**

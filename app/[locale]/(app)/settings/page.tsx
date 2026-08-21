@@ -12,6 +12,9 @@ import { getDemandesDuCabinet, getPlacesDuCabinet } from "@/lib/data/seat-reads"
 import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 import { DeuxFacteurs } from "@/components/securite/deux-facteurs"
 import { etatCalendly } from "@/lib/data/calendly-actions"
+import { PageReservation } from "@/components/settings/page-reservation"
+import { listerPlages } from "@/lib/data/disponibilites-actions"
+import { slugDepuis } from "@/lib/reservation/slug"
 
 export default async function SettingsPage({
   params,
@@ -52,6 +55,15 @@ export default async function SettingsPage({
     getDemandesDuCabinet(),
     // Ne rend JAMAIS le jeton — seulement raccordé ou non, et les deux dates.
     etatCalendly(),
+  ])
+
+  const [plages, { data: reglagesRdv }] = await Promise.all([
+    listerPlages(),
+    supabase
+      .from("firms")
+      .select("name, booking_slug, booking_enabled, booking_slot_minutes, booking_lead_hours, booking_horizon_days")
+      .eq("id", membre?.firmId ?? "")
+      .maybeSingle(),
   ])
 
   // Défaut du rôle et ajustement individuel sont passés séparément : l'écran
@@ -103,6 +115,15 @@ export default async function SettingsPage({
       {/* Le second facteur est un réglage PERSONNEL, pas un réglage du cabinet :
           chacun enrôle le sien, et personne ne peut l'activer pour autrui. Il
           se place donc avant les panneaux d'équipe, qui gouvernent les autres. */}
+      <PageReservation
+        plages={plages}
+        slug={(reglagesRdv?.booking_slug as string) ?? ""}
+        active={Boolean(reglagesRdv?.booking_enabled)}
+        duree={Number(reglagesRdv?.booking_slot_minutes ?? 30)}
+        preavis={Number(reglagesRdv?.booking_lead_hours ?? 24)}
+        horizon={Number(reglagesRdv?.booking_horizon_days ?? 30)}
+        slugPropose={slugDepuis(String(reglagesRdv?.name ?? ""))}
+      />
       <DeuxFacteurs />
       <SeatRequestPanel
         occupees={places.occupees}

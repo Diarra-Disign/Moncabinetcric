@@ -76,6 +76,7 @@ case "$commande" in
   registre)     exec node scripts/verify-registre-mensuel.mjs "$@" ;;
   reservation)  exec node scripts/verify-reservation.mjs "$@" ;;
   calendly)     exec node scripts/verify-calendly.mjs "$@" ;;
+  rdv)          exec node scripts/verify-rdv.mjs "$@" ;;
   facture-pdf)  exec node scripts/verify-facture-pdf.mjs "$@" ;;
   modeles)      exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/generer-modeles-questionnaires.mjs "$@" ;;
   facturation)  exec node --experimental-strip-types --import ./scripts/_charger.mjs scripts/verify-billing.mjs "$@" ;;
@@ -150,6 +151,7 @@ Usage : ./cric <commande> [options]
   registre     Éprouve le registre mensuel du compte client, du SQL à l'écran
   reservation  Éprouve le lien de prise de rendez-vous, de l'écran à la base
   calendly     Éprouve la relève des rendez-vous : jeton, doublons, annulations
+  rdv          Éprouve la page publique de réservation, avec la clé anonyme
                  ./cric registre
   echeances    Éprouve les échéances du dossier et les alertes du cabinet
   portail-client  Éprouve le dépôt de pièces par le client et la validation
