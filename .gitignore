@@ -2,6 +2,11 @@
 
 # dependencies
 /node_modules
+# Le Bureau est synchronisé par iCloud, qui évince le contenu des fichiers peu
+# utilisés : Next lisait alors des modules vides et refusait de démarrer. Le
+# suffixe .nosync exclut le dossier de la synchronisation ; `node_modules` est
+# un lien symbolique vers lui.
+/node_modules.nosync
 /.pnp
 .pnp.*
 .yarn/*
