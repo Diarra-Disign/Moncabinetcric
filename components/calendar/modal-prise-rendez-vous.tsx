@@ -69,10 +69,6 @@ const MODALITES = [
   { val: "other", label: "Autre modalité", icone: Globe },
 ]
 
-const CONSULTANTS = [
-  { id: "c-1", nom: "Adama Diarra, RCIC", permis: "R-514982" },
-]
-
 function toLocalISO(d: Date): string {
   const mois = String(d.getMonth() + 1).padStart(2, "0")
   const jour = String(d.getDate()).padStart(2, "0")
@@ -146,6 +142,30 @@ function ModalPriseRendezVousContent({
   initialHour = 10,
   onRendezVousCree,
 }: Omit<ModalPriseRendezVousProps, "ouvert">) {
+  const cabinet = useFirm()
+
+  // ── LE CONSULTANT ASSIGNÉ VIENT DES PARAMÈTRES, PLUS DU CODE ──────────────
+  //
+  // Cette liste était écrite en dur : « Adama Diarra, RCIC », permis
+  // « R-514982 ». Ce numéro n'est pas celui du cabinet — il n'a jamais été
+  // modifiable depuis les paramètres, où le vrai permis est pourtant saisi.
+  //
+  // Ce n'est pas une coquille d'affichage. Un numéro de permis annonce au
+  // client de quelle autorisation d'exercice son consultant se prévaut : en
+  // afficher un autre sur un rendez-vous est une fausse mention, et elle
+  // suivait le rendez-vous jusque dans le dossier enregistré.
+  //
+  // Même principe que `createResearchWorkspace` (lib/data/actions.ts) : la
+  // donnée vient de sa source, jamais d'une valeur figée. Le permis manquant
+  // s'affiche absent plutôt que remplacé, comme `useFirmLetterhead`.
+  const consultants = [
+    {
+      id: cabinet.id || "cabinet",
+      nom: (cabinet.rcicName || cabinet.name).trim(),
+      permis: (cabinet.rcicNumber ?? "").trim(),
+    },
+  ]
+
   // Cible : Client / Prospect / Nouveau
   const [typeCible, setTypeCible] = React.useState<"client" | "prospect" | "nouveau">("client")
   const [rechercheContact, setRechercheContact] = React.useState("")
@@ -167,7 +187,7 @@ function ModalPriseRendezVousContent({
     `${String(initialHour).padStart(2, "0")}:00`
   )
   const [durationMinutes, setDurationMinutes] = React.useState(60)
-  const [consultantId, setConsultantId] = React.useState(CONSULTANTS[0].id)
+  const [consultantId, setConsultantId] = React.useState(consultants[0].id)
   const [modalite, setModalite] = React.useState("google_meet")
   // ── LA SALLE DU CABINET, PRÉ-REMPLIE ──────────────────────────────────────
   //
@@ -178,7 +198,6 @@ function ModalPriseRendezVousContent({
   //
   // La salle enregistrée dans les réglages remplit le champ d'avance. Elle
   // reste modifiable : une rencontre à trois sur un autre lien arrive.
-  const cabinet = useFirm()
   const salleCabinet = (cabinet.meetingRoomUrl ?? "").trim()
   const [meetingLink, setMeetingLink] = React.useState(salleCabinet)
   /**
@@ -311,7 +330,7 @@ function ModalPriseRendezVousContent({
         ? typeRdvAutre.trim()
         : TYPES_RENDEZ_VOUS.find((t) => t.val === typeRdv)?.label || "Consultation"
 
-      const consultantChoisi = CONSULTANTS.find((c) => c.id === consultantId)
+      const consultantChoisi = consultants.find((c) => c.id === consultantId)
 
       const payload = {
         title: motifObjet,
@@ -332,7 +351,9 @@ function ModalPriseRendezVousContent({
         durationMinutes,
         status: statut,
         notes: notesInternes.trim() || undefined,
-        consultantName: consultantChoisi?.nom || "Adama Diarra, RCIC",
+        // Aucun repli codé en dur : mieux vaut un rendez-vous sans nom de
+        // consultant qu'un rendez-vous attribué à quelqu'un d'autre.
+        consultantName: consultantChoisi?.nom || "",
         consultantId: consultantChoisi?.id,
         // L'heure BRUTE, en plus du libellé : voir le commentaire sur
         // `heureDebut` dans les types.
@@ -677,9 +698,9 @@ function ModalPriseRendezVousContent({
                   onChange={(e) => setConsultantId(e.target.value)}
                   className="w-full h-9 px-3 text-xs rounded-xl border border-border bg-background font-medium"
                 >
-                  {CONSULTANTS.map((c) => (
+                  {consultants.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.nom} ({c.permis})
+                      {c.permis ? `${c.nom} (${c.permis})` : c.nom}
                     </option>
                   ))}
                 </select>
