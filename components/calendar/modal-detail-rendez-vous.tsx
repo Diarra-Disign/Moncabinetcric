@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import type { CalendarEvent, ClientRecord, Matter, Lead } from "@/lib/data/types"
 import { updateCalendarEvent, deleteCalendarEvent, rescheduleCalendarEvent } from "@/lib/data/actions"
 import { PromoteFromEvent } from "@/components/calendar/promote-from-event"
+import { useFirm } from "@/components/app-shell/firm-provider"
 import { useRouter } from "next/navigation"
 
 export interface ModalDetailRendezVousProps {
@@ -78,6 +79,13 @@ function ModalDetailContent({
   onEvenementSupprime,
 }: Omit<ModalDetailRendezVousProps, "ouvert"> & { event: CalendarEvent }) {
   const router = useRouter()
+  const cabinet = useFirm()
+  // Les rendez-vous relevés chez Calendly n'apportent pas de consultant. Le
+  // repli était « Adama Diarra, RCIC », écrit en dur : le cabinet du code, pas
+  // celui des paramètres. Il vient maintenant de la même source que l'écran de
+  // prise de rendez-vous.
+  const consultantAffiche =
+    event.consultantName || cabinet.rcicName || cabinet.name
   const [mode, setMode] = React.useState<"view" | "edit" | "move">("view")
   const [enCours, setEnCours] = React.useState(false)
   const [message, setMessage] = React.useState<{ type: "succes" | "erreur"; texte: string } | null>(null)
@@ -302,7 +310,7 @@ function ModalDetailContent({
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                    <span>Consultant : <strong className="text-foreground">{event.consultantName || "Adama Diarra, RCIC"}</strong></span>
+                    <span>Consultant : <strong className="text-foreground">{consultantAffiche}</strong></span>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Globe className="h-3.5 w-3.5 text-primary" />
