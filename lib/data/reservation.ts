@@ -30,7 +30,13 @@ export interface CabinetPublic {
   firmId: string
   nom: string
   logoUrl: string
-  salle: string
+  /**
+   * Un booléen, JAMAIS l'adresse. La salle de rencontre est permanente et
+   * commune à tous les clients du cabinet : `cabinet_public` est accordée à
+   * `anon`, donc tout ce qu'elle rend est lisible en RPC direct avec la clé
+   * publique du bundle. La page n'a besoin que d'annoncer « en visioconférence ».
+   */
+  aUneSalle: boolean
   dureeMinutes: number
   preavisHeures: number
   horizonJours: number
@@ -44,7 +50,7 @@ export async function getCabinetPublic(slug: string): Promise<CabinetPublic | nu
     firmId: String(r.firm_id),
     nom: String(r.nom ?? ""),
     logoUrl: String(r.logo_url ?? ""),
-    salle: String(r.salle ?? ""),
+    aUneSalle: Boolean(r.a_une_salle),
     dureeMinutes: Number(r.slot_minutes ?? 30),
     preavisHeures: Number(r.lead_hours ?? 24),
     horizonJours: Number(r.horizon_days ?? 30),

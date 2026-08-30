@@ -61,7 +61,7 @@ export default async function PageReservation({
       nomCabinet={cabinet.nom}
       logoUrl={cabinet.logoUrl}
       dureeMinutes={cabinet.dureeMinutes}
-      aUneSalle={Boolean(cabinet.salle)}
+      aUneSalle={cabinet.aUneSalle}
       creneaux={creneaux.map((c) => ({ iso: c.debut.toISOString(), local: c.debutLocal }))}
     />
   )

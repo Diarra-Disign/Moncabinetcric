@@ -52,7 +52,11 @@ console.log("\nLa page publique de réservation\n")
 // ── 1. Ce que le visiteur peut lire ───────────────────────────────────────
 const { data: pub } = await visiteur.rpc("cabinet_public", { p_slug: slug })
 verifier("le visiteur obtient le cabinet par son adresse", (pub ?? []).length === 1)
-verifier("il reçoit la salle de rencontre", pub?.[0]?.salle?.includes("meet.google.com"))
+// `cabinet_public` ne rend plus l'adresse : la salle est permanente et commune
+// à tous les clients du cabinet, donc qui la connaît peut se présenter à
+// n'importe quelle consultation. Seul le booléen sort désormais.
+verifier("il sait qu'il y a une salle, sans en recevoir l'adresse",
+  pub?.[0]?.a_une_salle === true && !("salle" in (pub?.[0] ?? {})))
 const champs = Object.keys(pub?.[0] ?? {})
 verifier("aucun courriel ni téléphone de cabinet n'est exposé",
   !champs.some((c) => /email|phone|courriel|telephone/i.test(c)), champs.join(", "))

@@ -31,6 +31,18 @@ const handleI18n = createMiddleware(routing)
  * « design-system » N'Y EST PAS. C'est l'atelier de composants, un écran
  * interne que robots.txt écarte déjà de l'indexation ; il devient donc fermé.
  * Une ligne à ajouter ici si tu veux le rouvrir.
+ *
+ * « rdv » manquait, et le mécanisme décrit plus haut a fonctionné exactement
+ * comme annoncé : la page publique de réservation, livrée le 21 août, était
+ * renvoyée à la connexion. Le visiteur à qui le cabinet envoie son adresse se
+ * voyait demander un mot de passe qu'il n'a pas. L'oubli a bien penché du côté
+ * sûr — la fonctionnalité était fermée, non ouverte par accident.
+ *
+ * Ce que cette ligne ouvre, exactement : le slug seul décide de l'affichage, et
+ * `cabinet_public` ne répond que si `booking_enabled` est vrai ET l'abonnement
+ * actif. Un slug inconnu rend `notFound()`, sans confirmer l'existence d'un
+ * compte. Aucun accès aux données n'en découle : la page ne peut appeler que
+ * les fonctions étroites accordées à `anon`.
  */
 const SEGMENTS_PUBLICS = [
   'landing',
@@ -40,6 +52,7 @@ const SEGMENTS_PUBLICS = [
   'conditions',
   'confidentialite',
   'q',
+  'rdv',
 ]
 
 const LOGIN_PATH = 'connexion'
