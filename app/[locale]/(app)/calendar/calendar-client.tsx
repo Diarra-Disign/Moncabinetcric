@@ -63,12 +63,96 @@ function getDayOfWeekName(dateIso: string): string {
 function buildHourRows(from: number, to: number) {
   return Array.from({ length: to - from + 1 }, (_, i) => {
     const hour = from + i
-    return { hour, label: `${String(hour).padStart(2, "0")} h 00` }
+    // « 08 h » et non « 08 h 00 » : les sept caractères ne tenaient pas dans la
+    // colonne et retombaient à la ligne en « 08 h » / « 00 ». Chaque ligne
+    // étant à l'heure pleine, les minutes n'apprenaient rien.
+    return { hour, label: `${String(hour).padStart(2, "0")} h` }
   })
 }
 
 const BUSINESS_HOURS = buildHourRows(8, 18)
 const FULL_DAY_HOURS = buildHourRows(8, 23)
+
+/** Largeur de la colonne des heures, en pixels. */
+const LARGEUR_COLONNE_HEURES = 64
+/**
+ * Largeur plancher d'une colonne de jour, en pixels.
+ *
+ * En dessous, la grille défile horizontalement au lieu d'écraser les colonnes.
+ * À sept jours, le plancher impose 64 + 7 × 132 = 988 px : au-delà les
+ * colonnes s'étirent, en dessous on défile. Aucune journée n'est masquée.
+ */
+const LARGEUR_MIN_JOUR = 132
+
+/**
+ * Palette d'un rendez-vous, dérivée de son statut.
+ *
+ * Un seul jeton de teinte par statut, décliné en fond, bordure, texte
+ * principal, texte secondaire, puce d'agenda et pastille de la vue Mois — les
+ * quatre vues de la page y puisent, si bien qu'un statut a la même teinte
+ * partout. `globals.css` énonce la règle appliquée ici :
+ * les jetons de REMPLISSAGE (`--primary`, `--warning`) échouent comme couleur
+ * de texte sur un fond teinté à 10 % ; les variantes `-strong` existent pour
+ * cet emploi.
+ *
+ * CE QUE ÇA CORRIGE — les deux lignes secondaires du bloc portaient
+ * `text-muted-foreground`, un gris neutre destiné aux surfaces `card`. Son
+ * contraste passait (4,75:1 sur `primary/10`), mais il n'avait aucun lien de
+ * teinte avec le fond : le bloc semblait emprunté à un autre écran.
+ *
+ * `/85` est le palier le plus bas qui tient 4,5:1 sur les deux thèmes —
+ * mesuré, le pire cas est `warning-strong` sur `warning/10` en thème clair, à
+ * 4,77:1. En dessous (`/80`) ce cas tombe à 4,27:1.
+ *
+ * Les couleurs Tailwind brutes (`slate-100`, `amber-900`) et les variantes
+ * `dark:` ont disparu : aucune variante `dark:` n'est configurée dans ce
+ * projet, donc elles suivaient le réglage de macOS et non le thème du
+ * cabinet — un bloc blanc pouvait s'afficher sur l'interface sombre.
+ */
+const PALETTE_STATUT = {
+  confirmed: {
+    bloc: "bg-primary/10 border-primary/30",
+    principal: "text-primary-strong",
+    secondaire: "text-primary-strong/85",
+    puce: "border-primary/30 bg-primary/10 text-primary-strong",
+    pastille: "bg-primary",
+    libelle: "Confirmé",
+  },
+  pending: {
+    bloc: "bg-warning/10 border-warning/30",
+    principal: "text-warning-strong",
+    secondaire: "text-warning-strong/85",
+    puce: "border-warning/30 bg-warning/10 text-warning-strong",
+    pastille: "bg-warning",
+    libelle: "En attente",
+  },
+  completed: {
+    bloc: "bg-muted border-border",
+    principal: "text-foreground",
+    secondaire: "text-muted-foreground",
+    puce: "border-border bg-muted text-muted-foreground",
+    pastille: "bg-muted-foreground",
+    libelle: "Terminé",
+  },
+  cancelled: {
+    // `opacity-60` a été retiré : il se cumulait au gris du texte et donnait
+    // 2,42:1, le seul véritable échec de contraste du composant. La rature
+    // suffit à dire l'annulation.
+    bloc: "bg-muted/50 border-border",
+    principal: "text-muted-foreground line-through",
+    secondaire: "text-muted-foreground",
+    puce: "border-border bg-muted/50 text-muted-foreground",
+    pastille: "bg-muted-foreground/60",
+    libelle: "Annulé",
+  },
+} as const
+
+function paletteStatut(statut?: string) {
+  if (statut === "cancelled") return PALETTE_STATUT.cancelled
+  if (statut === "completed") return PALETTE_STATUT.completed
+  if (statut === "confirmed" || statut === "ready") return PALETTE_STATUT.confirmed
+  return PALETTE_STATUT.pending
+}
 
 export function CalendarClient({
   initialEvents = [],
@@ -78,7 +162,17 @@ export function CalendarClient({
 }: CalendarClientProps) {
   const [events, setEvents] = React.useState<CalendarEvent[]>(initialEvents)
   const [currentDate, setCurrentDate] = React.useState<Date>(() => new Date())
-  const [viewMode, setViewMode] = React.useState<"workweek" | "week" | "month" | "day" | "agenda">("workweek")
+  // ── LA SEMAINE COMPTE SEPT JOURS ──────────────────────────────────────────
+  //
+  // Le mode « week » (7 jours) était entièrement codé — jours actifs, libellé
+  // de période, navigation — mais aucun bouton n'y menait : celui étiqueté
+  // « Semaine » appelait `workweek`, à 5 jours. Samedi et dimanche étaient
+  // donc inatteignables, non par un défaut de largeur ou de CSS, mais faute
+  // de point d'entrée.
+  //
+  // « week » devient la valeur par défaut ; la semaine ouvrable reste
+  // accessible par la bascule 5 j / 7 j de la barre d'outils.
+  const [viewMode, setViewMode] = React.useState<"workweek" | "week" | "month" | "day" | "agenda">("week")
   const [fullDay, setFullDay] = React.useState(false)
   const hourRows = fullDay ? FULL_DAY_HOURS : BUSINESS_HOURS
 
@@ -201,6 +295,32 @@ export function CalendarClient({
     }
     return result
   }, [currentDate, viewMode])
+
+  /**
+   * Gabarit des colonnes de la grille horaire.
+   *
+   * L'en-tête et les lignes d'heures sont deux grilles distinctes : elles
+   * DOIVENT partager le même gabarit, sinon elles se désalignent.
+   *
+   * Ce qui était écrit avant — `repeat(auto-fit, minmax(0,1fr))` — est
+   * dégénéré : `auto-fit` a besoin d'une taille de piste définie pour calculer
+   * combien de pistes tiennent, et avec un `1fr` flexible la spécification
+   * impose un compte de répétition de 1. Il n'existait donc qu'UNE colonne de
+   * jour explicite ; les suivantes tombaient en colonnes implicites `auto`,
+   * dimensionnées par leur contenu — et calculées séparément dans l'en-tête et
+   * dans le corps. Cela s'alignait tant que les cellules restaient vides.
+   *
+   * `minmax(LARGEUR_MIN_JOUR, 1fr)` donne le comportement voulu : les colonnes
+   * s'étirent quand la place le permet, et la grille défile quand elle manque,
+   * au lieu d'écraser les journées.
+   */
+  const gabaritColonnes = React.useMemo(
+    () => ({
+      gridTemplateColumns: `${LARGEUR_COLONNE_HEURES}px repeat(${activeDays.length}, minmax(${LARGEUR_MIN_JOUR}px, 1fr))`,
+      minWidth: LARGEUR_COLONNE_HEURES + activeDays.length * LARGEUR_MIN_JOUR,
+    }),
+    [activeDays.length]
+  )
 
   // Matrice du mois pour la vue Month
   const monthDays = React.useMemo(() => {
@@ -430,8 +550,8 @@ export function CalendarClient({
               Jour
             </button>
             <button
-              onClick={() => setViewMode("workweek")}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all ${viewMode === "workweek" ? "bg-background text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setViewMode((m) => (m === "workweek" ? "workweek" : "week"))}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-all ${viewMode === "week" || viewMode === "workweek" ? "bg-background text-foreground shadow-xs font-semibold" : "text-muted-foreground hover:text-foreground"}`}
             >
               Semaine
             </button>
@@ -449,6 +569,19 @@ export function CalendarClient({
               <span>Agenda</span>
             </button>
           </div>
+
+          {/* Bascule 5 jours / 7 jours — même motif que l'amplitude horaire.
+              La semaine ouvrable reste à un clic, sans occuper un bouton du
+              sélecteur de vues. */}
+          {(viewMode === "workweek" || viewMode === "week") && (
+            <button
+              onClick={() => setViewMode(viewMode === "week" ? "workweek" : "week")}
+              title={viewMode === "week" ? "Afficher la semaine ouvrée (lundi–vendredi)" : "Afficher les sept jours (lundi–dimanche)"}
+              className={`h-8 px-2 rounded-xl border text-[11px] font-medium transition-colors ${viewMode === "workweek" ? "bg-primary/10 border-primary text-primary-strong" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}
+            >
+              {viewMode === "week" ? "7 j" : "5 j"}
+            </button>
+          )}
 
           {/* Toggle amplitude horaire (seulement en vue grille) */}
           {(viewMode === "workweek" || viewMode === "week" || viewMode === "day") && (
@@ -528,10 +661,33 @@ export function CalendarClient({
       {/* VUE 1 : GRILLE HORAIRE (JOUR / SEMAINE) */}
       {(viewMode === "workweek" || viewMode === "week" || viewMode === "day") && (
         <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+          {/* UN SEUL conteneur de défilement, pour les deux axes.
+              ────────────────────────────────────────────────────────────────
+              Horizontalement : le conteneur n'offrait aucun défilement, si
+              bien qu'à sept colonnes le contenu ne pouvait que s'écraser.
+
+              Verticalement : l'en-tête et le corps défilaient dans des
+              conteneurs SÉPARÉS, et c'est ce qui les désalignait. La barre de
+              défilement vertical du corps prend de la largeur DANS le corps —
+              15 px là où le système dessine des barres classiques — donc les
+              colonnes du corps devenaient plus étroites que celles de
+              l'en-tête, l'écart se cumulant jusqu'au dernier jour. En
+              amplitude « 8h–23h », seize lignes de 58 px dépassent 70 vh sur
+              la plupart des écrans : le cas était atteignable.
+
+              Un conteneur unique retire la largeur aux deux à la fois. Passer
+              l'en-tête à l'intérieur le ferait défiler avec les heures : d'où
+              le `sticky`, qui rend au passage les jours visibles en bas de
+              journée. Le fond doit être opaque (`bg-card`) sous peine de
+              laisser voir les rendez-vous glisser dessous, et porter le même
+              `minWidth` que la grille sous peine de s'arrêter avant le
+              dernier jour en défilement horizontal. */}
+          <div className="max-h-[70vh] overflow-auto">
           {/* En-tête des colonnes (jours) */}
-          <div className="grid grid-cols-[60px_repeat(auto-fit,minmax(0,1fr))] border-b border-border bg-muted/40 divide-x divide-border">
-            <div className="p-2.5 text-center text-[11px] font-bold text-muted-foreground uppercase">
-              HE
+          <div style={{ minWidth: gabaritColonnes.minWidth }} className="sticky top-0 z-10 bg-card">
+          <div style={gabaritColonnes} className="grid border-b border-border bg-muted/40 divide-x divide-border">
+            <div className="p-2.5 text-center text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+              Heure
             </div>
             {activeDays.map((day) => (
               <div
@@ -547,13 +703,18 @@ export function CalendarClient({
               </div>
             ))}
           </div>
+          </div>
 
           {/* Grille des heures */}
-          <div className="divide-y divide-border/60 max-h-[70vh] overflow-y-auto">
+          <div
+            style={{ minWidth: gabaritColonnes.minWidth }}
+            className="divide-y divide-border/60"
+          >
             {hourRows.map((hr) => (
               <div
                 key={hr.hour}
-                className="grid grid-cols-[60px_repeat(auto-fit,minmax(0,1fr))] divide-x divide-border/60 min-h-[58px]"
+                style={gabaritColonnes}
+                className="grid divide-x divide-border/60 min-h-[58px]"
               >
                 {/* Libellé heure */}
                 <div className="p-2 text-right text-[10px] font-mono text-muted-foreground select-none pr-3">
@@ -594,9 +755,8 @@ export function CalendarClient({
                       {/* Événements dans le créneau */}
                       <div className="space-y-1">
                         {evtsDuCreneau.map((evt) => {
-                          const isConfirmed = evt.status === "confirmed" || evt.status === "ready"
-                          const isCompleted = evt.status === "completed"
-                          const isCancelled = evt.status === "cancelled"
+                          const st = paletteStatut(evt.status)
+                          const estConfirme = evt.status === "confirmed" || evt.status === "ready"
 
                           return (
                             <div
@@ -607,35 +767,45 @@ export function CalendarClient({
                                 e.stopPropagation()
                                 handleEventClick(evt)
                               }}
-                              className={`p-2 rounded-xl border text-xs shadow-2xs transition-all hover:scale-[1.01] hover:shadow-xs cursor-pointer ${
-                                isCancelled
-                                  ? "bg-muted/60 border-border text-muted-foreground line-through opacity-60"
-                                  : isCompleted
-                                  ? "bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100"
-                                  : isConfirmed
-                                  ? "bg-primary/10 border-primary/30 text-primary-strong font-medium"
-                                  : "bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200"
-                              }`}
+                              className={`p-2 rounded-xl border text-xs shadow-2xs transition-all hover:scale-[1.01] hover:shadow-xs cursor-pointer ${st.bloc} ${st.principal}`}
                             >
                               <div className="flex items-center justify-between gap-1">
                                 <div className="flex items-center gap-1.5 truncate">
+                                  {/* Pastille pleine : emploi correct d'un jeton
+                                      de remplissage. Ambre pour un prospect,
+                                      primary pour un client — l'écart de teinte
+                                      porte une information, il n'est pas
+                                      décoratif. */}
                                   <div className={`h-4 w-4 rounded-full ${evt.avatarBg || "bg-primary"} text-white text-[9px] font-bold flex items-center justify-center shrink-0`}>
                                     {evt.clientInitials || "C"}
                                   </div>
-                                  <span className="font-bold truncate">{evt.clientName}</span>
+                                  <span className="font-semibold truncate">{evt.clientName}</span>
                                 </div>
+                                {/* Les icônes héritent de la teinte du bloc, au
+                                    lieu du `text-primary` figé qui restait bleu
+                                    sur un rendez-vous ambre ou gris. */}
                                 {evt.platform === "google_meet" || evt.platform === "zoom" || evt.platform === "teams" ? (
-                                  <Video className="h-3 w-3 text-primary shrink-0" />
+                                  <Video className="h-3 w-3 shrink-0 opacity-80" />
                                 ) : evt.platform === "phone" ? (
-                                  <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <Phone className="h-3 w-3 shrink-0 opacity-80" />
                                 ) : null}
                               </div>
 
-                              <p className="text-[11px] truncate mt-0.5 text-muted-foreground">{evt.title}</p>
+                              <p className={`text-[11px] truncate mt-0.5 ${st.secondaire}`}>{evt.title}</p>
 
-                              <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-1 font-mono">
-                                <span>{evt.time?.split("–")[0] || `${evt.hour || 10}h`}</span>
-                                {evt.matterId && <span className="text-primary font-semibold">{evt.matterId}</span>}
+                              <div className={`flex items-center justify-between gap-1 text-[10px] mt-1 ${st.secondaire}`}>
+                                <span className="font-mono">{evt.time?.split("–")[0] || `${evt.hour || 10} h`}</span>
+                                {/* Le statut n'était écrit nulle part : il
+                                    n'existait que comme teinte de fond, donc
+                                    illisible pour qui ne distingue pas les
+                                    couleurs. Affiché dès qu'il sort de
+                                    l'ordinaire ; sinon la place revient au
+                                    numéro de dossier. */}
+                                {!estConfirme ? (
+                                  <span className={`font-semibold truncate ${st.principal}`}>{st.libelle}</span>
+                                ) : evt.matterId ? (
+                                  <span className="font-mono font-semibold truncate">{evt.matterId}</span>
+                                ) : null}
                               </div>
                             </div>
                           )
@@ -646,6 +816,7 @@ export function CalendarClient({
                 })}
               </div>
             ))}
+          </div>
           </div>
         </div>
       )}
@@ -697,7 +868,15 @@ export function CalendarClient({
                         }}
                         className="p-1 rounded-lg border border-border bg-card text-[10px] truncate hover:border-primary transition-colors flex items-center gap-1 font-medium"
                       >
-                        <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                        {/* Pastille pleine, donc jeton de remplissage : même
+                            teinte que le bloc du rendez-vous en vue Semaine.
+                            Elle était figée sur `bg-primary`, si bien qu'un
+                            rendez-vous à confirmer et un rendez-vous annulé se
+                            ressemblaient trait pour trait. */}
+                        <span
+                          title={paletteStatut(evt.status).libelle}
+                          className={`h-1.5 w-1.5 rounded-full shrink-0 ${paletteStatut(evt.status).pastille}`}
+                        />
                         <span className="truncate">{evt.clientName}</span>
                       </div>
                     ))}
@@ -754,7 +933,10 @@ export function CalendarClient({
 
                 {/* Liste des rendez-vous du jour */}
                 <div className="divide-y divide-border/60">
-                  {group.events.map((evt) => (
+                  {group.events.map((evt) => {
+                    const st = paletteStatut(evt.status)
+
+                    return (
                     <div
                       key={evt.id}
                       onClick={() => handleEventClick(evt)}
@@ -767,25 +949,23 @@ export function CalendarClient({
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-sm text-foreground">{evt.clientName}</span>
-                            <Badge
-                              variant="outline"
-                              className={`text-[10px] ${
-                                evt.status === "confirmed" || evt.status === "ready"
-                                  ? "text-emerald-700 border-emerald-500/30 bg-emerald-500/10"
-                                  : evt.status === "completed"
-                                  ? "text-primary border-primary/30 bg-primary/10"
-                                  : evt.status === "cancelled"
-                                  ? "text-rose-700 border-rose-500/30 bg-rose-500/10"
-                                  : "text-amber-700 border-amber-500/30 bg-amber-500/10"
-                              }`}
-                            >
-                              {evt.status === "confirmed" || evt.status === "ready"
-                                ? "Confirmé"
-                                : evt.status === "completed"
-                                ? "Terminé"
-                                : evt.status === "cancelled"
-                                ? "Annulé"
-                                : "En attente"}
+                            {/* UN statut, UNE teinte, sur toute la page.
+                                Cette puce portait sa propre correspondance —
+                                vert pour « Confirmé », bleu pour « Terminé »,
+                                rouge pour « Annulé » — sans rapport avec celle
+                                de la grille horaire, où le même rendez-vous est
+                                bleu, gris et gris. Le consultant devait
+                                apprendre deux langages de couleur pour un seul
+                                écran.
+
+                                Les couleurs Tailwind brutes échouaient par
+                                ailleurs en thème « midnight », où elles ne sont
+                                pas redéfinies : mesuré, `emerald-700` sur
+                                `emerald-500/10` y donnait 2,79:1, `rose-700`
+                                2,59:1 — largement sous le seuil de 4,5:1. Les
+                                jetons du thème tiennent 8,58:1 au pire. */}
+                            <Badge variant="outline" className={`text-[10px] ${st.puce}`}>
+                              {st.libelle}
                             </Badge>
                             {evt.matterId && (
                               <span className="text-xs font-mono text-muted-foreground">{evt.matterId}</span>
@@ -827,7 +1007,8 @@ export function CalendarClient({
                         </Button>
                       </div>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             ))
