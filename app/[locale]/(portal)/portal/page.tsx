@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server"
 import { Card, CardContent } from "@/components/ui/card"
-import { FileText, Info, PenLine, Check, Eye, Users, ArrowRight } from "lucide-react"
+import { FileText, Info, PenLine, Check, Eye, Users, ArrowRight, UserPlus } from "lucide-react"
+import { Link } from "@/i18n/routing"
 import { getCurrentMember, getCurrentPortalClient, getSessionSupabase } from "@/lib/supabase/session"
 import { VirtualMeetingCard } from "../virtual-meeting-card"
 import { ActionsFichier } from "@/components/documents/file-actions"
@@ -396,74 +397,105 @@ export default async function PortalPage({
 
   return (
     <div className="space-y-8">
-      {/* Barre de contrôle / sélection du portail client en mode aperçu */}
-      {apercu && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="space-y-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
-              <Eye className="h-3.5 w-3.5" /> Sélection du portail client à visualiser
-            </span>
-            <p className="text-xs text-muted-foreground font-medium">
-              Choisissez le candidat dont vous voulez prévisualiser l&apos;interface et les documents en lecture seule :
-            </p>
+      {/* Barre contextuelle de sélection de client quand un client est déjà actif en aperçu */}
+      {apercu && clientVisualise && (
+        <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+              <Eye className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-foreground">
+                Portail prévisualisé pour <span className="text-primary font-black">{clientVisualise.name}</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Dossier : <span className="font-mono font-bold text-foreground">{clientVisualise.fileNumber}</span>
+                {clientVisualise.program ? ` · Programme : ${clientVisualise.program}` : ""}
+              </p>
+            </div>
           </div>
-          <SelecteurClientApercu
-            clients={clientsDisponibles}
-            selectedClientId={clientVisualise?.id}
-            locale={locale}
-          />
+          <div className="flex items-center gap-2 shrink-0">
+            <SelecteurClientApercu
+              clients={clientsDisponibles}
+              selectedClientId={clientVisualise?.id}
+              locale={locale}
+            />
+          </div>
         </div>
       )}
 
-      {/* CAS 1 : Le consultant n'a pas encore choisi de client -> Écran de sélection dédié */}
+      {/* CAS 1 : Le consultant n'a pas encore choisi de client -> Écran d'accueil de sélection */}
       {apercu && !clientVisualise ? (
-        <div className="py-8 space-y-6">
-          <div className="text-center max-w-lg mx-auto space-y-2">
-            <div className="h-12 w-12 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto shadow-xs">
+        <div className="py-6 space-y-8">
+          <div className="text-center max-w-xl mx-auto space-y-2">
+            <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto shadow-2xs">
               <Users className="h-6 w-6" />
             </div>
-            <h1 className="text-2xl font-black text-foreground">
-              Aperçu du Portail Client
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              Sélectionnez un Dossier Client
             </h1>
             <p className="text-sm text-muted-foreground">
-              Sélectionnez ci-dessous le candidat dont vous souhaitez inspecter le portail en mode lecture seule :
+              Choisissez l&apos;un des clients enregistrés dans votre cabinet pour prévisualiser son portail interactif en lecture seule :
             </p>
           </div>
 
           {clientsDisponibles.length === 0 ? (
-            <p className="text-center text-sm text-muted-foreground italic py-10 bg-card rounded-2xl border border-border">
-              Aucun client enregistré pour l&apos;instant dans votre cabinet.
-            </p>
+            <div className="max-w-md mx-auto text-center py-12 px-6 bg-card rounded-2xl border border-dashed border-border space-y-4 shadow-2xs">
+              <div className="h-12 w-12 rounded-full bg-muted text-muted-foreground flex items-center justify-center mx-auto">
+                <UserPlus className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-base font-bold text-foreground">
+                  Aucun client enregistré pour l&apos;instant
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Pour prévisualiser le portail, vous devez d&apos;abord créer au moins une fiche client dans votre espace cabinet.
+                </p>
+              </div>
+              <div className="pt-2">
+                <Link
+                  href="/clients"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-xs hover:bg-primary/90 transition-all cursor-pointer"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>+ Créer un premier client</span>
+                </Link>
+              </div>
+            </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-4xl mx-auto">
               {clientsDisponibles.map((c) => (
-                <a
+                <Link
                   key={c.id}
-                  href={`/${locale}/portal?previewClientId=${c.id}`}
+                  href={`/portal?previewClientId=${c.id}`}
                   className="rounded-2xl border border-border bg-card p-5 hover:border-primary/50 hover:shadow-md transition-all flex flex-col justify-between gap-4 group cursor-pointer"
                 >
-                  <div className="space-y-1.5">
-                    <span className="font-mono text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">
-                      {c.fileNumber}
-                    </span>
-                    <h3 className="text-base font-black text-foreground group-hover:text-primary transition-colors">
-                      {c.name}
-                    </h3>
-                    <p className="text-xs text-muted-foreground font-mono truncate">
-                      {c.email || "—"}
-                    </p>
-                    {c.program && (
-                      <p className="text-xs text-foreground font-medium pt-1">
-                        Programme : <strong>{c.program}</strong>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded">
+                        {c.fileNumber}
+                      </span>
+                      {c.program && (
+                        <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[120px]">
+                          {c.program}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                        {c.name}
+                      </h3>
+                      <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">
+                        {c.email || "—"}
                       </p>
-                    )}
+                    </div>
                   </div>
 
                   <div className="pt-3 border-t border-border/60 flex items-center justify-between text-xs font-bold text-primary">
-                    <span>👁 Visualiser le portail</span>
+                    <span>Inspecter le portail</span>
                     <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </div>
-                </a>
+                </Link>
               ))}
             </div>
           )}
@@ -488,8 +520,8 @@ export default async function PortalPage({
                   <strong className="text-foreground">{clientVisualise.program || t("noProgram")}</strong>
                 </span>
                 {apercu && (
-                  <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">
-                    <Eye className="h-3 w-3" /> Consultation en lecture seule
+                  <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground border border-border">
+                    <Eye className="h-3 w-3 text-primary" /> Mode Lecture Seule
                   </span>
                 )}
               </p>

@@ -50,8 +50,8 @@ export function SelecteurClientApercu({
 
   if (clients.length === 0) {
     return (
-      <span className="text-[11px] text-amber-200/80 italic">
-        (Aucun client avec accès portail actif trouvé)
+      <span className="text-xs text-muted-foreground italic">
+        Aucun client enregistré dans le cabinet
       </span>
     )
   }
@@ -61,19 +61,20 @@ export function SelecteurClientApercu({
       <button
         type="button"
         onClick={() => setOuvert(!ouvert)}
-        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-900/80 hover:bg-amber-900 text-amber-50 border border-amber-700/80 text-xs font-bold transition-colors cursor-pointer shadow-xs"
+        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-card hover:bg-muted text-foreground border border-border text-xs font-semibold transition-all cursor-pointer shadow-2xs hover:border-primary/40"
       >
-        <Users className="h-3.5 w-3.5 text-amber-300 shrink-0" />
-        <span>
+        <Users className="h-4 w-4 text-primary shrink-0" />
+        <span className="truncate max-w-[240px]">
           {clientActif ? (
             <>
-              Client : <strong className="text-white">{clientActif.name}</strong> ({clientActif.fileNumber})
+              Client : <strong className="text-foreground">{clientActif.name}</strong>{" "}
+              <span className="font-mono text-muted-foreground text-[11px]">({clientActif.fileNumber})</span>
             </>
           ) : (
-            <span className="text-amber-200">Choisir un portail client à prévisualiser…</span>
+            <span className="text-muted-foreground">Changer de client…</span>
           )}
         </span>
-        <ChevronDown className="h-3.5 w-3.5 text-amber-300/80 shrink-0" />
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
       </button>
 
       {ouvert && (
