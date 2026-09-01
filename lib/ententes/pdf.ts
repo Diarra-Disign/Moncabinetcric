@@ -611,37 +611,68 @@ function tableauEcheancier(
   enTete()
 
   for (const [i, etape] of etapes.entries()) {
-    // Une nouvelle page redonne l'en-tête : sans lui, la suite du tableau est
-    // une colonne de chiffres sans titre.
-    if (flux.y - H < BAS) { flux.nouvellePage(); enTete() }
-    const p = flux.place(H)
+    // ── Calcul de la hauteur DYNAMIQUE de la ligne ────────────────────────────
+    // La hauteur était fixée à H (22 pt), ce qui tronquait silencieusement les
+    // descriptions longues. On enveloppe maintenant le texte sur autant de
+    // lignes que nécessaire : la case grandit, rien n'est coupé.
+    const lignesDesc = envelopper(etape.description, normal, 9, largeurDescription)
+    const lignesDeclenchement = avecDeclenchement
+      ? envelopper(etape.declenchement ?? "", normal, 8, LARGEUR_DECLENCHEMENT)
+      : []
+    const nbLignes = Math.max(1, lignesDesc.length, lignesDeclenchement.length)
+    const INTERLIGNE = 12
+    const MARGE_V = 10
+    const hauteurLigne = Math.max(H, nbLignes * INTERLIGNE + MARGE_V)
+
+    // Saut de page si la case ne tient plus (en tenant compte de la hauteur réelle).
+    if (flux.y - hauteurLigne < BAS) { flux.nouvellePage(); enTete() }
+    const p = flux.place(hauteurLigne)
+
     p.page.drawRectangle({
-      x: G, y: p.y, width: largeur, height: H, borderColor: TRAIT, borderWidth: 0.5,
+      x: G, y: p.y, width: largeur, height: hauteurLigne,
+      borderColor: TRAIT, borderWidth: 0.5,
     })
-    ecrire(p.page, String(etape.position || i + 1), { x: xEtape, y: p.y + 7.5, size: 9, font: gras, color: ENCRE })
-    ecrire(p.page, couper(etape.description, normal, 9, largeurDescription), {
-      x: xDescription, y: p.y + 7.5, size: 9, font: normal, color: ENCRE,
+
+    // Numéro d'étape centré verticalement.
+    ecrire(p.page, String(etape.position || i + 1), {
+      x: xEtape, y: p.y + hauteurLigne / 2 - 4.5, size: 9, font: gras, color: ENCRE,
     })
-    if (avecDeclenchement) {
-      droite(p.page, couper(etape.declenchement ?? "", normal, 8, LARGEUR_DECLENCHEMENT), xDeclenchement, p.y + 7.5, normal, 8, GRIS)
+
+    // ── Description multiligne ───────────────────────────────────────────────
+    // La première ligne démarre en haut de la case (avec une petite marge).
+    let curseurDesc = p.y + hauteurLigne - MARGE_V / 2 - 9
+    for (const ligne of lignesDesc) {
+      if (!ligne) continue
+      ecrire(p.page, ligne, { x: xDescription, y: curseurDesc, size: 9, font: normal, color: ENCRE })
+      curseurDesc -= INTERLIGNE
     }
-    // LA MARQUE DE FIDUCIE, sous la description et non dans une colonne à
-    // elle : elle ne concerne qu'une partie des versements, et une colonne
-    // vide sur les autres lignes ferait chercher ce qui manque.
+
+    // ── Marque de fidéicommis — juste après la dernière ligne de description ──
     if (etape.fideicommis) {
       ecrire(p.page, `(${m.fiducieMarque})`, {
-        x: xDescription + couper(etape.description, normal, 9, largeurDescription).length * 0 +
-          normal.widthOfTextAtSize(couper(etape.description, normal, 9, largeurDescription), 9) + 6,
-        y: p.y + 7.5, size: 7.5, font: gras, color: MARINE,
+        x: xDescription,
+        y: curseurDesc,
+        size: 7.5, font: gras, color: MARINE,
       })
     }
-    if (avecMode) {
-      droite(p.page, couper(etape.mode ?? "", normal, 8, LARGEUR_MODE), xMode, p.y + 7.5, normal, 8, GRIS)
+
+    // ── Déclenchement multiligne (colonne de droite de la description) ────────
+    if (avecDeclenchement) {
+      let curseurDecl = p.y + hauteurLigne - MARGE_V / 2 - 9
+      for (const ligne of lignesDeclenchement) {
+        if (!ligne) continue
+        droite(p.page, ligne, xDeclenchement, curseurDecl, normal, 8, GRIS)
+        curseurDecl -= INTERLIGNE
+      }
     }
-    // Le pourcentage accompagne le montant quand il a servi à le calculer :
-    // « 1 000,00 $ (20 %) » se vérifie, « 1 000,00 $ » se croit.
-    // Le pourcentage accompagne le montant DANS LA LANGUE DU DOCUMENT :
-    // « 22.22 % » sur un contrat français se lit comme une coquille.
+
+    // Mode de paiement — centré verticalement sur la case.
+    if (avecMode) {
+      droite(p.page, couper(etape.mode ?? "", normal, 8, LARGEUR_MODE),
+        xMode, p.y + hauteurLigne / 2 - 4, normal, 8, GRIS)
+    }
+
+    // ── Montant (avec pourcentage optionnel) — centré verticalement ───────────
     const pourcent = etape.pourcentage
       ? new Intl.NumberFormat(langue === "en" ? "en-CA" : "fr-CA", {
           maximumFractionDigits: 2,
@@ -650,7 +681,8 @@ function tableauEcheancier(
     const montant = pourcent
       ? `${argent(etape.montant)} (${pourcent} %)`
       : argent(etape.montant)
-    droite(p.page, couper(montant, gras, 9, LARGEUR_MONTANT), xMontant, p.y + 7.5, gras, 9, ENCRE)
+    droite(p.page, couper(montant, gras, 9, LARGEUR_MONTANT),
+      xMontant, p.y + hauteurLigne / 2 - 4, gras, 9, ENCRE)
   }
 
   if (flux.y - H < BAS) flux.nouvellePage()
