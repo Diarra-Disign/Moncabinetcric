@@ -47,6 +47,12 @@ export interface Lead {
   province?: string
   postalCode?: string
   country?: string
+  legalName?: string
+  birthDate?: string | null
+  citizenship?: string
+  residence?: string
+  phoneSecondary?: string
+  emailSecondary?: string
 }
 
 /**
@@ -137,6 +143,10 @@ export interface ClientRecord {
   neqNumber?: string
   /** Code de civilité — mr | mrs | mx | other. Voir lib/data/identite.ts. */
   civility?: string | null
+  legalName?: string
+  birthDate?: string | null
+  phoneSecondary?: string
+  emailSecondary?: string
 }
 
 /**

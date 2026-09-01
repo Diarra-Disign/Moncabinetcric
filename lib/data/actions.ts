@@ -98,16 +98,27 @@ export async function convertLeadToClient(
     name: lead.name,
     firstName: lead.firstName,
     lastName: lead.lastName,
+    legalName: lead.legalName,
+    birthDate: lead.birthDate,
     email: lead.email,
+    emailSecondary: lead.emailSecondary,
     phone: lead.phone ?? "",
-    citizenship: "",
-    residence: "",
+    phoneSecondary: lead.phoneSecondary,
+    citizenship: lead.citizenship || "",
+    residence: lead.residence || lead.country || "",
+    address: lead.address,
+    addressLine2: lead.addressLine2,
+    city: lead.city,
+    province: lead.province,
+    postalCode: lead.postalCode,
+    country: lead.country,
     program: lead.visaType ?? "",
     status: "active",
     intakeMotif: [lead.source ? `Origine : ${lead.source}` : null, lead.notes || null]
       .filter(Boolean)
       .join(" — "),
     clientType: lead.type === "b2b" ? "employer" : "individual",
+    civility: lead.civility,
   }
   stores.setClientsStore([client, ...stores.clientsStore])
   stores.setLeadsStore(

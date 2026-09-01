@@ -262,8 +262,12 @@ export async function createClient(data: Omit<ClientRecord, "id"> & { id?: strin
     civility: data.civility ?? null,
     first_name: data.firstName,
     last_name: data.lastName,
+    legal_name: data.legalName ?? null,
+    birth_date: data.birthDate ?? null,
     email: data.email,
+    email_secondary: data.emailSecondary ?? null,
     phone: data.phone || '',
+    phone_secondary: data.phoneSecondary ?? null,
     citizenship: data.citizenship || '',
     residence: data.residence || '',
     // L'adresse POSTALE. `citizenship` et `residence` sont des PAYS : ni l'un
@@ -430,10 +434,36 @@ export async function convertLeadToClient(
       .select("*")
       .eq("id", lead.converted_client_id)
       .maybeSingle()
-    // Zéro, et non « inconnu » : le transfert a déjà eu lieu à la première
-    // conversion, il ne reste rien à déplacer. C'est ce qui rend le second
-    // clic sans conséquence de bout en bout.
-    if (existant) return { client: toClient(existant), alreadyConverted: true, questionnairesTransferes: 0, membresFamilleTransferes: 0, ententesTransferees: 0 }
+
+    if (existant) {
+      // Rattrapage & synchronisation des champs manquants sur le client déjà existant
+      const maj: Record<string, unknown> = {}
+      if (!existant.birth_date && lead.birth_date) maj.birth_date = lead.birth_date
+      if (!existant.legal_name && lead.legal_name) maj.legal_name = lead.legal_name
+      if (!existant.residence && (lead.residence || lead.country)) maj.residence = lead.residence || lead.country
+      if (!existant.citizenship && lead.citizenship) maj.citizenship = lead.citizenship
+      if (!existant.address && lead.address) maj.address = lead.address
+      if (!existant.address_line2 && lead.address_line2) maj.address_line2 = lead.address_line2
+      if (!existant.city && lead.city) maj.city = lead.city
+      if (!existant.province && lead.province) maj.province = lead.province
+      if (!existant.postal_code && lead.postal_code) maj.postal_code = lead.postal_code
+      if (!existant.country && lead.country) maj.country = lead.country
+      if (!existant.phone_secondary && lead.phone_secondary) maj.phone_secondary = lead.phone_secondary
+      if (!existant.email_secondary && lead.email_secondary) maj.email_secondary = lead.email_secondary
+      if (!existant.civility && lead.civility) maj.civility = lead.civility
+
+      if (Object.keys(maj).length > 0) {
+        const { data: updatedClient } = await supabase
+          .from("clients")
+          .update(maj)
+          .eq("id", existant.id)
+          .select("*")
+          .single()
+        if (updatedClient) return { client: toClient(updatedClient), alreadyConverted: true, questionnairesTransferes: 0, membresFamilleTransferes: 0, ententesTransferees: 0 }
+      }
+
+      return { client: toClient(existant), alreadyConverted: true, questionnairesTransferes: 0, membresFamilleTransferes: 0, ententesTransferees: 0 }
+    }
   }
 
   // Le numéro est calculé en base : deux conversions simultanées y
@@ -451,8 +481,20 @@ export async function convertLeadToClient(
       name: lead.name,
       first_name: lead.first_name,
       last_name: lead.last_name,
+      legal_name: lead.legal_name ?? null,
+      birth_date: lead.birth_date ?? null,
       email: lead.email,
+      email_secondary: lead.email_secondary ?? null,
       phone: lead.phone ?? "",
+      phone_secondary: lead.phone_secondary ?? null,
+      citizenship: lead.citizenship ?? "",
+      residence: lead.residence ?? lead.country ?? "",
+      address: lead.address ?? null,
+      address_line2: lead.address_line2 ?? null,
+      city: lead.city ?? null,
+      province: lead.province ?? null,
+      postal_code: lead.postal_code ?? null,
+      country: lead.country ?? null,
       program: lead.visa_type ?? "",
       status: "active",
       // On conserve la trace de l'origine : d'où venait ce client, et ce
