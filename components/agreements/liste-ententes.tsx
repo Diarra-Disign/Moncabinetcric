@@ -75,18 +75,29 @@ export function ListeEntentes({
   onEcheancier?: (id: string, reference: string) => void
 }) {
   const [enCours, setEnCours] = React.useState<string | null>(null)
-  const [message, setMessage] = React.useState<{ ok: boolean; texte: string } | null>(null)
+  const [message, setMessage] = React.useState<
+    { ok: boolean; texte: string; avertissement?: boolean } | null
+  >(null)
 
-  const agir = async (id: string, action: () => Promise<{ ok: boolean; message: string }>) => {
+  const agir = async (
+    id: string,
+    action: () => Promise<{ ok: boolean; message: string; avertissement?: boolean }>
+  ) => {
     setEnCours(id)
     setMessage(null)
     const r = await action()
-    setMessage({ ok: r.ok, texte: r.message })
+    setMessage({ ok: r.ok, texte: r.message, avertissement: r.avertissement })
     setEnCours(null)
     // La liste vient du serveur : après une émission, elle doit être relue,
     // sinon le bouton « Émettre » resterait offert sur une entente qui l'est
     // déjà, et le second clic serait refusé sans que l'écran l'explique.
-    if (r.ok) window.location.reload()
+    //
+    // MAIS PAS QUAND IL Y A UN AVERTISSEMENT À LIRE. Le rechargement effaçait
+    // le message dans la seconde : une demande partie sans qu'aucun courriel
+    // ne sorte s'annonçait donc exactement comme une réussite, et le
+    // consultant repartait convaincu que son client avait reçu son lien.
+    // L'état des boutons est un moindre bien que cette phrase-là.
+    if (r.ok && !r.avertissement) window.location.reload()
   }
 
   if (ententes.length === 0) {
@@ -108,7 +119,14 @@ export function ListeEntentes({
           role="status"
           className={cn(
             "px-4 py-2.5 text-xs font-semibold border-b border-border",
-            message.ok ? "bg-success/10 text-success-strong" : "bg-destructive/10 text-destructive"
+            // Trois états, pas deux : réussi, réussi-mais-lisez-ceci, échoué.
+            // Sans le second, un envoi dont aucun courriel n'est sorti
+            // s'affichait en vert.
+            !message.ok
+              ? "bg-destructive/10 text-destructive"
+              : message.avertissement
+                ? "bg-warning/10 text-warning-strong"
+                : "bg-success/10 text-success-strong"
           )}
         >
           {message.texte}

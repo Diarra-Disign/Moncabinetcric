@@ -7,6 +7,7 @@ import { messageErreur } from "@/lib/data/erreurs"
 import type { DemandeSignature, EtatDemande, EntreeJournalSignature } from "@/lib/signature/contrat"
 import type { EvenementSignature } from "@/lib/signature/statuts"
 import { apparier, type EmplacementSignature } from "@/lib/ententes/emplacements"
+import { verdictCourriel, courrielAAvertir, type Courrier } from "@/lib/signature/verdict"
 
 /**
  * Les gestes du consultant sur les signatures.
@@ -24,6 +25,16 @@ import { apparier, type EmplacementSignature } from "@/lib/ententes/emplacements
 export interface Resultat {
   ok: boolean
   message: string
+  /**
+   * L'acte a réussi, mais quelque chose que l'appelant doit LIRE a échoué.
+   *
+   * Une demande de signature part même si aucun courriel ne sort : les jetons
+   * sont valides et le consultant peut transmettre les liens lui-même. C'est
+   * bien un succès — et c'est précisément ce qui rendait l'échec invisible, la
+   * liste rechargeant la page dès que `ok` est vrai, ce qui effaçait le message
+   * avant qu'on ait pu le lire.
+   */
+  avertissement?: boolean
 }
 
 async function moi() {
@@ -184,60 +195,62 @@ export async function envoyerEnSignature(
       .from("documents").select("name").eq("id", documentId).maybeSingle()
     const courrier = await previenir(
       sb, membre.firmId, String(docEnvoye?.name ?? "un document"),
-      aPrevenir, options.validiteJours ?? 30
+      aPrevenir, options.validiteJours ?? 30, etat.id
     )
 
     revalidatePath("/[locale]/matters/[id]", "page")
     revalidatePath("/fr/signatures")
     revalidatePath("/fr/agreements")
 
+    // L'ÉCHEC PASSE DEVANT. « Demande envoyée. Aucun courriel n'est parti… »
+    // se lisait comme un succès : trois mots rassurants avant la mauvaise
+    // nouvelle, et l'œil s'arrête au premier point.
+    const rien = courrielAAvertir(courrier)
     return {
       ok: true,
       demandeId: etat.id,
-      message: `Demande envoyée. ${verdictCourriel(courrier)}`,
+      avertissement: rien,
+      message: rien
+        ? `${verdictCourriel(courrier)} La demande est bien ouverte et les liens sont valides : transmettez-les vous-même depuis l'historique.`
+        : `Demande envoyée. ${verdictCourriel(courrier)}`,
     }
   } catch (e) {
     return { ok: false, message: messageErreur(e) }
   }
 }
 
-export interface Courrier {
-  partis: number
-  /** Ce que le fournisseur a répondu quand il a refusé. Jamais avalé. */
-  erreur?: string
-  /** Vrai si RESEND_API_KEY et EMAIL_FROM manquent : rien n'a été tenté. */
-  nonConfigure?: boolean
-}
+// `Courrier`, `verdictCourriel()` et `courrielAAvertir()` vivent désormais dans
+// `@/lib/signature/verdict` : ce fichier porte « use server », qui interdit
+// d'exporter autre chose que des fonctions asynchrones — la règle y était donc
+// impossible à éprouver. Voir l'en-tête de ce module.
 
 /**
- * Traduit le sort des courriels en une phrase pour le consultant.
+ * Écrit aux destinataires. Rend ce qui est parti, et pourquoi le reste ne l'est pas.
  *
- * L'ÉCHEC EST DIT, ET SA RAISON AVEC. Une version antérieure comptait les
- * envois réussis et jetait `r.erreur` : un refus de Resend — domaine non
- * vérifié, quota dépassé — devenait « aucun courriel n'est parti », sans que
- * personne puisse savoir pourquoi ni quoi corriger.
+ * DEUX ÉCRITURES SUIVENT CHAQUE ENVOI, ET AUCUNE NE LE PRÉCÈDE :
+ *
+ * 1. `sent_at`, sur le destinataire, UNIQUEMENT si le fournisseur a accepté le
+ *    message. L'estampille était posée avant, ailleurs, et sans condition — un
+ *    refus de Resend laissait donc en base un « envoyé le … » à la seconde
+ *    près. Sur un document contractuel, un horodatage qui ne prouve rien est
+ *    pire qu'une case vide : il empêche de poser la question.
+ * 2. `signature.email.sent` au journal immuable de la demande, succès comme
+ *    échec, avec l'identifiant rendu par le fournisseur. Ce nom d'événement
+ *    était déclaré dans le vocabulaire depuis l'origine — libellé « Courriel
+ *    envoyé » — et rien ne l'écrivait : répondre à « mon client a-t-il reçu son
+ *    lien ? » exigeait d'ouvrir le tableau de bord d'un tiers.
+ *
+ * `requestId` est optionnel parce que la fonction sert aussi des chemins qui
+ * n'ont pas encore de demande sous la main ; sans lui, l'envoi a lieu et seul
+ * le journal manque.
  */
-function verdictCourriel(c: Courrier): string {
-  if (c.partis > 0) {
-    return `${c.partis} courriel${c.partis > 1 ? "s" : ""} parti${c.partis > 1 ? "s" : ""}.`
-  }
-  if (c.nonConfigure) {
-    return "Aucun courriel n'est parti : l'envoi n'est pas configuré sur ce serveur. " +
-      "Transmettez le lien vous-même depuis l'historique."
-  }
-  if (c.erreur) {
-    return `Aucun courriel n'est parti — le service d'envoi a refusé : ${c.erreur}`
-  }
-  return "Aucun courriel n'est parti."
-}
-
-/** Écrit aux destinataires. Rend ce qui est parti, et pourquoi le reste ne l'est pas. */
 async function previenir(
   sb: Awaited<ReturnType<typeof getSessionSupabase>>,
   firmId: string,
   nomDocument: string,
-  destinataires: { nom: string; courriel: string; lien?: string }[],
-  jours: number
+  destinataires: { id?: string; nom: string; courriel: string; lien?: string }[],
+  jours: number,
+  requestId?: string
 ): Promise<Courrier> {
   if (destinataires.length === 0) return { partis: 0 }
 
@@ -272,14 +285,60 @@ async function previenir(
       nomExpediteur: firm?.email_sender_name ?? firm?.name ?? null,
       repondreA: firm?.reply_to_email ?? null,
     })
-    if (r.envoye) partis++
-    else {
+    if (r.envoye) {
+      partis++
+      // L'ESTAMPILLE SUIT L'ENVOI, elle ne le précède pas. Sans identifiant —
+      // un chemin qui n'en fournit pas — on s'abstient plutôt que d'écrire au
+      // hasard : une case vide se corrige, une fausse ne se voit pas.
+      if (d.id) {
+        const { error } = await sb
+          .from("signature_recipients")
+          .update({ sent_at: new Date().toISOString() })
+          .eq("id", d.id)
+        if (error) console.error("previenir : estampille —", d.courriel, "—", error.message)
+      }
+    } else {
       if (!r.configure) nonConfigure = true
       if (r.erreur) erreur = r.erreur
       console.error("previenir :", d.courriel, "—", r.erreur ?? "envoi non configuré")
     }
+
+    // Le journal reçoit les DEUX issues. Ne consigner que les succès laisserait
+    // l'historique d'un contrat muet précisément le jour où il compte.
+    if (requestId) await journaliserEnvoi(sb, requestId, d, r)
   }
   return { partis, erreur, nonConfigure }
+}
+
+/**
+ * Inscrit l'issue d'un envoi au journal immuable de la demande.
+ *
+ * Passe par la même fonction SECURITY DEFINER que les autres événements de
+ * signature — le cabinet est résolu depuis la demande, jamais transmis. Un
+ * journal qui refuse de s'écrire ne fait échouer aucun envoi : la trace est un
+ * moindre bien que le message lui-même.
+ */
+async function journaliserEnvoi(
+  sb: Awaited<ReturnType<typeof getSessionSupabase>>,
+  requestId: string,
+  d: { id?: string; courriel: string },
+  r: { envoye: boolean; ignore?: boolean; erreur?: string; identifiant?: string }
+): Promise<void> {
+  const { error } = await sb.rpc("signature_event", {
+    p_request_id: requestId,
+    p_event: "signature.email.sent",
+    p_actor: "Système",
+    p_recipient_id: d.id ?? null,
+    p_ip: null,
+    p_agent: null,
+    p_details: {
+      destinataire: d.courriel,
+      resultat: r.envoye ? (r.ignore ? "escamote" : "accepte") : "refus",
+      fournisseur: r.identifiant ?? null,
+      motif: r.erreur ?? null,
+    },
+  })
+  if (error) console.error("journaliserEnvoi :", d.courriel, "—", error.message)
 }
 
 /** Les demandes d'un dossier ou d'un client, du plus récent au plus ancien. */
@@ -377,7 +436,7 @@ export async function relancerSignature(
     )
 
     const courrier = await previenir(
-      sb, membre.firmId, nomDocument, r.liens ?? [], jours
+      sb, membre.firmId, nomDocument, r.liens ?? [], jours, demandeId
     )
 
     revalidatePath("/[locale]/matters/[id]", "page")

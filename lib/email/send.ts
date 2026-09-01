@@ -28,6 +28,19 @@ export interface ResultatEnvoi {
    */
   ignore?: boolean
   erreur?: string
+  /**
+   * L'identifiant que le fournisseur donne au message accepté.
+   *
+   * Il était JETÉ. Quand un cabinet demandait « mon client a-t-il reçu son lien
+   * de signature ? », rien dans ce produit ne pouvait répondre : ni la base, ni
+   * le journal, ni les traces. Il fallait ouvrir le tableau de bord de Resend
+   * et rapprocher à la main une heure et une adresse.
+   *
+   * Rendu ici, l'appelant peut l'inscrire au journal de la demande, où
+   * l'historique du contrat vit déjà. Absent quand l'envoi a été escamoté
+   * (`ignore`) ou refusé.
+   */
+  identifiant?: string
 }
 
 /**
@@ -206,7 +219,17 @@ export async function envoyerCourriel(opts: {
       const corps = await res.text()
       return { envoye: false, configure: true, erreur: `Resend ${res.status} : ${corps.slice(0, 300)}` }
     }
-    return { envoye: true, configure: true }
+    // L'identifiant est LU MAIS N'ENGAGE À RIEN : un corps illisible ne doit pas
+    // transformer un envoi accepté en échec. Le fournisseur a répondu 2xx, le
+    // message est parti ; ne pas savoir comment il l'a nommé est un moindre mal.
+    let identifiant: string | undefined
+    try {
+      const corps = (await res.json()) as { id?: unknown }
+      if (typeof corps?.id === "string") identifiant = corps.id
+    } catch {
+      // Sans identifiant, le journal dira l'envoi sans pouvoir le désigner.
+    }
+    return { envoye: true, configure: true, identifiant }
   } catch (e) {
     return {
       envoye: false,
