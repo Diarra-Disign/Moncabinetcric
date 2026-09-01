@@ -138,7 +138,7 @@ export interface ResultatSignature {
    * interne qui délègue l'envoi, parce qu'il n'a pas de service de courriel à
    * lui — pas l'inverse.
    */
-  liens?: { nom: string; courriel: string; lien: string }[]
+  liens?: { id: string; nom: string; courriel: string; lien: string }[]
 }
 
 export interface DocumentSigne {

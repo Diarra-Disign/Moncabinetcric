@@ -13,6 +13,9 @@ export interface Resultat {
   ok: boolean
   message: string
   id?: string
+  /** L'acte a réussi, mais l'écran doit s'arrêter dessus. Voir `Resultat`
+   *  de `signature-actions` : la liste ne recharge pas quand il est posé. */
+  avertissement?: boolean
 }
 
 async function moi() {
@@ -673,10 +676,16 @@ export async function envoyerPourSignature(id: string, note?: string): Promise<R
 
     revalidatePath("/fr/agreements")
     revalidatePath("/fr/signatures")
+    // Quand aucun courriel n'est parti, l'avertissement passe DEVANT la
+    // référence : « ENT-… est partie en signature » d'abord, puis l'échec,
+    // faisait trois phrases rassurantes avant la seule qui appelait un geste.
     return {
       ok: true,
       id: envoi.demandeId,
-      message: `${entente.reference} est partie en signature. ${envoi.message}`,
+      avertissement: envoi.avertissement,
+      message: envoi.avertissement
+        ? `${envoi.message} (${entente.reference})`
+        : `${entente.reference} est partie en signature. ${envoi.message}`,
     }
   } catch (e) {
     return { ok: false, message: messageErreur(e) }

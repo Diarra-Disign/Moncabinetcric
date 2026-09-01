@@ -215,31 +215,25 @@ export class FournisseurInterne implements FournisseurSignature {
       return { ok: false, message: "Le document n'a pas pu être verrouillé : envoi interrompu." }
     }
 
-    const maintenant = new Date().toISOString()
     const { error } = await this.sb
       .from("signature_requests")
       .update({ status: "sent" })
       .eq("id", requestId)
     if (error) return { ok: false, message: error.message }
 
-    // `sent_at` DIT « SON LIEN LUI A ÉTÉ TRANSMIS », pas « la demande est
-    // partie ». En séquentiel, le second signataire ne reçoit rien tant que le
-    // premier n'a pas signé : l'estampiller ici mentirait au journal — et,
-    // pire, ferait croire à `prevenirProchain()` qu'il a déjà été prévenu,
-    // de sorte que personne ne lui écrirait jamais.
-    let cibles = this.sb
-      .from("signature_recipients")
-      .update({ sent_at: maintenant })
-      .eq("request_id", requestId)
-      .is("sent_at", null)
-
-    if (String(demande.signing_mode ?? "sequential") !== "parallel") {
-      const { data: premiers } = await this.sb
-        .from("signature_recipients")
-        .select("rank").eq("request_id", requestId).order("rank").limit(1)
-      cibles = cibles.eq("rank", Number(premiers?.[0]?.rank ?? 1))
-    }
-    await cibles
+    // `sent_at` N'EST PAS ÉCRIT ICI, ET C'EST TOUT L'OBJET DE CETTE MÉTHODE.
+    //
+    // Cette fonction ouvre la demande ; elle n'expédie aucun courriel. Celui-ci
+    // part de `previenir()`, après. L'estampille était pourtant posée ici, avant
+    // l'envoi et sans condition : quand Resend refusait — domaine non vérifié,
+    // quota dépassé — la base affichait quand même « envoyé le … », à la
+    // seconde près. Sur un document contractuel, un horodatage d'envoi qui ne
+    // prouve pas l'envoi est pire qu'une case vide : il clôt la question.
+    //
+    // Le bon motif existait déjà à côté, dans `prevenirProchain()`, qui
+    // n'estampille QUE si `expedier()` a réussi. `previenir()` le suit
+    // désormais, et le filtre par rang devient inutile ici : cette fonction ne
+    // reçoit que ceux dont c'est le tour, donc seuls eux sont estampillés.
 
     await this.evenement(requestId, "signature.request.sent")
     return { ok: true, message: "Demande envoyée." }
@@ -359,7 +353,7 @@ export class FournisseurInterne implements FournisseurSignature {
     // UN JETON NEUF, ET L'ANCIEN MEURT. Laisser vivre les deux ferait circuler
     // deux liens pour la même signature — et le premier resterait valide bien
     // après qu'on l'ait cru remplacé.
-    const liens: { nom: string; courriel: string; lien: string }[] = []
+    const liens: { id: string; nom: string; courriel: string; lien: string }[] = []
     for (const c of cibles) {
       const jeton = jetonNeuf()
       const { error } = await this.sb
@@ -368,6 +362,9 @@ export class FournisseurInterne implements FournisseurSignature {
         .eq("id", c.id)
       if (error) return { ok: false, message: error.message }
       liens.push({
+        // L'identifiant accompagne le lien pour que l'appelant puisse estampiller
+        // `sent_at` — et seulement s'il parvient réellement à l'expédier.
+        id: String(c.id),
         nom: String(c.full_name ?? ""),
         courriel: String(c.email),
         lien: lienDe(jeton),
