@@ -4,7 +4,8 @@ import { PDFDocument, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib"
 import {
   ENCRE, GRIS, TRAIT, MARINE, OR, VOILE, BLANC, LARGEUR, HAUTEUR, G, D,
   argentDe, ecrire, couper, envelopper, droite, centre,
-  logoEnOctets, filigrane,
+  logoEnOctets, filigrane, boiteLogo, LARGEUR_MAX_LOGO, HAUTEUR_MAX_LOGO,
+  nomCabinetEnLignes, INTERLIGNE_NOM,
   type LanguePdf, type CabinetPdf,
 } from "@/lib/pdf/primitives"
 import type { EmplacementSignature } from "./emplacements"
@@ -375,17 +376,38 @@ async function enTeteContrat(
   if (logo) {
     try {
       const image = logo.type === "jpg" ? await doc.embedJpg(logo.octets) : await doc.embedPng(logo.octets)
-      const h = 44
-      const l = (image.width / image.height) * h
-      page.drawImage(image, { x: G, y: yGauche - h, width: Math.min(l, 170), height: h })
-      yGauche -= h + 12
-    } catch {
-      // Format non reconnu : le nom du cabinet suffit à l'identifier.
+      // Le plafond tient sans calcul adaptatif, contrairement à `enTeteOfficiel` :
+      // ici la colonne de droite descend jusqu'à 603 — bandeau, trois repères et
+      // l'encadré du droit applicable — quand la gauche ne toucherait ce plancher
+      // qu'à partir d'un logo de 113 points. Soixante-quatre laisse donc près de
+      // cinquante points de garde, et la suite du contrat ne bouge pas d'un point.
+      const boite = boiteLogo(image, LARGEUR_MAX_LOGO, HAUTEUR_MAX_LOGO)
+      page.drawImage(image, {
+        x: G, y: yGauche - boite.hauteur, width: boite.largeur, height: boite.hauteur,
+      })
+      yGauche -= boite.hauteur + 12
+    } catch (e) {
+      // Le nom du cabinet suffit à l'identifier, donc le contrat s'émet quand
+      // même — mais l'absence de logo se trace : `pdf-lib` n'embarque que du
+      // PNG et du JPEG, et un cabinet dont le logo est ailleurs doit pouvoir
+      // apprendre pourquoi ses documents sortent nus.
+      console.warn("enTeteContrat : logo non embarqué —", e instanceof Error ? e.message : e)
     }
   }
 
-  ecrire(page, couper(c.nom, gras, 15, 220), { x: G, y: yGauche - 12, size: 15, font: gras, color: MARINE })
-  yGauche -= 28
+  // LA RAISON SOCIALE ENTIÈRE, et c'est l'en-tête d'un contrat qui l'exige :
+  // sa fonction est de dire qui s'engage. Coupée à 220 points, elle perdait sa
+  // forme juridique — « … Immigr… » pour « Immigration Services Inc. » — et
+  // nommait une entité introuvable au registre. Le contrat a la place de la
+  // porter : la colonne de droite descend à 603 et la gauche s'arrête bien
+  // au-dessus, même avec une seconde ligne.
+  const nomCabinet = nomCabinetEnLignes(c.nom, gras, LARGEUR_MAX_LOGO)
+  let yNom = yGauche - 12
+  for (const ligne of nomCabinet.lignes) {
+    ecrire(page, ligne, { x: G, y: yNom, size: nomCabinet.taille, font: gras, color: MARINE })
+    yNom -= INTERLIGNE_NOM
+  }
+  yGauche -= 28 + (nomCabinet.lignes.length - 1) * INTERLIGNE_NOM
 
   const identite = [
     e.consultant.nom,

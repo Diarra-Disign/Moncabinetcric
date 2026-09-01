@@ -31,6 +31,76 @@ const CHAMP_PARAM =
   "w-full px-4 py-2.5 text-xs font-medium rounded-2xl bg-muted/40 border border-border " +
   "focus:bg-card focus:border-primary focus:outline-none transition-all"
 
+/** Le côté long, en pixels, au-delà duquel le logo est réduit à la conversion.
+ *
+ *  L'image part en base64 DANS la ligne du cabinet : une photo d'appareil y
+ *  pèserait plusieurs mégaoctets, relus à chaque génération de PDF et à chaque
+ *  ouverture de cet écran. Mille vingt-quatre pixels dépassent largement ce
+ *  qu'un en-tête imprime — moins de 250 points — sans brider un logo net. */
+const TAILLE_MAX_LOGO_PX = 1024
+
+/**
+ * Redessine l'image choisie en PNG, réduite si nécessaire.
+ *
+ * `pdf-lib` ne sait embarquer que DEUX formats : PNG et JPEG. Un SVG ou un
+ * WEBP s'affichait pourtant parfaitement dans l'aperçu ci-dessous — le
+ * navigateur les lit — puis DISPARAISSAIT de toutes les ententes, factures et
+ * reçus, sans un mot : `embedPng` levait sur des octets qu'il ne reconnaissait
+ * pas, et le moteur poursuivait sans logo. Le cabinet n'avait aucun moyen de
+ * l'apprendre ; l'écran lui montrait son logo et le PDF n'en portait aucun.
+ *
+ * Convertir ici, une fois, au dépôt, plutôt que d'échouer là-bas, en silence,
+ * à chaque document.
+ */
+function convertirEnPng(fichier: File): Promise<string> {
+  return new Promise((resoudre, rejeter) => {
+    const lecteur = new FileReader()
+    lecteur.onerror = () => rejeter(new Error("Le fichier n'a pas pu être lu."))
+    lecteur.onload = () => {
+      if (typeof lecteur.result !== "string") {
+        rejeter(new Error("Le fichier n'a pas pu être lu."))
+        return
+      }
+      const image = new Image()
+      image.onerror = () =>
+        rejeter(new Error("Ce fichier n'est pas une image que le navigateur sait afficher."))
+      image.onload = () => {
+        // Un SVG sans largeur ni hauteur intrinsèques arrive ici en 0 × 0. Sans
+        // cette garde, le cabinet repartirait avec un logo entièrement blanc.
+        const largeur = image.naturalWidth || image.width
+        const hauteur = image.naturalHeight || image.height
+        if (!largeur || !hauteur) {
+          rejeter(new Error(
+            "Cette image n'a pas de dimensions exploitables. Exportez-la en PNG, puis redéposez-la."
+          ))
+          return
+        }
+        // On ne grandit JAMAIS une petite image : un agrandissement n'ajoute
+        // aucun détail, seulement des octets dans la ligne du cabinet.
+        const facteur = Math.min(1, TAILLE_MAX_LOGO_PX / Math.max(largeur, hauteur))
+        const canevas = document.createElement("canvas")
+        canevas.width = Math.round(largeur * facteur)
+        canevas.height = Math.round(hauteur * facteur)
+        const pinceau = canevas.getContext("2d")
+        if (!pinceau) {
+          rejeter(new Error("Le navigateur n'a pas pu préparer la conversion."))
+          return
+        }
+        // Aucun fond n'est peint : la transparence doit survivre, sinon le logo
+        // s'imprimerait dans un rectangle opaque au milieu de l'en-tête.
+        pinceau.drawImage(image, 0, 0, canevas.width, canevas.height)
+        try {
+          resoudre(canevas.toDataURL("image/png"))
+        } catch {
+          rejeter(new Error("La conversion du logo a échoué."))
+        }
+      }
+      image.src = lecteur.result
+    }
+    lecteur.readAsDataURL(fichier)
+  })
+}
+
 export function SettingsClient({ calendly }: { calendly: EtatCalendly }) {
   const firm = useFirm()
   const router = useRouter()
@@ -107,22 +177,34 @@ export function SettingsClient({ calendly }: { calendly: EtatCalendly }) {
     setImgError(false)
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Le champ est capté AVANT le premier `await` : après, plus rien ne garantit
+    // que l'événement pointe encore dessus, et c'est lui qu'il faut vider.
+    const champ = e.target
+    const file = champ.files?.[0]
     if (!file) return
-    if (!file.type.startsWith("image/")) {
-      alert("Veuillez choisir un fichier image (PNG, JPG, SVG, WEBP).")
-      return
+
+    // Le bandeau d'erreur du formulaire (§10) plutôt qu'une `alert()` : même
+    // endroit, même durée et même ton que les autres échecs de cet écran.
+    const signaler = (message: string) => {
+      setErreur(message)
+      setTimeout(() => setErreur(null), 12000)
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setLogoUrl(reader.result)
-        setImgError(false)
+    try {
+      if (!file.type.startsWith("image/")) {
+        signaler("Veuillez choisir un fichier image (PNG, JPG, SVG, WEBP).")
+        return
       }
+      setLogoUrl(await convertirEnPng(file))
+      setImgError(false)
+    } catch (err) {
+      signaler(err instanceof Error ? err.message : "Le logo n'a pas pu être converti.")
+    } finally {
+      // Sans cela, redéposer LE MÊME fichier après une erreur n'émettrait aucun
+      // « change » et l'écran paraîtrait figé sur sa propre plainte.
+      champ.value = ""
     }
-    reader.readAsDataURL(file)
   }
 
   // Taxes state

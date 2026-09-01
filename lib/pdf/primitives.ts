@@ -55,6 +55,85 @@ export const G = 56
 /** Bord droit. */
 export const D = 539
 
+/** La largeur maximale d'un logo dans la colonne gauche d'un en-tête.
+ *
+ *  Le bandeau de titre commence à x = 300 et la marge gauche est à 56 :
+ *  56 + 232 = 288 laisse douze points de garde avant le bandeau. */
+export const LARGEUR_MAX_LOGO = 232
+/** Le plafond de hauteur. Au-delà, le logo écrase le nom du cabinet — quinze
+ *  points — et l'en-tête se lit comme une publicité plutôt qu'un document. */
+export const HAUTEUR_MAX_LOGO = 64
+/** Le plancher : la hauteur qu'un logo occupait avant. Ne jamais rétrécir un
+ *  logo existant sous prétexte de mieux le proportionner. */
+export const HAUTEUR_MIN_LOGO = 44
+
+/**
+ * La boîte où loge un logo, quelle que soit sa forme, sans le déformer.
+ *
+ * L'ancien calcul fixait la HAUTEUR puis plafonnait la largeur SANS la
+ * recalculer :
+ *
+ *     const h = 44
+ *     const l = (image.width / image.height) * h
+ *     drawImage({ width: Math.min(l, 170), height: h })
+ *
+ * Au-delà du rapport 170/44, la largeur était donc tronquée pendant que la
+ * hauteur restait entière : un logo en bandeau — le nom du cabinet sur une
+ * ligne, la forme la plus répandue — sortait comprimé de près d'un cinquième.
+ * Rien ne le signalait ; il fallait mesurer la matrice de dessin pour le voir.
+ *
+ * Ici les deux bornes valent ensemble. On part de la largeur disponible, et si
+ * la hauteur qui en découlerait dépasse, c'est elle qui commande. Le rapport
+ * d'origine est conservé dans tous les cas — c'est la seule garantie qui
+ * compte, et elle tient aussi bien pour un carré que pour un bandeau.
+ */
+export function boiteLogo(
+  image: { width: number; height: number },
+  largeurMax: number,
+  hauteurMax: number
+): { largeur: number; hauteur: number } {
+  const rapport = image.width / image.height
+  const largeur = Math.min(largeurMax, hauteurMax * rapport)
+  return { largeur, hauteur: largeur / rapport }
+}
+
+/** L'interligne du nom du cabinet quand il déborde sur une seconde ligne. */
+export const INTERLIGNE_NOM = 17
+
+/**
+ * La raison sociale du cabinet, entière, sur deux lignes au plus.
+ *
+ * Elle était COUPÉE : `couper(c.nom, gras, 15, 220)`. « Diarra Global Visa &
+ * Immigration Services Inc. » réclame 329 points à quinze — pour 220 alloués —
+ * et s'imprimait donc « Diarra Global Visa & Immigr… ». Ce qui tombait avec les
+ * points de suspension, c'était « ation Services Inc. », la forme juridique
+ * comprise : l'en-tête d'une entente nommait une entité absente du registre,
+ * alors que sa fonction même est de dire QUI s'engage.
+ *
+ * Tenir sur une ligne aurait exigé de descendre à dix points, à peine plus que
+ * les neuf des lignes d'adresse en dessous — la hiérarchie de l'en-tête s'y
+ * serait effondrée. On enveloppe donc, et on ne réduit la taille qu'en dernier
+ * recours, pour les raisons sociales que deux lignes ne suffisent pas à porter.
+ *
+ * AUCUN CARACTÈRE N'EST JAMAIS PERDU. Si même la taille plancher ne tient pas
+ * en deux lignes, le nom prend les lignes qu'il lui faut : un nom entier sur
+ * trois lignes vaut mieux qu'un nom amputé sur deux.
+ */
+export function nomCabinetEnLignes(
+  nom: string,
+  police: PDFFont,
+  largeur: number,
+  tailleMax = 15,
+  tailleMin = 11,
+  lignesMax = 2
+): { lignes: string[]; taille: number } {
+  for (let taille = tailleMax; taille >= tailleMin; taille -= 0.5) {
+    const lignes = envelopper(nom, police, taille, largeur)
+    if (lignes.length <= lignesMax) return { lignes, taille }
+  }
+  return { lignes: envelopper(nom, police, tailleMin, largeur), taille: tailleMin }
+}
+
 export const argentDe = (langue: LanguePdf) => (v: number) =>
   new Intl.NumberFormat(langue === "en" ? "en-CA" : "fr-CA", { style: "currency", currency: "CAD" })
     .format(v)
@@ -102,7 +181,11 @@ export async function logoEnOctets(url: string): Promise<{ octets: Uint8Array; t
     const buf = new Uint8Array(await res.arrayBuffer())
     const type = /jpe?g/i.test(res.headers.get("content-type") ?? "") ? "jpg" : "png"
     return { octets: buf, type }
-  } catch {
+  } catch (e) {
+    // Rendre null reste juste — un logo injoignable ne doit pas empêcher
+    // d'émettre un contrat — mais le taire l'était moins : le cabinet voyait
+    // son logo dans l'écran des paramètres et jamais dans ses documents.
+    console.warn("logoEnOctets :", e instanceof Error ? e.message : e)
     return null
   }
 }
@@ -127,30 +210,65 @@ export async function enTeteOfficiel(
   const xDroite = 300
   let yGauche = HAUT
 
-  // 1. Colonne gauche : Logo et cabinet
-  const logo = await logoEnOctets(c.logoUrl)
-  if (logo) {
-    try {
-      const image = logo.type === "jpg" ? await doc.embedJpg(logo.octets) : await doc.embedPng(logo.octets)
-      const h = 44
-      const l = (image.width / image.height) * h
-      page.drawImage(image, { x: G, y: yGauche - h, width: Math.min(l, 170), height: h })
-      yGauche -= h + 12
-    } catch {
-      // Ignorer erreur de format logo
-    }
-  }
-
-  ecrire(page, couper(c.nom, gras, 15, 220), { x: G, y: yGauche - 12, size: 15, font: gras, color: MARINE })
-  yGauche -= 28
-
+  // Les lignes d'identité sont filtrées ICI plutôt que dans la boucle : leur
+  // nombre décide de la hauteur disponible pour le logo, quelques lignes plus
+  // bas, et il faut donc le connaître avant de dessiner quoi que ce soit.
   const identite = [
     c.numeroPermis ? `${mentionPermis} ${c.numeroPermis}` : "",
     c.adresse,
     [c.telephone, c.courriel].filter(Boolean).join(" · "),
-  ]
+  ].filter((ligne) => Boolean(ligne && ligne.trim()))
+
+  // 1. Colonne gauche : Logo et cabinet
+  //
+  // LE LOGO NE PREND JAMAIS PLUS DE HAUTEUR QUE LA COLONNE DE DROITE N'EN
+  // CONSOMME DÉJÀ, et c'est une garantie, pas un réglage. Cet en-tête sert cinq
+  // documents — facture, reçu, registre mensuel, rapprochement, note de
+  // rencontre — dont plusieurs tiennent sur UNE page ouverte par un seul
+  // `addPage`, sans pagination : un en-tête plus haut y rognerait la place des
+  // lignes et ferait déborder en silence une facture qui entrait hier (§5).
+  //
+  // La colonne droite descend de dix-huit points par repère ; la gauche, de la
+  // hauteur du logo, puis de vingt-huit pour le nom, puis de onze par ligne
+  // d'identité. Égaliser les deux donne la hauteur qu'on peut prendre sans rien
+  // déplacer : soixante-trois points sur une facture (quatre repères), quarante-
+  // cinq sur un rapprochement (trois). En deçà du plancher, on garde le
+  // plancher — l'ancienne hauteur — et le document sort exactement comme avant.
+  // La raison sociale se compose AVANT le logo : si elle réclame une seconde
+  // ligne, c'est le logo qui la lui cède. Le nom légal prime sur une image.
+  const nomCabinet = nomCabinetEnLignes(c.nom, gras, LARGEUR_MAX_LOGO)
+  const supplementNom = (nomCabinet.lignes.length - 1) * INTERLIGNE_NOM
+
+  const hauteurLibre =
+    24 + 18 * reperes.filter((r) => r.valeur).length - 11 * identite.length - supplementNom
+  const hauteurLogo = Math.min(HAUTEUR_MAX_LOGO, Math.max(HAUTEUR_MIN_LOGO, hauteurLibre))
+
+  const logo = await logoEnOctets(c.logoUrl)
+  if (logo) {
+    try {
+      const image = logo.type === "jpg" ? await doc.embedJpg(logo.octets) : await doc.embedPng(logo.octets)
+      const boite = boiteLogo(image, LARGEUR_MAX_LOGO, hauteurLogo)
+      page.drawImage(image, {
+        x: G, y: yGauche - boite.hauteur, width: boite.largeur, height: boite.hauteur,
+      })
+      yGauche -= boite.hauteur + 12
+    } catch (e) {
+      // La facture ou le reçu s'émet sans logo plutôt que pas du tout ; la
+      // trace dit lequel des deux formats embarquables manquait.
+      console.warn("enTeteOfficiel : logo non embarqué —", e instanceof Error ? e.message : e)
+    }
+  }
+
+  // La première ligne garde EXACTEMENT l'ordonnée d'avant : un nom qui tenait
+  // déjà sur une ligne s'imprime au point près où il s'imprimait.
+  let yNom = yGauche - 12
+  for (const ligne of nomCabinet.lignes) {
+    ecrire(page, ligne, { x: G, y: yNom, size: nomCabinet.taille, font: gras, color: MARINE })
+    yNom -= INTERLIGNE_NOM
+  }
+  yGauche -= 28 + supplementNom
+
   for (const ligne of identite) {
-    if (!ligne || !ligne.trim()) continue
     ecrire(page, couper(ligne, normal, 8.5, 230), {
       x: G, y: yGauche, size: 8.5, font: normal, color: GRIS,
     })
@@ -254,8 +372,9 @@ export async function enTete(
       const l = (image.width / image.height) * h
       page.drawImage(image, { x: G, y: yGauche - h + 10, width: Math.min(l, 150), height: h })
       yGauche -= h + 6
-    } catch {
-      // Poursuivre sans logo
+    } catch (e) {
+      // Poursuivre sans logo, mais le dire.
+      console.warn("enTete : logo non embarqué —", e instanceof Error ? e.message : e)
     }
   }
 
