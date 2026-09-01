@@ -97,6 +97,43 @@ export function boiteLogo(
   return { largeur, hauteur: largeur / rapport }
 }
 
+/** L'interligne du nom du cabinet quand il déborde sur une seconde ligne. */
+export const INTERLIGNE_NOM = 17
+
+/**
+ * La raison sociale du cabinet, entière, sur deux lignes au plus.
+ *
+ * Elle était COUPÉE : `couper(c.nom, gras, 15, 220)`. « Diarra Global Visa &
+ * Immigration Services Inc. » réclame 329 points à quinze — pour 220 alloués —
+ * et s'imprimait donc « Diarra Global Visa & Immigr… ». Ce qui tombait avec les
+ * points de suspension, c'était « ation Services Inc. », la forme juridique
+ * comprise : l'en-tête d'une entente nommait une entité absente du registre,
+ * alors que sa fonction même est de dire QUI s'engage.
+ *
+ * Tenir sur une ligne aurait exigé de descendre à dix points, à peine plus que
+ * les neuf des lignes d'adresse en dessous — la hiérarchie de l'en-tête s'y
+ * serait effondrée. On enveloppe donc, et on ne réduit la taille qu'en dernier
+ * recours, pour les raisons sociales que deux lignes ne suffisent pas à porter.
+ *
+ * AUCUN CARACTÈRE N'EST JAMAIS PERDU. Si même la taille plancher ne tient pas
+ * en deux lignes, le nom prend les lignes qu'il lui faut : un nom entier sur
+ * trois lignes vaut mieux qu'un nom amputé sur deux.
+ */
+export function nomCabinetEnLignes(
+  nom: string,
+  police: PDFFont,
+  largeur: number,
+  tailleMax = 15,
+  tailleMin = 11,
+  lignesMax = 2
+): { lignes: string[]; taille: number } {
+  for (let taille = tailleMax; taille >= tailleMin; taille -= 0.5) {
+    const lignes = envelopper(nom, police, taille, largeur)
+    if (lignes.length <= lignesMax) return { lignes, taille }
+  }
+  return { lignes: envelopper(nom, police, tailleMin, largeur), taille: tailleMin }
+}
+
 export const argentDe = (langue: LanguePdf) => (v: number) =>
   new Intl.NumberFormat(langue === "en" ? "en-CA" : "fr-CA", { style: "currency", currency: "CAD" })
     .format(v)
@@ -197,7 +234,13 @@ export async function enTeteOfficiel(
   // déplacer : soixante-trois points sur une facture (quatre repères), quarante-
   // cinq sur un rapprochement (trois). En deçà du plancher, on garde le
   // plancher — l'ancienne hauteur — et le document sort exactement comme avant.
-  const hauteurLibre = 24 + 18 * reperes.filter((r) => r.valeur).length - 11 * identite.length
+  // La raison sociale se compose AVANT le logo : si elle réclame une seconde
+  // ligne, c'est le logo qui la lui cède. Le nom légal prime sur une image.
+  const nomCabinet = nomCabinetEnLignes(c.nom, gras, LARGEUR_MAX_LOGO)
+  const supplementNom = (nomCabinet.lignes.length - 1) * INTERLIGNE_NOM
+
+  const hauteurLibre =
+    24 + 18 * reperes.filter((r) => r.valeur).length - 11 * identite.length - supplementNom
   const hauteurLogo = Math.min(HAUTEUR_MAX_LOGO, Math.max(HAUTEUR_MIN_LOGO, hauteurLibre))
 
   const logo = await logoEnOctets(c.logoUrl)
@@ -216,8 +259,14 @@ export async function enTeteOfficiel(
     }
   }
 
-  ecrire(page, couper(c.nom, gras, 15, 220), { x: G, y: yGauche - 12, size: 15, font: gras, color: MARINE })
-  yGauche -= 28
+  // La première ligne garde EXACTEMENT l'ordonnée d'avant : un nom qui tenait
+  // déjà sur une ligne s'imprime au point près où il s'imprimait.
+  let yNom = yGauche - 12
+  for (const ligne of nomCabinet.lignes) {
+    ecrire(page, ligne, { x: G, y: yNom, size: nomCabinet.taille, font: gras, color: MARINE })
+    yNom -= INTERLIGNE_NOM
+  }
+  yGauche -= 28 + supplementNom
 
   for (const ligne of identite) {
     ecrire(page, couper(ligne, normal, 8.5, 230), {

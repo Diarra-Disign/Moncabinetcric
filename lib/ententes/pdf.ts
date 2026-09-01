@@ -5,6 +5,7 @@ import {
   ENCRE, GRIS, TRAIT, MARINE, OR, VOILE, BLANC, LARGEUR, HAUTEUR, G, D,
   argentDe, ecrire, couper, envelopper, droite, centre,
   logoEnOctets, filigrane, boiteLogo, LARGEUR_MAX_LOGO, HAUTEUR_MAX_LOGO,
+  nomCabinetEnLignes, INTERLIGNE_NOM,
   type LanguePdf, type CabinetPdf,
 } from "@/lib/pdf/primitives"
 import type { EmplacementSignature } from "./emplacements"
@@ -394,8 +395,19 @@ async function enTeteContrat(
     }
   }
 
-  ecrire(page, couper(c.nom, gras, 15, 220), { x: G, y: yGauche - 12, size: 15, font: gras, color: MARINE })
-  yGauche -= 28
+  // LA RAISON SOCIALE ENTIÈRE, et c'est l'en-tête d'un contrat qui l'exige :
+  // sa fonction est de dire qui s'engage. Coupée à 220 points, elle perdait sa
+  // forme juridique — « … Immigr… » pour « Immigration Services Inc. » — et
+  // nommait une entité introuvable au registre. Le contrat a la place de la
+  // porter : la colonne de droite descend à 603 et la gauche s'arrête bien
+  // au-dessus, même avec une seconde ligne.
+  const nomCabinet = nomCabinetEnLignes(c.nom, gras, LARGEUR_MAX_LOGO)
+  let yNom = yGauche - 12
+  for (const ligne of nomCabinet.lignes) {
+    ecrire(page, ligne, { x: G, y: yNom, size: nomCabinet.taille, font: gras, color: MARINE })
+    yNom -= INTERLIGNE_NOM
+  }
+  yGauche -= 28 + (nomCabinet.lignes.length - 1) * INTERLIGNE_NOM
 
   const identite = [
     e.consultant.nom,
