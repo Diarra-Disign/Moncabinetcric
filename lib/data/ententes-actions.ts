@@ -420,16 +420,70 @@ export async function modifierBrouillon(
     }
 
     if (demande.articles && demande.articles.length > 0) {
-      updates.articles_snapshot = demande.articles
+      // Les variables doivent être substituées ICI aussi, pas seulement à la
+      // création. Sans cela, chaque enregistrement de brouillon réécrit le
+      // snapshot avec les placeholders bruts ({{nom_cabinet}}, etc.), annulant
+      // la substitution initiale — et le PDF affiche les accolades.
+      //
+      // On recharge le contractant pour reconstituer le contexte de variables.
+      // S'il est introuvable (supprimé entre-temps), on pousse le texte brut
+      // plutôt que de bloquer : mieux vaut sauvegarder avec des accolades
+      // visibles, qu'un formulaire qui refuse de s'enregistrer.
+      const retenus = demande.articles
         .filter((a) => a.enabled)
         .sort((x, y) => x.position - y.position)
-        .map((a, i) => ({
-          position: i + 1,
-          code: a.code,
-          title_fr: a.titleFr,
-          body_fr: a.bodyFr,
-          level: a.level,
-        }))
+
+      let variables: ReturnType<typeof variablesDe> | null = null
+      if (demande.contractantType && demande.contractantId) {
+        try {
+          const source = await chargerContractant(demande.contractantType, demande.contractantId)
+          if (source) {
+            const contexteModif: ContexteEntente = {
+              contractant: source.partie,
+              cabinet: source.cabinet,
+              montants: {
+                honoraires: demande.honoraires,
+                taxes: demande.taxes,
+                total: demande.honoraires + demande.taxes,
+              },
+              entente: {
+                // Le numéro est inconnu ici (brouillon existant) : on passe
+                // une chaîne vide. La variable {{numero_entente}} n'est pas
+                // utilisée dans les articles CICC standards.
+                numero: "",
+                date: new Date().toISOString().slice(0, 10),
+                titre: demande.titre ?? "",
+              },
+              locale: "fr",
+              proBono: demande.proBono ?? false,
+              consultation: {
+                dureeMinutes: demande.consultationDurationMinutes,
+                dateHeure: demande.consultationDateTime,
+                mode: demande.consultationMode,
+                notes: demande.consultationNotes,
+              },
+              mandat: {
+                descriptionServices: demande.servicesDescription || (demande.servicesItems && demande.servicesItems.length > 0 ? demande.servicesItems.map((s, i) => `${i + 1}. ${s.libelle}`).join("\n") : undefined),
+                exclusionsSpecifiques: demande.fraisNonInclus || undefined,
+                echeancierDescription: demande.echeancier && demande.echeancier.length > 0
+                  ? demande.echeancier.map((e, i) => `${i + 1}. ${e.description || 'Étape ' + (i + 1)} : ${e.montant} $ CAD (${e.declenchement || 'À l\'échéance'})`).join("\n")
+                  : undefined,
+              },
+            }
+            variables = variablesDe(contexteModif)
+          }
+        } catch {
+          // Contractant inaccessible — on sauvegarde sans substitution.
+        }
+      }
+
+      updates.articles_snapshot = retenus.map((a, i) => ({
+        position: i + 1,
+        code: a.code,
+        title_fr: variables ? substituer(a.titleFr, variables).texte : a.titleFr,
+        body_fr: variables ? substituer(a.bodyFr, variables).texte : a.bodyFr,
+        level: a.level,
+      }))
     }
 
     const { data, error } = await sb

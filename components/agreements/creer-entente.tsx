@@ -288,6 +288,8 @@ export function CreerEntente({
     try {
       if (brouillonId) {
         const r = await modifierBrouillon(brouillonId, {
+          contractantType: choisi.type,
+          contractantId: choisi.id,
           honoraires: Number(honoraires) || 0,
           taxes: 0,
           proBono,
