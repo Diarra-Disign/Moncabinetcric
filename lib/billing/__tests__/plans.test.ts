@@ -1,6 +1,6 @@
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
-import { abonnementCouvre, effetOctroi, raisonAccesFerme } from "../plans"
+import { abonnementCouvre, effetOctroi, raisonAccesFerme, tarifPublic, type Plan } from "../plans"
 
 /**
  * La règle qui dit ce que produira l'octroi d'un plan depuis la console.
@@ -156,5 +156,53 @@ describe("raisonAccesFerme", () => {
 
   test("un forfait payant sans aucun abonnement se lit comme terminé", () => {
     assert.equal(raisonAccesFerme(base), "abonnement-termine")
+  })
+})
+
+/**
+ * Le tarif que la page publique a le droit d'annoncer.
+ *
+ * Le défaut qui a motivé ce test : quand le catalogue ne répondait pas, la
+ * grille tarifaire retombait sur un forfait vide et affichait « 0 $ par mois »,
+ * « ou 0 $ par année », « puis 0 $ par mois et par membre ». Un prix nul sur
+ * une page de vente n'est pas une absence d'information, c'est une information
+ * fausse.
+ */
+describe("tarifPublic", () => {
+  const forfait = (surcharge: Partial<Plan> = {}): Plan => ({
+    key: "cabinet", labelFr: "", labelEn: "", taglineFr: "", taglineEn: "", rank: 1,
+    purchasable: true, monthly: 7900, annual: 79000, extraSeatMonthly: 1900,
+    extraSeatAnnual: 19000, seatsIncluded: 3, maxSeats: null, aiConnector: false,
+    ...surcharge,
+  })
+
+  test("un forfait absent du catalogue n'a pas de tarif public", () => {
+    assert.equal(tarifPublic(undefined), null)
+  })
+
+  test("un prix mensuel ou annuel manquant retire le tarif entier", () => {
+    assert.equal(tarifPublic(forfait({ monthly: null })), null)
+    assert.equal(tarifPublic(forfait({ annual: null })), null)
+  })
+
+  test("un prix nul n'est jamais annoncé", () => {
+    assert.equal(tarifPublic(forfait({ monthly: 0 })), null)
+    assert.equal(tarifPublic(forfait({ annual: 0 })), null)
+  })
+
+  test("un forfait complet donne ses trois montants", () => {
+    assert.deepEqual(tarifPublic(forfait()), {
+      mensuel: 7900,
+      annuel: 79000,
+      placeSupplementaire: 1900,
+    })
+  })
+
+  test("une place supplémentaire sans prix est tue, sans retirer le tarif", () => {
+    assert.deepEqual(tarifPublic(forfait({ extraSeatMonthly: 0 })), {
+      mensuel: 7900,
+      annuel: 79000,
+      placeSupplementaire: null,
+    })
   })
 })

@@ -88,44 +88,117 @@
   },
   "Landing": {
     "nav": {
-      "product": "Product",
-      "solution": "For CICC Firms",
+      "overview": "Overview",
+      "trust": "Trust accounting",
       "features": "Features",
-      "testimonials": "Compliance",
+      "pricing": "Pricing",
       "faq": "FAQ",
-      "bookDemo": "Book a Demo",
-      "login": "Firm Login"
+      "bookDemo": "Book a demo",
+      "login": "Firm login",
+      "openMenu": "Open the navigation menu",
+      "closeMenu": "Close the navigation menu",
+      "switchToFr": "View the site in French",
+      "switchToEn": "View the site in English",
+      "language": "Language"
     },
     "hero": {
-      "badge": "✦ NEW : CICC COMPLIANCE & AUTOMATED WARNINGS",
-      "title": "Operational excellence for immigration law firms.",
-      "subtitle": "Eliminate case tracking errors, automate IRCC/MIFI deadlines, and offer your clients an exceptional encrypted document portal.",
-      "ctaPrimary": "Request a Private Demo",
-      "ctaSecondary": "Explore Client Portal"
+      "eyebrow": "For regulated Canadian immigration consultants",
+      "title": "Matters, deadlines and trust accounting in one compliant system.",
+      "subtitle": "Centralise your matters, let the system compute your regulatory deadlines, and keep your trust account inspection-ready.",
+      "ctaPrimary": "Book a demonstration",
+      "ctaSecondary": "See the application",
+      "trustLine": "Data hosted in Canada · Tamper-evident audit log · No commitment"
     },
-    "stats": {
-      "stat1Value": "FR / EN",
-      "stat1Label": "Interface, agreements and client portal in both official languages",
-      "stat2Value": "SHA-256",
-      "stat2Label": "Fingerprint computed by the database on every audit-log write",
-      "stat3Value": "Append-only",
-      "stat3Label": "The audit log accepts no updates and no deletions"
+    "preview": {
+      "caption": "A look at the application",
+      "accountLabel": "Firm account",
+      "searchPlaceholder": "Search a matter",
+      "moduleSelector": "Choose a module to display",
+      "footnote": "Tamper-evident audit log · Data hosted in Canada",
+      "deadlineIn": "In {jours} days",
+      "matters": {
+        "tab": "Matters",
+        "title": "Matters and deadlines",
+        "subtitle": "Federal and provincial time limits are computed when the matter opens.",
+        "kpiMatters": "Active matters",
+        "kpiDeadlines": "Deadlines within 30 days",
+        "kpiTasks": "Tasks to approve",
+        "kpiMeetings": "Appointments today",
+        "listTitle": "Matters under watch",
+        "type1": "Permanent residence",
+        "status1": "In processing",
+        "type2": "Work permit",
+        "status2": "Ready to submit",
+        "type3": "Study permit",
+        "status3": "Document missing"
+      },
+      "trust": {
+        "tab": "Trust",
+        "title": "Trust ledger",
+        "subtitle": "The bank statement and the sub-account ledger are compared continuously.",
+        "bankLabel": "Bank statement balance",
+        "bankHint": "Trust account",
+        "ledgerLabel": "Sub-account total",
+        "ledgerHint": "One sub-account per matter",
+        "gapLabel": "Reconciliation gap",
+        "gapHint": "Reconciliation balanced",
+        "movementsTitle": "Recent movements",
+        "subAccount": "Sub-account",
+        "move1": "Retainer received",
+        "move2": "Fees released",
+        "move3": "Disbursement — government fees"
+      },
+      "portal": {
+        "tab": "Client portal",
+        "title": "Client space",
+        "subtitle": "Clients upload their documents and follow progress without creating a password.",
+        "progressLabel": "File {pourcentage} % complete",
+        "progressStep": "Step 3 of 4",
+        "doc1": "Passport",
+        "doc1Kind": "Proof of identity",
+        "doc1Status": "Approved",
+        "doc2": "Form IMM 5257",
+        "doc2Kind": "Official form",
+        "doc2Status": "Signed",
+        "doc3": "Proof of funds",
+        "doc3Kind": "Supporting document",
+        "doc3Status": "Under review"
+      }
+    },
+    "assurance": {
+      "t1Title": "Append-only audit log",
+      "t1Desc": "Every entry receives a SHA-256 fingerprint computed by the database. The log accepts no updates and no deletions.",
+      "t2Title": "Deadlines under watch",
+      "t2Desc": "IRCC and provincial time limits are computed when the matter opens, then recalled before they fall due.",
+      "t3Title": "Canadian hosting",
+      "t3Desc": "Matters and supporting documents kept in Canada, in line with Quebec's Law 25."
+    },
+    "trustAccounting": {
+      "eyebrow": "Regulatory accounting",
+      "title": "One sub-account per matter, one reconciliation per month.",
+      "subtitle": "The trust account is the first thing an inspection looks at. The system allocates incoming retainers, isolates released fees and produces the month's reconciliation statement.",
+      "step1Title": "Retainer received",
+      "step1Desc": "The deposit lands in the matter's sub-account, never in the firm's operating account.",
+      "step2Title": "Fees released",
+      "step2Desc": "A transfer requires an issued invoice, and the system refuses to let the sub-account go into overdraft.",
+      "step3Title": "Reconciliation statement",
+      "step3Desc": "Bank statement and ledger compared, the gap shown, the export ready for inspection."
     },
     "features": {
-      "sectionBadge": "BUILT FOR IMMIGRATION LAW",
+      "sectionBadge": "Built for immigration law",
       "sectionTitle": "An architecture designed for precision and clarity.",
       "sectionSubtitle": "Every module solves a real regulatory friction point: single source of truth, zero duplicate entry, absolute traceability.",
-      "f1Title": "Document Compliance & Audit Readiness",
-      "f1Desc": "No more manual checking. Track passport validity, IMM forms, and financial proofs in real time with automated expiration alerts.",
-      "f2Title": "Secure & Zero-Friction Client Portal",
-      "f2Desc": "Your clients upload their documents into a partitioned space, track their application's progress and receive precise instructions, without endless email threads.",
-      "f3Title": "Sales Pipeline & Practice Lifecycle",
-      "f3Desc": "Keep commercial prospecting separate from regulatory casework. Convert a prospect to a mandate in one click while preserving communication history.",
-      "f4Title": "Traceability & International Taxation",
-      "f4Desc": "Native handling of Canadian provincial tax rules and international tax exemptions, paired with the immutable audit log required by the College."
+      "f1Title": "Matters and supporting documents",
+      "f1Desc": "Passport validity, IMM forms and proof of funds tracked continuously, with an alert before every expiry.",
+      "f2Title": "Secure client portal",
+      "f2Desc": "Your clients upload their documents and follow their application in a partitioned space, with no email back-and-forth.",
+      "f3Title": "Trust accounting and bank reconciliation",
+      "f3Desc": "Every movement is tied to its matter sub-account, and the system refuses to let a sub-account go into overdraft.",
+      "f4Title": "Invoicing and audit log",
+      "f4Desc": "Provincial tax rules and international exemptions applied to the invoice, with every entry written to the log."
     },
     "pricing": {
-      "badge": "PRICING",
+      "badge": "Pricing",
       "title": "Three plans, one criterion",
       "subtitle": "Price follows how many people work at the firm, not how many files you open.",
       "period": "per month",
@@ -150,8 +223,9 @@
         "f2": "Per-member roles and permissions",
         "f3": "Everything in Solo, for every member of the team",
         "f4": "Priority support",
-        "badge": "RECOMMENDED",
-        "btn": "Request access"
+        "badge": "Recommended",
+        "btn": "Request access",
+        "f1NoPrice": "Three seats included, additional members available"
       },
       "business": {
         "name": "Firm Business",
@@ -160,19 +234,16 @@
         "f2": "Additional consultant at {price} per month",
         "f3": "Support staff and read-only access at a reduced rate",
         "f4": "Billing adjusts as people join and leave",
-        "btn": "Request access"
+        "btn": "Request access",
+        "f2NoPrice": "Additional consultants available"
       },
-      "plusBusinessLabel": "Firm Pro, plus:"
-    },
-    "finalCta": {
-      "title": "Ready to grow your immigration practice?",
-      "subtitle": "Request a demo: access is opened one firm at a time, there is no open sign-up.",
-      "ctaPrimary": "Request a demo",
-      "ctaSecondary": "Firm sign-in"
+      "plusBusinessLabel": "Firm Pro, plus:",
+      "onRequest": "Pricing on request",
+      "onRequestNote": "Shared during your demo"
     },
     "faq": {
-      "badge": "CLEAR ANSWERS",
-      "title": "Frequently Asked Questions",
+      "badge": "Clear answers",
+      "title": "Frequently asked questions",
       "q1": "How does moncabinetcric ensure compliance with CICC regulations?",
       "a1": "Our architecture strictly adheres to College record-keeping requirements: timestamped immutable user logs, Canadian data hosting, and strict segregation of staging and production data.",
       "q2": "What is the difference between the commercial pipeline and the casework pipeline?",
@@ -181,6 +252,37 @@
       "a3": "Yes. Our tax engine automatically applies provincial rules (GST/PST/HST or international tax exemption) based on client residency, generating compliant invoices with manual override option.",
       "q4": "Can I export an entire client file in case of an inspection or transfer?",
       "a4": "Absolutely. In one click, you can generate a consolidated archive (merged PDF or ZIP) containing client history, notes, retainer agreements, and all uploaded proofs."
+    },
+    "finalCta": {
+      "title": "Ready to grow your immigration practice?",
+      "subtitle": "Request a demo: access is opened one firm at a time, there is no open sign-up.",
+      "ctaPrimary": "Request a demo",
+      "ctaSecondary": "Firm sign-in"
+    },
+    "footer": {
+      "tagline": "Practice management and compliance software for regulated Canadian immigration consultants.",
+      "rights": "© {annee} moncabinetcric. All rights reserved.",
+      "hosting": "Data hosted in Canada",
+      "navLabel": "Footer links",
+      "colProduct": "Product",
+      "colLegal": "Legal"
+    },
+    "video": {
+      "caption": "A matter's journey, from first contact to bank reconciliation. Video in French with English subtitles.",
+      "play": "Play video: product overview ({secondes} seconds)",
+      "videoLabel": "moncabinetcric product video",
+      "unsupported": "Your browser cannot play this video. Its description is available below.",
+      "transcriptTitle": "Read the video description",
+      "scenes": {
+        "s1": "For immigration firms: every matter deserves clear follow-up — prospects, documents, deadlines.",
+        "s2": "Your firm, one single view: the software for Canadian immigration consultants.",
+        "s3": "Manage the relationship: each prospect moves from “New prospect” to “Consultation scheduled”, and the next step is identified.",
+        "s4": "Centralize documents: the status of every document in the matter — received, to review, missing — in one place.",
+        "s5": "Stay on course: the matter's next steps in clear view — follow up with the client, review documents, prepare the submission.",
+        "s6": "Manage the trust account: per-client ledger, transactions linked to each client, and bank reconciliation by period.",
+        "s7": "All your follow-up in one place. Request a demo at moncabinetcric.com."
+      },
+      "playShort": "Play video"
     }
   },
   "Pipeline": {

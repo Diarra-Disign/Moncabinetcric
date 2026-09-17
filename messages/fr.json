@@ -88,44 +88,117 @@
   },
   "Landing": {
     "nav": {
-      "product": "Produit",
-      "solution": "Pour Cabinets CICC",
+      "overview": "Aperçu",
+      "trust": "Fidéicommis",
       "features": "Fonctionnalités",
-      "testimonials": "Conformité",
+      "pricing": "Tarifs",
       "faq": "FAQ",
       "bookDemo": "Réserver une démo",
-      "login": "Espace Cabinet"
+      "login": "Espace cabinet",
+      "openMenu": "Ouvrir le menu de navigation",
+      "closeMenu": "Fermer le menu de navigation",
+      "switchToFr": "Afficher le site en français",
+      "switchToEn": "Afficher le site en anglais",
+      "language": "Langue"
     },
     "hero": {
-      "badge": "✦ NOUVEAU : CONFORMITÉ CICC & RAPPELS AUTOMATIQUES",
-      "title": "L'excellence opérationnelle pour cabinets d'immigration.",
-      "subtitle": "Éliminez les erreurs de suivi, automatisez vos rappels d'échéances IRCC/MIFI et offrez à vos clients un portail documentaire d'exception.",
-      "ctaPrimary": "Réserver une démo privée",
-      "ctaSecondary": "Explorer le portail client"
+      "eyebrow": "Pour les consultants réglementés en immigration canadienne",
+      "title": "Dossiers, échéances et fidéicommis dans un seul outil conforme.",
+      "subtitle": "Centralisez vos dossiers, laissez le système calculer vos délais réglementaires, et gardez votre fidéicommis prêt pour l'inspection.",
+      "ctaPrimary": "Réserver une démonstration",
+      "ctaSecondary": "Voir l'application",
+      "trustLine": "Données hébergées au Canada · Journal d'audit inaltérable · Sans engagement"
     },
-    "stats": {
-      "stat1Value": "FR / EN",
-      "stat1Label": "Interface, ententes et portail client dans les deux langues officielles",
-      "stat2Value": "SHA-256",
-      "stat2Label": "Empreinte calculée par la base à chaque écriture du journal d'audit",
-      "stat3Value": "Ajout seul",
-      "stat3Label": "Le journal d'audit n'accepte ni modification ni suppression"
+    "preview": {
+      "caption": "Aperçu de l'application",
+      "accountLabel": "Compte cabinet",
+      "searchPlaceholder": "Rechercher un dossier",
+      "moduleSelector": "Choisir un module à afficher",
+      "footnote": "Journal d'audit inaltérable · Données hébergées au Canada",
+      "deadlineIn": "Dans {jours} jours",
+      "matters": {
+        "tab": "Dossiers",
+        "title": "Dossiers et échéances",
+        "subtitle": "Les délais fédéraux et provinciaux sont calculés à l'ouverture du dossier.",
+        "kpiMatters": "Dossiers actifs",
+        "kpiDeadlines": "Échéances à 30 jours",
+        "kpiTasks": "Tâches à valider",
+        "kpiMeetings": "Rendez-vous aujourd'hui",
+        "listTitle": "Dossiers sous surveillance",
+        "type1": "Résidence permanente",
+        "status1": "En traitement",
+        "type2": "Permis de travail",
+        "status2": "Prêt à soumettre",
+        "type3": "Permis d'études",
+        "status3": "Pièce manquante"
+      },
+      "trust": {
+        "tab": "Fidéicommis",
+        "title": "Registre du fidéicommis",
+        "subtitle": "Le relevé bancaire et le grand livre des sous-comptes sont comparés en continu.",
+        "bankLabel": "Solde du relevé bancaire",
+        "bankHint": "Compte en fidéicommis",
+        "ledgerLabel": "Total des sous-comptes",
+        "ledgerHint": "Un sous-compte par dossier",
+        "gapLabel": "Écart de rapprochement",
+        "gapHint": "Rapprochement équilibré",
+        "movementsTitle": "Derniers mouvements",
+        "subAccount": "Sous-compte",
+        "move1": "Provision reçue",
+        "move2": "Honoraires débloqués",
+        "move3": "Débours — frais gouvernementaux"
+      },
+      "portal": {
+        "tab": "Portail client",
+        "title": "Espace client",
+        "subtitle": "Le client dépose ses pièces et suit l'avancement sans créer de mot de passe.",
+        "progressLabel": "Dossier complété à {pourcentage} %",
+        "progressStep": "Étape 3 sur 4",
+        "doc1": "Passeport",
+        "doc1Kind": "Preuve d'identité",
+        "doc1Status": "Validée",
+        "doc2": "Formulaire IMM 5257",
+        "doc2Kind": "Formulaire officiel",
+        "doc2Status": "Signé",
+        "doc3": "Preuve de fonds",
+        "doc3Kind": "Pièce justificative",
+        "doc3Status": "En examen"
+      }
+    },
+    "assurance": {
+      "t1Title": "Journal en ajout seul",
+      "t1Desc": "Chaque écriture reçoit une empreinte SHA-256 calculée par la base. Le journal n'accepte ni modification ni suppression.",
+      "t2Title": "Échéances surveillées",
+      "t2Desc": "Les délais IRCC et provinciaux sont calculés à l'ouverture du dossier, puis rappelés avant terme.",
+      "t3Title": "Hébergement canadien",
+      "t3Desc": "Dossiers et pièces justificatives conservés au Canada, conformément à la Loi 25."
+    },
+    "trustAccounting": {
+      "eyebrow": "Comptabilité réglementaire",
+      "title": "Un sous-compte par dossier, un rapprochement par mois.",
+      "subtitle": "Le compte en fidéicommis est le premier poste examiné en inspection. Le système ventile les provisions reçues, isole les honoraires débloqués et produit l'état de rapprochement du mois.",
+      "step1Title": "Provision reçue",
+      "step1Desc": "Le dépôt entre au sous-compte du dossier, jamais au compte d'exploitation du cabinet.",
+      "step2Title": "Honoraires débloqués",
+      "step2Desc": "Le transfert exige une facture émise, et le système refuse de laisser le sous-compte à découvert.",
+      "step3Title": "État de rapprochement",
+      "step3Desc": "Relevé bancaire et grand livre comparés, écart affiché, export prêt pour l'inspection."
     },
     "features": {
-      "sectionBadge": "CONÇU POUR LE DROIT DE L'IMMIGRATION",
+      "sectionBadge": "Conçu pour le droit de l'immigration",
       "sectionTitle": "Une architecture pensée pour la rigueur et la clarté.",
       "sectionSubtitle": "Chaque module résout un point de friction réel des consultants réglementés : données uniques, zéro saisie en double, traçabilité absolue.",
-      "f1Title": "Conformité Documentaire & Audits",
-      "f1Desc": "Fini les vérifications manuelles. Suivez en temps réel la validité de chaque passeport, formulaire IMM et preuve financière avec des alertes d'expiration automatiques.",
-      "f2Title": "Portail Client Sécurisé & Zéro-Friction",
-      "f2Desc": "Vos clients déposent leurs pièces dans un espace cloisonné, suivent l'avancement de leur demande et reçoivent des instructions précises, sans échange de courriels interminable.",
-      "f3Title": "Pipeline Commercial & Cycle de Vie",
-      "f3Desc": "Séparez nettement la prospection commerciale de la gestion de dossier. Convertissez un prospect en client en un clic sans jamais perdre son historique de communication.",
-      "f4Title": "Traçabilité & Exonération Fiscale",
-      "f4Desc": "Gestion native des règles fiscales provinciales canadiennes et exonérations internationales, couplées au journal d'audit infalsifiable exigé par le Collège."
+      "f1Title": "Dossiers et pièces justificatives",
+      "f1Desc": "Validité des passeports, des formulaires IMM et des preuves financières suivie en continu, avec alerte avant chaque expiration.",
+      "f2Title": "Portail client sécurisé",
+      "f2Desc": "Vos clients déposent leurs pièces et suivent l'avancement de leur demande dans un espace cloisonné, sans échange de courriels.",
+      "f3Title": "Fidéicommis et rapprochement bancaire",
+      "f3Desc": "Chaque mouvement est rattaché au sous-compte de son dossier, et le système refuse de laisser un sous-compte à découvert.",
+      "f4Title": "Facturation et journal d'audit",
+      "f4Desc": "Règles de taxation provinciales et exonérations internationales appliquées à la facture, chaque écriture étant journalisée."
     },
     "pricing": {
-      "badge": "TARIFICATION",
+      "badge": "Tarification",
       "title": "Trois formules, un seul critère",
       "subtitle": "Le prix suit le nombre de personnes qui travaillent dans le cabinet, pas le nombre de dossiers que vous ouvrez.",
       "period": "par mois",
@@ -150,8 +223,9 @@
         "f2": "Rôles et permissions par membre",
         "f3": "Tout ce que comprend Solo, pour chaque membre de l'équipe",
         "f4": "Soutien prioritaire",
-        "badge": "RECOMMANDÉ",
-        "btn": "Demander un accès"
+        "badge": "Recommandé",
+        "btn": "Demander un accès",
+        "f1NoPrice": "Trois accès compris, membres supplémentaires en option"
       },
       "business": {
         "name": "Cabinet Business",
@@ -160,19 +234,16 @@
         "f2": "Consultant supplémentaire à {price} par mois",
         "f3": "Personnel de soutien et accès en lecture seule à tarif réduit",
         "f4": "Facturation ajustée à chaque arrivée et à chaque départ",
-        "btn": "Demander un accès"
+        "btn": "Demander un accès",
+        "f2NoPrice": "Consultants supplémentaires en option"
       },
-      "plusBusinessLabel": "Cabinet Pro, plus :"
-    },
-    "finalCta": {
-      "title": "Prêt à faire évoluer votre cabinet d'immigration ?",
-      "subtitle": "Demandez une démonstration : nous ouvrons les accès cabinet par cabinet, il n'y a pas d'inscription libre.",
-      "ctaPrimary": "Demander une démonstration",
-      "ctaSecondary": "Connexion cabinet"
+      "plusBusinessLabel": "Cabinet Pro, plus :",
+      "onRequest": "Tarif sur demande",
+      "onRequestNote": "Présenté lors de la démonstration"
     },
     "faq": {
-      "badge": "RÉPONSES CLAIRES",
-      "title": "Foire Aux Questions",
+      "badge": "Réponses claires",
+      "title": "Foire aux questions",
       "q1": "Comment moncabinetcric assure-t-il la conformité avec les exigences du CICC ?",
       "a1": "Notre architecture respecte strictement les normes de tenue de dossiers : journal d'audit infalsifiable horodaté par utilisateur, hébergement des données et séparation stricte des environnements de test et de production.",
       "q2": "Quelle est la différence entre le pipeline commercial et le pipeline de dossiers ?",
@@ -181,6 +252,37 @@
       "a3": "Oui. Le système applique automatiquement les règles de taxation selon le pays de résidence de la fiche client (TPS/TVQ/TVH ou exonération internationale), avec mention légale sur la facture et possibilité de modification manuelle.",
       "q4": "Puis-je exporter l'intégralité d'un dossier en cas de contrôle ou transfert ?",
       "a4": "Absolument. En un seul clic, vous pouvez générer une archive complète (PDF consolidé ou ZIP) contenant l'historique, les notes, le contrat et toutes les pièces justificatives du client."
+    },
+    "finalCta": {
+      "title": "Prêt à faire évoluer votre cabinet d'immigration ?",
+      "subtitle": "Demandez une démonstration : nous ouvrons les accès cabinet par cabinet, il n'y a pas d'inscription libre.",
+      "ctaPrimary": "Demander une démonstration",
+      "ctaSecondary": "Connexion cabinet"
+    },
+    "footer": {
+      "tagline": "Logiciel de gestion et de conformité pour consultants réglementés en immigration canadienne.",
+      "rights": "© {annee} moncabinetcric. Tous droits réservés.",
+      "hosting": "Données hébergées au Canada",
+      "navLabel": "Liens de bas de page",
+      "colProduct": "Produit",
+      "colLegal": "Juridique"
+    },
+    "video": {
+      "caption": "Le parcours d'un dossier, du premier contact au rapprochement bancaire.",
+      "play": "Lire la vidéo de présentation ({secondes} secondes)",
+      "videoLabel": "Vidéo de présentation de moncabinetcric",
+      "unsupported": "Votre navigateur ne peut pas lire cette vidéo. Sa description figure ci-dessous.",
+      "transcriptTitle": "Lire la description de la vidéo",
+      "scenes": {
+        "s1": "Pour les cabinets d'immigration : chaque dossier mérite un suivi clair — prospects, documents, échéances.",
+        "s2": "Votre cabinet, une seule vue : le logiciel des consultants en immigration canadienne.",
+        "s3": "Piloter la relation : chaque prospect passe de « Nouveau prospect » à « Consultation planifiée », et la prochaine étape est identifiée.",
+        "s4": "Centraliser les pièces : l'état de chaque pièce du dossier — reçue, à vérifier, manquante — au même endroit.",
+        "s5": "Garder le cap : les prochaines étapes du dossier bien en vue — relancer le client, vérifier les pièces, préparer le dépôt.",
+        "s6": "Gérer le fidéicommis : registre par client, mouvements rattachés au client et rapprochement bancaire par période.",
+        "s7": "Tout votre suivi au même endroit. Demandez une démonstration sur moncabinetcric.com."
+      },
+      "playShort": "Lire la vidéo"
     }
   },
   "Pipeline": {

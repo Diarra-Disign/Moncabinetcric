@@ -1,5 +1,8 @@
 import LandingPage from "./landing/page"
 
+/** Meme valeur que `landing/page.tsx`, qui explique pourquoi elle est recopiee. */
+export const revalidate = 60
+
 /**
  * La racine du domaine — `moncabinetcric.com` — sert la page publique.
  *

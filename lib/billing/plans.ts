@@ -44,6 +44,33 @@ export function estTarife(p: Plan): boolean {
   return p.monthly !== null && p.annual !== null
 }
 
+/** Les montants, en cents, qu'une page publique peut annoncer pour un forfait. */
+export interface TarifPublic {
+  mensuel: number
+  annuel: number
+  /** null = pas de prix de place supplémentaire à annoncer. */
+  placeSupplementaire: number | null
+}
+
+/**
+ * Le tarif d'un forfait tel qu'une page de vente peut l'afficher — ou `null`.
+ *
+ * Plus strict qu'`estTarife` : un montant nul est refusé aussi. La page
+ * publique retombait sur un forfait vide quand le catalogue ne répondait pas,
+ * et annonçait « 0 $ par mois ». Un prix nul affiché n'est pas une absence
+ * d'information, c'est une information fausse ; mieux vaut ne rien chiffrer.
+ */
+export function tarifPublic(p: Plan | undefined): TarifPublic | null {
+  if (!p) return null
+  const { monthly, annual, extraSeatMonthly } = p
+  if (monthly === null || annual === null || monthly <= 0 || annual <= 0) return null
+  return {
+    mensuel: monthly,
+    annuel: annual,
+    placeSupplementaire: extraSeatMonthly > 0 ? extraSeatMonthly : null,
+  }
+}
+
 /**
  * Prix total d'un abonnement, places supplémentaires comprises.
  *
