@@ -11,6 +11,7 @@ import {
   peutSupprimerSignature,
 } from "@/lib/data/signature-actions"
 import { reclasserDocument, destinationsDocument } from "@/lib/data/matter-actions"
+import { Link } from "@/i18n/routing"
 import type { LigneTableau } from "@/lib/data/signatures"
 import {
   LIBELLE_DEMANDE, LIBELLE_DESTINATAIRE, LIBELLE_EVENEMENT,
@@ -234,10 +235,10 @@ export function ListeSignatures({
               )}
 
               {l.matterId && (
-                <a href={`/fr/matters/${encodeURIComponent(l.matterId)}`}
+                <Link href={`/matters/${encodeURIComponent(l.matterId)}`}
                   className={BOUTON}>
                   <ExternalLink className="h-3 w-3" aria-hidden /> Le dossier
-                </a>
+                </Link>
               )}
 
               <button type="button" onClick={() => voirHistorique(l.demandeId)} className={BOUTON}>

@@ -22,8 +22,12 @@ import type { CalendarEvent, ClientRecord, Matter, Lead } from "@/lib/data/types
 import { updateCalendarEvent, deleteCalendarEvent, rescheduleCalendarEvent } from "@/lib/data/actions"
 import { PromoteFromEvent } from "@/components/calendar/promote-from-event"
 import { useFirm } from "@/components/app-shell/firm-provider"
-import { useRouter } from "next/navigation"
-import { referenceNue } from "@/lib/data/dossier-navigation"
+// Le routeur LOCALISÉ : `next/navigation` imposait d'écrire « /fr/… » en dur
+// dans chaque lien, et un utilisateur anglophone basculait en français d'un
+// simple clic.
+import { useRouter } from "@/i18n/routing"
+import { cheminDestination, destinationPourClient, referenceNue } from "@/lib/data/dossier-navigation"
+import { clientDuRendezVous, dossierDuRendezVous, prospectDuRendezVous } from "@/lib/data/rapprochement-rendez-vous"
 
 export interface ModalDetailRendezVousProps {
   ouvert: boolean
@@ -103,12 +107,12 @@ function ModalDetailContent({
   const [moveDate, setMoveDate] = React.useState(event.date)
   const [moveHour, setMoveHour] = React.useState(event.hour ?? 10)
 
-  // Trouver client ou dossier associé
-  const clientAssocie = clients.find((c) => c.name === event.clientName || c.id === event.clientId)
-  const prospectAssocie = leads.find((l) => l.name === event.clientName || l.id === event.leadId)
-  const matterAssocie = matters.find(
-    (m) => (clientAssocie?.id && m.clientId === clientAssocie.id) || m.id === event.matterId
-  )
+  // Client, prospect et dossier associés — par identifiant d'abord, le nom
+  // n'étant qu'un dernier recours. La règle et ses cas limites vivent dans
+  // `lib/data/rapprochement-rendez-vous.ts`.
+  const clientAssocie = clientDuRendezVous(event, clients)
+  const prospectAssocie = prospectDuRendezVous(event, leads)
+  const matterAssocie = dossierDuRendezVous(event, matters, clientAssocie)
 
   const handleChangerStatutRapide = async (nouveauStatut: string) => {
     setEnCours(true)
@@ -189,10 +193,12 @@ function ModalDetailContent({
       // Le dièse de « #DOS-1 » ouvrait une ancre : le navigateur restait sur
       // la liste des dossiers, qui en sélectionne un d'office — donc celui
       // d'un autre client.
-      router.push(`/fr/matters/${referenceNue(matterAssocie.id)}?tab=rencontres`)
+      router.push(`/matters/${referenceNue(matterAssocie.id)}?tab=rencontres`)
       onFermer()
     } else if (clientAssocie) {
-      router.push(`/fr/clients`)
+      // Le client est connu mais son dossier ne l'est pas — aucun, ou
+      // plusieurs. Ses dossiers à lui, donc, et pas la liste du cabinet.
+      router.push(cheminDestination(destinationPourClient(clientAssocie.id, matters)))
       onFermer()
     } else {
       setMode("view")

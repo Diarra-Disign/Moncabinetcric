@@ -681,7 +681,7 @@ export async function createEvent(
   const { data: inserted, error } = await supabase
     .from("calendar_events")
     .insert(payload)
-    .select("*, matters(reference)")
+    .select("*, matters(reference), clients(legacy_id)")
     .single()
 
   if (error) fail("createEvent", error.message)
@@ -745,7 +745,7 @@ export async function updateCalendarEvent(
     .update(payload)
     .eq("id", id)
     .eq("firm_id", firmId)
-    .select("*, matters(reference)")
+    .select("*, matters(reference), clients(legacy_id)")
     .single()
 
   if (error) fail("updateCalendarEvent", error.message)
@@ -786,7 +786,7 @@ export async function rescheduleCalendarEvent(
     })
     .eq("id", id)
     .eq("firm_id", firmId)
-    .select("*, matters(reference)")
+    .select("*, matters(reference), clients(legacy_id)")
     .single()
 
   if (error) fail("rescheduleCalendarEvent", error.message)

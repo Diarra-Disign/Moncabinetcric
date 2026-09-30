@@ -22,6 +22,7 @@ import {
   ExternalLink,
   Check
 } from "lucide-react"
+import { useLocale } from "next-intl"
 import { useRouter } from "@/i18n/routing"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { ClientRecord, Matter } from "@/lib/data/types"
@@ -52,6 +53,10 @@ interface ClientsClientProps {
 export function ClientsClient({ t, initialClients, initialMatters = [] }: ClientsClientProps) {
   const matters = initialMatters
   const router = useRouter()
+  // L'aperçu du portail s'ouvre dans un nouvel onglet : son adresse est donc
+  // écrite à la main, et doit porter la langue courante — elle était figée
+  // en français.
+  const locale = useLocale()
   const [clients, setClients] = React.useState<ClientRecord[]>(initialClients)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "consultation" | "employer">("all")
@@ -678,7 +683,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
                       </button>
 
                       <a
-                        href={`/fr/portal?previewClientId=${client.id}`}
+                        href={`/${locale}/portal?previewClientId=${client.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         title="Voir le portail client en mode aperçu (lecture seule)"
@@ -851,7 +856,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <a
-                  href={`/fr/portal?previewClientId=${selectedPortalClient.id}`}
+                  href={`/${locale}/portal?previewClientId=${selectedPortalClient.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 px-4 py-2.5 rounded-xl border border-primary/40 bg-primary/15 hover:bg-primary/10 text-primary-strong font-bold text-center text-xs transition-colors flex items-center justify-center gap-2"

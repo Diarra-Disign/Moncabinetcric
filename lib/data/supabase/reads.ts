@@ -265,7 +265,7 @@ export async function getDocumentsByMatterId(matterId: string): Promise<Document
 export async function getEvents(): Promise<CalendarEvent[]> {
   const { data, error } = await (await db())
     .from("calendar_events")
-    .select("*, matters(reference)")
+    .select("*, matters(reference), clients(legacy_id)")
     .eq("firm_id", await currentFirmId())
     .order("date")
 

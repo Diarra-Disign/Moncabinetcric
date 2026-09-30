@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
-import { Link } from "@/i18n/routing"
+import { Link, useRouter } from "@/i18n/routing"
+import { referenceNue } from "@/lib/data/dossier-navigation"
 import { Search, ArrowUpRight, FolderOpen, CalendarClock, X } from "lucide-react"
 import { chercherDossiersRecents } from "@/lib/data/dossiers-recents-actions"
 import {
@@ -241,7 +241,7 @@ export function DossiersRecents({ initial }: { initial: PageDossiersRecents }) {
               <button
                 key={d.id}
                 type="button"
-                onClick={() => routeur.push(`/fr/matters/${d.reference.replace("#", "")}` as never)}
+                onClick={() => routeur.push(`/matters/${referenceNue(d.reference)}`)}
                 className="w-full text-left p-5 flex flex-wrap items-center justify-between gap-3 hover:bg-muted/60 transition-colors cursor-pointer group"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
