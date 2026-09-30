@@ -33,7 +33,9 @@
         "cat5Title": "Prospect information",
         "cat5Body": "Contact details, contemplated visa type, estimated value of the mandate, source of the contact and notes of exchanges, for people who have expressed interest without yet being clients.",
         "cat6Title": "Technical logs",
-        "cat6Body": "IP address, browser identifier, timestamp and description of operations performed, recorded in an internal audit log."
+        "cat6Body": "IP address, browser identifier, timestamp and description of operations performed, recorded in an internal audit log.",
+        "cat7Title": "Software demo requests",
+        "cat7Body": "Name, email address, firm name, telephone number, message and language of correspondence, submitted through the demo request form on the website. This information concerns consultants evaluating the software, not people with an immigration file."
       },
       "s3": {
         "heading": "3. Purposes of collection",
@@ -44,13 +46,15 @@
         "l4": "Bill professional fees and administer the trust account in accordance with CICC ethical obligations.",
         "l5": "Comply with the record-keeping and traceability obligations imposed on regulated consultants.",
         "l6": "Communicate with the individual about their file.",
-        "p2": "No information is used for a secondary purpose not stated above without obtaining fresh consent."
+        "p2": "No information is used for a secondary purpose not stated above without obtaining fresh consent.",
+        "l7": "Respond to a software demo request and arrange the requested presentation."
       },
       "s4": {
         "heading": "4. Consent and withdrawal",
         "p1": "Consent is requested separately from any other information, in plain language, and for specific purposes. Given the sensitivity of immigration status information, the consent obtained is express consent.",
         "p2": "You may withdraw your consent at any time by writing to the person responsible for the protection of personal information. Withdrawal ends the processing that depends on it, subject to information we must retain to satisfy a legal, ethical or retention obligation described in section 7.",
-        "p3": "Where a mandate concerns a minor, the consent of the person having parental authority is required for those under fourteen years of age."
+        "p3": "Where a mandate concerns a minor, the consent of the person having parental authority is required for those under fourteen years of age.",
+        "p4": "A demo request constitutes consent to be contacted about it. That contact is limited to the request itself: no newsletter or other commercial communication is sent without express consent, given separately and revocable at any time."
       },
       "s5": {
         "heading": "5. Disclosure to third parties",
@@ -74,7 +78,8 @@
         "heading": "7. Retention and destruction",
         "p1": "Client files and related documents are retained for the period required by the record-keeping obligations applicable to regulated consultants, then securely destroyed.",
         "p2": "Prospect information concerning a person who does not become a client is destroyed once it is no longer necessary for the purposes for which it was collected.",
-        "p3": "Audit logs are retained in append-only form, with no possibility of modification or deletion, for regulatory traceability purposes."
+        "p3": "Audit logs are retained in append-only form, with no possibility of modification or deletion, for regulatory traceability purposes.",
+        "p4": "Demo requests that do not lead to a business relationship are kept for no more than twenty-four months from the last exchange, then destroyed. They may be deleted sooner, on request."
       },
       "s8": {
         "heading": "8. Security measures",

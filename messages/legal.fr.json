@@ -33,7 +33,9 @@
         "cat5Title": "Renseignements de prospection",
         "cat5Body": "Coordonnées, type de visa envisagé, valeur estimée du mandat, source du contact et notes d'échange pour les personnes ayant manifesté un intérêt sans être encore clientes.",
         "cat6Title": "Journaux techniques",
-        "cat6Body": "Adresse IP, identifiant de navigateur, horodatage et description des opérations effectuées, consignés dans un journal d'audit interne."
+        "cat6Body": "Adresse IP, identifiant de navigateur, horodatage et description des opérations effectuées, consignés dans un journal d'audit interne.",
+        "cat7Title": "Demandes de démonstration du logiciel",
+        "cat7Body": "Nom, adresse courriel, nom du cabinet, numéro de téléphone, message et langue de correspondance, transmis par le formulaire de demande de démonstration du site. Ces renseignements concernent des consultants qui évaluent le logiciel, et non des personnes ayant un dossier d'immigration."
       },
       "s3": {
         "heading": "3. Fins de la collecte",
@@ -44,13 +46,15 @@
         "l4": "Facturer les honoraires et administrer le compte en fidéicommis conformément aux obligations déontologiques du CICC.",
         "l5": "Respecter les obligations de tenue de dossiers et de traçabilité imposées au consultant réglementé.",
         "l6": "Communiquer avec la personne concernée au sujet de son dossier.",
-        "p2": "Aucun renseignement n'est utilisé à une fin secondaire non énoncée ci-dessus sans obtenir un nouveau consentement."
+        "p2": "Aucun renseignement n'est utilisé à une fin secondaire non énoncée ci-dessus sans obtenir un nouveau consentement.",
+        "l7": "Répondre à une demande de démonstration du logiciel et organiser la présentation demandée."
       },
       "s4": {
         "heading": "4. Consentement et retrait",
         "p1": "Le consentement est demandé de manière distincte de toute autre information, en termes simples, et porte sur des fins précises. Compte tenu de la sensibilité des renseignements liés au statut migratoire, le consentement recueilli est un consentement exprès.",
         "p2": "Une personne peut retirer son consentement en tout temps en écrivant au responsable de la protection des renseignements personnels. Le retrait met fin aux traitements qui en dépendent, sous réserve des renseignements que nous devons conserver pour satisfaire à une obligation légale, déontologique ou de conservation décrite à la section 7.",
-        "p3": "Lorsqu'un mandat concerne une personne mineure, le consentement du titulaire de l'autorité parentale est requis pour les personnes de moins de quatorze ans."
+        "p3": "Lorsqu'un mandat concerne une personne mineure, le consentement du titulaire de l'autorité parentale est requis pour les personnes de moins de quatorze ans.",
+        "p4": "Une demande de démonstration vaut consentement à être contacté à ce sujet. Ce contact se limite à la demande elle-même : aucune infolettre ni autre communication commerciale n'est envoyée sans un consentement exprès, distinct et révocable à tout moment."
       },
       "s5": {
         "heading": "5. Communication à des tiers",
@@ -74,7 +78,8 @@
         "heading": "7. Conservation et destruction",
         "p1": "Les dossiers clients et les documents afférents sont conservés pour la durée requise par les obligations de tenue de dossiers applicables au consultant réglementé, puis détruits de manière sécurisée.",
         "p2": "Les renseignements de prospection concernant une personne qui ne devient pas cliente sont détruits lorsqu'ils ne sont plus nécessaires aux fins pour lesquelles ils ont été recueillis.",
-        "p3": "Les journaux d'audit sont conservés en mode ajout seul, sans possibilité de modification ni de suppression, aux fins de traçabilité réglementaire."
+        "p3": "Les journaux d'audit sont conservés en mode ajout seul, sans possibilité de modification ni de suppression, aux fins de traçabilité réglementaire.",
+        "p4": "Les demandes de démonstration qui ne donnent pas lieu à une relation d'affaires sont conservées au plus vingt-quatre mois à compter du dernier échange, puis détruites. Elles peuvent être supprimées plus tôt, sur simple demande."
       },
       "s8": {
         "heading": "8. Mesures de sécurité",

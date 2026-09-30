@@ -44,14 +44,18 @@ export default async function PrivacyPolicyPage({
         { term: t("s2.cat4Title"), body: t("s2.cat4Body") },
         { term: t("s2.cat5Title"), body: t("s2.cat5Body") },
         { term: t("s2.cat6Title"), body: t("s2.cat6Body") },
+        // La prospection du LOGICIEL lui-même : des consultants qui l'évaluent,
+        // et non des personnes ayant un dossier d'immigration. La distinction
+        // compte, les deux n'appelant ni les mêmes fins ni les mêmes durées.
+        { term: t("s2.cat7Title"), body: t("s2.cat7Body") },
       ],
     },
     {
       heading: t("s3.heading"),
       paragraphs: [t("s3.p1")],
-      bullets: [t("s3.l1"), t("s3.l2"), t("s3.l3"), t("s3.l4"), t("s3.l5"), t("s3.l6")],
+      bullets: [t("s3.l1"), t("s3.l2"), t("s3.l3"), t("s3.l4"), t("s3.l5"), t("s3.l6"), t("s3.l7")],
     },
-    { heading: t("s4.heading"), paragraphs: [t("s4.p1"), t("s4.p2"), t("s4.p3")] },
+    { heading: t("s4.heading"), paragraphs: [t("s4.p1"), t("s4.p2"), t("s4.p3"), t("s4.p4")] },
     {
       heading: t("s5.heading"),
       paragraphs: [t("s5.p1")],
@@ -63,7 +67,7 @@ export default async function PrivacyPolicyPage({
       ],
     },
     { heading: t("s6.heading"), paragraphs: [t("s6.p1"), t("s6.p2"), t("s6.p3")] },
-    { heading: t("s7.heading"), paragraphs: [t("s7.p1"), t("s7.p2"), t("s7.p3")] },
+    { heading: t("s7.heading"), paragraphs: [t("s7.p1"), t("s7.p2"), t("s7.p3"), t("s7.p4")] },
     { heading: t("s8.heading"), paragraphs: [t("s8.p1"), t("s8.p2"), t("s8.p3")] },
     {
       heading: t("s9.heading"),
