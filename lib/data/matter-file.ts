@@ -1,6 +1,7 @@
 import "server-only"
 
 import { getSessionSupabase } from "@/lib/supabase/session"
+import { estIdentifiantTechnique } from "./supabase/identifiant-client"
 import type { TaskRecord, TaskPriority, TaskStatus } from "./types"
 
 /**
@@ -229,12 +230,16 @@ export async function getDossierComplet(
   const fr = locale !== "en"
 
   // Mêmes formes que getMatterById : l'interface manipule tantôt « #DOS-1 »,
-  // tantôt « DOS-1 », selon qu'on vienne d'un lien ou d'un segment d'URL.
+  // tantôt « DOS-1 », selon qu'on vienne d'un lien ou d'un segment d'URL —
+  // et parfois l'identifiant technique, quand le lien est construit à partir
+  // d'une table qui ne connaît que `matter_id`. Sans ce dernier cas, l'en-tête
+  // du dossier s'affichait et tout son contenu restait vide.
   const nue = decodeURIComponent(reference).replace("#", "")
-  const { data: dossierRow } = await sb
-    .from("matters")
-    .select("id, client_id")
-    .in("reference", [decodeURIComponent(reference), `#${nue}`, nue])
+  const base = sb.from("matters").select("id, client_id")
+  const { data: dossierRow } = await (estIdentifiantTechnique(nue)
+    ? base.eq("id", nue)
+    : base.in("reference", [decodeURIComponent(reference), `#${nue}`, nue])
+  )
     .limit(1)
     .maybeSingle()
 

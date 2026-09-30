@@ -14,6 +14,7 @@ import {
 import { useTranslations, useLocale } from "next-intl"
 import { Link } from "@/i18n/routing"
 import type { TaskRecord, TaskPriority, TaskStatus, TaskMember } from "@/lib/data/types"
+import { referenceNue } from "@/lib/data/dossier-navigation"
 import { creerTache, basculerEtatTache } from "@/lib/data/tasks-actions"
 
 interface WidgetTachesProps {
@@ -314,7 +315,10 @@ export function WidgetTaches({
                 <div className="flex items-center gap-2 shrink-0">
                   {task.matterId && task.matterReference && (
                     <Link
-                      href={`/matters/${task.matterId}`}
+                      // La RÉFÉRENCE, pas l'identifiant technique : c'est
+                      // elle qui adresse un dossier. Le lien menait à « page
+                      // introuvable ».
+                      href={`/matters/${referenceNue(task.matterReference)}`}
                       className="inline-flex items-center gap-0.5 text-[10px] font-bold text-primary hover:underline"
                     >
                       <span>{task.matterReference}</span>

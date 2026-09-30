@@ -1,7 +1,7 @@
 import "server-only"
 
 import { db, currentFirmId } from "./context"
-import { expressionIdentifiantClient } from "./identifiant-client"
+import { estIdentifiantTechnique, expressionIdentifiantClient } from "./identifiant-client"
 import type {
   Matter,
   Lead,
@@ -58,13 +58,20 @@ export async function getMatterById(id: string): Promise<Matter | undefined> {
   const decoded = decodeURIComponent(id)
   // L'UI manipule tantôt "#DOS-35695", tantôt "DOS-35695" selon qu'on
   // vienne d'un lien ou d'un segment d'URL : on interroge les deux formes.
+  //
+  // L'IDENTIFIANT TECHNIQUE EST ACCEPTÉ AUSSI. Plusieurs écrans construisent
+  // leur lien à partir de `matter_id` — les tâches du tableau de bord, les
+  // demandes de signature — parce que c'est ce que porte leur table. Ces
+  // liens menaient tous à « page introuvable ».
   const bare = decoded.replace("#", "")
-  const { data, error } = await (await db())
+  const base = (await db())
     .from("matters")
     .select("*, clients(legacy_id)")
     .eq("firm_id", await currentFirmId())
-    .in("reference", [decoded, `#${bare}`, bare])
-    .limit(1)
+  const { data, error } = await (estIdentifiantTechnique(bare)
+    ? base.eq("id", bare)
+    : base.in("reference", [decoded, `#${bare}`, bare])
+  ).limit(1)
 
   if (error) fail("matterById", error.message)
   return data && data.length ? toMatter(data[0]) : undefined

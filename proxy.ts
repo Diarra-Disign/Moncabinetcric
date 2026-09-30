@@ -2,6 +2,7 @@ import createMiddleware from 'next-intl/middleware'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { routing } from './lib/i18n/routing'
+import { destinationApresConnexion } from './lib/securite/redirection-connexion'
 
 const handleI18n = createMiddleware(routing)
 
@@ -127,8 +128,14 @@ export default async function proxy(request: NextRequest) {
     const locale = localeOf(pathname)
     const redirect = request.nextUrl.clone()
     redirect.pathname = `/${locale}/${LOGIN_PATH}`
-    // Mémorise la destination pour y revenir après connexion.
-    redirect.searchParams.set('suivant', pathname)
+    // Mémorise la destination pour y revenir après connexion — chemin ET
+    // paramètres. Le clone portait encore ceux de la page demandée : ils
+    // restaient collés à l'adresse de connexion, et `suivant` les perdait.
+    // `/fr/matters?client=…` revenait alors en `/fr/matters`, c'est-à-dire
+    // sans le filtre qui faisait tout l'intérêt du lien.
+    const destination = destinationApresConnexion(pathname, request.nextUrl.search)
+    redirect.search = ''
+    redirect.searchParams.set('suivant', destination)
     return NextResponse.redirect(redirect)
   }
 

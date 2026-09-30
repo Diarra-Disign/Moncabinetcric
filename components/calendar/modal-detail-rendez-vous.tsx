@@ -23,6 +23,7 @@ import { updateCalendarEvent, deleteCalendarEvent, rescheduleCalendarEvent } fro
 import { PromoteFromEvent } from "@/components/calendar/promote-from-event"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { useRouter } from "next/navigation"
+import { referenceNue } from "@/lib/data/dossier-navigation"
 
 export interface ModalDetailRendezVousProps {
   ouvert: boolean
@@ -185,7 +186,10 @@ function ModalDetailContent({
 
   const handleCreerCompteRendu = () => {
     if (matterAssocie) {
-      router.push(`/fr/matters/${matterAssocie.id}?tab=rencontres`)
+      // Le dièse de « #DOS-1 » ouvrait une ancre : le navigateur restait sur
+      // la liste des dossiers, qui en sélectionne un d'office — donc celui
+      // d'un autre client.
+      router.push(`/fr/matters/${referenceNue(matterAssocie.id)}?tab=rencontres`)
       onFermer()
     } else if (clientAssocie) {
       router.push(`/fr/clients`)
