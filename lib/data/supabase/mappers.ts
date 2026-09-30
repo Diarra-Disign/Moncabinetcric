@@ -133,7 +133,11 @@ export function toInvoice(r: Row): InvoiceRecord {
     status: r.status as InvoiceRecord["status"],
     isTrustAccount: bool(r.is_trust_account),
     matterId: optStr((r.matters as Row | null)?.reference),
-    clientId: optStr((r.clients as Row | null)?.legacy_id),
+    // Repli sur `client_id`, comme `toMatter` : sans lui, une facture
+    // rattachée à un client sans identifiant hérité — la quasi-totalité —
+    // arrivait SANS client dans l'application, et tout rapprochement par
+    // client échouait en silence.
+    clientId: optStr((r.clients as Row | null)?.legacy_id || r.client_id),
     taxExempt: bool(r.tax_exempt),
   }
 }
@@ -151,7 +155,10 @@ export function toDocument(r: Row): DocumentRecord {
     source: str(r.source),
     status: r.status as DocumentRecord["status"],
     matterId: optStr((r.matters as Row | null)?.reference),
-    clientId: optStr((r.clients as Row | null)?.legacy_id),
+    // Même repli que pour les factures : onze documents sur douze arrivaient
+    // sans client, et le remplacement d'un fichier transmettait un client
+    // vide au rangement.
+    clientId: optStr((r.clients as Row | null)?.legacy_id || r.client_id),
     clientName: optStr(r.client_name),
     fileSize: optStr(r.file_size),
     sha256: optStr(r.sha256),

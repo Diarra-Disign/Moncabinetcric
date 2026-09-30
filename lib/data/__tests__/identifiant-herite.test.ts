@@ -1,6 +1,6 @@
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
-import { estIdentifiantTechnique, expressionIdentifiantClient } from "../supabase/identifiant-client"
+import { estIdentifiantTechnique, expressionIdentifiantHerite } from "../supabase/identifiant-herite"
 
 /**
  * Reconnaître un client par l'identifiant que l'application expose.
@@ -28,10 +28,10 @@ describe("estIdentifiantTechnique", () => {
   })
 })
 
-describe("expressionIdentifiantClient", () => {
+describe("expressionIdentifiantHerite", () => {
   test("un uuid interroge les deux colonnes", () => {
     assert.equal(
-      expressionIdentifiantClient("03777116-081f-404d-9456-edc5956b2e72"),
+      expressionIdentifiantHerite("03777116-081f-404d-9456-edc5956b2e72"),
       "legacy_id.eq.03777116-081f-404d-9456-edc5956b2e72,id.eq.03777116-081f-404d-9456-edc5956b2e72"
     )
   })
@@ -39,11 +39,11 @@ describe("expressionIdentifiantClient", () => {
   test("un identifiant hérité n'interroge PAS la colonne uuid", () => {
     // La base rejetterait la requête entière : « invalid input syntax for
     // type uuid ». L'appelant se rabat alors sur une égalité simple.
-    assert.equal(expressionIdentifiantClient("c-1786926682284"), null)
+    assert.equal(expressionIdentifiantHerite("c-1786926682284"), null)
   })
 
   test("une valeur qui pourrait déformer le filtre ne produit aucune expression", () => {
-    assert.equal(expressionIdentifiantClient("c-1,id.eq.autre"), null)
-    assert.equal(expressionIdentifiantClient("(legacy_id.eq.x)"), null)
+    assert.equal(expressionIdentifiantHerite("c-1,id.eq.autre"), null)
+    assert.equal(expressionIdentifiantHerite("(legacy_id.eq.x)"), null)
   })
 })

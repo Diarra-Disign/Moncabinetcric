@@ -1,6 +1,7 @@
 import "server-only"
 
 import { db, currentFirmId } from "./context"
+import { estIdentifiantTechnique, expressionIdentifiantHerite } from "./identifiant-herite"
 import type {
   Matter,
   Lead,
@@ -25,24 +26,21 @@ function fail(entity: string, message: string): never {
   throw new Error(`Écriture Supabase « ${entity} » en échec : ${message}`)
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 /**
  * Filtre de recherche par identifiant, tolérant aux deux formes d'id.
  *
- * Les enregistrements portent deux identités : la clé primaire `uuid` de
- * Postgres, et le `legacy_id` lisible hérité du modèle mock (« lead-1 »,
- * « doc-1785726863868 »). Les mappers exposent le `legacy_id` en priorité,
- * donc l'interface renvoie presque toujours cette forme-là.
+ * La règle vit dans `identifiant-herite.ts`, avec ses tests : elle était
+ * écrite ici pour les écritures et une seconde fois pour les lectures, et
+ * c'est précisément la divergence entre les deux copies qui a produit le
+ * bug du clic sur un client.
  *
- * Interroger les deux colonnes d'un seul `or` semble naturel, mais Postgres
- * doit convertir le littéral en uuid pour évaluer `id = '...'` — et cette
- * conversion échoue avant que le OR ne puisse court-circuiter. L'écriture
- * entière est alors rejetée alors que la ligne existe bel et bien sous son
- * legacy_id. On n'interroge donc `id` que si la valeur en a la forme.
+ * `byId` renvoie toujours une expression `or` : les appelants d'ici
+ * l'attendent ainsi. Pour un identifiant hérité, l'expression ne porte que
+ * la colonne héritée — interroger `id` ferait échouer la requête entière sur
+ * la conversion en uuid.
  */
 function byId(id: string): string {
-  return UUID.test(id) ? `id.eq.${id},legacy_id.eq.${id}` : `legacy_id.eq.${id}`
+  return expressionIdentifiantHerite(id) ?? `legacy_id.eq.${id}`
 }
 
 /**
@@ -872,7 +870,7 @@ export async function completeDeadline(id: string, _completedBy?: string): Promi
   const supabase = await db()
   const firmId = await currentFirmId()
 
-  if (UUID.test(id)) {
+  if (estIdentifiantTechnique(id)) {
     const { error } = await supabase
       .from("matter_deadlines")
       .update({
@@ -894,7 +892,7 @@ export async function dismissDeadline(id: string, reason: string): Promise<boole
   const supabase = await db()
   const firmId = await currentFirmId()
 
-  if (UUID.test(id)) {
+  if (estIdentifiantTechnique(id)) {
     const { error } = await supabase
       .from("matter_deadlines")
       .update({

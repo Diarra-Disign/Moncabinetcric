@@ -1,7 +1,7 @@
 import "server-only"
 
 import { getSessionSupabase } from "@/lib/supabase/session"
-import { estIdentifiantTechnique } from "./supabase/identifiant-client"
+import { estIdentifiantTechnique } from "./supabase/identifiant-herite"
 import type { TaskRecord, TaskPriority, TaskStatus } from "./types"
 
 /**

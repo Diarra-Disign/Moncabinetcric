@@ -1,7 +1,7 @@
 import "server-only"
 
 import { db, currentFirmId } from "./context"
-import { estIdentifiantTechnique, expressionIdentifiantClient } from "./identifiant-client"
+import { estIdentifiantTechnique, expressionIdentifiantHerite } from "./identifiant-herite"
 import type {
   Matter,
   Lead,
@@ -80,7 +80,7 @@ export async function getMatterById(id: string): Promise<Matter | undefined> {
 export async function getMattersByClientId(clientId: string): Promise<Matter[]> {
   // Même correction que `getClientById` : un client sans identifiant hérité
   // n'avait officiellement aucun dossier.
-  const expression = expressionIdentifiantClient(clientId)
+  const expression = expressionIdentifiantHerite(clientId)
   const base = (await db())
     .from("matters")
     .select("*, clients!inner(legacy_id, id)")
@@ -109,8 +109,8 @@ export async function getClients(): Promise<ClientRecord[]> {
 export async function getClientById(id: string): Promise<ClientRecord | undefined> {
   // `toClient()` expose `legacy_id || id` : chercher sur la seule colonne
   // héritée rendait introuvables tous les clients créés dans l'application.
-  // Voir `identifiant-client.ts`.
-  const expression = expressionIdentifiantClient(id)
+  // Voir `identifiant-herite.ts`.
+  const expression = expressionIdentifiantHerite(id)
   const base = (await db())
     .from("clients")
     .select("*")
@@ -147,11 +147,14 @@ export async function getLeads(): Promise<Lead[]> {
 }
 
 export async function getLeadById(id: string): Promise<Lead | undefined> {
-  const { data, error } = await (await db())
+  // `toLead()` expose `legacy_id || id`, comme les clients : un prospect créé
+  // par un chemin qui ne pose pas d'identifiant hérité serait introuvable.
+  const expression = expressionIdentifiantHerite(id)
+  const base = (await db())
     .from("leads")
     .select("*")
     .eq("firm_id", await currentFirmId())
-    .eq("legacy_id", id)
+  const { data, error } = await (expression ? base.or(expression) : base.eq("legacy_id", id))
     .limit(1)
 
   if (error) fail("leadById", error.message)
@@ -218,7 +221,7 @@ export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRe
 }
 
 export async function getInvoicesByClientId(clientId: string): Promise<InvoiceRecord[]> {
-  const expression = expressionIdentifiantClient(clientId)
+  const expression = expressionIdentifiantHerite(clientId)
   const base = (await db())
     .from("invoices")
     .select("*, matters(reference), clients!inner(legacy_id, id)")
@@ -341,7 +344,7 @@ export async function getClientQuestionnairesByMatterId(matterId: string): Promi
 }
 
 export async function getClientQuestionnairesByClientId(clientId: string): Promise<ClientQuestionnaire[]> {
-  const expression = expressionIdentifiantClient(clientId)
+  const expression = expressionIdentifiantHerite(clientId)
   const base = (await db())
     .from("client_questionnaires")
     .select("*, matters(reference), clients!inner(legacy_id, id, name, email), leads(legacy_id, name, email)")
