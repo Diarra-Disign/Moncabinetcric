@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { Link, useRouter } from "@/i18n/routing"
 import { Matter } from "@/lib/data/types"
+import { dossiersDuClient } from "@/lib/data/dossier-navigation"
 import { PageHeader } from "@/components/app-shell/page-header"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { createMatter } from "@/lib/data/actions"
@@ -56,6 +57,12 @@ interface MattersClientProps {
     widgets: Record<string, string>
   }
   initialMatters: Matter[]
+  /**
+   * Client sur lequel la liste est restreinte, quand on arrive depuis sa
+   * fiche (`/matters?client=…`). Il vient de l'URL, donc il survit à une
+   * actualisation et à un accès direct.
+   */
+  clientFiltre?: { id: string; nom: string } | null
 }
 
 
@@ -76,16 +83,33 @@ function StatutPastille({ statut }: { statut: string }) {
   )
 }
 
-export function MattersClient({ t, initialMatters }: MattersClientProps) {
+export function MattersClient({ t, initialMatters, clientFiltre = null }: MattersClientProps) {
   const router = useRouter()
   const [matters, setMatters] = React.useState<Matter[]>(initialMatters)
+  /**
+   * LES DOSSIERS QUE CETTE PAGE A LE DROIT DE MONTRER.
+   *
+   * Arrivé depuis un client, on ne montre QUE ses dossiers. Sans ce garde-fou,
+   * la page affichait la liste entière et sélectionnait son premier dossier :
+   * le consultant venait de cliquer sur un client et lisait le dossier d'un
+   * autre.
+   */
+  const dossiersVisibles = React.useMemo(
+    () => (clientFiltre ? dossiersDuClient(clientFiltre.id, matters) : matters),
+    [matters, clientFiltre]
+  )
   const [activeTab, setActiveTab] = React.useState<"all" | "pr" | "work" | "study" | "tr">("all")
   const [filterStatus, setFilterStatus] = React.useState<"all" | "valid" | "alert" | "review">("all")
   const [searchQuery, setSearchQuery] = React.useState("")
   // La liste peut être vide — un cabinet neuf n'a aucun dossier. L'annoter
   // « Matter » mentait au compilateur et laissait passer un accès à
   // undefined jusqu'à l'exécution.
-  const [selectedMatter, setSelectedMatter] = React.useState<Matter | undefined>(matters[0])
+  // La sélection de départ est prise dans les dossiers VISIBLES : filtrée sur
+  // un client, elle ne peut donc plus tomber sur le dossier de quelqu'un
+  // d'autre. Sans filtre, c'est le premier de la liste, comme auparavant.
+  const [selectedMatter, setSelectedMatter] = React.useState<Matter | undefined>(
+    clientFiltre ? dossiersDuClient(clientFiltre.id, initialMatters)[0] : initialMatters[0]
+  )
   const [drawerMatter, setDrawerMatter] = React.useState<Matter | null>(null)
 
   // NEW MATTER MODAL
@@ -109,7 +133,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
 
   // FILTERED MATTERS
   const filteredMatters = React.useMemo(() => {
-    return matters.filter(m => {
+    return dossiersVisibles.filter(m => {
       const matchTab = activeTab === "all" || m.category === activeTab
       const matchStatus = filterStatus === "all" || m.status === filterStatus
       const matchSearch = m.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -117,7 +141,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
                           m.program.toLowerCase().includes(searchQuery.toLowerCase())
       return matchTab && matchStatus && matchSearch
     })
-  }, [matters, activeTab, filterStatus, searchQuery])
+  }, [dossiersVisibles, activeTab, filterStatus, searchQuery])
 
   return (
     <div className="flex flex-col gap-8 pb-20 selection:bg-primary selection:text-primary-foreground">
@@ -148,6 +172,35 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
 
 
 
+      {/* BANDEAU DU CLIENT FILTRÉ — il dit de qui sont les dossiers affichés,
+          et permet de revenir à la liste complète. Sans lui, une liste
+          restreinte ressemblerait à un cabinet qui a perdu ses dossiers. */}
+      {clientFiltre && (
+        <div className="bg-card rounded-3xl border border-primary/30 px-5 py-4 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary-strong">
+              <User className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-foreground truncate">
+                Dossiers de {clientFiltre.nom}
+              </p>
+              <p className="text-xs font-medium text-muted-foreground">
+                {dossiersVisibles.length === 0
+                  ? "Aucun dossier n'est encore rattaché à ce client."
+                  : `${dossiersVisibles.length} dossier${dossiersVisibles.length > 1 ? "s" : ""} rattaché${dossiersVisibles.length > 1 ? "s" : ""} à ce client.`}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/matters"
+            className="text-xs font-bold text-primary-strong hover:text-foreground transition-colors whitespace-nowrap"
+          >
+            Voir tous les dossiers du cabinet
+          </Link>
+        </div>
+      )}
+
       {/* 2. BARRE DE FILTRES ET RECHERCHE HAUTE DÉFINITION */}
       <div className="bg-card rounded-3xl p-5 border border-border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         
@@ -159,7 +212,7 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
               activeTab === "all" ? "bg-primary text-primary-foreground shadow-xs font-black" : "text-muted-foreground hover:text-foreground hover:bg-muted"
             }`}
           >
-            Tous ({matters.length})
+            Tous ({dossiersVisibles.length})
           </button>
           <button
             onClick={() => setActiveTab("pr")}
@@ -310,8 +363,16 @@ export function MattersClient({ t, initialMatters }: MattersClientProps) {
           {!selectedMatter ? (
             <div className="bg-card rounded-3xl border border-dashed border-border p-10 text-center shadow-xs sticky top-6">
               <FolderOpen className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm font-black text-foreground">Aucun dossier sélectionné</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">Créez un premier dossier pour voir sa fiche s&apos;afficher ici.</p>
+              <p className="text-sm font-black text-foreground">
+                {clientFiltre && dossiersVisibles.length === 0
+                  ? "Ce client n'a pas encore de dossier"
+                  : "Aucun dossier sélectionné"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+                {clientFiltre && dossiersVisibles.length === 0
+                  ? "Ouvrez-en un depuis sa fiche, dans la section Clients."
+                  : "Créez un premier dossier pour voir sa fiche s'afficher ici."}
+              </p>
             </div>
           ) : (
           /**

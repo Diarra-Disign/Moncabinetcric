@@ -1,10 +1,28 @@
 import { getTranslations } from "next-intl/server"
 import { MattersClient } from "./matters-client"
-import { getMatters } from "@/lib/data"
+import { getMatters, getClientById } from "@/lib/data"
 
-export default async function MattersPage() {
+/**
+ * `?client=<identifiant>` restreint la liste aux dossiers d'un client.
+ *
+ * Le paramètre est lu ICI, côté serveur : la restriction vaut donc aussi au
+ * premier affichage, après une actualisation et sur un lien collé dans la
+ * barre d'adresse — pas seulement après une navigation interne.
+ *
+ * Un identifiant inconnu ne filtre rien plutôt que de vider l'écran sans
+ * explication : c'est la liste complète qui s'affiche.
+ */
+export default async function MattersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ client?: string }>
+}) {
   const tMatters = await getTranslations("Matters")
-  const initialMatters = await getMatters()
+  const { client: clientDemande } = await searchParams
+  const [initialMatters, clientCible] = await Promise.all([
+    getMatters(),
+    clientDemande ? getClientById(clientDemande) : Promise.resolve(undefined),
+  ])
 
   const translations = {
     title: tMatters("title"),
@@ -58,6 +76,12 @@ export default async function MattersPage() {
     },
   }
 
-  return <MattersClient t={translations} initialMatters={initialMatters} />
+  return (
+    <MattersClient
+      t={translations}
+      initialMatters={initialMatters}
+      clientFiltre={clientCible ? { id: clientCible.id, nom: clientCible.name } : null}
+    />
+  )
 }
 

@@ -25,6 +25,7 @@ import {
 import { useRouter } from "@/i18n/routing"
 import { useFirm } from "@/components/app-shell/firm-provider"
 import { ClientRecord, Matter } from "@/lib/data/types"
+import { cheminDestination, destinationPourClient, referenceNue } from "@/lib/data/dossier-navigation"
 import { matchesPerson } from "@/lib/utils/search"
 import { ouvrirAccesPortail } from "@/lib/data/portal-access"
 import { creerDossierPourClient } from "@/lib/data/matter-creation"
@@ -129,11 +130,22 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
    */
 
 
-  // Ce tableau associait en dur c-1 à c-4 aux dossiers de démonstration, et
-  // renvoyait DOS-35695 pour tout le reste. Sur des clients réels, il
-  // conduisait donc systématiquement vers un dossier inexistant.
-  const getMatterIdForClient = (clientId: string) =>
-    matters.find((m) => m.clientId === clientId)?.id.replace("#", "") ?? null
+  /**
+   * OÙ MÈNE LE CLIC SUR UNE LIGNE.
+   *
+   * Ce tableau associait d'abord en dur c-1 à c-4 aux dossiers de
+   * démonstration. Il a ensuite cherché le premier dossier du client, et
+   * poussé vers `/matters` quand il n'en trouvait aucun — or cette liste
+   * ouvre d'office son premier dossier : on croyait ouvrir le dossier de son
+   * client et on lisait celui d'un autre.
+   *
+   * La règle vit désormais dans `lib/data/dossier-navigation.ts`, où elle est
+   * éprouvée : l'identifiant du client voyage toujours jusqu'à la
+   * destination.
+   */
+  const ouvrirDossierDuClient = (clientId: string) => {
+    router.push(cheminDestination(destinationPourClient(clientId, matters)))
+  }
 
   const filteredClients = clients.filter(c => {
     let matchesStatus = true
@@ -486,12 +498,7 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
               {filteredClients.map((client) => (
                 <tr 
                   key={client.id} 
-                  onClick={() => {
-                    const ref = getMatterIdForClient(client.id)
-                    // Sans dossier rattaché, on ouvre la liste plutôt qu'une
-                    // fiche qui n'existe pas.
-                    router.push(ref ? `/matters/${ref}` : "/matters")
-                  }}
+                  onClick={() => ouvrirDossierDuClient(client.id)}
                   className="group hover:bg-muted transition-colors cursor-pointer"
                 >
                   {/* Numéro de dossier */}
@@ -931,7 +938,10 @@ export function ClientsClient({ t, initialClients, initialMatters = [] }: Client
           onCree={(reference) => {
             setDossierPour(null)
             setActionNotice(`Dossier ${reference} ouvert pour ${dossierPour.name}.`)
-            router.push(`/matters/${reference}`)
+            // Même forme d'adresse que partout ailleurs : la référence sans
+            // dièse, sans quoi « #DOS-1 » produirait une ancre et non un
+            // segment d'URL.
+            router.push(`/matters/${referenceNue(reference)}`)
           }}
         />
       )}

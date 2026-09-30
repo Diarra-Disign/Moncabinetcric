@@ -1,6 +1,7 @@
 import "server-only"
 
 import { db, currentFirmId } from "./context"
+import { expressionIdentifiantClient } from "./identifiant-client"
 import type {
   Matter,
   Lead,
@@ -70,11 +71,16 @@ export async function getMatterById(id: string): Promise<Matter | undefined> {
 }
 
 export async function getMattersByClientId(clientId: string): Promise<Matter[]> {
-  const { data, error } = await (await db())
+  // Même correction que `getClientById` : un client sans identifiant hérité
+  // n'avait officiellement aucun dossier.
+  const expression = expressionIdentifiantClient(clientId)
+  const base = (await db())
     .from("matters")
-    .select("*, clients!inner(legacy_id)")
+    .select("*, clients!inner(legacy_id, id)")
     .eq("firm_id", await currentFirmId())
-    .eq("clients.legacy_id", clientId)
+  const { data, error } = await (expression
+    ? base.or(expression, { referencedTable: "clients" })
+    : base.eq("clients.legacy_id", clientId))
 
   if (error) fail("mattersByClientId", error.message)
   return (data ?? []).map(toMatter)
@@ -94,12 +100,15 @@ export async function getClients(): Promise<ClientRecord[]> {
 }
 
 export async function getClientById(id: string): Promise<ClientRecord | undefined> {
-  const { data, error } = await (await db())
+  // `toClient()` expose `legacy_id || id` : chercher sur la seule colonne
+  // héritée rendait introuvables tous les clients créés dans l'application.
+  // Voir `identifiant-client.ts`.
+  const expression = expressionIdentifiantClient(id)
+  const base = (await db())
     .from("clients")
     .select("*")
     .eq("firm_id", await currentFirmId())
-    .eq("legacy_id", id)
-    .limit(1)
+  const { data, error } = await (expression ? base.or(expression) : base.eq("legacy_id", id)).limit(1)
 
   if (error) fail("clientById", error.message)
   return data && data.length ? toClient(data[0]) : undefined
@@ -202,11 +211,14 @@ export async function getInvoicesByMatterId(matterId: string): Promise<InvoiceRe
 }
 
 export async function getInvoicesByClientId(clientId: string): Promise<InvoiceRecord[]> {
-  const { data, error } = await (await db())
+  const expression = expressionIdentifiantClient(clientId)
+  const base = (await db())
     .from("invoices")
-    .select("*, matters(reference), clients!inner(legacy_id)")
+    .select("*, matters(reference), clients!inner(legacy_id, id)")
     .eq("firm_id", await currentFirmId())
-    .eq("clients.legacy_id", clientId)
+  const { data, error } = await (expression
+    ? base.or(expression, { referencedTable: "clients" })
+    : base.eq("clients.legacy_id", clientId))
 
   if (error) fail("invoicesByClientId", error.message)
   return (data ?? []).map(toInvoice)
@@ -322,11 +334,14 @@ export async function getClientQuestionnairesByMatterId(matterId: string): Promi
 }
 
 export async function getClientQuestionnairesByClientId(clientId: string): Promise<ClientQuestionnaire[]> {
-  const { data, error } = await (await db())
+  const expression = expressionIdentifiantClient(clientId)
+  const base = (await db())
     .from("client_questionnaires")
-    .select("*, matters(reference), clients!inner(legacy_id, name, email), leads(legacy_id, name, email)")
+    .select("*, matters(reference), clients!inner(legacy_id, id, name, email), leads(legacy_id, name, email)")
     .eq("firm_id", await currentFirmId())
-    .eq("clients.legacy_id", clientId)
+  const { data, error } = await (expression
+    ? base.or(expression, { referencedTable: "clients" })
+    : base.eq("clients.legacy_id", clientId))
 
   if (error) fail("clientQuestionnairesByClientId", error.message)
   return (data ?? []).map(toQuestionnaire)
