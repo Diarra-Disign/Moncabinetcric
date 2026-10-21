@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@supabase/supabase-js"
 import { abonnementActifStripe, changerForfait, clientStripe, sessionPaiement, sessionPortail, stripeConfigure } from "@/lib/billing/stripe"
 import { calculerLignesPlaces } from "@/lib/billing/seat-sync"
-import { type Cadence } from "@/lib/billing/plans"
+import { peutReglerAbonnementFerme, type Cadence } from "@/lib/billing/plans"
 import { getPlan } from "@/lib/billing/catalogue"
 import { exigerPermission } from "@/lib/auth/permissions"
+import { getCurrentMember, getSessionSupabase } from "@/lib/supabase/session"
 import { siteUrl } from "@/lib/site-url"
 import { messageErreur } from "@/lib/data/erreurs"
 
@@ -59,10 +60,39 @@ function baseUrl(): string {
 }
 
 async function exigerProprietaire() {
-  // Le nom reste, la règle change : ce n'est plus le rôle « owner » qui
-  // ouvre, mais une permission nommée. Un cabinet peut donc la déléguer
-  // sans distribuer le reste des droits du propriétaire.
-  return exigerPermission("firm.billing")
+  // Accès ouvert : la permission nommée, telle que la base l'évalue.
+  //
+  // Accès FERMÉ : member_can() ne reconnaît plus le propriétaire, puisqu'il
+  // exige firm_access_open(). L'écran de paiement greffé sur l'écran de refus
+  // — essai échu, impayé, nouveau client à qui l'on a proposé un forfait —
+  // aboutissait donc à « Il vous manque la permission firm.billing ». C'est
+  // justement le moment où il faut pouvoir payer.
+  const membre = await getCurrentMember()
+  if (!membre) throw new Error("Session absente. Reconnectez-vous.")
+
+  const { data: ouvert } = await (await getSessionSupabase()).rpc("firm_access_open", {
+    f_id: membre.firmId,
+  })
+  if (ouvert) return exigerPermission("firm.billing")
+
+  // Le cabinet vient de la session, jamais du formulaire ; son statut est lu
+  // à la clé de service, comme le reste de cette action.
+  const { data: cabinet } = await serviceClient()
+    .from("firms")
+    .select("status")
+    .eq("id", membre.firmId)
+    .maybeSingle()
+
+  if (
+    !peutReglerAbonnementFerme({
+      role: membre.ciccRole,
+      statutMembre: membre.statut,
+      statutCabinet: String(cabinet?.status ?? ""),
+    })
+  ) {
+    throw new Error("Seul le propriétaire du cabinet peut régler l'abonnement.")
+  }
+  return membre
 }
 
 /**

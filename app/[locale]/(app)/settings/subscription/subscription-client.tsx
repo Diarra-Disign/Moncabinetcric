@@ -108,6 +108,12 @@ export function SubscriptionClient({
     abonnement.existe &&
     ["active", "trialing", "past_due", "unpaid", "paused"].includes(abonnement.statut)
 
+  // Le forfait proposé par l'exploitant, en attente du premier paiement. Il
+  // est mis en avant, pas imposé : le prix reste celui du catalogue, vérifié
+  // par le serveur, quelle que soit la carte choisie.
+  const forfaitPropose =
+    abonnement.existe && abonnement.statut === "incomplete" ? abonnement.plan : ""
+
   // Une action qui renvoie une adresse Stripe ne rend pas la main : la page
   // suivante est hébergée chez eux. La redirection est faite ici plutôt que
   // par redirect() côté serveur, afin que l'échec s'affiche sur cet écran
@@ -309,6 +315,7 @@ export function SubscriptionClient({
                   abonnement.cadence === cadence
                 }
                 dejaAbonne={aUnAbonnementValide}
+                propose={forfaitPropose === p.key}
                 enCours={enCours}
                 desactive={!paiementConfigure}
                 prix={prix}
@@ -360,6 +367,7 @@ function CartePlan({
   cadence,
   actuel,
   dejaAbonne,
+  propose,
   enCours,
   desactive,
   prix,
@@ -372,6 +380,8 @@ function CartePlan({
   actuel: boolean
   /** Le cabinet a un abonnement : le bouton propose un changement, pas un achat. */
   dejaAbonne: boolean
+  /** Forfait proposé par l'exploitant, en attente du premier paiement. */
+  propose: boolean
   enCours: boolean
   desactive: boolean
   prix: (cents: number) => string
@@ -391,7 +401,7 @@ function CartePlan({
       action={onSoumettre}
       className={cn(
         "flex flex-col rounded-2xl border bg-card p-5",
-        actuel ? "border-primary" : "border-border"
+        actuel || propose ? "border-primary" : "border-border"
       )}
     >
       <input type="hidden" name="plan" value={plan.key} />
@@ -411,9 +421,9 @@ function CartePlan({
             <p className="mt-0.5 text-xs text-muted-foreground">{accroche(plan, locale)}</p>
           </div>
         </div>
-        {actuel && (
+        {(actuel || propose) && (
           <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-strong">
-            {t("currentBadge")}
+            {actuel ? t("currentBadge") : t("offeredBadge")}
           </span>
         )}
       </div>

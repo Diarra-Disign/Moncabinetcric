@@ -52,7 +52,13 @@ export interface AdminSubscriptionRow {
   paymentMethod: string
   paymentLast4: string
   stripeCustomerId: string
+  /** Vide tant que rien n'a été souscrit chez Stripe : la ligne n'est alors qu'une offre. */
+  stripeSubscriptionId: string
 }
+
+/** Une seule liste, pour que la page et les totaux lisent les mêmes colonnes. */
+const COLONNES_ABONNEMENT =
+  "firm_id, plan, cadence, status, seats, current_period_end, cancel_at_period_end, grace_until, payment_method, payment_last4, stripe_customer_id, stripe_subscription_id"
 
 export interface AdminMemberRow {
   id: string
@@ -141,7 +147,7 @@ export async function getAdminFirms(options: {
     supabase
       .from("firm_subscriptions")
       .select(
-        "firm_id, plan, cadence, status, seats, current_period_end, cancel_at_period_end, grace_until, payment_method, payment_last4, stripe_customer_id"
+        COLONNES_ABONNEMENT
       )
       .in("firm_id", ids),
     supabase.rpc("firms_access_state"),
@@ -180,7 +186,7 @@ export async function getTousLesAbonnements(): Promise<AdminFirmFinance[]> {
     supabase
       .from("firm_subscriptions")
       .select(
-        "firm_id, plan, cadence, status, seats, current_period_end, cancel_at_period_end, grace_until, payment_method, payment_last4, stripe_customer_id"
+        COLONNES_ABONNEMENT
       ),
   ])
 
@@ -229,6 +235,7 @@ function indexerAbonnements(lignes: Record<string, unknown>[]) {
       paymentMethod: (s.payment_method as string) ?? "",
       paymentLast4: (s.payment_last4 as string) ?? "",
       stripeCustomerId: (s.stripe_customer_id as string) ?? "",
+      stripeSubscriptionId: (s.stripe_subscription_id as string) ?? "",
     })
   }
   return parCabinet
