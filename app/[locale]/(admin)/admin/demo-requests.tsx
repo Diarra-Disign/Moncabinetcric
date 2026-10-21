@@ -4,6 +4,7 @@ import * as React from "react"
 import { Inbox, Mail, Phone, Building2, X, Check, AlertTriangle } from "lucide-react"
 import { ecarterDemande, type ResultatAction } from "@/lib/data/admin-actions"
 import type { DemoRequestRow } from "@/lib/data/admin"
+import type { Plan } from "@/lib/billing/plans"
 import { CreerCabinet, LienARecopier } from "./firm-actions"
 import { cn } from "@/lib/utils"
 
@@ -20,10 +21,14 @@ export function DemoRequests({
   requests,
   labels,
   firmLabels,
+  forfaits,
+  langue,
 }: {
   requests: DemoRequestRow[]
   labels: Record<string, string>
   firmLabels: Record<string, string>
+  forfaits: Plan[]
+  langue: string
 }) {
   const [ouverte, setOuverte] = React.useState<string | null>(null)
   const [resultat, setResultat] = React.useState<ResultatAction | null>(null)
@@ -39,7 +44,9 @@ export function DemoRequests({
         <Check aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
         {ouverture.message}
       </p>
-      {ouverture.lien && <LienARecopier lien={ouverture.lien} labels={firmLabels} />}
+      {ouverture.lien && (
+        <LienARecopier lien={ouverture.lien} envoye={ouverture.envoye} labels={firmLabels} />
+      )}
       <button
         type="button"
         onClick={() => setOuverture(null)}
@@ -146,12 +153,28 @@ export function DemoRequests({
 
           {ouverte === d.id && (
             <div className="mt-4">
+              {/* Le refus s'affiche ici, formulaire ouvert : le message placé
+                  plus haut n'apparaît qu'une fois la carte refermée, et un
+                  permis mal saisi passait sans rien dire. */}
+              {resultat && !resultat.ok && (
+                <p
+                  role="alert"
+                  className="mb-3 flex items-start gap-2 rounded-lg bg-error/10 px-3 py-2 text-xs font-bold text-error"
+                >
+                  <AlertTriangle aria-hidden className="mt-px h-3.5 w-3.5 shrink-0" />
+                  {resultat.message}
+                </p>
+              )}
               <CreerCabinet
                 labels={firmLabels}
+                forfaits={forfaits}
+                langue={langue}
                 onDone={() => setOuverte(null)}
                 onResultat={(r) => {
-                  if (r.ok) setOuverture(r)
-                  else setResultat(r)
+                  if (r.ok) {
+                    setOuverture(r)
+                    setResultat(null)
+                  } else setResultat(r)
                 }}
                 prefill={{
                   demandeId: d.id,

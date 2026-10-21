@@ -118,6 +118,63 @@ export function accroche(p: Plan, locale: string): string {
 }
 
 /**
+ * Plans qu'un exploitant accorde lui-même, sans facturation.
+ *
+ * Les forfaits payants n'y figurent pas : on ne les accorde pas, on les
+ * propose, et c'est le paiement confirmé par Stripe qui ouvre l'accès.
+ * Partagée entre la console et ses actions de serveur, pour que le menu et
+ * le refus ne puissent plus diverger.
+ */
+export const PLANS_ACCORDES = ["trial", "courtoisie"] as const
+
+/**
+ * L'abonnement Stripe est-il encore vivant ?
+ *
+ * Vivant, il appartient au cabinet et au webhook : un changement de forfait
+ * passe par Stripe, avec proratisation, jamais par une offre écrite à côté.
+ * Terminé (`canceled`, `incomplete_expired`), il peut céder la place à une
+ * nouvelle offre.
+ */
+export function abonnementVivant(statut: string): boolean {
+  return ["active", "trialing", "past_due", "unpaid", "paused"].includes(statut)
+}
+
+/**
+ * Le membre peut-il régler l'abonnement d'un cabinet dont l'accès est FERMÉ ?
+ *
+ * member_can('firm.billing') ne reconnaît le propriétaire que si
+ * firm_access_open() est vrai : pour un essai échu, un impayé ou un nouveau
+ * client, l'écran de paiement menait donc à un refus de permission. Cette
+ * règle ne sert que dans ce cas ; accès ouvert, la base reste seule juge.
+ *
+ * La permission étant réservée au propriétaire, elle ne se délègue pas. Un
+ * cabinet suspendu par l'exploitant ne paie pas : le paiement encaisserait
+ * sans rien rouvrir.
+ */
+export function peutReglerAbonnementFerme(opts: {
+  role: string
+  statutMembre: string
+  statutCabinet: string
+}): boolean {
+  return opts.role === "owner" && opts.statutMembre === "active" && opts.statutCabinet === "active"
+}
+
+export type ModeOuverture =
+  /** Accordé par l'exploitant, sans facturation. */
+  | "accorde"
+  /** Proposé par lien d'abonnement ; l'accès s'ouvre au paiement confirmé. */
+  | "lien"
+  /** Au catalogue, mais ni accordable ni vendable en l'état (prix ou souscription manquant). */
+  | "a-configurer"
+
+export function modeOuverture(p: Plan): ModeOuverture {
+  if ((PLANS_ACCORDES as readonly string[]).includes(p.key)) return "accorde"
+  // tarifPublic et non estTarife : un prix nul partirait dans Stripe Checkout.
+  if (p.purchasable && tarifPublic(p) !== null) return "lien"
+  return "a-configurer"
+}
+
+/**
  * Un abonnement dans cet état donne-t-il des droits ?
  *
  * Réplique EXACTE de la condition de `firm_effective_plan()` et de
@@ -206,6 +263,8 @@ export type RaisonAccesFerme =
   | "paiement-en-souffrance"
   /** Abonnement résilié, ou jamais souscrit sur un forfait payant. */
   | "abonnement-termine"
+  /** Forfait proposé par l'exploitant, en attente du premier paiement. */
+  | "souscription-attendue"
   /** Rien ne justifie une fermeture — désaccord avec la base. */
   | "ouvert"
 
@@ -236,7 +295,65 @@ export function raisonAccesFerme(opts: {
   if (opts.statutAbonnement === "past_due" || opts.statutAbonnement === "unpaid") {
     return "paiement-en-souffrance"
   }
+  // Un nouveau client n'a rien « terminé » : lui dire le contraire, le jour de
+  // son arrivée, ferait croire à une erreur de compte.
+  if (opts.statutAbonnement === "incomplete") return "souscription-attendue"
   return "abonnement-termine"
+}
+
+/**
+ * Statut commercial d'un cabinet, tel que la console l'affiche.
+ *
+ * Déduit, jamais stocké : il se lit dans ce que Stripe a écrit (le statut de
+ * l'abonnement) et dans ce que l'exploitant a décidé (suspension, essai,
+ * courtoisie). Une colonne de plus ferait une troisième vérité à tenir
+ * d'accord avec les deux autres.
+ */
+export type EtatCommercial =
+  | "suspendu"
+  | "courtoisie"
+  | "actif"
+  | "resiliation-prevue"
+  | "paiement-echoue"
+  | "essai"
+  | "essai-echu"
+  /** Forfait proposé, aucun paiement entamé chez Stripe. */
+  | "attente-souscription"
+  /** Abonnement créé chez Stripe, premier paiement non confirmé. */
+  | "attente-paiement"
+  | "en-pause"
+  | "annule"
+  | "sans-abonnement"
+
+export function etatCommercial(opts: {
+  statutCabinet: string
+  plan: string
+  finEssai: string
+  statutAbonnement: string
+  /** Un abonnement existe chez Stripe, et non seulement une offre en attente. */
+  abonnementStripe: boolean
+  resiliationDemandee: boolean
+  maintenant?: Date
+}): EtatCommercial {
+  const maintenant = opts.maintenant ?? new Date()
+  const statut = opts.statutAbonnement
+
+  if (opts.statutCabinet !== "active") return "suspendu"
+  if (opts.plan === "courtoisie") return "courtoisie"
+  if (statut === "active" || statut === "trialing") {
+    return opts.resiliationDemandee ? "resiliation-prevue" : "actif"
+  }
+  if (statut === "past_due" || statut === "unpaid") return "paiement-echoue"
+  if (opts.plan === "trial") {
+    const aujourdhui = maintenant.toISOString().slice(0, 10)
+    return !opts.finEssai || opts.finEssai >= aujourdhui ? "essai" : "essai-echu"
+  }
+  if (statut === "incomplete") {
+    return opts.abonnementStripe ? "attente-paiement" : "attente-souscription"
+  }
+  if (statut === "paused") return "en-pause"
+  if (statut === "canceled" || statut === "incomplete_expired") return "annule"
+  return "sans-abonnement"
 }
 
 export function effetOctroi(opts: {

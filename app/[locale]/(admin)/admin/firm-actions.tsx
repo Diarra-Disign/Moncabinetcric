@@ -1,47 +1,74 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Ban, Play, Check, AlertTriangle, Copy, Link2 } from "lucide-react"
-import { creerCabinet, changerPlan, basculerAcces, type ResultatAction } from "@/lib/data/admin-actions"
-import type { EffetOctroi } from "@/lib/billing/plans"
+import { Plus, Ban, Play, Check, AlertTriangle, Copy, Link2, Send } from "lucide-react"
+import {
+  creerCabinet,
+  changerPlan,
+  basculerAcces,
+  envoyerLienAbonnement,
+  type ResultatAction,
+} from "@/lib/data/admin-actions"
+import {
+  PLANS_ACCORDES,
+  formatMontant,
+  libelle,
+  modeOuverture,
+  type Cadence,
+  type EffetOctroi,
+  type Plan,
+} from "@/lib/billing/plans"
 import { cn } from "@/lib/utils"
+import { ChoixForfait } from "./choix-forfait"
 
 /**
- * Ce qu'un exploitant accorde lui-même.
+ * Ce qu'un exploitant ACCORDE lui-même : essai et courtoisie.
  *
- * « solo » et « cabinet » ont été retirés de la liste : ce sont des plans
- * payants, et le seul chemin qui y mène est le paiement, depuis Réglages →
- * Abonnement du cabinet. Les offrir ici faisait diverger la console et
+ * Les forfaits payants ne s'accordent pas, ils se PROPOSENT par lien
+ * d'abonnement : le cabinet est créé fermé et c'est le paiement confirmé par
+ * Stripe qui l'ouvre. Les accorder d'un clic faisait diverger la console et
  * Stripe — un cabinet marqué « cabinet » d'un côté, facturé « solo » de
- * l'autre —, et créait des cabinets dont l'accès se refermait à la première
- * connexion, faute d'abonnement derrière le plan.
- *
- * Pour donner l'accès complet sans facturer, « courtoisie » existe et le dit.
+ * l'autre.
  *
  * Le refus ne repose pas sur cette liste : admin-actions.ts revalide côté
- * serveur. Ceci ne fait que retirer une option qui ne menait nulle part.
+ * serveur, avec la même règle.
  */
-const PLANS = ["trial", "courtoisie"] as const
+const PLANS = PLANS_ACCORDES
 
 const CHAMP =
   "w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
 
 /**
- * Lien d'invitation, quand le courriel n'a pas pu partir.
+ * Lien d'invitation ou d'abonnement, à recopier.
  *
+ * Affiché quand le courriel n'a pas pu partir, et toujours pour un lien
+ * d'abonnement — `envoye` dit alors que ce n'est qu'une copie de secours.
  * Il n'est affiché qu'une fois : la base n'en garde que l'empreinte, et
  * cet écran est le seul endroit où il aura jamais existé en clair. Le
  * bouton de copie évite la sélection à la souris, où l'on perd un
  * caractère sans s'en apercevoir.
  */
-export function LienARecopier({ lien, labels }: { lien: string; labels: Record<string, string> }) {
+export function LienARecopier({
+  lien,
+  envoye = false,
+  labels,
+}: {
+  lien: string
+  envoye?: boolean
+  labels: Record<string, string>
+}) {
   const [copie, setCopie] = React.useState(false)
 
   return (
-    <div className="mt-3 rounded-xl border border-warning/40 bg-warning/10 p-3">
+    <div
+      className={cn(
+        "mt-3 rounded-xl border p-3",
+        envoye ? "border-border bg-muted/40" : "border-warning/40 bg-warning/10"
+      )}
+    >
       <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-foreground">
         <Link2 aria-hidden className="h-3.5 w-3.5" />
-        {labels.linkOnce}
+        {envoye ? labels.linkBackup : labels.linkOnce}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <code className="min-w-0 flex-1 break-all rounded-lg bg-background px-2 py-1.5 font-mono text-[11px] text-foreground">
@@ -87,7 +114,9 @@ function Retour({
         )}
         {resultat.message}
       </p>
-      {resultat.lien && <LienARecopier lien={resultat.lien} labels={labels} />}
+      {resultat.lien && (
+        <LienARecopier lien={resultat.lien} envoye={resultat.envoye} labels={labels} />
+      )}
     </>
   )
 }
@@ -110,11 +139,17 @@ export interface PreRemplissage {
  */
 export function CreerCabinet({
   labels,
+  forfaits,
+  langue,
   prefill,
   onDone,
   onResultat,
 }: {
   labels: Record<string, string>
+  /** Le catalogue en base, tel quel : le choix et son détail en sont tirés. */
+  forfaits: Plan[]
+  /** Langue de l'écran, pour les montants. Le courriel suit celle de la demande. */
+  langue: string
   prefill?: PreRemplissage
   onDone?: () => void
   /**
@@ -131,6 +166,9 @@ export function CreerCabinet({
   const [resultat, setResultat] = React.useState<ResultatAction | null>(null)
   const [enCours, demarrer] = React.useTransition()
   const [plan, setPlan] = React.useState<string>("trial")
+  const [cadence, setCadence] = React.useState<Cadence>("monthly")
+  const choisi = forfaits.find((p) => p.key === plan)
+  const parLien = Boolean(choisi && modeOuverture(choisi) === "lien")
 
   if (!ouvert) {
     return (
@@ -211,21 +249,16 @@ export function CreerCabinet({
             {labels.emailHint}
           </span>
         </label>
-        <label className="text-xs font-bold text-foreground">
-          {labels.plan}
-          <select
-            name="plan"
-            value={plan}
-            onChange={(e) => setPlan(e.target.value)}
-            className={cn(CHAMP, "mt-1 h-10 font-normal")}
-          >
-            {PLANS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </label>
+        <ChoixForfait
+          forfaits={forfaits}
+          plan={plan}
+          onPlan={setPlan}
+          cadence={cadence}
+          onCadence={setCadence}
+          langue={langue}
+          labels={labels}
+          classeChamp={CHAMP}
+        />
         {/* L'échéance n'a de sens que pour un essai : les autres plans
             n'expirent pas d'eux-mêmes. */}
         {plan === "trial" && (
@@ -257,9 +290,83 @@ export function CreerCabinet({
           disabled={enCours}
           className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
-          {enCours ? labels.saving : labels.create}
+          {enCours ? labels.saving : parLien ? labels.createAndSend : labels.create}
         </button>
       </div>
+    </form>
+  )
+}
+
+/**
+ * Proposer un forfait payant à un cabinet déjà ouvert — ou renvoyer le lien.
+ *
+ * Absent quand un abonnement existe chez Stripe : le changement de forfait
+ * appartient alors au cabinet, et l'action de serveur le refuserait.
+ */
+function EnvoyerLien({
+  firmId,
+  forfaits,
+  planActuel,
+  places,
+  langue,
+  labels,
+  onResultat,
+}: {
+  firmId: string
+  forfaits: Plan[]
+  planActuel: string
+  /** Membres actifs : un forfait plus petit est désactivé, le serveur le refuserait. */
+  places: number
+  langue: string
+  labels: Record<string, string>
+  onResultat: (r: ResultatAction) => void
+}) {
+  const payants = forfaits.filter((p) => modeOuverture(p) === "lien")
+  const [enCours, demarrer] = React.useTransition()
+  const tropPetit = (p: Plan) => p.maxSeats !== null && places > p.maxSeats
+  const possibles = payants.filter((p) => !tropPetit(p))
+  if (possibles.length === 0) return null
+
+  const parDefaut = possibles.some((p) => p.key === planActuel) ? planActuel : possibles[0].key
+  const champ =
+    "min-h-8 rounded-lg border border-border bg-background px-2 py-1 text-[11px] font-bold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+
+  return (
+    <form
+      action={(fd) => demarrer(async () => onResultat(await envoyerLienAbonnement(fd)))}
+      className="space-y-1.5 border-t border-border pt-2"
+    >
+      <input type="hidden" name="firmId" value={firmId} />
+      <p className="text-[11px] font-black text-foreground">{labels.sendLinkTitle}</p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <select name="plan" defaultValue={parDefaut} aria-label={labels.plan} className={champ}>
+          {payants.map((p) => (
+            <option key={p.key} value={p.key} disabled={tropPetit(p)}>
+              {libelle(p, langue)} — {formatMontant(p.monthly ?? 0, langue)} {labels.perMonth}
+              {tropPetit(p) ? ` (${labels.tooSmall})` : ""}
+            </option>
+          ))}
+        </select>
+        <select name="cadence" defaultValue="monthly" aria-label={labels.cadence} className={champ}>
+          <option value="monthly">{labels.cadenceMonthly}</option>
+          <option value="annual">{labels.cadenceAnnual}</option>
+        </select>
+        {/* La langue du COURRIEL, celle du client : rien ne la conserve sur
+            un cabinet déjà ouvert, l'exploitant la choisit. */}
+        <select name="langue" defaultValue="fr" aria-label={labels.emailLanguage} className={champ}>
+          <option value="fr">{labels.langFr}</option>
+          <option value="en">{labels.langEn}</option>
+        </select>
+        <button
+          type="submit"
+          disabled={enCours}
+          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-primary/40 px-2 py-1 text-[11px] font-bold text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+        >
+          <Send aria-hidden className="h-3 w-3" />
+          {enCours ? labels.saving : labels.sendLink}
+        </button>
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">{labels.sendLinkHint}</p>
     </form>
   )
 }
@@ -270,6 +377,10 @@ export function ActionsCabinet({
   plan,
   statut,
   effet,
+  forfaits,
+  peutProposer,
+  places,
+  langue,
   labels,
 }: {
   firmId: string
@@ -295,6 +406,16 @@ export function ActionsCabinet({
    * vaut mieux le dire avant le clic qu'après l'appel du consultant.
    */
   effet: EffetOctroi
+  /** Le catalogue en base, pour proposer un forfait payant. */
+  forfaits: Plan[]
+  /**
+   * Un lien d'abonnement peut-il partir ? Faux dès qu'un abonnement existe
+   * chez Stripe, ou que le cabinet est suspendu — calculé côté serveur.
+   */
+  peutProposer: boolean
+  /** Membres actifs du cabinet. */
+  places: number
+  langue: string
   labels: Record<string, string>
 }) {
   const suspendu = statut === "suspended"
@@ -409,6 +530,18 @@ export function ActionsCabinet({
             paiement est le tunnel du cabinet, Réglages → Abonnement, dont
             l'adresse est déjà copiable depuis le bloc financier. */}
       </form>
+
+      {peutProposer && (
+        <EnvoyerLien
+          firmId={firmId}
+          forfaits={forfaits}
+          planActuel={plan}
+          places={places}
+          langue={langue}
+          labels={labels}
+          onResultat={setResultat}
+        />
+      )}
 
       <Retour resultat={resultat} labels={labels} />
     </div>

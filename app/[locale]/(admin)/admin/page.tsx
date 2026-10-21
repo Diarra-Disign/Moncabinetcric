@@ -1,13 +1,14 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { getTranslations } from "next-intl/server"
+import { getLocale, getTranslations } from "next-intl/server"
 import { Building2, Users, AlertTriangle, Terminal, Lock, Ban, CreditCard, Clock } from "lucide-react"
 import {
   getAdminFirms, getDemoRequests, getDemandesAide, getStatistiquesPlateforme, getTousLesAbonnements,
   type AdminMemberRow,
 } from "@/lib/data/admin"
 import { getCatalogue } from "@/lib/billing/catalogue"
-import { effetOctroi } from "@/lib/billing/plans"
+import { abonnementVivant, effetOctroi, etatCommercial } from "@/lib/billing/plans"
+import { EtatAbonnement } from "./etat-abonnement"
 import { getDemandesEnAttente } from "@/lib/data/seat-reads"
 import { SeatRequests } from "./seat-requests"
 import { CreerCabinet, ActionsCabinet } from "./firm-actions"
@@ -68,7 +69,7 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ q?: string; page?: string }>
 }) {
-  const t = await getTranslations("Admin")
+  const [t, locale] = await Promise.all([getTranslations("Admin"), getLocale()])
   const params = await searchParams
   const recherche = (params.q ?? "").trim()
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1)
@@ -135,8 +136,13 @@ export default async function AdminPage({
   const etiquettes = Object.fromEntries(
     ["newFirm","firmName","license","consultant","email","emailHint","plan","trialDays",
      "cancel","create","saving","apply","suspend","activate",
-     "linkOnce","copy","copied",
-     "planPaid","grantSuspended","grantPaid","grantReopens"].map(k => [k, t(k)])
+     "linkOnce","linkBackup","copy","copied",
+     "planPaid","grantSuspended","grantPaid","grantReopens",
+     "groupGranted","groupPaid","groupToConfigure","toConfigure","toConfigureNote",
+     "catalogueUnavailable","cadence","cadenceMonthly","cadenceAnnual","perMonth","perYear",
+     "seatsIncluded","maxSeats","unlimited","extraSeat","aiConnector","included","notIncluded",
+     "modeTrial","modeCourtesy","modeLink","createAndSend",
+     "sendLinkTitle","sendLink","sendLinkHint","emailLanguage","langFr","langEn","tooSmall"].map(k => [k, t(k)])
   )
   const etiquettesDemandes = Object.fromEntries(
     ["requestsHeading","requestsEmpty","openAccess","dismiss","done"].map(k => [k, t(k)])
@@ -252,6 +258,8 @@ export default async function AdminPage({
           requests={demandes}
           labels={{ ...etiquettesDemandes, empty: etiquettesDemandes.requestsEmpty }}
           firmLabels={etiquettes}
+          forfaits={catalogue}
+          langue={locale}
         />
       </section>
 
@@ -300,7 +308,7 @@ export default async function AdminPage({
             >
               <Users aria-hidden className="h-3.5 w-3.5" /> Utilisateurs
             </Link>
-            <CreerCabinet labels={etiquettes} />
+            <CreerCabinet labels={etiquettes} forfaits={catalogue} langue={locale} />
           </div>
         </div>
 
@@ -389,6 +397,20 @@ export default async function AdminPage({
                             {t("trialUntil")} {f.trialEndsAt}
                           </div>
                         )}
+                        <EtatAbonnement
+                          etat={etatCommercial({
+                            statutCabinet: f.status,
+                            plan: f.plan,
+                            finEssai: f.trialEndsAt,
+                            statutAbonnement: f.subscription?.status ?? "",
+                            abonnementStripe: Boolean(f.subscription?.stripeSubscriptionId),
+                            resiliationDemandee: Boolean(f.subscription?.cancelAtPeriodEnd),
+                          })}
+                          abonnement={f.subscription}
+                          catalogue={catalogue}
+                          langue={locale}
+                          t={t}
+                        />
                       </td>
                       <td className="px-4 py-4 text-xs text-muted-foreground">
                         <div>{f.ownerName}</div>
@@ -415,6 +437,17 @@ export default async function AdminPage({
                             statutAbonnement: f.subscription?.status ?? "",
                             graceJusqua: f.subscription?.graceUntil ?? "",
                           })}
+                          forfaits={catalogue}
+                          // Même règle que l'action de serveur, qui revérifie :
+                          // ni suspension, ni courtoisie (que le paiement ne
+                          // remplacerait pas), ni abonnement Stripe vivant.
+                          peutProposer={
+                            f.status === "active" &&
+                            f.plan !== "courtoisie" &&
+                            !(f.subscription && abonnementVivant(f.subscription.status))
+                          }
+                          places={f.members.filter((m) => m.statut === "active").length}
+                          langue={locale}
                           labels={etiquettes}
                         />
                       </td>

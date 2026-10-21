@@ -1,6 +1,16 @@
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
-import { abonnementCouvre, effetOctroi, raisonAccesFerme, tarifPublic, type Plan } from "../plans"
+import {
+  abonnementCouvre,
+  abonnementVivant,
+  effetOctroi,
+  etatCommercial,
+  modeOuverture,
+  peutReglerAbonnementFerme,
+  raisonAccesFerme,
+  tarifPublic,
+  type Plan,
+} from "../plans"
 
 /**
  * La règle qui dit ce que produira l'octroi d'un plan depuis la console.
@@ -156,6 +166,188 @@ describe("raisonAccesFerme", () => {
 
   test("un forfait payant sans aucun abonnement se lit comme terminé", () => {
     assert.equal(raisonAccesFerme(base), "abonnement-termine")
+  })
+
+  test("un nouveau client à qui l'on a proposé un forfait n'a rien « terminé » : il doit souscrire", () => {
+    assert.equal(
+      raisonAccesFerme({ ...base, plan: "cabinet", statutAbonnement: "incomplete" }),
+      "souscription-attendue"
+    )
+  })
+
+  test("une offre en attente ne referme pas un essai qui court encore", () => {
+    assert.equal(
+      raisonAccesFerme({ ...base, plan: "trial", finEssai: jour(5), statutAbonnement: "incomplete" }),
+      "ouvert"
+    )
+  })
+})
+
+const forfaitDe = (surcharge: Partial<Plan> = {}): Plan => ({
+  key: "cabinet", labelFr: "Cabinet Pro", labelEn: "Firm Pro", taglineFr: "", taglineEn: "",
+  rank: 30, purchasable: true, monthly: 7900, annual: 79000, extraSeatMonthly: 2500,
+  extraSeatAnnual: 25000, seatsIncluded: 3, maxSeats: null, aiConnector: true,
+  ...surcharge,
+})
+
+/**
+ * Comment la console peut ouvrir un cabinet sur un forfait donné.
+ *
+ * La règle protège deux promesses à la fois : un forfait payant ne s'accorde
+ * jamais d'un clic, et un forfait dont le prix n'est pas arrêté ne part jamais
+ * dans un lien de souscription.
+ */
+describe("modeOuverture", () => {
+  test("l'essai et la courtoisie s'accordent, quoi que dise le catalogue", () => {
+    assert.equal(modeOuverture(forfaitDe({ key: "trial", purchasable: false, monthly: null, annual: null })), "accorde")
+    assert.equal(modeOuverture(forfaitDe({ key: "courtoisie", purchasable: true })), "accorde")
+  })
+
+  test("un forfait souscriptible et chiffré se propose par lien", () => {
+    assert.equal(modeOuverture(forfaitDe()), "lien")
+    assert.equal(modeOuverture(forfaitDe({ key: "solo", monthly: 4900, annual: 49000 })), "lien")
+  })
+
+  test("un forfait négocié, sans souscription en ligne, est à configurer", () => {
+    assert.equal(
+      modeOuverture(forfaitDe({ key: "enterprise", purchasable: false, monthly: null, annual: null })),
+      "a-configurer"
+    )
+  })
+
+  test("un prix manquant ou nul suffit à retirer le lien", () => {
+    assert.equal(modeOuverture(forfaitDe({ monthly: null })), "a-configurer")
+    assert.equal(modeOuverture(forfaitDe({ annual: 0 })), "a-configurer")
+  })
+})
+
+/**
+ * Le statut commercial affiché par la console.
+ *
+ * Il se DÉDUIT de ce que Stripe a écrit et de ce que l'exploitant a décidé ;
+ * il n'est stocké nulle part. Une colonne « statut » de plus serait une
+ * troisième vérité à tenir d'accord avec les deux autres.
+ */
+describe("etatCommercial", () => {
+  const jour = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10)
+  const base = {
+    statutCabinet: "active",
+    plan: "cabinet",
+    finEssai: "",
+    statutAbonnement: "",
+    abonnementStripe: false,
+    resiliationDemandee: false,
+  }
+
+  test("la suspension prime, même sur un abonnement à jour", () => {
+    assert.equal(
+      etatCommercial({ ...base, statutCabinet: "suspended", statutAbonnement: "active", abonnementStripe: true }),
+      "suspendu"
+    )
+  })
+
+  test("la courtoisie se lit comme telle", () => {
+    assert.equal(etatCommercial({ ...base, plan: "courtoisie" }), "courtoisie")
+  })
+
+  test("actif seulement quand Stripe le dit, et la résiliation prévue se voit", () => {
+    const actif = { ...base, statutAbonnement: "active", abonnementStripe: true }
+    assert.equal(etatCommercial(actif), "actif")
+    assert.equal(etatCommercial({ ...actif, resiliationDemandee: true }), "resiliation-prevue")
+  })
+
+  test("un paiement refusé se signale, délai de grâce ou non", () => {
+    assert.equal(
+      etatCommercial({ ...base, statutAbonnement: "past_due", abonnementStripe: true }),
+      "paiement-echoue"
+    )
+    assert.equal(etatCommercial({ ...base, statutAbonnement: "unpaid", abonnementStripe: true }), "paiement-echoue")
+  })
+
+  test("l'essai court ou est échu, offre en attente ou non", () => {
+    assert.equal(etatCommercial({ ...base, plan: "trial", finEssai: jour(10) }), "essai")
+    assert.equal(etatCommercial({ ...base, plan: "trial", finEssai: jour(-1) }), "essai-echu")
+    assert.equal(
+      etatCommercial({ ...base, plan: "trial", finEssai: jour(10), statutAbonnement: "incomplete" }),
+      "essai"
+    )
+  })
+
+  test("une offre jamais réglée attend la souscription ; un paiement entamé chez Stripe attend le paiement", () => {
+    assert.equal(etatCommercial({ ...base, statutAbonnement: "incomplete" }), "attente-souscription")
+    assert.equal(
+      etatCommercial({ ...base, statutAbonnement: "incomplete", abonnementStripe: true }),
+      "attente-paiement"
+    )
+  })
+
+  test("un abonnement que Stripe n'a pas confirmé n'est jamais présenté comme actif", () => {
+    for (const statut of ["incomplete", "incomplete_expired", "canceled", "paused", ""]) {
+      assert.notEqual(etatCommercial({ ...base, statutAbonnement: statut, abonnementStripe: true }), "actif", statut)
+    }
+  })
+
+  test("résilié, expiré ou en pause", () => {
+    assert.equal(etatCommercial({ ...base, statutAbonnement: "canceled", abonnementStripe: true }), "annule")
+    assert.equal(etatCommercial({ ...base, statutAbonnement: "incomplete_expired", abonnementStripe: true }), "annule")
+    assert.equal(etatCommercial({ ...base, statutAbonnement: "paused", abonnementStripe: true }), "en-pause")
+  })
+
+  test("un forfait payant sans aucune ligne d'abonnement", () => {
+    assert.equal(etatCommercial(base), "sans-abonnement")
+  })
+})
+
+/**
+ * Quand une offre peut-elle prendre la place d'un abonnement Stripe ?
+ *
+ * Seulement quand il est terminé. Écrire une offre sur un abonnement vivant
+ * fermerait l'accès d'un cabinet qui paie : la ligne repasserait en
+ * « incomplete », que firm_access_open() ignore.
+ */
+/**
+ * Qui peut payer quand l'accès est fermé ?
+ *
+ * member_can('firm.billing') ne reconnaît le propriétaire que d'un cabinet
+ * OUVERT : l'écran de paiement greffé sur l'écran de refus menait donc à un
+ * refus de permission — essai échu, impayé, nouveau client. Cette règle
+ * prend le relais, et seulement quand l'accès est fermé.
+ */
+describe("peutReglerAbonnementFerme", () => {
+  const base = { role: "owner", statutMembre: "active", statutCabinet: "active" }
+
+  test("le propriétaire actif d'un cabinet non suspendu peut payer", () => {
+    assert.equal(peutReglerAbonnementFerme(base), true)
+  })
+
+  test("un autre rôle ne le peut pas, la permission étant réservée au propriétaire", () => {
+    for (const role of ["rcic", "risia", "staff", "bookkeeper", "readonly"]) {
+      assert.equal(peutReglerAbonnementFerme({ ...base, role }), false, role)
+    }
+  })
+
+  test("un propriétaire suspendu ou révoqué ne le peut pas", () => {
+    assert.equal(peutReglerAbonnementFerme({ ...base, statutMembre: "suspended" }), false)
+    assert.equal(peutReglerAbonnementFerme({ ...base, statutMembre: "revoked" }), false)
+  })
+
+  test("un cabinet suspendu par l'exploitant ne paie pas : le paiement ne le rouvrirait pas", () => {
+    assert.equal(peutReglerAbonnementFerme({ ...base, statutCabinet: "suspended" }), false)
+    assert.equal(peutReglerAbonnementFerme({ ...base, statutCabinet: "" }), false)
+  })
+})
+
+describe("abonnementVivant", () => {
+  test("ce qui court encore, impayé compris, appartient au cabinet et au webhook", () => {
+    for (const statut of ["active", "trialing", "past_due", "unpaid", "paused"]) {
+      assert.equal(abonnementVivant(statut), true, statut)
+    }
+  })
+
+  test("un abonnement terminé, ou une simple offre, peut céder la place", () => {
+    for (const statut of ["canceled", "incomplete_expired", "incomplete", ""]) {
+      assert.equal(abonnementVivant(statut), false, statut)
+    }
   })
 })
 

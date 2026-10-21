@@ -121,6 +121,89 @@ Ce lien ne sert qu'une fois et expire dans ${jours} jours.`,
 }
 
 /**
+ * Lien d'abonnement : le forfait proposé par l'exploitant, et le chemin pour
+ * le régler.
+ *
+ * `nouveauCompte` départage deux situations : le consultant n'a pas encore de
+ * compte (le lien est une invitation, il choisit d'abord son mot de passe), ou
+ * il en a un (le lien mène à la page d'abonnement, derrière la connexion).
+ * Promettre un mot de passe à quelqu'un qui en a déjà un lui ferait croire à
+ * une réinitialisation.
+ *
+ * Le prix arrive déjà formaté par l'appelant : c'est le montant du catalogue,
+ * celui que Stripe facturera. Ce gabarit ne fait que le recopier.
+ */
+export function courrielOffreAbonnement(opts: {
+  langue: Langue
+  cabinet: string
+  forfait: string
+  prix: string
+  cadence: "monthly" | "annual"
+  lien: string
+  nouveauCompte: boolean
+  jours: number
+  reponsePossible: boolean
+}): CourrielCompose {
+  const { langue, prix, cadence, lien, nouveauCompte, jours, reponsePossible } = opts
+  const cabinet = echapper(opts.cabinet)
+  const forfait = echapper(opts.forfait)
+
+  if (langue === "en") {
+    const periode = cadence === "annual" ? "per year" : "per month"
+    const etapes = nouveauCompte
+      ? "Choose your password, then confirm your subscription. Access opens as soon as the payment is confirmed."
+      : "Sign in, then confirm your subscription. Access opens as soon as the payment is confirmed."
+    const expiration = nouveauCompte
+      ? `This link works once and expires in ${jours} days.${reponsePossible ? " If it has expired, reply to this message and we will send a new one." : ""}`
+      : "Payment is handled by Stripe; your card details never reach us."
+    return {
+      sujet: `Activate your firm on moncabinetcric — ${opts.cabinet}`,
+      html: coquille(
+        "Your subscription is ready",
+        `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">The <strong>${forfait}</strong> plan has been prepared for <strong>${cabinet}</strong>: <strong>${prix}</strong> ${periode}, taxes extra.</p>
+         <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">${etapes}</p>
+         ${bouton(lien, nouveauCompte ? "Activate my firm" : "Confirm my subscription")}
+         <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">${expiration}</p>`,
+        "You are receiving this message because a subscription was prepared for your firm. If you were not expecting it, ignore it — nothing is charged without you."
+      ),
+      texte: `The ${opts.forfait} plan has been prepared for ${opts.cabinet}: ${prix} ${periode}, taxes extra.
+
+${etapes}
+
+${lien}
+
+${expiration}`,
+    }
+  }
+
+  const periode = cadence === "annual" ? "par année" : "par mois"
+  const etapes = nouveauCompte
+    ? "Choisissez votre mot de passe, puis confirmez votre abonnement. L'accès s'ouvre dès que le paiement est confirmé."
+    : "Connectez-vous, puis confirmez votre abonnement. L'accès s'ouvre dès que le paiement est confirmé."
+  const expiration = nouveauCompte
+    ? `Ce lien ne sert qu'une fois et expire dans ${jours} jours.${reponsePossible ? " S'il est périmé, répondez à ce message et nous vous en enverrons un autre." : ""}`
+    : "Le paiement est traité par Stripe ; vos coordonnées bancaires ne nous parviennent jamais."
+  return {
+    sujet: `Activez votre cabinet sur moncabinetcric — ${opts.cabinet}`,
+    html: coquille(
+      "Votre abonnement est prêt",
+      `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">Le forfait <strong>${forfait}</strong> a été préparé pour <strong>${cabinet}</strong> : <strong>${prix}</strong> ${periode}, taxes en sus.</p>
+       <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">${etapes}</p>
+       ${bouton(lien, nouveauCompte ? "Activer mon cabinet" : "Confirmer mon abonnement")}
+       <p style="margin:0;font-size:13px;line-height:1.6;color:#64748b;">${expiration}</p>`,
+      "Vous recevez ce message parce qu'un abonnement a été préparé pour votre cabinet. Si vous ne l'attendiez pas, ignorez-le : rien n'est facturé sans vous."
+    ),
+    texte: `Le forfait ${opts.forfait} a été préparé pour ${opts.cabinet} : ${prix} ${periode}, taxes en sus.
+
+${etapes}
+
+${lien}
+
+${expiration}`,
+  }
+}
+
+/**
  * Accusé de réception d'une demande de démonstration.
  *
  * Le nom est échappé dans le HTML mais laissé nu dans la version texte, où il
